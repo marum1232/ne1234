@@ -215,6 +215,7 @@ const depositSchema = z.object({
 
 
 const idParamSchema = z.object({ id: z.string().min(1, "ID is required") });
+const otpVerifySchema = z.object({ otp: z.string().min(1, "OTP is required").max(10, "OTP is too long") });
 
 const locationSchema = z.object({
   latitude: z.number().min(-90).max(90),
@@ -1295,38 +1296,12 @@ router.post("/rides/:id/accept", rideAcceptLimiter, async (req, res) => {
     sendForbidden(res, "Your account is pending re-verification. You cannot accept rides until an admin approves your profile."); return;
   }
 
-  // Check max simultaneous deliveries limit
   const s = await getCachedSettings();
   const maxDeliveries = parseInt(s["rider_max_deliveries"] ?? "3");
-  const [activeOrders, activeRides] = await Promise.all([
-    db.select({ c: count() }).from(ordersTable).where(and(eq(ordersTable.riderId, riderId), or(eq(ordersTable.status, "out_for_delivery"), eq(ordersTable.status, "picked_up")))),
-    db.select({ c: count() }).from(ridesTable).where(and(eq(ridesTable.riderId, riderId), or(eq(ridesTable.status, "accepted"), eq(ridesTable.status, "arrived"), eq(ridesTable.status, "in_transit")))),
-  ]);
-  const activeCount = (activeOrders[0]?.c ?? 0) + (activeRides[0]?.c ?? 0);
-  if (activeCount >= maxDeliveries) {
-    sendError(res, `Maximum ${maxDeliveries} active deliveries allowed. Complete a current delivery first.`, 429); return;
-  }
 
-  /* Check if this is a bargaining ride — load it first */
+  /* Check if this is a bargaining ride — load it first (non-destructive pre-flight read) */
   const [targetRide] = await db.select().from(ridesTable).where(eq(ridesTable.id, rideId)).limit(1);
   if (!targetRide) { sendNotFound(res, "Ride not found"); return; }
-
-  /* ── Minimum wallet balance gate for cash rides ── */
-  if (targetRide.paymentMethod === "cash") {
-    const minBalance = parseFloat(s["rider_min_balance"] ?? "0");
-    if (minBalance > 0) {
-      const [riderRow] = await db.select({ walletBalance: usersTable.walletBalance })
-        .from(usersTable).where(eq(usersTable.id, riderId)).limit(1);
-      const currentBal = safeNum(riderRow?.walletBalance);
-      if (currentBal < minBalance) {
-        sendErrorWithData(res, `Minimum wallet balance required for cash rides is Rs. ${minBalance}. Your balance: Rs. ${currentBal.toFixed(0)}. Please top up your wallet first.`, {
-          code: "BELOW_MIN_BALANCE",
-          required: minBalance,
-          current: currentBal,
-        }, 403); return;
-      }
-    }
-  }
 
   /* For bargaining rides, rider accepts the customer's offered fare */
   const isBargaining = targetRide.status === "bargaining";
@@ -1348,14 +1323,52 @@ router.post("/rides/:id/accept", rideAcceptLimiter, async (req, res) => {
   }
 
   /* Atomic accept: only succeeds if riderId is still NULL in the DB.
-     Wallet deduction happens inside the same transaction so it's all-or-nothing:
-     the losing rider gets a 409 with their money completely untouched. */
+     All eligibility checks (active count, min balance) run INSIDE the transaction
+     after locking the rider row — eliminating the TOCTOU window that existed when
+     these checks ran outside the transaction (two concurrent requests from the same
+     rider could both pass the count check before either commit wrote back to the DB).
+     Wallet deduction is also all-or-nothing: the losing rider's money stays untouched. */
   const acceptedAt = new Date();
   const fareAmt    = safeNum(agreedFare);
 
+  let toctouError: { status: number; message: string; data?: Record<string, unknown> } | undefined;
   let updated: typeof ridesTable.$inferSelect | undefined;
   try {
     updated = await db.transaction(async (tx) => {
+      /* Lock the rider row first to serialize concurrent accept attempts from the same rider.
+         This prevents two parallel requests from both passing the activeCount check before
+         either commit can update the count in the DB — matching the order accept pattern. */
+      await tx.execute(sql`SELECT id FROM users WHERE id = ${riderId} FOR UPDATE`);
+
+      /* ── Max simultaneous deliveries gate (inside lock so count is authoritative) ── */
+      const [activeOrders, activeRides] = await Promise.all([
+        tx.select({ c: count() }).from(ordersTable).where(and(eq(ordersTable.riderId, riderId), or(eq(ordersTable.status, "out_for_delivery"), eq(ordersTable.status, "picked_up")))),
+        tx.select({ c: count() }).from(ridesTable).where(and(eq(ridesTable.riderId, riderId), or(eq(ridesTable.status, "accepted"), eq(ridesTable.status, "arrived"), eq(ridesTable.status, "in_transit")))),
+      ]);
+      const activeCount = (activeOrders[0]?.c ?? 0) + (activeRides[0]?.c ?? 0);
+      if (activeCount >= maxDeliveries) {
+        toctouError = { status: 429, message: `Maximum ${maxDeliveries} active deliveries allowed. Complete a current delivery first.` };
+        return undefined;
+      }
+
+      /* ── Minimum wallet balance gate for cash rides (inside lock so balance is authoritative) ── */
+      if (targetRide.paymentMethod === "cash") {
+        const minBalance = parseFloat(s["rider_min_balance"] ?? "0");
+        if (minBalance > 0) {
+          const [riderRow] = await tx.select({ walletBalance: usersTable.walletBalance })
+            .from(usersTable).where(eq(usersTable.id, riderId)).limit(1);
+          const currentBal = safeNum(riderRow?.walletBalance);
+          if (currentBal < minBalance) {
+            toctouError = {
+              status: 403,
+              message: `Minimum wallet balance required for cash rides is Rs. ${minBalance}. Your balance: Rs. ${currentBal.toFixed(0)}. Please top up your wallet first.`,
+              data: { code: "BELOW_MIN_BALANCE", required: minBalance, current: currentBal },
+            };
+            return undefined;
+          }
+        }
+      }
+
       const [accepted] = await tx
         .update(ridesTable)
         .set({
@@ -1406,6 +1419,13 @@ router.post("/rides/:id/accept", rideAcceptLimiter, async (req, res) => {
     sendError(res, "Failed to accept ride. Please try again.", 500); return;
   }
 
+  if (toctouError) {
+    if (toctouError.data) {
+      sendErrorWithData(res, toctouError.message, toctouError.data, toctouError.status); return;
+    }
+    sendError(res, toctouError.message, toctouError.status); return;
+  }
+
   if (!updated) {
     sendError(res, "Ride already taken by another rider", 409); return;
   }
@@ -1441,11 +1461,9 @@ router.post("/rides/:id/verify-otp", otpLimiter, async (req, res) => {
   try {
   const riderId = req.riderId!;
   const rideId  = req.params["id"]!;
-  const { otp } = req.body ?? {};
-
-  if (!otp || typeof otp !== "string") {
-    sendValidationError(res, "OTP is required"); return;
-  }
+  const parsed = otpVerifySchema.safeParse(req.body ?? {});
+  if (!parsed.success) { sendValidationError(res, parsed.error.issues[0]?.message || "OTP is required"); return; }
+  const { otp } = parsed.data;
 
   const [ride] = await db.select().from(ridesTable)
     .where(and(eq(ridesTable.id, rideId), eq(ridesTable.riderId, riderId)))
@@ -2893,8 +2911,15 @@ router.post("/location/batch", async (req, res) => {
     /* Skip pings after a hard block is triggered */
     if (batchHardBlocked) { skipped++; continue; }
 
+    /* Deterministic row ID: (riderId, ms timestamp, batch-sequence index).
+       Including `bulkRows.length` as a sequence disambiguates two pings that
+       share the same millisecond timestamp (e.g. rapid client polling or
+       clock drift), while still being stable across retries: the client sends
+       the identical sorted array so the same index is assigned to the same
+       ping every time. onConflictDoNothing then silently skips duplicates. */
+    const deterministicId = `loc:${riderId}:${tsMs}:${bulkRows.length}`;
     bulkRows.push({
-      id: generateId(),
+      id: deterministicId,
       userId: riderId,
       role: "rider" as const,
       latitude: loc.latitude.toString(),
@@ -2916,11 +2941,17 @@ router.post("/location/batch", async (req, res) => {
     for (let i = 0; i < bulkRows.length; i += CHUNK_SIZE) {
       const chunk = bulkRows.slice(i, i + CHUNK_SIZE);
       try {
-        await db.insert(locationLogsTable).values(chunk);
-        inserted += chunk.length;
+        /* onConflictDoNothing: idempotent on retry — duplicate pings (same
+           deterministic ID) are silently ignored rather than failing the batch. */
+        const result = await db.insert(locationLogsTable).values(chunk).onConflictDoNothing().returning({ id: locationLogsTable.id });
+        inserted += result.length;
+        skipped  += chunk.length - result.length;
       } catch {
         for (const row of chunk) {
-          try { await db.insert(locationLogsTable).values(row); inserted++; } catch { skipped++; }
+          try {
+            const r = await db.insert(locationLogsTable).values(row).onConflictDoNothing().returning({ id: locationLogsTable.id });
+            if (r.length > 0) inserted++; else skipped++;
+          } catch { skipped++; }
         }
       }
     }

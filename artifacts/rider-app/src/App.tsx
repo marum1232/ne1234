@@ -10,7 +10,7 @@ import { useLanguage, LanguageProvider } from "./lib/useLanguage";
 import { tDual, type TranslationKey } from "@workspace/i18n";
 import { SocketProvider } from "./lib/socket";
 import { registerDrainHandler, setGpsQueueMax, setDismissedRequestTtlSec, type QueuedPing } from "./lib/gpsQueue";
-import { registerActionExecutor, syncQueue, type QueuedAction } from "./lib/offline/queueManager";
+import { registerActionExecutor, syncQueue, type QueuedAction, PermanentQueueError } from "./lib/offline/queueManager";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { registerPush, consumePendingNotificationTap } from "./lib/push";
 import { Capacitor } from "@capacitor/core";
@@ -102,36 +102,66 @@ function AppRoutes() {
          actions. The action UUID is stable across retries and survives tab close
          via IndexedDB persistence. */
       const idemHdr = { "X-Idempotency-Key": action.id };
+
+      /* Wrap apiFetch to classify errors before re-throwing:
+         - HTTP 4xx (except 429 rate-limit): permanent — remove from queue now.
+           The server explicitly rejected the request; retrying will not help.
+         - HTTP 429 / network errors / 5xx: transient — leave in queue for the
+           next sync cycle (when connectivity or server capacity is restored).
+         - 409 Conflict: also permanent — the ride/order was already accepted
+           by another rider; no point retrying this action. */
+      async function run(fn: () => Promise<unknown>): Promise<void> {
+        try {
+          await fn();
+        } catch (err: unknown) {
+          const status = (err as { status?: number })?.status;
+          if (
+            typeof status === "number" &&
+            status >= 400 && status < 500 &&
+            status !== 429
+          ) {
+            /* HTTP 4xx (not 429): permanent rejection. Move to dead-letter. */
+            throw new PermanentQueueError(
+              `Server rejected action '${action.type}' (HTTP ${status}) — will not retry`,
+              status,
+            );
+          }
+          /* Transient (network error, 5xx, 429): re-throw so the queue bumps
+             the retry counter and halts the drain until the next sync. */
+          throw err;
+        }
+      }
+
       switch (action.type) {
         case "accept_order":
-          await apiFetch(`/rider/orders/${action.entityId}/accept`, { method: "POST", body: "{}", headers: idemHdr });
+          await run(() => apiFetch(`/rider/orders/${action.entityId}/accept`, { method: "POST", body: "{}", headers: idemHdr }));
           break;
         case "accept_ride":
-          await apiFetch(`/rider/rides/${action.entityId}/accept`, { method: "POST", body: "{}", headers: idemHdr });
+          await run(() => apiFetch(`/rider/rides/${action.entityId}/accept`, { method: "POST", body: "{}", headers: idemHdr }));
           break;
         case "update_order": {
           const { status, proofPhoto } = action.payload as { status: string; proofPhoto?: string };
-          await apiFetch(`/rider/orders/${action.entityId}/status`, { method: "PATCH", body: JSON.stringify({ status, ...(proofPhoto ? { proofPhoto } : {}) }), headers: idemHdr });
+          await run(() => apiFetch(`/rider/orders/${action.entityId}/status`, { method: "PATCH", body: JSON.stringify({ status, ...(proofPhoto ? { proofPhoto } : {}) }), headers: idemHdr }));
           break;
         }
         case "update_ride": {
           const { status, lat, lng } = action.payload as { status: string; lat?: number; lng?: number };
           const loc = lat !== undefined && lng !== undefined ? { lat, lng } : {};
-          await apiFetch(`/rider/rides/${action.entityId}/status`, { method: "PATCH", body: JSON.stringify({ status, ...loc }), headers: idemHdr });
+          await run(() => apiFetch(`/rider/rides/${action.entityId}/status`, { method: "PATCH", body: JSON.stringify({ status, ...loc }), headers: idemHdr }));
           break;
         }
         case "complete_trip": {
           /* complete_trip is enqueued by VanDriver when a van trip completion
              fails offline. entityId = scheduleId, payload.date = trip date. */
           const { date } = action.payload as { date: string };
-          await apiFetch(`/van/driver/schedules/${action.entityId}/date/${date}/complete`, { method: "PATCH", body: "{}", headers: idemHdr });
+          await run(() => apiFetch(`/van/driver/schedules/${action.entityId}/date/${date}/complete`, { method: "PATCH", body: "{}", headers: idemHdr }));
           break;
         }
         case "board_passenger": {
           /* board_passenger is enqueued by VanDriver when a boarding PATCH
              fails offline. entityId = bookingId, payload.boardedAt = ISO timestamp. */
           const { boardedAt } = action.payload as { boardedAt: string };
-          await apiFetch(`/van/driver/bookings/${action.entityId}/board`, { method: "PATCH", body: JSON.stringify({ boarded: true, boardedAt }), headers: idemHdr });
+          await run(() => apiFetch(`/van/driver/bookings/${action.entityId}/board`, { method: "PATCH", body: JSON.stringify({ boarded: true, boardedAt }), headers: idemHdr }));
           break;
         }
 
@@ -498,20 +528,20 @@ function AppRoutes() {
       <div className="flex-1" style={{ paddingBottom: "calc(64px + max(8px, env(safe-area-inset-bottom, 8px)))" }}>
         <Suspense fallback={<PageFallback />}>
           <Switch>
-            <Route path="/" component={Home} />
-            <Route path="/active" component={Active} />
-            {modules.history && <Route path="/history" component={History} />}
-            {modules.earnings && <Route path="/earnings" component={Earnings} />}
-            {modules.wallet && <Route path="/wallet" component={Wallet} />}
-            <Route path="/notifications" component={Notifications} />
-            <Route path="/profile" component={Profile} />
-            <Route path="/settings/security" component={SecuritySettings} />
-            <Route path="/security" component={SecuritySettings} />
-            <Route path="/van" component={VanDriver} />
-            <Route path="/van-driver" component={VanDriver} />
-            <Route path="/chat" component={Chat} />
-            <Route path="/chat/:id" component={Chat} />
-            <Route path="/reviews" component={Reviews} />
+            <Route path="/">{() => <ErrorBoundary><Home /></ErrorBoundary>}</Route>
+            <Route path="/active">{() => <ErrorBoundary><Active /></ErrorBoundary>}</Route>
+            {modules.history && <Route path="/history">{() => <ErrorBoundary><History /></ErrorBoundary>}</Route>}
+            {modules.earnings && <Route path="/earnings">{() => <ErrorBoundary><Earnings /></ErrorBoundary>}</Route>}
+            {modules.wallet && <Route path="/wallet">{() => <ErrorBoundary><Wallet /></ErrorBoundary>}</Route>}
+            <Route path="/notifications">{() => <ErrorBoundary><Notifications /></ErrorBoundary>}</Route>
+            <Route path="/profile">{() => <ErrorBoundary><Profile /></ErrorBoundary>}</Route>
+            <Route path="/settings/security">{() => <ErrorBoundary><SecuritySettings /></ErrorBoundary>}</Route>
+            <Route path="/security">{() => <ErrorBoundary><SecuritySettings /></ErrorBoundary>}</Route>
+            <Route path="/van">{() => <ErrorBoundary><VanDriver /></ErrorBoundary>}</Route>
+            <Route path="/van-driver">{() => <ErrorBoundary><VanDriver /></ErrorBoundary>}</Route>
+            <Route path="/chat">{() => <ErrorBoundary><Chat /></ErrorBoundary>}</Route>
+            <Route path="/chat/:id">{() => <ErrorBoundary><Chat /></ErrorBoundary>}</Route>
+            <Route path="/reviews">{() => <ErrorBoundary><Reviews /></ErrorBoundary>}</Route>
             <Route component={NotFound} />
           </Switch>
         </Suspense>

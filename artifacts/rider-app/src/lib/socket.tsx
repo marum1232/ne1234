@@ -5,6 +5,8 @@ import { api, getApiBase, registerTokenRefreshCallback } from "./api";
 import { useAuth } from "./auth";
 import { getRiderSocketOrigin } from "./envValidation";
 import { syncQueue } from "./offline/queueManager";
+import { createLogger } from "@/lib/logger";
+const log = createLogger("[socket]");
 
 type SocketContextType = {
   socket: Socket | null;
@@ -76,11 +78,18 @@ export function SocketProvider({ children }: { children: ReactNode }) {
     setSocket(s);
 
     s.on("connect", () => {
+      log.info({ socketId: s.id }, "Socket connected — draining offline action queue");
       setConnected(true);
-      syncQueue().catch(() => {});
+      syncQueue().catch((err) => log.warn({ err }, "syncQueue failed after socket connect"));
     });
-    s.on("disconnect", () => setConnected(false));
-    s.on("connect_error", () => setConnected(false));
+    s.on("disconnect", (reason) => {
+      log.warn({ reason }, "Socket disconnected");
+      setConnected(false);
+    });
+    s.on("connect_error", (err) => {
+      log.warn({ message: err.message }, "Socket connection error");
+      setConnected(false);
+    });
 
     /* S1 / T4: On token refresh, reconnect the socket so the new auth token
        is sent on the next handshake. socket.io's typings model `auth` as

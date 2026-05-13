@@ -20,7 +20,9 @@ export interface QueuedAction {
 
 const DB_NAME = "ajkmart_action_queue";
 const STORE = "actions";
-const DB_VER = 1;
+/* DB version 2 adds the dead_letter object store.
+   Version bump triggers onupgradeneeded where we create it if absent. */
+const DB_VER = 2;
 
 let _dbPromise: Promise<IDBDatabase> | null = null;
 
@@ -28,10 +30,15 @@ function openDB(): Promise<IDBDatabase> {
   if (_dbPromise) return _dbPromise;
   _dbPromise = new Promise<IDBDatabase>((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VER);
-    req.onupgradeneeded = () => {
+    req.onupgradeneeded = (event) => {
       const db = req.result;
+      /* v1: main action queue */
       if (!db.objectStoreNames.contains(STORE)) {
         db.createObjectStore(STORE, { keyPath: "id" });
+      }
+      /* v2: dead-letter store for permanently-failed actions */
+      if (event.oldVersion < 2 && !db.objectStoreNames.contains(DL_STORE)) {
+        db.createObjectStore(DL_STORE, { keyPath: "id" });
       }
     };
     req.onsuccess = () => {
@@ -116,11 +123,104 @@ async function bumpRetryCount(action: QueuedAction): Promise<void> {
   } catch {}
 }
 
+/* ── PermanentQueueError ───────────────────────────────────────────────────────
+   Throw this (or a subclass) from the executor to signal that an action has
+   failed permanently and must be removed from the queue immediately — no more
+   retries.  Use it for HTTP 4xx responses (except 429 rate-limit): the server
+   has told us the request is invalid or forbidden and retrying will never help.
+
+   For transient failures (network unreachable, 5xx, 429) simply throw any
+   other error; the queue will bump the retry counter and stop the drain so the
+   action is replayed on the next sync cycle.
+
+   The `reason` field is stored in IndexedDB under the dead-letter entry so the
+   UI can surface a human-readable failure message to the rider. */
+export class PermanentQueueError extends Error {
+  readonly permanent = true as const;
+  constructor(
+    public readonly reason: string,
+    public readonly httpStatus?: number,
+  ) {
+    super(reason);
+    this.name = "PermanentQueueError";
+  }
+}
+
+/* ── Dead-letter store ─────────────────────────────────────────────────────────
+   Actions removed due to a permanent failure are moved to a dead-letter list
+   in IndexedDB so they are visible to the rider (and for diagnostics) rather
+   than silently evaporating. The UI reads this via useDeadLetterQueue(). */
+export interface DeadLetterEntry {
+  id: string;
+  action: QueuedAction;
+  reason: string;
+  httpStatus?: number;
+  failedAt: number;
+}
+
+const DL_STORE = "dead_letter";
+
+async function pushDeadLetter(action: QueuedAction, err: PermanentQueueError): Promise<void> {
+  try {
+    const db = await openDB();
+    /* Ensure the dead-letter store exists — it was added in DB version 2. If
+       the store hasn't been created yet (old DB version) we skip silently. */
+    if (!db.objectStoreNames.contains(DL_STORE)) return;
+    const entry: DeadLetterEntry = {
+      id: action.id,
+      action,
+      reason: err.reason,
+      httpStatus: err.httpStatus,
+      failedAt: Date.now(),
+    };
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(DL_STORE, "readwrite");
+      tx.objectStore(DL_STORE).put(entry);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch { /* best-effort */ }
+}
+
+export async function getDeadLetterQueue(): Promise<DeadLetterEntry[]> {
+  try {
+    const db = await openDB();
+    if (!db.objectStoreNames.contains(DL_STORE)) return [];
+    return await new Promise<DeadLetterEntry[]>((resolve, reject) => {
+      const tx = db.transaction(DL_STORE, "readonly");
+      const req = tx.objectStore(DL_STORE).getAll();
+      req.onsuccess = () => resolve((req.result ?? []) as DeadLetterEntry[]);
+      req.onerror = () => reject(req.error);
+    });
+  } catch { return []; }
+}
+
+export async function clearDeadLetterEntry(id: string): Promise<void> {
+  try {
+    const db = await openDB();
+    if (!db.objectStoreNames.contains(DL_STORE)) return;
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(DL_STORE, "readwrite");
+      tx.objectStore(DL_STORE).delete(id);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch {}
+}
+
 type ActionExecutor = (action: QueuedAction) => Promise<void>;
 
 let _executor: ActionExecutor | null = null;
 let _syncing = false;
 let _lastSync: number | null = null;
+
+/* MAX_RETRIES is a last-resort safety net for unexpected errors that the
+   executor did not classify as PermanentQueueError. Under normal operation the
+   executor should throw PermanentQueueError for any 4xx response so actions are
+   removed on first failure, not after 5 attempts.
+   Only truly unclassified errors (unexpected throw shapes, bugs in the executor)
+   will exhaust this counter. */
+const MAX_RETRIES = 5;
 
 export function registerActionExecutor(fn: ActionExecutor): void {
   _executor = fn;
@@ -151,14 +251,35 @@ export async function syncQueue(): Promise<void> {
        because later actions (update_order, complete_trip) depend on it
        having succeeded server-side first. */
     for (const action of actions) {
+      /* Last-resort guard: if an unclassified error has been retried too many
+         times, move it to the dead-letter store so it doesn't block the queue
+         forever. Under normal operation the executor throws PermanentQueueError
+         for any 4xx so this branch is only hit by unexpected error shapes. */
+      if (action.retryCount >= MAX_RETRIES) {
+        await pushDeadLetter(action, new PermanentQueueError(
+          `Exceeded max retries (${MAX_RETRIES}) without a permanent error classification`,
+        ));
+        await removeAction(action.id).catch(() => {});
+        continue;
+      }
       try {
         await _executor(action);
         await removeAction(action.id);
         notifyActionSuccess(action);
 
-      } catch {
+      } catch (err) {
+        if (err instanceof PermanentQueueError) {
+          /* Permanent server-side rejection (e.g. 4xx): move to dead-letter
+             immediately and continue draining subsequent actions. */
+          await pushDeadLetter(action, err);
+          await removeAction(action.id).catch(() => {});
+          continue;
+        }
+        /* Transient failure (network unreachable, 5xx, 429): bump retry count
+           and halt the drain. The ordering invariant requires that later actions
+           (e.g. update_ride) only run after the predecessor succeeds. */
         await bumpRetryCount(action).catch(() => {});
-        break; /* stop here; retry next sync cycle to preserve ordering */
+        break;
       }
     }
     _lastSync = Date.now();

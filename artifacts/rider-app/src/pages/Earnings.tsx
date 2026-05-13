@@ -32,6 +32,7 @@ export default function Earnings() {
 
   const [showGoalModal, setShowGoalModal] = useState(false);
   const [goalInput, setGoalInput] = useState("");
+  const [goalError, setGoalError] = useState<string | null>(null);
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["rider-earnings"],
@@ -75,12 +76,17 @@ export default function Earnings() {
         qc.invalidateQueries({ queryKey: ["rider-earnings"] }),
         refreshUser().catch(() => {}),
       ]);
+      setGoalError(null);
       setShowGoalModal(false);
+    },
+    onError: () => {
+      setGoalError(T("saveFailedMsg"));
     },
   });
 
   const openGoalModal = () => {
     setGoalInput(personalDailyGoal ? String(Math.round(personalDailyGoal)) : "");
+    setGoalError(null);
     setShowGoalModal(true);
   };
 
@@ -348,6 +354,10 @@ export default function Earnings() {
               </div>
               <p className="text-xs text-gray-400 mt-1.5">Leave blank to use the admin default ({formatCurrency(adminDailyGoal)}).</p>
             </div>
+
+            {goalError && (
+              <p className="text-xs text-red-500 font-semibold mb-3 px-1">{goalError}</p>
+            )}
 
             <div className="flex gap-2">
               <button

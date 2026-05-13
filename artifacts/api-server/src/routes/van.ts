@@ -800,13 +800,21 @@ router.post("/driver/schedules/:scheduleId/date/:date/start-trip", vanDriverAuth
   }
 });
 
+const vanDriverLocationSchema = z.object({
+  scheduleId: z.string().min(1, "scheduleId is required"),
+  date:       z.string().min(1, "date is required"),
+  latitude:   z.number().min(-90).max(90),
+  longitude:  z.number().min(-180).max(180),
+  speed:      z.number().optional(),
+  heading:    z.number().optional(),
+});
+
 router.post("/driver/location", vanDriverAuth, async (req, res) => {
   try {
     const driverId = req.riderId!;
-    const { scheduleId, date, latitude, longitude, speed, heading } = req.body ?? {};
-    if (!scheduleId || !date || latitude == null || longitude == null) {
-      sendError(res, "Missing location data.", 400); return;
-    }
+    const parsed = vanDriverLocationSchema.safeParse(req.body ?? {});
+    if (!parsed.success) { sendError(res, parsed.error.issues[0]?.message || "Missing location data.", 400); return; }
+    const { scheduleId, date, latitude, longitude, speed, heading } = parsed.data;
 
     const [schedule] = await db.select({ driverId: vanSchedulesTable.driverId, tripStatus: vanSchedulesTable.tripStatus })
       .from(vanSchedulesTable).where(eq(vanSchedulesTable.id, scheduleId)).limit(1);

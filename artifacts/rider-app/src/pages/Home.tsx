@@ -369,10 +369,10 @@ export default function Home() {
   const [gpsWarning, setGpsWarning] = useState<string | null>(null);
   const gpsWarningRef = useRef<string | null>(null);
 
-  const setGpsWarningWithRef = (val: string | null) => {
+  const setGpsWarningWithRef = useCallback((val: string | null) => {
     gpsWarningRef.current = val;
     setGpsWarning(val);
-  };
+  }, []);
 
   const batteryRef = useRef<number | undefined>(undefined);
   useEffect(() => {

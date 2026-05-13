@@ -524,9 +524,10 @@ function TurnByTurnPanel({ fromLat, fromLng, toLat, toLng, label, riderLat, ride
     }
   }, [riderLat, riderLng, route, currentStep]);
 
-  /* Cleanup reroute timer on unmount */
+  /* Cleanup reroute timer and abort any in-flight OSRM fetch on unmount */
   useEffect(() => () => {
     if (rerouteTimerRef.current) clearTimeout(rerouteTimerRef.current);
+    if (fetchAbortRef.current) fetchAbortRef.current.abort();
   }, []);
 
   const distKm = route ? (route.distanceM < 1000 ? `${route.distanceM}m` : `${(route.distanceM / 1000).toFixed(1)} km`) : "";
