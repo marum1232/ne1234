@@ -34,6 +34,7 @@ import { tDual, type TranslationKey, type Language } from "@workspace/i18n";
 import { useGetOrders, getGetOrdersQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { SmartRefresh } from "@/components/ui/SmartRefresh";
+import { ErrorState } from "@/components/ui/ErrorState";
 import { useCollapsibleHeader } from "@/hooks/useCollapsibleHeader";
 import { CancelModal } from "@/components/CancelModal";
 import type { CancelTarget } from "@/components/CancelModal";
@@ -1255,7 +1256,7 @@ function OrdersScreenInner() {
   const pollInterval = hasActiveItems ? 10000 : 30000;
   const [historyLimit, setHistoryLimit] = useState(5);
 
-  const { data: ordersData, isLoading: ordersLoading, refetch: refetchOrders } = useGetOrders(
+  const { data: ordersData, isLoading: ordersLoading, isError: ordersError, refetch: refetchOrders } = useGetOrders(
     { userId: user?.id || "" },
     { query: { queryKey: ["orders", user?.id, pollInterval] as const, enabled: !!user?.id && anyMartFood, refetchInterval: pollInterval } }
   );
@@ -1555,6 +1556,18 @@ function OrdersScreenInner() {
   const isLoading = ordersLoading || ridesLoading || pharmLoading || parcelLoading;
 
   const renderContent = () => {
+    if (ordersError && !ordersData) {
+      return (
+        <View style={{ padding: spacing.lg }}>
+          <ErrorState
+            title="Could not load orders"
+            subtitle="Check your connection and try again."
+            onRetry={() => refetchOrders()}
+          />
+        </View>
+      );
+    }
+
     if (isLoading && totalCount === 0) {
       return (
         <View style={{ padding: spacing.lg, gap: spacing.md }}>

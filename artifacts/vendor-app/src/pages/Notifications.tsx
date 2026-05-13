@@ -5,6 +5,7 @@ import { useLanguage } from "../lib/useLanguage";
 import { tDual, type TranslationKey } from "@workspace/i18n";
 import { PageHeader } from "../components/PageHeader";
 import { fd, CARD, CARD_HEADER, errMsg } from "../lib/ui";
+import { ErrorState } from "../components/ui/ErrorState";
 
 interface Notification {
   id: string;
@@ -136,14 +137,13 @@ export default function Notifications() {
             {[1,2,3,4,5].map(i => <div key={i} className="h-20 skeleton rounded-2xl"/>)}
           </div>
         ) : isError ? (
-          <div className={`${CARD} px-4 py-16 text-center`}>
-            <p className="text-4xl mb-4">⚠️</p>
-            <p className="font-bold text-gray-700 text-base">{T("somethingWentWrong")}</p>
-            <p className="text-sm text-gray-400 mt-1">{T("checkInternet")}</p>
-            <button onClick={() => refetch()}
-              className="mt-4 h-10 px-6 bg-orange-500 text-white font-bold rounded-xl text-sm hover:bg-orange-600 transition-colors">
-              {T("retry")}
-            </button>
+          <div className={CARD}>
+            <ErrorState
+              title={T("somethingWentWrong")}
+              subtitle={T("checkInternetRetry")}
+              onRetry={() => refetch()}
+              retryLabel={T("retry")}
+            />
           </div>
         ) : notifs.length === 0 ? (
           <div className={`${CARD} px-4 py-20 text-center`}>

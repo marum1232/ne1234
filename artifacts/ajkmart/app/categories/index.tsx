@@ -23,6 +23,7 @@ import {
   getHierarchicalCategories,
   useGetProducts,
 } from "@workspace/api-client-react";
+import { ErrorState } from "@/components/ui/ErrorState";
 
 const C = Colors.light;
 const { width } = Dimensions.get("window");
@@ -57,6 +58,7 @@ function CategoriesBrowseScreenInner() {
   const {
     data: categories,
     isLoading,
+    isError,
     refetch: refetchCats,
   } = useQuery({
     queryKey: ["hierarchical-categories", serviceType],
@@ -133,6 +135,12 @@ function CategoriesBrowseScreenInner() {
         <View style={s.loadingWrap}>
           <ActivityIndicator color={C.primary} size="large" />
         </View>
+      ) : isError ? (
+        <ErrorState
+          title="Could not load categories"
+          subtitle="Check your connection and try again."
+          onRetry={() => refetchCats()}
+        />
       ) : cats.length === 0 ? (
         <View style={s.emptyWrap}>
           <Ionicons name="folder-open-outline" size={48} color={C.textMuted} />

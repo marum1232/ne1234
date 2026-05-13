@@ -13,6 +13,9 @@ import { useLanguage } from "../lib/useLanguage";
 import { tDual, type TranslationKey } from "@workspace/i18n";
 import { PageHeader } from "../components/PageHeader";
 import { fc, CARD, CARD_HEADER } from "../lib/ui";
+import { ErrorState } from "../components/ui/ErrorState";
+import { EmptyState } from "../components/ui/EmptyState";
+import type { OrderStatus } from "@workspace/service-constants";
 
 type Granularity = "daily" | "weekly" | "monthly";
 type RangePreset = 7 | 30 | 90 | "custom";
@@ -23,7 +26,7 @@ const PRESETS: { value: Exclude<RangePreset, "custom">; label: string }[] = [
   { value: 90, label: "90d" },
 ];
 
-const STATUS_META: Record<string, { label: string; color: string }> = {
+const STATUS_META: Partial<Record<OrderStatus, { label: string; color: string }>> & Record<string, { label: string; color: string }> = {
   pending:          { label: "Pending",      color: "#f59e0b" },
   confirmed:        { label: "Confirmed",    color: "#fb923c" },
   preparing:        { label: "Preparing",    color: "#fdba74" },
@@ -79,7 +82,7 @@ function ChartSkeleton({ height = 220 }: { height?: number }) {
   return <div className="skeleton rounded-xl w-full" style={{ height }} />;
 }
 
-function EmptyState({ msg }: { msg: string }) {
+function ChartEmpty({ msg }: { msg: string }) {
   return <div className="flex items-center justify-center text-gray-400 text-sm py-12">{msg}</div>;
 }
 
@@ -123,7 +126,7 @@ export default function Analytics() {
 
   const customReady = preset === "custom" && customFrom && customTo;
 
-  const { data, isLoading, isFetching } = useQuery({
+  const { data, isLoading, isError, isFetching, refetch } = useQuery({
     queryKey,
     queryFn: () => preset === "custom"
       ? api.getAnalyticsRange(customFrom, customTo)
@@ -167,6 +170,20 @@ export default function Analytics() {
     : `${preset} ${T("daysLabel")}`;
 
   const loading = isLoading || (preset === "custom" && !customReady) || isFetching && !data;
+
+  if (isError) return (
+    <div className="bg-gray-50 md:bg-transparent">
+      <PageHeader title={T("analytics")} subtitle={T("storePerformance")} />
+      <div className="px-4 py-4">
+        <ErrorState
+          title={T("somethingWentWrong")}
+          subtitle={T("checkInternetRetry")}
+          onRetry={() => refetch()}
+          retryLabel={T("retry")}
+        />
+      </div>
+    </div>
+  );
 
   return (
     <div className="bg-gray-50 md:bg-transparent">
@@ -260,7 +277,7 @@ export default function Analytics() {
             </div>
           </div>
           <div className="p-3">
-            {loading ? <ChartSkeleton height={260}/> : trendSeries.length === 0 ? <EmptyState msg={T("noDataYet")}/> : (
+            {loading ? <ChartSkeleton height={260}/> : trendSeries.length === 0 ? <ChartEmpty msg={T("noDataYet")}/> : (
               <ResponsiveContainer width="100%" height={260}>
                 <AreaChart data={trendSeries} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
                   <defs>
@@ -295,7 +312,7 @@ export default function Analytics() {
               <span className="text-xs text-gray-400">{T("byOrders")}</span>
             </div>
             <div className="p-3">
-              {loading ? <ChartSkeleton height={260}/> : topProductsBars.length === 0 ? <EmptyState msg={T("noDataYet")}/> : (
+              {loading ? <ChartSkeleton height={260}/> : topProductsBars.length === 0 ? <ChartEmpty msg={T("noDataYet")}/> : (
                 <ResponsiveContainer width="100%" height={Math.max(220, topProductsBars.length * 48)}>
                   <BarChart data={topProductsBars} layout="vertical" margin={{ top: 8, right: 16, left: 8, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false}/>
@@ -329,7 +346,7 @@ export default function Analytics() {
               <span className="text-xs text-gray-400">{totalOrders} orders</span>
             </div>
             <div className="p-3">
-              {loading ? <ChartSkeleton height={260}/> : statusPie.length === 0 ? <EmptyState msg={T("noDataYet")}/> : (
+              {loading ? <ChartSkeleton height={260}/> : statusPie.length === 0 ? <ChartEmpty msg={T("noDataYet")}/> : (
                 <ResponsiveContainer width="100%" height={260}>
                   <PieChart>
                     <Pie data={statusPie} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={55} outerRadius={90} paddingAngle={2}>
@@ -355,7 +372,7 @@ export default function Analytics() {
             <span className="text-xs text-gray-400">{rangeLabel}</span>
           </div>
           <div className="p-3">
-            {loading ? <ChartSkeleton height={220}/> : peakHours.every(h => h.orders === 0) ? <EmptyState msg={T("noDataYet")}/> : (
+            {loading ? <ChartSkeleton height={220}/> : peakHours.every(h => h.orders === 0) ? <ChartEmpty msg={T("noDataYet")}/> : (
               <ResponsiveContainer width="100%" height={220}>
                 <BarChart data={peakHours} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9"/>

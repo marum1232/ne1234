@@ -12,6 +12,7 @@ import { PullToRefresh } from "../components/PullToRefresh";
 import { useOfflineQueue } from "../hooks/useOfflineQueue";
 import { fc, CARD, STAT_VAL, STAT_LBL, DEFAULT_COMMISSION_PCT, errMsg, fd } from "../lib/ui";
 import { Truck } from "lucide-react";
+import { ErrorState } from "../components/ui/ErrorState";
 
 function typeIcon(type: string) {
   if (type === "order")  return "📦";
@@ -287,7 +288,7 @@ export default function Dashboard() {
   const [acceptDialog, setAcceptDialog] = useState<{ orderId: string; total: number } | null>(null);
   const cancelReasonRef = useRef("");
 
-  const { data: stats, isLoading } = useQuery({ queryKey: ["vendor-stats"], queryFn: () => api.getStats(), refetchInterval: 30000 });
+  const { data: stats, isLoading, isError: statsError, refetch: refetchStats } = useQuery({ queryKey: ["vendor-stats"], queryFn: () => api.getStats(), refetchInterval: 30000 });
   const { data: ordersData } = useQuery({ queryKey: ["vendor-orders", "all"], queryFn: () => api.getOrders(), refetchInterval: 20000 });
   const { data: daStatus } = useQuery({ queryKey: ["vendor-delivery-access"], queryFn: () => api.getDeliveryAccessStatus(), refetchInterval: 60000 });
   const requestDeliveryMut = useMutation({
@@ -338,10 +339,10 @@ export default function Dashboard() {
   const activeOrders  = allOrders.filter((o: any) => ["confirmed","preparing","ready"].includes(o.status));
 
   const statItems = [
-    { label: T("todaysOrders"),   value: isLoading ? "—" : String(stats?.today?.orders ?? 0),  color: "text-orange-500", bg: "bg-orange-50",  icon: "📦" },
-    { label: T("todaysRevenue"),  value: isLoading ? "—" : fc(stats?.today?.revenue ?? 0),      color: "text-amber-600",  bg: "bg-amber-50",   icon: "💰" },
-    { label: T("weeklyRevenue"),  value: isLoading ? "—" : fc(stats?.week?.revenue ?? 0),       color: "text-blue-600",   bg: "bg-blue-50",    icon: "📅" },
-    { label: T("monthlyRevenue"), value: isLoading ? "—" : fc(stats?.month?.revenue ?? 0),      color: "text-purple-600", bg: "bg-purple-50",  icon: "📈" },
+    { label: T("todaysOrders"),   value: isLoading ? "—" : statsError ? "⚠" : String(stats?.today?.orders ?? 0),  color: statsError ? "text-red-400" : "text-orange-500", bg: statsError ? "bg-red-50" : "bg-orange-50",  icon: "📦" },
+    { label: T("todaysRevenue"),  value: isLoading ? "—" : statsError ? "⚠" : fc(stats?.today?.revenue ?? 0),      color: statsError ? "text-red-400" : "text-amber-600",  bg: statsError ? "bg-red-50" : "bg-amber-50",   icon: "💰" },
+    { label: T("weeklyRevenue"),  value: isLoading ? "—" : statsError ? "⚠" : fc(stats?.week?.revenue ?? 0),       color: statsError ? "text-red-400" : "text-blue-600",   bg: statsError ? "bg-red-50" : "bg-blue-50",    icon: "📅" },
+    { label: T("monthlyRevenue"), value: isLoading ? "—" : statsError ? "⚠" : fc(stats?.month?.revenue ?? 0),      color: statsError ? "text-red-400" : "text-purple-600", bg: statsError ? "bg-red-50" : "bg-purple-50",  icon: "📈" },
   ];
 
   const handleRefresh = useCallback(async () => {
@@ -462,6 +463,19 @@ export default function Dashboard() {
             </div>
           ))}
         </div>
+
+        {/* ── Stats Error ── */}
+        {statsError && (
+          <div className="mb-4">
+            <ErrorState
+              title={T("somethingWentWrong")}
+              subtitle={T("checkInternetRetry")}
+              onRetry={() => refetchStats()}
+              retryLabel={T("retry")}
+              className="py-8"
+            />
+          </div>
+        )}
 
         {/* Low Stock Alert */}
         {(stats?.lowStock ?? 0) > 0 && (
