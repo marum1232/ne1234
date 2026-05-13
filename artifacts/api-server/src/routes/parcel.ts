@@ -32,7 +32,7 @@ const createParcelSchema = z.object({
   dropAddress: z.string().min(1, "dropAddress is required").max(500, "dropAddress too long").transform(stripHtml),
   parcelType: z.string().min(1, "parcelType is required").max(50, "parcelType too long"),
   paymentMethod: z.enum(["cash", "wallet", "cod"], { errorMap: () => ({ message: "paymentMethod must be cash, wallet, or cod" }) }),
-  weight: z.number().nonnegative("weight must be non-negative").max(500, "weight cannot exceed 500 kg").optional(),
+  weight: z.number({ required_error: "weight is required", invalid_type_error: "weight must be a number" }).positive("weight must be greater than 0").max(500, "weight cannot exceed 500 kg"),
   description: z.string().max(500, "description too long").transform(s => stripHtml(s)).optional(),
   pickupLat: z.number().min(-90).max(90).optional(),
   pickupLng: z.number().min(-180).max(180).optional(),
@@ -42,7 +42,7 @@ const createParcelSchema = z.object({
 
 const parcelEstimateSchema = z.object({
   parcelType: z.string().max(50).optional(),
-  weight:     z.number().nonnegative("weight must be non-negative").max(500, "weight cannot exceed 500 kg").optional(),
+  weight: z.number({ required_error: "weight is required", invalid_type_error: "weight must be a number" }).positive("weight must be greater than 0").max(500, "weight cannot exceed 500 kg"),
 }).strict();
 
 const router: IRouter = Router();

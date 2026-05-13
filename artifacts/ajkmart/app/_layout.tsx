@@ -1289,6 +1289,9 @@ function RootLayoutNav() {
     !STRICT_SEMVER_RE.test(_cur) ||
     !STRICT_SEMVER_RE.test(_min)
   ) {
+    // Missing or malformed version strings — treat as "no update required" (safe fallback).
+    // This prevents a broken or absent platform config from locking users out of the app.
+    // forceUpdate remains false (its initial value), so the app continues normally.
     log.warn(
       "ForceUpdate: Skipping force-update check — invalid or missing version data",
       {

@@ -365,9 +365,8 @@ router.post("/avatar", avatarUpload.single("avatar"), async (req, res) => {
       role: user.roles, avatar: user.avatar, walletBalance: parseFloat(user.walletBalance ?? "0"),
     }});
   } catch (e: unknown) {
-    const rawMsg = (e as Error)?.message || "Avatar upload failed";
-    const safeMsg = rawMsg.replace(/\/[^\s]+\//g, "").replace(/[A-Z]:\\[^\s]+/g, "");
-    sendError(res, safeMsg.includes("/") || safeMsg.includes("\\") ? "Avatar upload failed" : safeMsg);
+    logger.error({ err: (e as Error)?.message, stack: (e as Error)?.stack }, "[users] avatar upload error");
+    sendError(res, "Upload failed. Please try again.", 500);
   }
 });
 

@@ -199,18 +199,26 @@ router.post("/", customerAuth, async (req, res) => {
       /* 1. Fast path: in-memory map (set by the upload handler). */
       let resolved = prescriptionRefMap.get(rawUri);
       if (!resolved) {
-        /* 2. Brief yield for any concurrent upload to finish writing. */
-        await new Promise((r) => setTimeout(r, 1500));
-        resolved = prescriptionRefMap.get(rawUri);
+        /* 2. Retry loop: poll memory map then DB up to 3 times (500ms apart).
+              This replaces the previous fixed 1500ms setTimeout and correctly
+              handles both in-flight uploads and DB-persisted refs. */
+        const MAX_RESOLVE_ATTEMPTS = 3;
+        const RESOLVE_RETRY_MS = 500;
+        for (let attempt = 1; attempt <= MAX_RESOLVE_ATTEMPTS; attempt++) {
+          await new Promise((r) => setTimeout(r, RESOLVE_RETRY_MS));
+          resolved = prescriptionRefMap.get(rawUri);
+          if (resolved) break;
+          /* 3. Durable path: query DB (survives process restarts / pod restarts).
+                resolveRxRefId checks owner + expiry and returns null if not found. */
+          const dbResolved = await resolveRxRefId(rawUri, userId);
+          if (dbResolved) { resolved = dbResolved; break; }
+          logger.warn({ refId: rawUri, attempt, userId }, "[pharmacy] prescription ref not yet resolved — retrying");
+        }
       }
       if (!resolved) {
-        /* 3. Durable path: query DB (survives process restarts / pod restarts).
-              resolveRxRefId checks owner + expiry and returns null if not found. */
-        resolved = await resolveRxRefId(rawUri, userId) ?? undefined;
-      }
-      if (!resolved) {
-        /* 4. Ref not found in memory or DB — reject the request with a clear
-              error so a raw rx-* placeholder never reaches the orders table. */
+        /* 4. Ref not found in memory or DB after all retries — reject the request
+              with a clear error so a raw rx-* placeholder never reaches the orders table. */
+        logger.warn({ refId: rawUri, userId }, "[pharmacy] prescription ref resolution exhausted — rejecting order");
         sendValidationError(res, "Prescription photo reference expired or not found. Please re-upload your prescription and try again.");
         return;
       }

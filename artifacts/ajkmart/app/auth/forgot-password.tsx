@@ -88,7 +88,7 @@ export default function ForgotPasswordScreen() {
 
     setLoading(true);
     try {
-      const body: any = {};
+      const body: Record<string, string> = {};
       if (method === "phone") body.phone = normalizePhone(phone);
       else body.email = email.trim().toLowerCase();
 
@@ -102,7 +102,7 @@ export default function ForgotPasswordScreen() {
       if (data.otp) setDevOtp(data.otp);
       setResendCooldown(60);
       setStep("otp");
-    } catch (e: any) { setError(e.message || "Please try again."); }
+    } catch (e: unknown) { setError(e instanceof Error ? e.message : "Please try again."); }
     setLoading(false);
   };
 
@@ -127,8 +127,8 @@ export default function ForgotPasswordScreen() {
         return;
       }
       setStep("newPassword");
-    } catch (e: any) {
-      setError(e.message || "Verification failed. Please try again.");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Verification failed. Please try again.");
     }
     setLoading(false);
   };
@@ -142,7 +142,7 @@ export default function ForgotPasswordScreen() {
 
     setLoading(true);
     try {
-      const body: any = { otp, newPassword };
+      const body: Record<string, string> = { otp, newPassword };
       if (method === "phone") body.phone = normalizePhone(phone);
       else body.email = email.trim().toLowerCase();
       if (totpCode) body.totpCode = totpCode;
@@ -164,7 +164,7 @@ export default function ForgotPasswordScreen() {
         return;
       }
       setStep("done");
-    } catch (e: any) { setError(e.message || "Please try again."); }
+    } catch (e: unknown) { setError(e instanceof Error ? e.message : "Please try again."); }
     setLoading(false);
   };
 

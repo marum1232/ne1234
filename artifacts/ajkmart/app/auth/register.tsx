@@ -17,7 +17,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { spacing, radii, shadows, typography } from "@/constants/colors";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth, type AppUser } from "@/context/AuthContext";
 import { usePlatformConfig } from "@/context/PlatformConfigContext";
 import { normalizePhone, isValidPakistaniPhone, buildPhoneValidator } from "@/utils/phone";
 
@@ -79,7 +79,7 @@ export default function RegisterScreen() {
 
   const [authToken, setAuthToken] = useState("");
   const [authRefreshToken, setAuthRefreshToken] = useState("");
-  const [authUser, setAuthUser] = useState<any>(null);
+  const [authUser, setAuthUser] = useState<AppUser | null>(null);
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");

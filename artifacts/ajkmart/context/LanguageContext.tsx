@@ -108,7 +108,9 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     // Load Noto Nastaliq Urdu fonts the moment user switches to Urdu so
     // all text is rendered in the correct script without needing a restart.
     if (lang === "ur" || lang === "en_ur") {
-      loadUrduFonts().catch(() => {});
+      loadUrduFonts().catch((err: unknown) => {
+        log.warn("Urdu font load failed — Urdu text may not display correctly:", err instanceof Error ? err.message : String(err));
+      });
     }
     const token = tokenRef.current;
     if (token) {

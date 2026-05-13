@@ -92,10 +92,9 @@ router.post("/messages", requireRole("customer"), validateBody(messageSchema), a
         ...autoReplyMsg,
         createdAt: autoReplyMsg.createdAt.toISOString(),
       };
-
-      setTimeout(() => {
-        io?.to(`user:${userId}`).emit("support_message", autoPayload);
-      }, 1500);
+      // Emit synchronously after DB insert so the auto-reply is never lost
+      // even if the socket layer is temporarily unavailable after a restart.
+      io?.to(`user:${userId}`).emit("support_message", autoPayload);
 
       return sendCreated(res, { message: msgPayload });
     }

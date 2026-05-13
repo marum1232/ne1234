@@ -1,3 +1,4 @@
 import { withServiceGuard } from "@/components/ServiceGuard";
+import { withErrorBoundary } from "@/utils/withErrorBoundary";
 
-export default withServiceGuard("van", () => import("./_Screen"));
+export default withErrorBoundary(withServiceGuard("van", () => import("./_Screen")));

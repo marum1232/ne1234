@@ -40,6 +40,22 @@ router.put("/snapshot", customerAuth, async (req, res) => {
     return;
   }
 
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    if (!item || typeof item !== "object") {
+      sendError(res, `items[${i}]: each item must be an object`, 400);
+      return;
+    }
+    if (!item.productId || typeof item.productId !== "string" || !item.productId.trim()) {
+      sendError(res, `items[${i}]: productId must be a non-empty string`, 400);
+      return;
+    }
+    if (typeof item.qty !== "number" || !Number.isInteger(item.qty) || item.qty < 1) {
+      sendError(res, `items[${i}]: qty must be a positive integer`, 400);
+      return;
+    }
+  }
+
   try {
     await db
       .insert(cartSnapshotsTable)

@@ -6,6 +6,7 @@ import {
   getUserLanguage, t,
   emitRideUpdate, emitRideDispatchUpdate,
   broadcastRide, cleanupNotifiedRiders,
+  getIO,
 } from "./helpers.js";
 import { rideNotifiedRidersTable } from "@workspace/db/schema";
 
@@ -156,6 +157,10 @@ async function runDispatchCycle() {
           }).catch((e: Error) => logger.warn({ rideId: ride.id, userId: ride.userId, err: e.message }, "[dispatch-engine] attempt-cap no-riders notification insert failed"));
           logger.info({ rideId: ride.id, attempts: attemptsSoFar }, "[dispatch-engine] attempt cap reached — ride set to no_riders");
           emitRideUpdate(ride.id);
+          getIO()?.to(`user:${ride.userId}`).emit("ride:no_riders", {
+            rideId: ride.id,
+            reason: "No drivers are available in your area right now. Please try again shortly.",
+          });
           await cleanupNotifiedRiders(ride.id);
           continue;
         }
@@ -203,6 +208,10 @@ async function runDispatchCycle() {
             type: "ride", icon: "close-circle-outline",
           }).catch((e: Error) => logger.warn({ rideId: ride.id, userId: ride.userId, err: e.message }, "[dispatch-engine] no-riders notification insert failed"));
           emitRideUpdate(ride.id);
+          getIO()?.to(`user:${ride.userId}`).emit("ride:no_riders", {
+            rideId: ride.id,
+            reason: "No drivers accepted your ride request. Please try again.",
+          });
           await cleanupNotifiedRiders(ride.id);
           continue;
         }
