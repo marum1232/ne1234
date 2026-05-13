@@ -131,7 +131,9 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
         await AsyncStorage.setItem(LANG_STORAGE_KEY, serverLang);
         // If server says Urdu, load the fonts immediately (no restart needed).
         if (serverLang === "ur" || serverLang === "en_ur") {
-          loadUrduFonts().catch(() => {});
+          loadUrduFonts().catch((err: unknown) => {
+            log.warn("Urdu font load failed in syncToServer — Urdu text may not render correctly:", err instanceof Error ? err.message : String(err));
+          });
         }
       } else {
         const currentLang = await AsyncStorage.getItem(LANG_STORAGE_KEY);

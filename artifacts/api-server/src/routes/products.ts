@@ -189,6 +189,7 @@ const searchQuerySchema = z.object({
   q: z.string().max(200).optional(),
   type: z.string().max(50).optional(),
   category: z.string().max(50).optional(),
+  vendorId: z.string().max(64).optional(),
   sort: z.enum(["relevance", "price_asc", "price_desc", "rating", "newest"]).optional(),
   minPrice: z.coerce.number().min(0).optional(),
   maxPrice: z.coerce.number().min(0).optional(),
@@ -205,7 +206,7 @@ router.get("/search", async (req, res) => {
     res.status(400).json({ success: false, error: "Invalid query parameters", details: parsed.error.flatten().fieldErrors });
     return;
   }
-  const { q, type, sort, minPrice, maxPrice, minRating, category } = parsed.data;
+  const { q, type, sort, minPrice, maxPrice, minRating, category, vendorId } = parsed.data;
   const ps = await getCachedSettings();
   const defaultPP = parseInt(ps["pagination_products_default"] ?? "20") || 20;
   const maxPP = parseInt(ps["pagination_products_max"] ?? "50") || 50;
@@ -235,6 +236,7 @@ router.get("/search", async (req, res) => {
   ];
   if (type) baseConditions.push(eq(productsTable.type, type));
   if (category) baseConditions.push(eq(productsTable.category, category));
+  if (vendorId) baseConditions.push(eq(productsTable.vendorId, vendorId));
   if (minPrice != null) baseConditions.push(gte(productsTable.price, String(minPrice)));
   if (maxPrice != null) baseConditions.push(lte(productsTable.price, String(maxPrice)));
   if (minRating != null) baseConditions.push(gte(productsTable.rating, String(minRating)));

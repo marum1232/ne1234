@@ -478,8 +478,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       }
       setIsValidating(false);
       return { valid: true, cartChanged: false };
-    } catch (err: any) {
+    } catch (err: unknown) {
       setIsValidating(false);
+      log.warn("Cart validation error:", err instanceof Error ? err.message : String(err));
       Alert.alert(
         "Validation Error",
         "Could not validate your cart. Please check your connection and try again.",

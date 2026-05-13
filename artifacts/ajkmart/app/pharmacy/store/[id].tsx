@@ -117,32 +117,31 @@ export default function PharmacyStoreScreen() {
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   }), [token]);
 
-  const { data: vendorData, isLoading: vendorLoading } = useQuery({
-    queryKey: ["pharmacy-vendor", vendorId],
-    queryFn: async () => {
-      const res = await fetch(`${API_BASE}/vendors/${vendorId}`, { headers: authHeaders });
-      if (!res.ok) throw new Error("Could not load pharmacy details");
-      const json = await res.json() as { data?: PharmacyVendor };
-      return (json?.data ?? json) as PharmacyVendor;
-    },
-    enabled: !!vendorId,
-    staleTime: 5 * 60_000,
-  });
+  interface StoreResponse {
+    vendor: PharmacyVendor;
+    products: PharmacyProduct[];
+  }
 
-  const { data: productsData, isLoading: productsLoading } = useQuery({
-    queryKey: ["pharmacy-products", vendorId],
+  const { data: storeData, isLoading: storeLoading } = useQuery({
+    queryKey: ["pharmacy-store", vendorId],
     queryFn: async () => {
-      const res = await fetch(`${API_BASE}/products?vendorId=${encodeURIComponent(vendorId!)}&type=pharmacy&perPage=100`, { headers: authHeaders });
-      if (!res.ok) throw new Error("Could not load products");
-      const json = await res.json() as { data?: { products?: PharmacyProduct[] }; products?: PharmacyProduct[] };
-      return (json?.data?.products ?? (json as { products?: PharmacyProduct[] })?.products ?? []) as PharmacyProduct[];
+      const res = await fetch(`${API_BASE}/vendors/${vendorId}/store`);
+      if (!res.ok) throw new Error("Could not load pharmacy store");
+      const json = await res.json() as { data?: StoreResponse };
+      const d = json?.data ?? (json as unknown as StoreResponse);
+      return { vendor: d.vendor, products: Array.isArray(d.products) ? d.products : [] } as StoreResponse;
     },
     enabled: !!vendorId,
     staleTime: 3 * 60_000,
   });
 
-  const otcProducts = useMemo(() => (productsData ?? []).filter(p => !p.requires_prescription), [productsData]);
-  const rxProducts = useMemo(() => (productsData ?? []).filter(p => p.requires_prescription), [productsData]);
+  const vendorLoading = storeLoading;
+  const productsLoading = storeLoading;
+  const vendorData = storeData?.vendor;
+  const productsData = storeData?.products ?? [];
+
+  const otcProducts = useMemo(() => productsData.filter(p => !p.requires_prescription), [productsData]);
+  const rxProducts = useMemo(() => productsData.filter(p => p.requires_prescription), [productsData]);
   const shownProducts = tab === "otc" ? otcProducts : rxProducts;
 
   const getQty = useCallback((productId: string) => {

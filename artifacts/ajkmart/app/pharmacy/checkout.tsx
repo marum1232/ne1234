@@ -17,10 +17,11 @@ import Colors from "@/constants/colors";
 import { useAuth } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
 import { useToast } from "@/context/ToastContext";
-import { API_BASE } from "@/utils/api";
 import { createLogger } from "@/utils/logger";
-import { isValidPakistaniPhone, buildPhoneValidator } from "@/utils/phone";
+import { buildPhoneValidator } from "@/utils/phone";
 import { usePlatformConfig } from "@/context/PlatformConfigContext";
+import { createPharmacyOrder } from "@workspace/api-client-react";
+import type { CreatePharmacyOrderRequest } from "@workspace/api-client-react";
 
 const log = createLogger("[PharmacyCheckout]");
 const C = Colors.light;
@@ -48,11 +49,6 @@ export default function PharmacyCheckoutScreen() {
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "wallet">("cash");
   const [loading, setLoading] = useState(false);
   const [orderId, setOrderId] = useState<string | null>(null);
-
-  const authHeaders = useMemo(() => ({
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  }), [token]);
 
   const pharmacyItems = useMemo(() => items.filter(i => i.type === "pharmacy"), [items]);
   const subtotal = pharmacyItems.reduce((s, i) => s + i.price * i.quantity, 0);
@@ -87,23 +83,16 @@ export default function PharmacyCheckoutScreen() {
     }
     setLoading(true);
     try {
-      const body: Record<string, unknown> = {
-        items: pharmacyItems.map(i => ({ productId: i.productId, quantity: i.quantity, name: i.name, price: i.price })),
+      const result = await createPharmacyOrder({
+        items: pharmacyItems.map(i => ({ name: i.name, quantity: i.quantity, productId: i.productId, price: i.price })),
         deliveryAddress: deliveryAddress.trim(),
+        paymentMethod: paymentMethod as "cash" | "wallet",
         contactPhone,
-        paymentMethod,
         ...(prescriptionNote.trim() ? { prescriptionNote: prescriptionNote.trim() } : {}),
         ...(rxPhotoUri ? { prescriptionPhotoUri: rxPhotoUri } : {}),
-      };
-      const res = await fetch(`${API_BASE}/pharmacy-orders`, {
-        method: "POST",
-        headers: authHeaders,
-        body: JSON.stringify(body),
-      });
-      const data = await res.json() as { error?: string; data?: { id?: string }; id?: string };
-      if (!res.ok) throw new Error(data.error ?? "Order placement failed");
-      const id = data?.data?.id ?? (data as { id?: string })?.id ?? null;
-      setOrderId(id);
+      } as CreatePharmacyOrderRequest & { contactPhone?: string; prescriptionNote?: string; prescriptionPhotoUri?: string },
+      token ? { headers: { Authorization: `Bearer ${token}` } } : undefined);
+      setOrderId(result.id ?? null);
       clearCart();
       setStep("done");
     } catch (e: unknown) {

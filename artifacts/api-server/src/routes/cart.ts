@@ -50,10 +50,14 @@ router.put("/snapshot", customerAuth, async (req, res) => {
       sendError(res, `items[${i}]: productId must be a non-empty string`, 400);
       return;
     }
-    if (typeof item.qty !== "number" || !Number.isInteger(item.qty) || item.qty < 1) {
-      sendError(res, `items[${i}]: qty must be a positive integer`, 400);
+    /* Accept either `quantity` (CartItem field name in the mobile app) or
+       the legacy `qty` alias — normalise to `qty` for downstream storage. */
+    const rawQty = typeof item.quantity !== "undefined" ? item.quantity : item.qty;
+    if (typeof rawQty !== "number" || !Number.isInteger(rawQty) || rawQty < 1) {
+      sendError(res, `items[${i}]: quantity must be a positive integer`, 400);
       return;
     }
+    item.qty = rawQty;
   }
 
   try {
