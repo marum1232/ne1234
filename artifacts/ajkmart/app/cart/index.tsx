@@ -244,8 +244,8 @@ function AddressPickerModal({
       onAddressCreated(created);
       resetForm();
       onClose();
-    } catch (e: any) {
-      setFormError(e.message || "Could not save address");
+    } catch (e: unknown) {
+      setFormError(e instanceof Error ? e.message : "Could not save address");
     }
     setSaving(false);
   };
@@ -772,7 +772,7 @@ function CartScreenInner() {
         showToast(T("promoInvalidRemoved"), "error");
       }
     } catch (err: unknown) {
-      if ((err as any)?.name === "AbortError") return;
+      if ((err as Error)?.name === "AbortError") return;
       if (!mountedRef.current || seq !== promoRevalidateSeq.current) return;
       showToast(T("promoNetworkError"), "error");
       setPromoCode(null);
@@ -900,9 +900,10 @@ function CartScreenInner() {
         order = await createOrder(payload);
         lastError = null;
         break;
-      } catch (err: any) {
-        lastError = err;
-        const status = err?.status ?? err?.statusCode ?? 0;
+      } catch (err: unknown) {
+        lastError = err as Error;
+        const apiErr = err as { status?: number; statusCode?: number };
+        const status = apiErr?.status ?? apiErr?.statusCode ?? 0;
         if (status >= 400 && status < 500) {
           setPendingAck(false);
           throw err;
@@ -1095,7 +1096,7 @@ function CartScreenInner() {
     if (isPickup) {
       setLoading(true);
       try { await placeOrder("pickup"); }
-      catch (e: any) { showToast(e.message || T("couldNotPlaceOrder"), "error"); }
+      catch (e: unknown) { showToast(e instanceof Error ? e.message : T("couldNotPlaceOrder"), "error"); }
       setLoading(false);
       return;
     }
@@ -1107,12 +1108,13 @@ function CartScreenInner() {
       }
       setLoading(true);
       try { await placeOrder("wallet"); }
-      catch (e: any) {
-        const rc = e?.data?.reasonCode ?? e?.reasonCode;
-        const isDeliveryBlock = rc === "delivery_not_eligible" || e?.message?.includes("Delivery is not available");
-        const errText = e?.data?.error ?? e?.message ?? T("couldNotPlaceOrder");
-        if (isDeliveryBlock) setDeliveryBlocked(errText);
-        showToast(errText, "error");
+      catch (e: unknown) {
+        const apiErr = e as { data?: { reasonCode?: string; error?: string }; reasonCode?: string; message?: string };
+        const rc = apiErr?.data?.reasonCode ?? apiErr?.reasonCode;
+        const isDeliveryBlock = rc === "delivery_not_eligible" || apiErr?.message?.includes("Delivery is not available");
+        const errText = apiErr?.data?.error ?? apiErr?.message ?? T("couldNotPlaceOrder");
+        if (isDeliveryBlock) setDeliveryBlocked(errText ?? "Delivery unavailable");
+        showToast(errText ?? T("couldNotPlaceOrder"), "error");
       }
       setLoading(false);
       return;
@@ -1133,9 +1135,10 @@ function CartScreenInner() {
           const uploadedUrl = await uploadReceiptImage(receiptImageUri);
           setReceiptUploading(false);
           await placeOrder(effectivePayMethod, uploadedUrl, receiptTxnRef.trim() || undefined);
-        } catch (e: any) {
+        } catch (e: unknown) {
           setReceiptUploading(false);
-          const errText = e?.data?.error ?? e?.message ?? "Upload or order placement failed";
+          const apiErr = e as { data?: { error?: string }; message?: string };
+          const errText = apiErr?.data?.error ?? apiErr?.message ?? "Upload or order placement failed";
           showToast(errText, "error");
         }
         setLoading(false);
@@ -1148,9 +1151,10 @@ function CartScreenInner() {
           const uploadedUrl = await uploadReceiptImage(receiptImageUri);
           setReceiptUploading(false);
           await placeOrder(effectivePayMethod, uploadedUrl, receiptTxnRef.trim() || undefined);
-        } catch (e: any) {
+        } catch (e: unknown) {
           setReceiptUploading(false);
-          const errText = e?.data?.error ?? e?.message ?? "Upload or order placement failed";
+          const apiErr = e as { data?: { error?: string }; message?: string };
+          const errText = apiErr?.data?.error ?? apiErr?.message ?? "Upload or order placement failed";
           showToast(errText, "error");
         }
         setLoading(false);
@@ -1164,12 +1168,13 @@ function CartScreenInner() {
 
     setLoading(true);
     try { await placeOrder("cash"); }
-    catch (e: any) {
-      const rc = e?.data?.reasonCode ?? e?.reasonCode;
-      const isDeliveryBlock = rc === "delivery_not_eligible" || e?.message?.includes("Delivery is not available");
-      const errText = e?.data?.error ?? e?.message ?? T("couldNotPlaceOrderRetry");
-      if (isDeliveryBlock) setDeliveryBlocked(errText);
-      showToast(errText, "error");
+    catch (e: unknown) {
+      const apiErr = e as { data?: { reasonCode?: string; error?: string }; reasonCode?: string; message?: string };
+      const rc = apiErr?.data?.reasonCode ?? apiErr?.reasonCode;
+      const isDeliveryBlock = rc === "delivery_not_eligible" || apiErr?.message?.includes("Delivery is not available");
+      const errText = apiErr?.data?.error ?? apiErr?.message ?? T("couldNotPlaceOrderRetry");
+      if (isDeliveryBlock) setDeliveryBlocked(errText ?? "Delivery unavailable");
+      showToast(errText ?? T("couldNotPlaceOrder"), "error");
     }
     setLoading(false);
   };
@@ -1273,9 +1278,10 @@ function CartScreenInner() {
           } as any);
           gwLastError = null;
           break;
-        } catch (err: any) {
-          gwLastError = err;
-          const status = err?.status ?? err?.statusCode ?? 0;
+        } catch (err: unknown) {
+          gwLastError = err as Error;
+          const gwErr = err as { status?: number; statusCode?: number };
+          const status = gwErr?.status ?? gwErr?.statusCode ?? 0;
           if (status >= 400 && status < 500) throw err;
           if (attempt < GW_MAX_RETRIES - 1) {
             const delay = Math.min(1000 * Math.pow(2, attempt), 8000);
@@ -1300,7 +1306,7 @@ function CartScreenInner() {
           orderId: realOrderId, mobileNumber: gwMobile.replace(/\D/g, ""),
         }),
       });
-      const rawData = await r.json() as any;
+      const rawData = await r.json() as Record<string, unknown>;
       if (!r.ok) {
         gwCancellingRef.current = true;
         let cancelOk = false;
@@ -1317,14 +1323,14 @@ function CartScreenInner() {
         if (!cancelOk) {
           showToast("Could not cancel the order after payment failure. Please contact support.", "error");
         }
-        throw new Error(rawData.error || "Could not initiate payment");
+        throw new Error((rawData.error as string) || "Could not initiate payment");
       }
-      const data = unwrapApiResponse(rawData) as any;
+      const data = unwrapApiResponse(rawData) as Record<string, unknown>;
 
       gwOrderId.current = realOrderId;
-      gwTxnRef.current = data.txnRef || data.transactionRef || realOrderId;
-    } catch (e: any) {
-      showToast(e.message || T("paymentFailed"), "error");
+      gwTxnRef.current = (data?.txnRef as string) || (data?.transactionRef as string) || realOrderId;
+    } catch (e: unknown) {
+      showToast(e instanceof Error ? e.message : T("paymentFailed"), "error");
       setGwStep("input");
     }
     setGwPaying(false);

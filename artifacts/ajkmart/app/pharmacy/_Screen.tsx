@@ -58,6 +58,16 @@ interface PharmacyProduct {
   requires_prescription?: boolean;
 }
 
+interface PharmacyStore {
+  id: string;
+  name: string;
+  storeName?: string;
+  storeIsOpen?: boolean;
+  storeBanner?: string;
+  storeCategory?: string;
+  storeDeliveryTime?: string;
+}
+
 interface Med {
   id: string;
   name: string;
@@ -281,7 +291,7 @@ function PharmacyScreenInner() {
     setLoadingMeds(true);
     setMedsError(false);
     getProducts({ type: "pharmacy" as GetProductsType })
-      .then(data => {
+      .then((data: { products?: unknown[] } | null) => {
         const products = data?.products ?? [];
         const meds: Med[] = (products as unknown as PharmacyProduct[]).map(p => ({
           id: p.id,
@@ -307,12 +317,12 @@ function PharmacyScreenInner() {
     queryFn: async () => {
       const r = await fetch(`${API_BASE}/vendors?category=pharmacy&slim=true`);
       const json = await r.json();
-      return unwrapApiResponse<{ vendors?: any[]; users?: any[] }>(json);
+      return unwrapApiResponse<{ vendors?: PharmacyStore[]; users?: PharmacyStore[] }>(json);
     },
     staleTime: 5 * 60 * 1000,
   });
   const pharmacyStores = useMemo(() => {
-    const raw = (pharmacyVendorData as any)?.vendors || (pharmacyVendorData as any)?.users || [];
+    const raw = pharmacyVendorData?.vendors || pharmacyVendorData?.users || [];
     return Array.isArray(raw) ? raw.slice(0, 8) : [];
   }, [pharmacyVendorData]);
 
@@ -650,7 +660,7 @@ function PharmacyScreenInner() {
           </ScrollView>
         ) : pharmacyStores.length > 0 ? (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 10 }}>
-            {pharmacyStores.map((store: any) => {
+            {pharmacyStores.map((store: PharmacyStore) => {
               const name = store.storeName || store.name || "Pharmacy";
               const isOpen = store.storeIsOpen !== false;
               return (

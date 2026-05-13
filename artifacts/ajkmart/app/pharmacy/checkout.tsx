@@ -168,6 +168,13 @@ export default function PharmacyCheckoutScreen() {
                   </View>
                 ))
               )}
+              <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 8, backgroundColor: "#FEF3C7", borderRadius: 10, padding: 12, marginTop: 12 }}>
+                <Ionicons name="information-circle-outline" size={18} color="#92400E" style={{ marginTop: 1 }} />
+                <Text style={{ flex: 1, fontSize: 13, color: "#92400E", lineHeight: 18 }}>
+                  {"Some items may require a valid prescription. Please have it ready for the delivery rider."}
+                  {rxPhotoUri ? " Your prescription has been attached." : " You can upload a prescription on the next step."}
+                </Text>
+              </View>
               <View style={s.divider} />
               <View style={s.totalRow}><Text style={s.totalLabel}>Subtotal</Text><Text style={s.totalVal}>Rs. {subtotal.toLocaleString()}</Text></View>
               <View style={s.totalRow}><Text style={s.totalLabel}>Delivery Fee</Text><Text style={s.totalVal}>Rs. {deliveryFee}</Text></View>

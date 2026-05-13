@@ -2,7 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { createContext, useContext, useEffect, useCallback, useState, useRef } from "react";
 import { createLogger } from "@/utils/logger";
 const log = createLogger("[Language]");
-import { I18nManager } from "react-native";
+import { Alert, I18nManager } from "react-native";
 import type { Language } from "@workspace/i18n";
 import { LANGUAGE_OPTIONS } from "@workspace/i18n";
 import { unwrapApiResponse } from "../utils/api";
@@ -109,7 +109,13 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     // all text is rendered in the correct script without needing a restart.
     if (lang === "ur" || lang === "en_ur") {
       loadUrduFonts().catch((err: unknown) => {
-        log.warn("Urdu font load failed — Urdu text may not display correctly:", err instanceof Error ? err.message : String(err));
+        const msg = err instanceof Error ? err.message : String(err);
+        log.warn("Urdu font load failed — Urdu text may not display correctly:", msg);
+        Alert.alert(
+          "Font Error",
+          "Urdu fonts could not be loaded. Text may not display correctly. Please restart the app.",
+          [{ text: "OK" }]
+        );
       });
     }
     const token = tokenRef.current;
@@ -132,7 +138,13 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
         // If server says Urdu, load the fonts immediately (no restart needed).
         if (serverLang === "ur" || serverLang === "en_ur") {
           loadUrduFonts().catch((err: unknown) => {
-            log.warn("Urdu font load failed in syncToServer — Urdu text may not render correctly:", err instanceof Error ? err.message : String(err));
+            const msg = err instanceof Error ? err.message : String(err);
+            log.warn("Urdu font load failed in syncToServer — Urdu text may not render correctly:", msg);
+            Alert.alert(
+              "Font Error",
+              "Urdu fonts could not be loaded. Text may not display correctly. Please restart the app.",
+              [{ text: "OK" }]
+            );
           });
         }
       } else {

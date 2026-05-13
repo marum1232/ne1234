@@ -473,7 +473,7 @@ router.get("/:id/dispatch-status", customerAuth, loadRide(), requireRideOwner("u
   });
 });
 
-router.post("/:id/retry", customerAuth, requireRideState(["no_riders", "expired", "bargaining", "searching"]), requireRideOwner("userId"), async (req, res) => {
+router.post("/:id/retry", customerAuth, requireRideState(["no_riders", "no_riders_found", "expired", "bargaining", "searching"]), requireRideOwner("userId"), async (req, res) => {
   const ride = req.ride!;
   const rideId = ride.id;
 

@@ -34,7 +34,42 @@ import { AuthGateSheet, useAuthGate, useRoleGate, RoleBlockSheet } from "@/compo
 
 const C = Colors.light;
 
-const FoodCard = React.memo(function FoodCard({ item }: { item: any }) {
+interface FoodProduct {
+  id: string;
+  name: string;
+  price: number;
+  image?: string;
+  description?: string;
+  category?: string;
+  vendorId?: string;
+  vendorName?: string;
+  deliveryTime?: string;
+  rating?: number;
+  reviewCount?: number;
+}
+
+interface RawVendorData {
+  id?: string;
+  _id?: string;
+  vendorId?: string;
+  name?: string;
+  storeName?: string;
+  storeCategory?: string;
+  category?: string;
+  productCount?: number;
+  avgRating?: number;
+  rating?: number;
+  storeDeliveryTime?: string;
+  deliveryTime?: string;
+  storeBanner?: string;
+  avatar?: string;
+  image?: string;
+  storeIsOpen?: boolean;
+  storeMinOrder?: number;
+  city?: string;
+}
+
+const FoodCard = React.memo(function FoodCard({ item }: { item: FoodProduct }) {
   const { addItem, cartType, itemCount, clearCartAndAdd, items, updateQuantity, removeItem } = useCart();
   const [added, setAdded] = useState(false);
   const scale = useRef(new Animated.Value(1)).current;
@@ -60,7 +95,7 @@ const FoodCard = React.memo(function FoodCard({ item }: { item: any }) {
 
   const [showSwitchModal, setShowSwitchModal] = useState(false);
 
-  const handleAdd = (e?: any) => {
+  const handleAdd = (e?: { stopPropagation?: () => void }) => {
     e?.stopPropagation?.();
     requireAuth(() => {
       requireCustomerRole(() => {
@@ -180,7 +215,7 @@ function FoodScreenInner() {
     queryFn: async () => {
       const r = await fetch(`${API_BASE}/vendors?category=food&slim=true`);
       const json = await r.json();
-      return unwrapApiResponse<{ vendors?: any[]; users?: any[] }>(json);
+      return unwrapApiResponse<{ vendors?: RawVendorData[]; users?: RawVendorData[] }>(json);
     },
     staleTime: 5 * 60 * 1000,
   });
@@ -188,7 +223,7 @@ function FoodScreenInner() {
   const items = useMemo(() => data?.products || [], [data]);
 
   const restaurants = useMemo<RestaurantCard[]>(() => {
-    const vendors: any[] = vendorData?.vendors || vendorData?.users || [];
+    const vendors: RawVendorData[] = vendorData?.vendors || vendorData?.users || [];
     if (vendors.length > 0) {
       return vendors
         .map(v => {
@@ -412,7 +447,7 @@ function FoodScreenInner() {
             <Ionicons name="fast-food-outline" size={14} color={!selectedCat ? C.textInverse : C.food} />
             <Text style={[styles.catChipText, !selectedCat && styles.catChipTextActive]}>All</Text>
           </TouchableOpacity>
-          {categories.map(c => (
+          {(categories as { id: string; name: string; icon?: string }[]).map(c => (
             <TouchableOpacity activeOpacity={0.7} key={c.id} onPress={() => handleSelectCat(c.id)} style={[styles.catChip, selectedCat === c.id && styles.catChipActive]}>
               <Ionicons name={((c as unknown as { icon?: string }).icon ?? "apps-outline") as keyof typeof Ionicons.glyphMap} size={14} color={selectedCat === c.id ? C.textInverse : C.food} />
               <Text style={[styles.catChipText, selectedCat === c.id && styles.catChipTextActive]}>{c.name}</Text>
@@ -489,7 +524,7 @@ function FoodScreenInner() {
               </View>
             </View>
             <View style={styles.foodList}>
-              {items.map(i => <FoodCard key={i.id} item={i} />)}
+              {(items as FoodProduct[]).map(i => <FoodCard key={i.id} item={i} />)}
             </View>
           </>
         )}

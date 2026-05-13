@@ -117,7 +117,7 @@ async function runDispatchCycle() {
           _dispatchAttemptCounts.delete(ride.id);
           await db.transaction(async (tx) => {
             const [upd] = await tx.update(ridesTable)
-              .set({ status: "no_riders", updatedAt: new Date() })
+              .set({ status: "no_riders_found", updatedAt: new Date() })
               .where(and(eq(ridesTable.id, ride.id), isNull(ridesTable.riderId)))
               .returning({ id: ridesTable.id });
             if (!upd) return;
@@ -155,7 +155,7 @@ async function runDispatchCycle() {
             body: t("searching_driver", capLang),
             type: "ride", icon: "close-circle-outline",
           }).catch((e: Error) => logger.warn({ rideId: ride.id, userId: ride.userId, err: e.message }, "[dispatch-engine] attempt-cap no-riders notification insert failed"));
-          logger.info({ rideId: ride.id, attempts: attemptsSoFar }, "[dispatch-engine] attempt cap reached — ride set to no_riders");
+          logger.info({ rideId: ride.id, attempts: attemptsSoFar }, "[dispatch-engine] attempt cap reached — ride set to no_riders_found");
           emitRideUpdate(ride.id);
           getIO()?.to(`user:${ride.userId}`).emit("ride:no_riders", {
             rideId: ride.id,
@@ -169,7 +169,7 @@ async function runDispatchCycle() {
           _dispatchAttemptCounts.delete(ride.id);
           await db.transaction(async (tx) => {
             const [upd] = await tx.update(ridesTable)
-              .set({ status: "no_riders", updatedAt: new Date() })
+              .set({ status: "no_riders_found", updatedAt: new Date() })
               .where(and(eq(ridesTable.id, ride.id), isNull(ridesTable.riderId)))
               .returning({ id: ridesTable.id });
             if (!upd) return;

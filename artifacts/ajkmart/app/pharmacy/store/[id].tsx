@@ -36,6 +36,7 @@ interface PharmacyProduct {
   image?: string;
   inStock: boolean;
   requires_prescription?: boolean;
+  type?: string;
 }
 
 interface PharmacyVendor {
@@ -129,7 +130,8 @@ export default function PharmacyStoreScreen() {
       if (!res.ok) throw new Error("Could not load pharmacy store");
       const json = await res.json() as { data?: StoreResponse };
       const d = json?.data ?? (json as unknown as StoreResponse);
-      return { vendor: d.vendor, products: Array.isArray(d.products) ? d.products : [] } as StoreResponse;
+      const allProducts: PharmacyProduct[] = Array.isArray(d.products) ? d.products : [];
+      return { vendor: d.vendor, products: allProducts.filter(p => !p.type || p.type === "pharmacy") } as StoreResponse;
     },
     enabled: !!vendorId,
     staleTime: 3 * 60_000,

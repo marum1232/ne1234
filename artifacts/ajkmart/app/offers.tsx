@@ -377,7 +377,7 @@ function OffersScreenInner() {
   const [selectedOffer, setSelectedOffer] = useState<OfferType | null>(null);
   const [activeTab, setActiveTab] = useState<"all" | "saved" | GroupKey>("all");
 
-  const { data, isLoading, refetch, isFetching } = useQuery({
+  const { data, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ["public-offers"],
     queryFn: async () => {
       const r = await fetch(`${API_BASE}/promotions/public`);
@@ -537,6 +537,26 @@ function OffersScreenInner() {
             >
               Loading offers...
             </Text>
+          </View>
+        ) : isError ? (
+          <View style={s.empty}>
+            <Text style={{ fontSize: 48 }}>⚠️</Text>
+            <Text style={s.emptyTitle}>Could not load offers</Text>
+            <Text style={s.emptySubtitle}>Check your connection and try again.</Text>
+            <TouchableOpacity
+              onPress={() => refetch()}
+              style={{
+                marginTop: 16,
+                paddingHorizontal: 24,
+                paddingVertical: 10,
+                backgroundColor: C.primary,
+                borderRadius: 20,
+              }}
+            >
+              <Text style={{ fontFamily: Font.semiBold, color: "#fff", fontSize: 14 }}>
+                Retry
+              </Text>
+            </TouchableOpacity>
           </View>
         ) : displayOffers.length === 0 ? (
           <View style={s.empty}>

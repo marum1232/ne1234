@@ -30,7 +30,7 @@ function RideScreenInner() {
   const inMaintenance = config.appStatus === "maintenance";
   const { rideId: urlRideId, prefillPickup, prefillDrop, prefillType } = useLocalSearchParams<{ rideId?: string; prefillPickup?: string; prefillDrop?: string; prefillType?: string }>();
 
-  const [booked, setBooked] = useState<any>(null);
+  const [booked, setBooked] = useState<{ id: string; type?: string; status?: string; fare?: number; isBargaining?: boolean; effectiveFare?: number } | null>(null);
 
   const fetchRideFn = useCallback(async () => {
     const data = await getRide(urlRideId!) as Ride;
