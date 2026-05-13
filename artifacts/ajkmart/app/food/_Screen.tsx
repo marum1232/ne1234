@@ -524,7 +524,7 @@ function FoodScreenInner() {
               </View>
             </View>
             <View style={styles.foodList}>
-              {(items as FoodProduct[]).map(i => <FoodCard key={i.id} item={i} />)}
+              {(items as unknown as FoodProduct[]).map(i => <FoodCard key={i.id} item={i} />)}
             </View>
           </>
         )}

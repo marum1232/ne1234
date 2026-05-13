@@ -201,7 +201,7 @@ export default function PharmacyStoreScreen() {
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
             {vendorLoading ? (
-              <SkeletonBlock width={140} height={18} radius={6} />
+              <SkeletonBlock w={140} h={18} r={6} />
             ) : (
               <Text style={s.headerTitle} numberOfLines={1}>{vendor?.name ?? "Pharmacy"}</Text>
             )}
@@ -257,7 +257,7 @@ export default function PharmacyStoreScreen() {
 
       {isLoading ? (
         <ScrollView contentContainerStyle={{ padding: 16 }}>
-          {[1, 2, 3, 4].map(i => <SkeletonBlock key={i} width="100%" height={90} radius={12} style={{ marginBottom: 10 }} />)}
+          {[1, 2, 3, 4].map(i => <SkeletonBlock key={i} w="100%" h={90} r={12} style={{ marginBottom: 10 }} />)}
         </ScrollView>
       ) : shownProducts.length === 0 ? (
         <View style={s.empty}>
@@ -277,7 +277,7 @@ export default function PharmacyStoreScreen() {
                   showToast("Please upload a prescription before adding Rx items", "error");
                   return;
                 }
-                addItem({ productId: item.id, name: item.name, price: item.price, image: item.image ?? "", type: "pharmacy" });
+                addItem({ productId: item.id, name: item.name, price: item.price, image: item.image ?? "", type: "pharmacy", quantity: 1 });
               }}
               onRemove={() => removeItem(item.id)}
             />
@@ -328,19 +328,19 @@ const s = StyleSheet.create({
   productImg: { width: 68, height: 68, borderRadius: 10 },
   productImgPlaceholder: { backgroundColor: "#F3E8FF", alignItems: "center", justifyContent: "center" },
   productName: { fontSize: 14, fontWeight: "600", color: C.text, flex: 1 },
-  productUnit: { fontSize: 11, color: C.textSub, marginTop: 1 },
-  productDesc: { fontSize: 11, color: C.textSub, marginTop: 2 },
+  productUnit: { fontSize: 11, color: C.textSecondary, marginTop: 1 },
+  productDesc: { fontSize: 11, color: C.textSecondary, marginTop: 2 },
   productPrice: { fontSize: 14, fontWeight: "700", color: C.purple, marginTop: 4 },
   rxBadge: { backgroundColor: "#FEE2E2", borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1 },
   rxTxt: { fontSize: 10, fontWeight: "700", color: "#EF4444" },
   oosBadge: { backgroundColor: "#F3F4F6", borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1 },
-  oosTxt: { fontSize: 10, color: C.textSub },
+  oosTxt: { fontSize: 10, color: C.textSecondary },
   qtyCtrl: { alignItems: "center", justifyContent: "center", gap: 4, minWidth: 70 },
   qtyBtn: { width: 28, height: 28, borderRadius: 14, borderWidth: 1, borderColor: C.purple, alignItems: "center", justifyContent: "center" },
   qtyTxt: { fontSize: 15, fontWeight: "700", color: C.text, minWidth: 24, textAlign: "center" },
   addBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: C.purple, alignItems: "center", justifyContent: "center" },
   empty: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, padding: 32 },
-  emptyTxt: { fontSize: 14, color: C.textSub, textAlign: "center" },
+  emptyTxt: { fontSize: 14, color: C.textSecondary, textAlign: "center" },
   checkoutBar: { position: "absolute", bottom: 0, left: 0, right: 0, backgroundColor: "#fff", paddingHorizontal: 16, paddingTop: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderTopWidth: 1, borderTopColor: C.border, shadowColor: "#000", shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: -2 }, elevation: 8 },
   checkoutBarTxt: { fontSize: 14, fontWeight: "600", color: C.text },
   checkoutBarBtn: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: C.purple, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 10 },

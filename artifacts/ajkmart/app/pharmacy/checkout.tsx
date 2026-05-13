@@ -52,7 +52,7 @@ export default function PharmacyCheckoutScreen() {
 
   const pharmacyItems = useMemo(() => items.filter(i => i.type === "pharmacy"), [items]);
   const subtotal = pharmacyItems.reduce((s, i) => s + i.price * i.quantity, 0);
-  const deliveryFee = parseFloat(config.pricing?.deliveryFeePharmacy ?? config.pricing?.deliveryFee ?? "50");
+  const deliveryFee = config.deliveryFee.pharmacy ?? config.deliveryFee.food ?? 50;
   const grandTotal = subtotal + deliveryFee;
 
   const STEP_LABELS: Record<Step, string> = {
@@ -126,11 +126,9 @@ export default function PharmacyCheckoutScreen() {
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <View style={[s.container, { paddingTop: insets.top }]}>
         <View style={s.topBar}>
-          {step !== "done" && (
-            <TouchableOpacity activeOpacity={0.8} onPress={goBack} style={s.backBtn} accessibilityRole="button" accessibilityLabel="Go back">
-              <Ionicons name="arrow-back" size={22} color={C.text} />
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity activeOpacity={0.8} onPress={goBack} style={s.backBtn} accessibilityRole="button" accessibilityLabel="Go back">
+            <Ionicons name="arrow-back" size={22} color={C.text} />
+          </TouchableOpacity>
           <Text style={s.topTitle}>{STEP_LABELS[step]}</Text>
         </View>
 
@@ -191,7 +189,7 @@ export default function PharmacyCheckoutScreen() {
                 value={deliveryAddress}
                 onChangeText={setDeliveryAddress}
                 placeholder="Enter your complete delivery address"
-                placeholderTextColor={C.textSub}
+                placeholderTextColor={C.textSecondary}
                 multiline
                 numberOfLines={3}
                 accessibilityLabel="Delivery address"
@@ -202,7 +200,7 @@ export default function PharmacyCheckoutScreen() {
                 value={contactPhone}
                 onChangeText={setContactPhone}
                 placeholder="03001234567"
-                placeholderTextColor={C.textSub}
+                placeholderTextColor={C.textSecondary}
                 keyboardType="phone-pad"
                 accessibilityLabel="Contact phone number"
               />
@@ -212,7 +210,7 @@ export default function PharmacyCheckoutScreen() {
                 value={prescriptionNote}
                 onChangeText={setPrescriptionNote}
                 placeholder="Any notes about your prescription or medicines..."
-                placeholderTextColor={C.textSub}
+                placeholderTextColor={C.textSecondary}
                 multiline
                 numberOfLines={3}
                 accessibilityLabel="Prescription note"
@@ -238,7 +236,7 @@ export default function PharmacyCheckoutScreen() {
                   accessibilityRole="radio"
                   accessibilityState={{ checked: paymentMethod === opt.key }}
                 >
-                  <Ionicons name={opt.icon} size={22} color={paymentMethod === opt.key ? C.purple : C.textSub} />
+                  <Ionicons name={opt.icon} size={22} color={paymentMethod === opt.key ? C.purple : C.textSecondary} />
                   <Text style={[s.payOptionLabel, paymentMethod === opt.key && s.payOptionLabelActive]}>{opt.label}</Text>
                   {paymentMethod === opt.key && <Ionicons name="checkmark-circle" size={20} color={C.purple} />}
                 </TouchableOpacity>
@@ -310,18 +308,18 @@ const s = StyleSheet.create({
   stepBar: { flexDirection: "row", alignItems: "center", justifyContent: "center", paddingVertical: 12, backgroundColor: "#fff", paddingHorizontal: 24 },
   stepDot: { width: 28, height: 28, borderRadius: 14, backgroundColor: C.border, alignItems: "center", justifyContent: "center" },
   stepDotActive: { backgroundColor: C.purple },
-  stepDotTxt: { fontSize: 13, fontWeight: "700", color: C.textSub },
+  stepDotTxt: { fontSize: 13, fontWeight: "700", color: C.textSecondary },
   stepDotTxtActive: { color: "#fff" },
   stepLine: { width: 48, height: 2, backgroundColor: C.border },
   stepLineActive: { backgroundColor: C.purple },
   sectionTitle: { fontSize: 16, fontWeight: "700", color: C.text, marginBottom: 14 },
   cartRow: { flexDirection: "row", alignItems: "center", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: C.border },
   cartItemName: { fontSize: 14, fontWeight: "600", color: C.text },
-  cartItemQty: { fontSize: 12, color: C.textSub, marginTop: 2 },
+  cartItemQty: { fontSize: 12, color: C.textSecondary, marginTop: 2 },
   cartItemPrice: { fontSize: 14, fontWeight: "700", color: C.purple },
   divider: { height: 1, backgroundColor: C.border, marginVertical: 14 },
   totalRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 6 },
-  totalLabel: { fontSize: 14, color: C.textSub },
+  totalLabel: { fontSize: 14, color: C.textSecondary },
   totalVal: { fontSize: 14, color: C.text, fontWeight: "600" },
   grandTotalRow: { marginTop: 4 },
   grandTotalLabel: { fontSize: 16, fontWeight: "700", color: C.text },
@@ -332,12 +330,12 @@ const s = StyleSheet.create({
   rxConfirmTxt: { fontSize: 13, color: C.purple, fontWeight: "600" },
   payOption: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: "#fff", borderWidth: 1, borderColor: C.border, borderRadius: 12, padding: 14, marginBottom: 10 },
   payOptionActive: { borderColor: C.purple, backgroundColor: "#F5F3FF" },
-  payOptionLabel: { flex: 1, fontSize: 15, fontWeight: "600", color: C.textSub },
+  payOptionLabel: { flex: 1, fontSize: 15, fontWeight: "600", color: C.textSecondary },
   payOptionLabelActive: { color: C.purple },
   summaryBox: { backgroundColor: "#fff", borderRadius: 12, padding: 14, borderWidth: 1, borderColor: C.border },
   summaryTitle: { fontSize: 14, fontWeight: "700", color: C.text, marginBottom: 10 },
   emptyCart: { alignItems: "center", padding: 32, gap: 12 },
-  emptyCartTxt: { fontSize: 15, color: C.textSub },
+  emptyCartTxt: { fontSize: 15, color: C.textSecondary },
   emptyCartBtn: { backgroundColor: C.purple, paddingHorizontal: 24, paddingVertical: 10, borderRadius: 10 },
   emptyCartBtnTxt: { color: "#fff", fontWeight: "700", fontSize: 14 },
   bottomBar: { position: "absolute", bottom: 0, left: 0, right: 0, backgroundColor: "#fff", paddingHorizontal: 16, paddingTop: 12, borderTopWidth: 1, borderTopColor: C.border },
@@ -347,7 +345,7 @@ const s = StyleSheet.create({
   doneContainer: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32, backgroundColor: "#F8F9FC", gap: 16 },
   doneCircle: { width: 88, height: 88, borderRadius: 44, backgroundColor: C.purple, alignItems: "center", justifyContent: "center" },
   doneTitle: { fontSize: 26, fontWeight: "800", color: C.text },
-  doneSub: { fontSize: 15, color: C.textSub, textAlign: "center", lineHeight: 22 },
+  doneSub: { fontSize: 15, color: C.textSecondary, textAlign: "center", lineHeight: 22 },
   doneOrderId: { fontSize: 13, fontWeight: "700", color: C.purple, backgroundColor: "#EDE9FE", paddingHorizontal: 14, paddingVertical: 6, borderRadius: 8 },
   doneBtn: { backgroundColor: C.purple, paddingHorizontal: 32, paddingVertical: 14, borderRadius: 12, width: "100%", alignItems: "center" },
   doneBtnTxt: { color: "#fff", fontSize: 15, fontWeight: "700" },
