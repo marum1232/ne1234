@@ -10,6 +10,7 @@ import { usePlatformConfig, formatDateTz } from "../lib/useConfig";
 import { useLanguage } from "../lib/useLanguage";
 import { tDual } from "@workspace/i18n";
 import { PullToRefresh } from "../components/PullToRefresh";
+import { ErrorState } from "../components/ui/ErrorState";
 
 function formatDate(d: string | Date, tz?: string) {
   return formatDateTz(d, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }, tz ?? "Asia/Karachi");
@@ -43,6 +44,7 @@ export default function History() {
   const {
     data,
     isLoading,
+    isError,
     isFetchingNextPage,
     hasNextPage,
     fetchNextPage,
@@ -182,6 +184,13 @@ export default function History() {
               </div>
             </div>
           ))
+        ) : isError ? (
+          <ErrorState
+            title={T("somethingWentWrong")}
+            subtitle={T("noRecordsFound")}
+            onRetry={() => refetch()}
+            retryLabel={T("retry")}
+          />
         ) : filtered.length === 0 ? (
           <div className="text-center py-16">
             <div className="w-16 h-16 bg-gray-100 rounded-3xl flex items-center justify-center mx-auto mb-3">

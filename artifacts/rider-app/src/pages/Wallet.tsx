@@ -7,6 +7,7 @@ import { usePlatformConfig, formatDateTz } from "../lib/useConfig";
 import { useLanguage } from "../lib/useLanguage";
 import { tDual, type TranslationKey } from "@workspace/i18n";
 import { PullToRefresh } from "../components/PullToRefresh";
+import { ErrorState } from "../components/ui/ErrorState";
 import WithdrawModal from "../components/wallet/WithdrawModal";
 /* W3: Each wallet modal owns its own state and is conditionally mounted —
    we ensure that flipping `showWithdraw`/`showDeposit`/`showRemittance` to
@@ -249,6 +250,7 @@ export default function Wallet() {
   const {
     data,
     isLoading,
+    isError,
     refetch,
     fetchNextPage,
     hasNextPage,
@@ -431,6 +433,26 @@ export default function Wallet() {
               ))}
             </div>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="bg-[#F5F6F8] min-h-screen flex flex-col">
+        <div className="bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800 px-5 pb-10 rounded-b-[2rem]"
+          style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 3.5rem)" }}>
+          <p className="text-white/40 text-xs font-semibold tracking-widest uppercase mb-1">{T("walletBalance")}</p>
+          <h1 className="text-2xl font-extrabold text-white tracking-tight">{T("wallet")}</h1>
+        </div>
+        <div className="flex-1 flex items-center justify-center -mt-4">
+          <ErrorState
+            title={T("somethingWentWrong")}
+            subtitle={T("checkInternetRetry")}
+            onRetry={() => refetch()}
+            retryLabel={T("retry")}
+          />
         </div>
       </div>
     );

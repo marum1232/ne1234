@@ -145,7 +145,7 @@ export default function Notifications() {
     return () => { if (toastTimerRef.current) clearTimeout(toastTimerRef.current); };
   }, []);
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["rider-notifications"],
     queryFn: () => api.getNotifications(),
     refetchInterval: 30000,
@@ -251,6 +251,28 @@ export default function Notifications() {
   }, [qc]);
 
   if (isLoading) return <SkeletonNotifications />;
+
+  if (isError) return (
+    <div className="min-h-screen bg-[#F5F6F8] flex flex-col">
+      <div className="bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800 px-5 py-8 rounded-b-[2rem]"
+        style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 3.5rem)" }}>
+        <h1 className="text-2xl font-extrabold text-white tracking-tight">{T("notificationsTitle")}</h1>
+      </div>
+      <div className="flex-1 flex items-center justify-center px-6 py-16">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-red-50 rounded-3xl flex items-center justify-center mx-auto mb-4">
+            <AlertTriangle size={28} className="text-red-400" />
+          </div>
+          <p className="font-bold text-gray-700 text-base">{T("somethingWentWrong")}</p>
+          <p className="text-gray-400 text-sm mt-1">{T("tryDifferentFilter")}</p>
+          <button onClick={() => refetch()}
+            className="mt-4 flex items-center gap-2 mx-auto px-5 py-2.5 bg-red-50 text-red-700 text-sm font-bold rounded-2xl active:bg-red-100 transition-colors border border-red-100">
+            <RefreshCw size={13} /> {T("retry")}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <PullToRefresh onRefresh={handlePullRefresh} className="min-h-screen bg-[#F5F6F8]">

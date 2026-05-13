@@ -30,7 +30,7 @@ export default function Notifications() {
   const { language } = useLanguage();
   const T = (key: TranslationKey) => tDual(key, language);
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["vendor-notifications"],
     queryFn: () => api.getNotifications(),
     refetchInterval: 30000,
@@ -134,6 +134,16 @@ export default function Notifications() {
         {isLoading ? (
           <div className="space-y-3">
             {[1,2,3,4,5].map(i => <div key={i} className="h-20 skeleton rounded-2xl"/>)}
+          </div>
+        ) : isError ? (
+          <div className={`${CARD} px-4 py-16 text-center`}>
+            <p className="text-4xl mb-4">⚠️</p>
+            <p className="font-bold text-gray-700 text-base">{T("somethingWentWrong")}</p>
+            <p className="text-sm text-gray-400 mt-1">{T("checkInternet")}</p>
+            <button onClick={() => refetch()}
+              className="mt-4 h-10 px-6 bg-orange-500 text-white font-bold rounded-xl text-sm hover:bg-orange-600 transition-colors">
+              {T("retry")}
+            </button>
           </div>
         ) : notifs.length === 0 ? (
           <div className={`${CARD} px-4 py-20 text-center`}>

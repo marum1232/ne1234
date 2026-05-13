@@ -12,6 +12,7 @@ import { PullToRefresh } from "../components/PullToRefresh";
 import { ImageUploader } from "../components/ImageUploader";
 import { SafeImage } from "../components/ui/SafeImage";
 import { fc, fd, CARD, INPUT, SELECT, TEXTAREA, BTN_PRIMARY, BTN_SECONDARY, LABEL, errMsg } from "../lib/ui";
+import { ErrorState } from "../components/ui/ErrorState";
 import { useOfflineQueue } from "../hooks/useOfflineQueue";
 
 const EMPTY = { name:"", description:"", price:"", originalPrice:"", category:"", unit:"", stock:"", image:"", type:"mart", videoUrl:"", tags:"", isHidden: false };
@@ -222,7 +223,7 @@ export default function Products() {
     return CATS_FALLBACK;
   }, [catsData]);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch: refetchProducts } = useQuery({
     queryKey: ["vendor-products", search, filterCat],
     queryFn: () => api.getProducts(search || undefined, filterCat !== "all" ? filterCat : undefined),
     refetchInterval: 60000,
@@ -1221,6 +1222,13 @@ export default function Products() {
           <div className="md:grid md:grid-cols-2 lg:grid-cols-3 md:gap-4 space-y-3 md:space-y-0">
             {[1,2,3,4].map(i => <div key={i} className="h-24 skeleton rounded-2xl"/>)}
           </div>
+        ) : isError ? (
+          <ErrorState
+            title={T("somethingWentWrong")}
+            subtitle={T("checkInternet")}
+            onRetry={() => refetchProducts()}
+            retryLabel={T("retry")}
+          />
         ) : products.length === 0 ? (
           <div className={`${CARD} px-4 py-16 text-center`}>
             <p className="text-5xl mb-4">{search || filterCat !== "all" ? "🔍" : "🍽️"}</p>
