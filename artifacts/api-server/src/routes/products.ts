@@ -185,17 +185,35 @@ router.get("/trending-searches", async (req, res) => {
    Supports full-text ranking (ts_rank) for the default "relevance" sort.
    Falls back to ilike for very short queries (<3 chars).
    ─────────────────────────────────────────────────────────────────────── */
+const searchQuerySchema = z.object({
+  q: z.string().max(200).optional(),
+  type: z.string().max(50).optional(),
+  category: z.string().max(50).optional(),
+  sort: z.enum(["relevance", "price_asc", "price_desc", "rating", "newest"]).optional(),
+  minPrice: z.coerce.number().min(0).optional(),
+  maxPrice: z.coerce.number().min(0).optional(),
+  minRating: z.coerce.number().min(0).max(5).optional(),
+  page: z.coerce.number().int().min(1).optional(),
+  perPage: z.coerce.number().int().min(1).max(50).optional(),
+  slim: z.enum(["true", "false"]).optional(),
+});
+
 router.get("/search", async (req, res) => {
   try {
-  const { q, type, sort, minPrice, maxPrice, minRating, category } = req.query;
+  const parsed = searchQuerySchema.safeParse(req.query);
+  if (!parsed.success) {
+    res.status(400).json({ success: false, error: "Invalid query parameters", details: parsed.error.flatten().fieldErrors });
+    return;
+  }
+  const { q, type, sort, minPrice, maxPrice, minRating, category } = parsed.data;
   const ps = await getCachedSettings();
   const defaultPP = parseInt(ps["pagination_products_default"] ?? "20") || 20;
   const maxPP = parseInt(ps["pagination_products_max"] ?? "50") || 50;
-  const page = Math.max(parseInt(req.query.page as string) || 1, 1);
-  const perPage = Math.min(Math.max(parseInt(req.query.perPage as string) || defaultPP, 1), maxPP);
+  const page = Math.min(Math.max(parsed.data.page ?? 1, 1), 10000);
+  const perPage = Math.min(parsed.data.perPage ?? defaultPP, maxPP);
   const offset = (page - 1) * perPage;
 
-  if (!q || typeof q !== "string" || !q.trim()) {
+  if (!q || !q.trim()) {
     sendSuccess(res, { products: [], total: 0, page, perPage, totalPages: 0 });
     return;
   }
@@ -215,11 +233,11 @@ router.get("/search", async (req, res) => {
     eq(productsTable.inStock, true),
     isNull(productsTable.deletedAt),
   ];
-  if (type && typeof type === "string") baseConditions.push(eq(productsTable.type, type));
-  if (category && typeof category === "string") baseConditions.push(eq(productsTable.category, category));
-  if (minPrice) baseConditions.push(gte(productsTable.price, String(minPrice)));
-  if (maxPrice) baseConditions.push(lte(productsTable.price, String(maxPrice)));
-  if (minRating) baseConditions.push(gte(productsTable.rating, String(minRating)));
+  if (type) baseConditions.push(eq(productsTable.type, type));
+  if (category) baseConditions.push(eq(productsTable.category, category));
+  if (minPrice != null) baseConditions.push(gte(productsTable.price, String(minPrice)));
+  if (maxPrice != null) baseConditions.push(lte(productsTable.price, String(maxPrice)));
+  if (minRating != null) baseConditions.push(gte(productsTable.rating, String(minRating)));
 
   let conditions: SQL[];
   if (useFullText) {
@@ -268,7 +286,7 @@ router.get("/search", async (req, res) => {
   const normalizedQuery = trimmed.toLowerCase().replace(/\s+/g, " ");
   db.insert(searchLogsTable).values({ query: normalizedQuery, resultCount: total, userId: searchUserId }).catch(() => {});
 
-  const slimSearch = req.query.slim === "true";
+  const slimSearch = parsed.data.slim === "true";
 
   sendSuccess(res, {
     products: allProducts.map(slimSearch ? mapSlimProduct : mapProduct),
