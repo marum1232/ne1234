@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../lib/auth";
 import { api } from "../lib/api";
 import { usePlatformConfig, useCurrency } from "../lib/useConfig";
+import { ErrorState } from "../components/ui/ErrorState";
 import { useLanguage } from "../lib/useLanguage";
 import { tDual, type TranslationKey } from "@workspace/i18n";
 import { PageHeader } from "../components/PageHeader";
@@ -489,12 +490,12 @@ export default function Wallet() {
           </div>
 
           {isError ? (
-            <div className="px-4 py-10 text-center">
-              <p className="text-3xl mb-2">⚠️</p>
-              <p className="font-bold text-gray-700 text-sm">Could not load transactions</p>
-              <p className="text-xs text-gray-400 mt-1 mb-3">Check your connection and try again</p>
-              <button onClick={() => refetch()} className="h-9 px-6 bg-orange-500 text-white font-bold rounded-xl text-sm">Retry</button>
-            </div>
+            <ErrorState
+              title={T("somethingWentWrong")}
+              subtitle={T("checkInternetRetry")}
+              onRetry={() => refetch()}
+              retryLabel={T("retry")}
+            />
           ) : isLoading ? (
             <div className="p-4 space-y-3">
               {[1,2,3,4,5].map(i => <div key={i} className="h-16 skeleton rounded-xl"/>)}

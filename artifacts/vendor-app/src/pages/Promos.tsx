@@ -5,6 +5,7 @@ import { PageHeader } from "../components/PageHeader";
 import { PullToRefresh } from "../components/PullToRefresh";
 import { fc, CARD, INPUT, SELECT, BTN_PRIMARY, BTN_SECONDARY, LABEL, errMsg } from "../lib/ui";
 import { useCurrency, usePlatformConfig, formatDateTz } from "../lib/useConfig";
+import { ErrorState } from "../components/ui/ErrorState";
 
 const EMPTY_PROMO = {
   title: "",
@@ -27,7 +28,7 @@ export default function Promos() {
   const showToast = (m: string) => { setToast(m); setTimeout(() => setToast(""), 3000); };
   const f = (k: string, v: any) => setForm(p => ({ ...p, [k]: v }));
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["vendor-promos"],
     queryFn: () => apiFetch("/vendor/promos"),
     retry: 2,
@@ -129,6 +130,10 @@ export default function Promos() {
         {/* Promos list */}
         {isLoading ? (
           <div className={`${CARD} flex items-center justify-center h-32 text-gray-400 text-sm`}>Loading promotions...</div>
+        ) : isError ? (
+          <div className={CARD}>
+            <ErrorState onRetry={() => refetch()} />
+          </div>
         ) : promos.length === 0 ? (
           <div className={`${CARD} flex flex-col items-center justify-center h-40 text-center`}>
             <span className="text-4xl mb-3">🏷️</span>

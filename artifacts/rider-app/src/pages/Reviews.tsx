@@ -3,6 +3,7 @@ import { Star, ArrowLeft, Package, Bike, MessageSquare } from "lucide-react";
 import { Link } from "wouter";
 import { api } from "../lib/api";
 import { usePlatformConfig, formatDateTz } from "../lib/useConfig";
+import { ErrorState } from "../components/ui/ErrorState";
 
 interface Review {
   id: string;
@@ -110,19 +111,9 @@ export default function Reviews() {
         {isLoading ? (
           [1, 2, 3, 4].map(i => <SkeletonCard key={i} />)
         ) : isError ? (
-          <div className="text-center py-16">
-            <div className="w-16 h-16 bg-red-50 rounded-3xl flex items-center justify-center mx-auto mb-3">
-              <MessageSquare size={28} className="text-red-300" />
-            </div>
-            <p className="font-bold text-gray-700 text-base">Could not load reviews</p>
-            <p className="text-gray-400 text-sm mt-1">Check your connection and try again.</p>
-            <button
-              onClick={() => refetch()}
-              className="mt-4 px-5 py-2.5 bg-gray-900 text-white text-sm font-bold rounded-full active:bg-gray-700 transition-colors"
-            >
-              Retry
-            </button>
-          </div>
+          <ErrorState
+            onRetry={() => refetch()}
+          />
         ) : reviews.length === 0 ? (
           <div className="text-center py-16">
             <div className="w-16 h-16 bg-amber-50 rounded-3xl flex items-center justify-center mx-auto mb-3">

@@ -8,6 +8,7 @@ import { useAuth } from "../lib/auth";
 import { tDual, type TranslationKey } from "@workspace/i18n";
 import { PageHeader } from "../components/PageHeader";
 import { PullToRefresh } from "../components/PullToRefresh";
+import { ErrorState } from "../components/ui/ErrorState";
 import { ErrorBoundary } from "../components/ErrorBoundary";
 import { useOfflineQueue } from "../hooks/useOfflineQueue";
 import { fc, fd, CARD, DEFAULT_COMMISSION_PCT, errMsg } from "../lib/ui";
@@ -550,11 +551,13 @@ export default function Orders({ targetOrderId }: { targetOrderId?: string } = {
       {/* ── Order List ── */}
       <div className="px-4 py-4 space-y-3 md:px-0 md:py-4">
         {isError && (
-          <div className={`${CARD} px-4 py-6 text-center`}>
-            <p className="text-3xl mb-2">⚠️</p>
-            <p className="font-bold text-gray-700 text-sm">Could not load orders</p>
-            <p className="text-xs text-gray-400 mt-1 mb-3">Check your connection and try again</p>
-            <button onClick={() => refetch()} className="h-9 px-6 bg-orange-500 text-white font-bold rounded-xl text-sm android-press">Retry</button>
+          <div className={CARD}>
+            <ErrorState
+              title={T("somethingWentWrong")}
+              subtitle={T("checkInternetRetry")}
+              onRetry={() => refetch()}
+              retryLabel={T("retry")}
+            />
           </div>
         )}
         {!isError && isLoading ? (

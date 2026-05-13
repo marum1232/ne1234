@@ -5,6 +5,7 @@ import { PageHeader } from "../components/PageHeader";
 import { PullToRefresh } from "../components/PullToRefresh";
 import { CARD, BTN_PRIMARY, BTN_SECONDARY, errMsg, fc } from "../lib/ui";
 import { useCurrency, usePlatformConfig, formatDateTz } from "../lib/useConfig";
+import { ErrorState } from "../components/ui/ErrorState";
 
 type Participation = {
   id: string;
@@ -148,10 +149,10 @@ function PerformancePanel({ campaignId }: { campaignId: string }) {
 
   if (isLoading) return <div className="h-20 animate-pulse bg-gray-50 rounded-xl"/>;
   if (isError || !data) return (
-    <div className="text-xs text-center text-gray-400 py-3">
-      Could not load performance.{" "}
-      <button onClick={() => refetch()} className="text-orange-500 font-bold underline">Retry</button>
-    </div>
+    <ErrorState
+      onRetry={() => refetch()}
+      className="py-8"
+    />
   );
 
   const metrics = [

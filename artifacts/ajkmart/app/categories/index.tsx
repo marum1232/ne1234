@@ -2,6 +2,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSmartBack } from "@/hooks/useSmartBack";
 import React, { useState, useEffect } from "react";
+import { useLanguage } from "@/context/LanguageContext";
+import { tDual, type TranslationKey } from "@workspace/i18n";
 import { withErrorBoundary } from "@/utils/withErrorBoundary";
 import {
   ActivityIndicator,
@@ -54,6 +56,8 @@ function CategoriesBrowseScreenInner() {
   const serviceType = initialType || "mart";
 
   const [sortBy, setSortBy] = useState<SortKey>("newest");
+  const { language } = useLanguage();
+  const T = (key: TranslationKey) => tDual(key, language);
 
   const {
     data: categories,
@@ -137,8 +141,8 @@ function CategoriesBrowseScreenInner() {
         </View>
       ) : isError ? (
         <ErrorState
-          title="Could not load categories"
-          subtitle="Check your connection and try again."
+          title={T("somethingWentWrong")}
+          subtitle={T("checkInternetRetry")}
           onRetry={() => refetchCats()}
         />
       ) : cats.length === 0 ? (

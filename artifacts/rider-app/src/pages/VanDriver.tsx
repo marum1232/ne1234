@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Bus, Users, CheckCircle, Clock, ChevronRight, AlertCircle, Play, Square, Navigation, TrendingUp, Wallet, Timer } from "lucide-react";
 import { apiFetch } from "../lib/api";
+import { ErrorState } from "../components/ui/ErrorState";
 import { enqueueAction, subscribeActionSuccess } from "../lib/offline/queueManager";
 
 import { useState, useEffect, useRef, useCallback } from "react";
@@ -145,7 +146,7 @@ export default function VanDriver() {
      offline so the screen never freezes waiting for the queue to sync. */
   const [tripEndingOffline, setTripEndingOffline] = useState(false);
 
-  const { data: schedules = [], isLoading } = useQuery<VanSchedule[]>({
+  const { data: schedules = [], isLoading, isError: schedulesError, refetch: refetchSchedules } = useQuery<VanSchedule[]>({
     queryKey: ["van-driver-today"],
     queryFn: fetchTodaySchedules,
     refetchInterval: 60_000,
@@ -317,6 +318,12 @@ export default function VanDriver() {
   const boardedCount = passengers.filter(p => p.status === "boarded" || p.status === "completed").length;
   const confirmedCount = passengers.filter(p => p.status === "confirmed").length;
   const isTripInProgress = selectedSchedule?.tripStatus === "in_progress" || broadcasting;
+
+  if (schedulesError) return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
+      <ErrorState onRetry={() => refetchSchedules()} />
+    </div>
+  );
 
   if (isLoading) return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">

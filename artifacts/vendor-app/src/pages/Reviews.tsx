@@ -4,6 +4,7 @@ import { api } from "../lib/api";
 import { useLanguage } from "../lib/useLanguage";
 import { tDual, type TranslationKey } from "@workspace/i18n";
 import { PageHeader } from "../components/PageHeader";
+import { ErrorState } from "../components/ui/ErrorState";
 import { usePlatformConfig, formatDateTz } from "../lib/useConfig";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 
@@ -57,7 +58,7 @@ export default function Reviews() {
 
   const qc = useQueryClient();
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["vendor-reviews", page, stars, sort],
     queryFn: () => api.getVendorReviews({ page, limit: 15, stars: stars || undefined, sort }),
     staleTime: 30_000,
@@ -231,6 +232,13 @@ export default function Reviews() {
             </div>
           ))}
         </div>
+      ) : isError ? (
+        <ErrorState
+          title={T("somethingWentWrong")}
+          subtitle={T("checkInternetRetry")}
+          onRetry={() => refetch()}
+          retryLabel={T("retry")}
+        />
       ) : reviews.length === 0 ? (
         <div className="text-center py-16">
           <p className="text-4xl mb-3">⭐</p>

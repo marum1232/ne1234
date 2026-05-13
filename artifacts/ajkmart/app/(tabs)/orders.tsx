@@ -1560,8 +1560,8 @@ function OrdersScreenInner() {
       return (
         <View style={{ padding: spacing.lg }}>
           <ErrorState
-            title="Could not load orders"
-            subtitle="Check your connection and try again."
+            title={T("somethingWentWrong")}
+            subtitle={T("checkInternetRetry")}
             onRetry={() => refetchOrders()}
           />
         </View>
