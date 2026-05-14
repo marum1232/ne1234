@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams, type Href } from "expo-router";
 import { useSmartBack } from "@/hooks/useSmartBack";
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -19,12 +19,13 @@ import Colors from "@/constants/colors";
 import { Font } from "@/constants/typography";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/utils/api";
-
-const C = Colors.light;
+import { useTheme } from "@/context/ThemeContext";
 
 type Period = "weekly" | "monthly";
 
 export default function SchoolBookScreen() {
+  const { colors: C } = useTheme();
+  const styles = useMemo(() => makeStyles(C), [C]);
   const { goBack } = useSmartBack();
   const insets = useSafeAreaInsets();
   const { token } = useAuth();
@@ -205,7 +206,8 @@ export default function SchoolBookScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(C: typeof Colors.light) {
+  return StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -261,8 +263,8 @@ const styles = StyleSheet.create({
     backgroundColor: C.surfaceSecondary,
   },
   periodBtnActive: {
-    backgroundColor: "#0EA5E9",
-    borderColor: "#0EA5E9",
+    backgroundColor: C.skyDark,
+    borderColor: C.skyDark,
   },
   periodBtnText: { fontFamily: Font.semiBold, fontSize: 14, color: C.textMuted },
   submitBtn: {
@@ -270,7 +272,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 10,
-    backgroundColor: "#0EA5E9",
+    backgroundColor: C.skyDark,
     borderRadius: 16,
     paddingVertical: 16,
   },
@@ -284,3 +286,4 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
 });
+}

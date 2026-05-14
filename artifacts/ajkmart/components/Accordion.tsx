@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import {
   Animated,
   LayoutAnimation,
@@ -11,8 +11,7 @@ import {
   View,
 } from "react-native";
 import Colors, { spacing, radii } from "@/constants/colors";
-
-const C = Colors.light;
+import { useTheme } from "@/context/ThemeContext";
 
 if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -39,11 +38,25 @@ interface AccordionProps {
   containerStyle?: object;
 }
 
+function makeStyles(C: typeof Colors.light) {
+  return StyleSheet.create({
+    container: { overflow: "hidden" },
+    group: { backgroundColor: C.surface, borderRadius: radii.xl, overflow: "hidden", borderWidth: 1, borderColor: C.border },
+    header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: spacing.md, paddingHorizontal: spacing.md },
+    headerLeft: { flexDirection: "row", alignItems: "center", flex: 1, gap: 10 },
+    iconBox: { width: 30, height: 30, borderRadius: radii.sm, alignItems: "center", justifyContent: "center" },
+    title: { fontSize: 13, fontWeight: "700", color: C.text, flex: 1 },
+    badge: { backgroundColor: C.primarySoft, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 20 },
+    badgeText: { fontSize: 10, fontWeight: "700", color: C.primary },
+    content: { paddingHorizontal: spacing.md, paddingBottom: spacing.md },
+  });
+}
+
 export default function Accordion({
   title,
   icon,
-  iconColor = C.primary,
-  iconBg = C.primarySoft,
+  iconColor,
+  iconBg,
   badge,
   badgeColor,
   badgeBg,
@@ -52,6 +65,11 @@ export default function Accordion({
   headerStyle,
   containerStyle,
 }: AccordionProps) {
+  const { colors: C } = useTheme();
+  const styles = useMemo(() => makeStyles(C), [C]);
+  const effectiveIconColor = iconColor ?? C.primary;
+  const effectiveIconBg = iconBg ?? C.primarySoft;
+
   const [open, setOpen] = useState(defaultOpen);
   const rotation = useRef(new Animated.Value(defaultOpen ? 1 : 0)).current;
 
@@ -74,15 +92,12 @@ export default function Accordion({
     <View style={[styles.container, containerStyle]}>
       <TouchableOpacity activeOpacity={0.7}
         onPress={toggle}
-        style={[
-          styles.header,
-          headerStyle,
-        ]}
+        style={[styles.header, headerStyle]}
       >
         <View style={styles.headerLeft}>
           {icon && (
-            <View style={[styles.iconBox, { backgroundColor: iconBg }]}>
-              <Ionicons name={icon} size={16} color={iconColor} />
+            <View style={[styles.iconBox, { backgroundColor: effectiveIconBg }]}>
+              <Ionicons name={icon} size={16} color={effectiveIconColor} />
             </View>
           )}
           <Text style={styles.title}>{title}</Text>
@@ -107,59 +122,7 @@ interface AccordionGroupProps {
 }
 
 export function AccordionGroup({ children, style }: AccordionGroupProps) {
+  const { colors: C } = useTheme();
+  const styles = useMemo(() => makeStyles(C), [C]);
   return <View style={[styles.group, style]}>{children}</View>;
 }
-
-const styles = StyleSheet.create({
-  container: {
-    overflow: "hidden",
-  },
-  group: {
-    backgroundColor: C.surface,
-    borderRadius: radii.xl,
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: C.border,
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.md,
-  },
-  headerLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    flex: 1,
-    gap: 10,
-  },
-  iconBox: {
-    width: 30,
-    height: 30,
-    borderRadius: radii.sm,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  title: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: C.text,
-    flex: 1,
-  },
-  badge: {
-    backgroundColor: C.primarySoft,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 20,
-  },
-  badgeText: {
-    fontSize: 10,
-    fontWeight: "700",
-    color: C.primary,
-  },
-  content: {
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.md,
-  },
-});

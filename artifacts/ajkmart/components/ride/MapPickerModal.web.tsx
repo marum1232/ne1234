@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Modal,
@@ -9,11 +9,10 @@ import {
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useTheme } from "@/context/ThemeContext";
 import Colors from "@/constants/colors";
 import { Font } from "@/constants/typography";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-
-const C = Colors.light;
 
 export type MapPickerResult = {
   lat: number;
@@ -39,6 +38,8 @@ function getRuntimeOrigin(): string {
 }
 
 export function MapPickerModal({ visible, label = "Location", initialLat, initialLng, onConfirm, onClose }: Props) {
+  const { colors: C } = useTheme();
+  const styles = useMemo(() => makeStyles(C), [C]);
   const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(true);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
@@ -99,7 +100,8 @@ export function MapPickerModal({ visible, label = "Location", initialLat, initia
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(C: typeof Colors.light) {
+  return StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#fff",
@@ -144,3 +146,4 @@ const styles = StyleSheet.create({
     color: C.textMuted,
   },
 });
+}

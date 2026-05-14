@@ -5,7 +5,7 @@ import { router, type RelativePathString } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { useQuery } from "@tanstack/react-query";
 
-import Colors, { spacing, shadows } from "@/constants/colors";
+import { spacing } from "@/constants/colors";
 import { Font } from "@/constants/typography";
 import { useAuth } from "@/context/AuthContext";
 import { usePlatformConfig } from "@/context/PlatformConfigContext";
@@ -13,7 +13,6 @@ import { usePerformance } from "@/context/PerformanceContext";
 import { getPollingIntervalForTier } from "@/hooks/useNetworkQuality";
 import { unwrapApiResponse, API_BASE } from "@/utils/api";
 
-const C = Colors.light;
 const H_PAD = spacing.lg;
 
 export function ActiveTrackerStrip({ userId }: { userId: string }) {

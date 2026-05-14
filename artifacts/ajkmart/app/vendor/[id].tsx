@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import {
   ActivityIndicator,
   Animated,
@@ -32,7 +32,6 @@ import {
 } from "@/components/AuthGateSheet";
 import { CartSwitchModal } from "@/components/CartSwitchModal";
 import { SkeletonBlock } from "@/components/ui/SkeletonBlock";
-const C = Colors.light;
 
 
 interface Product {
@@ -584,10 +583,10 @@ function VendorStoreScreenInner() {
   );
 }
 
-const W = 375;
-const CARD_W = (W - 32 - 10) / 2;
-
-function makeStyles(C: typeof Colors.light) { return StyleSheet.create({
+function makeStyles(C: typeof Colors.light) {
+  const W = 375;
+  const CARD_W = (W - 32 - 10) / 2;
+  return StyleSheet.create({
   container: { flex: 1, backgroundColor: C.background },
   header: {
     flexDirection: "row",
@@ -714,6 +713,30 @@ function makeStyles(C: typeof Colors.light) { return StyleSheet.create({
   catChipTxt: { fontFamily: Font.medium, fontSize: 12, color: C.textSecondary },
   catChipTxtActive: { color: "#fff" },
   listContent: { paddingHorizontal: 16, paddingBottom: 32 },
+  center: { flex: 1, alignItems: "center", justifyContent: "center", padding: 40 },
+  retryBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: C.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: radii.md,
+    marginTop: 12,
+  },
+  retryTxt: { fontFamily: Font.bold, fontSize: 14, color: "#fff" },
+  emptyTitle: {
+    fontFamily: Font.bold,
+    fontSize: 16,
+    color: C.textSecondary,
+    marginTop: 12,
+  },
+  clearFilters: {
+    fontFamily: Font.medium,
+    fontSize: 14,
+    color: C.primary,
+    marginTop: 8,
+  },
   productCard: {
     width: CARD_W,
     backgroundColor: C.surface,
@@ -782,12 +805,19 @@ function makeStyles(C: typeof Colors.light) { return StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  stepperRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  stepperRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: C.surfaceAlt,
+    borderRadius: radii.md,
+    padding: 2,
+    borderWidth: 1,
+    borderColor: C.border,
+  },
   stepperBtn: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: C.dangerSoft,
+    width: 24,
+    height: 24,
+    borderRadius: 6,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -795,8 +825,7 @@ function makeStyles(C: typeof Colors.light) { return StyleSheet.create({
     fontFamily: Font.bold,
     fontSize: 13,
     color: C.text,
-    minWidth: 18,
-    textAlign: "center",
+    paddingHorizontal: 8,
   },
   center: {
     alignItems: "center",
@@ -805,13 +834,6 @@ function makeStyles(C: typeof Colors.light) { return StyleSheet.create({
     gap: 12,
     minHeight: 200,
   },
-  emptyTitle: {
-    fontFamily: Font.bold,
-    fontSize: 16,
-    color: C.text,
-    textAlign: "center",
-  },
-  clearFilters: { fontFamily: Font.semiBold, fontSize: 13, color: C.primary },
   retryBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -821,5 +843,5 @@ function makeStyles(C: typeof Colors.light) { return StyleSheet.create({
     paddingVertical: 12,
     borderRadius: radii.xl,
   },
-  retryTxt: { fontFamily: Font.semiBold, fontSize: 14, color: "#fff" },
-}); }
+  });
+}

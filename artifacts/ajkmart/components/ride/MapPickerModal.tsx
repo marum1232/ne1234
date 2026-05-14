@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Modal,
@@ -9,11 +9,10 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { WebView } from "react-native-webview";
+import { useTheme } from "@/context/ThemeContext";
 import Colors from "@/constants/colors";
 import { Font } from "@/constants/typography";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-
-const C = Colors.light;
 
 export type MapPickerResult = {
   lat: number;
@@ -40,6 +39,8 @@ export function MapPickerModal({
   onConfirm,
   onClose,
 }: Props) {
+  const { colors: C } = useTheme();
+  const styles = useMemo(() => makeStyles(C), [C]);
   const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
@@ -150,7 +151,8 @@ export function MapPickerModal({
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(C: typeof Colors.light) {
+  return StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#fff",
@@ -274,3 +276,4 @@ const styles = StyleSheet.create({
     color: C.textMuted,
   },
 });
+}

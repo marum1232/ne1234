@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, Platform, useWindowDimensions, Dimensions } from "react-native";
+import React, { useState, useEffect, useMemo } from "react";
+import { View, Text, TouchableOpacity, StyleSheet, Platform, useWindowDimensions } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router, type RelativePathString } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
@@ -7,12 +7,11 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import Colors, { spacing, shadows } from "@/constants/colors";
 import { Font } from "@/constants/typography";
+import { useTheme } from "@/context/ThemeContext";
 import { usePerformance } from "@/context/PerformanceContext";
 import { useToast } from "@/context/ToastContext";
 import type { ServiceDefinition } from "@/constants/serviceRegistry";
 
-const C = Colors.light;
-const W = Dimensions.get("window").width;
 const H_PAD = spacing.lg;
 
 type ViewMode = "grid" | "list";
@@ -24,12 +23,86 @@ const shortLabel: Record<string, string> = {
   mart: "Mart", food: "Food", rides: "Ride", pharmacy: "Pharma", parcel: "Parcel",
 };
 
-function ServiceGridView({ services }: { services: ServiceItemProps[] }) {
-  const { width: winW } = useWindowDimensions();
+function makeSgStyles(C: typeof Colors.light, itemW: number) {
+  return StyleSheet.create({
+    wrap: { paddingHorizontal: H_PAD, paddingTop: 12, paddingBottom: 4 },
+    header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 },
+    headerTitle: { fontFamily: Font.semiBold, fontSize: 13, color: C.textSecondary },
+    toggleRow: { flexDirection: "row", gap: 4, backgroundColor: C.surfaceSecondary, borderRadius: 8, padding: 2 },
+    toggleBtn: { width: 28, height: 28, borderRadius: 6, alignItems: "center", justifyContent: "center" },
+    toggleBtnActive: { backgroundColor: C.primary },
+    grid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "flex-start", gap: 0 },
+    item: {
+      alignItems: "center", gap: 6,
+      width: itemW,
+      paddingVertical: 8,
+    },
+    iconWrap: { position: "relative" },
+    circle: {
+      width: 48, height: 48, borderRadius: 16,
+      alignItems: "center", justifyContent: "center",
+      ...shadows.sm,
+    },
+    circleDisabled: { opacity: 0.75 },
+    label: { fontFamily: Font.semiBold, color: C.text, fontSize: 11, textAlign: "center" },
+    labelDisabled: { color: C.textMuted },
+    comingSoonBadge: {
+      position: "absolute",
+      top: -5,
+      right: -8,
+      backgroundColor: "#FF9500",
+      borderRadius: 6,
+      paddingHorizontal: 4,
+      paddingVertical: 1,
+      zIndex: 1,
+    },
+    comingSoonText: {
+      fontFamily: Font.bold,
+      fontSize: 7,
+      color: "#fff",
+      letterSpacing: 0.2,
+    },
+  });
+}
+
+function makeSlStyles(C: typeof Colors.light) {
+  return StyleSheet.create({
+    list: { gap: 6 },
+    row: {
+      flexDirection: "row", alignItems: "center", gap: 14,
+      backgroundColor: C.surface, borderRadius: 14,
+      paddingHorizontal: 14, paddingVertical: 12,
+      borderWidth: 1, borderColor: C.borderLight,
+      ...shadows.sm,
+    },
+    rowDisabled: { opacity: 0.6 },
+    circle: {
+      width: 44, height: 44, borderRadius: 14,
+      alignItems: "center", justifyContent: "center",
+      flexShrink: 0,
+    },
+    textWrap: { flex: 1 },
+    name: { fontFamily: Font.semiBold, fontSize: 14, color: C.text, marginBottom: 2 },
+    nameDisabled: { color: C.textMuted },
+    desc: { fontFamily: Font.regular, fontSize: 11, color: C.textMuted },
+    comingSoonPill: {
+      backgroundColor: "#FF9500",
+      borderRadius: 8,
+      paddingHorizontal: 7,
+      paddingVertical: 3,
+    },
+    comingSoonPillText: {
+      fontFamily: Font.semiBold,
+      fontSize: 9,
+      color: "#fff",
+    },
+  });
+}
+
+function ServiceGridView({ services, sg }: { services: ServiceItemProps[]; sg: ReturnType<typeof makeSgStyles> }) {
+  const { colors: C } = useTheme();
   const perf = usePerformance();
   const { showToast } = useToast();
-  const effectiveW = Math.min(winW, Platform.OS === "web" ? 430 : winW);
-  const itemW = (effectiveW - H_PAD * 2) / 5;
   return (
     <View style={sg.grid}>
       {services.map((svc) => {
@@ -47,9 +120,10 @@ function ServiceGridView({ services }: { services: ServiceItemProps[] }) {
               }
               router.push(href);
             }}
-            style={[sg.item, { width: itemW }]}
+            style={[sg.item]}
             accessibilityRole="button"
             accessibilityLabel={disabled ? `${label} — Coming Soon` : label}
+            accessibilityHint={disabled ? "This service is coming soon" : `Tap to open ${label}`}
           >
             <View style={sg.iconWrap}>
               {perf.useGradients ? (
@@ -78,7 +152,8 @@ function ServiceGridView({ services }: { services: ServiceItemProps[] }) {
   );
 }
 
-function ServiceListView({ services }: { services: ServiceItemProps[] }) {
+function ServiceListView({ services, sl }: { services: ServiceItemProps[]; sl: ReturnType<typeof makeSlStyles> }) {
+  const { colors: C } = useTheme();
   const perf = usePerformance();
   const { showToast } = useToast();
   return (
@@ -101,6 +176,7 @@ function ServiceListView({ services }: { services: ServiceItemProps[] }) {
             style={[sl.row, disabled && sl.rowDisabled]}
             accessibilityRole="button"
             accessibilityLabel={disabled ? `${label} — Coming Soon` : label}
+            accessibilityHint={disabled ? "This service is coming soon" : `Tap to open ${label}`}
           >
             {perf.useGradients ? (
               <LinearGradient
@@ -138,19 +214,31 @@ export function ServiceSection({ services, isGuest }: {
   services: ServiceItemProps[];
   isGuest: boolean;
 }) {
+  const { colors: C } = useTheme();
+  const { width: winW } = useWindowDimensions();
+  const effectiveW = Math.min(winW, Platform.OS === "web" ? 430 : winW);
+  const itemW = (effectiveW - H_PAD * 2) / 5;
+
+  const sg = useMemo(() => makeSgStyles(C, itemW), [C, itemW]);
+  const sl = useMemo(() => makeSlStyles(C), [C]);
+
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
 
   useEffect(() => {
     AsyncStorage.getItem(SVC_VIEW_KEY).then((v) => {
       if (v === "list" || v === "grid") setViewMode(v);
-    }).catch(() => {});
+    }).catch(() => {
+      // no-op: preference not yet saved
+    });
   }, []);
 
   const handleToggleView = async (mode: ViewMode) => {
     setViewMode(mode);
     try {
       await AsyncStorage.setItem(SVC_VIEW_KEY, mode);
-    } catch {}
+    } catch {
+      // no-op: non-critical preference
+    }
   };
 
   return (
@@ -163,6 +251,7 @@ export function ServiceSection({ services, isGuest }: {
             style={[sg.toggleBtn, viewMode === "grid" && sg.toggleBtnActive]}
             accessibilityRole="button"
             accessibilityLabel="Grid view"
+            accessibilityHint="Switch services to grid layout"
           >
             <Ionicons name="grid" size={14} color={viewMode === "grid" ? "#fff" : C.textMuted} />
           </TouchableOpacity>
@@ -171,87 +260,16 @@ export function ServiceSection({ services, isGuest }: {
             style={[sg.toggleBtn, viewMode === "list" && sg.toggleBtnActive]}
             accessibilityRole="button"
             accessibilityLabel="List view"
+            accessibilityHint="Switch services to list layout"
           >
             <Ionicons name="list" size={16} color={viewMode === "list" ? "#fff" : C.textMuted} />
           </TouchableOpacity>
         </View>
       </View>
       {viewMode === "grid"
-        ? <ServiceGridView services={services} />
-        : <ServiceListView services={services} />
+        ? <ServiceGridView services={services} sg={sg} />
+        : <ServiceListView services={services} sl={sl} />
       }
     </View>
   );
 }
-
-const sg = StyleSheet.create({
-  wrap: { paddingHorizontal: H_PAD, paddingTop: 12, paddingBottom: 4 },
-  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 },
-  headerTitle: { fontFamily: Font.semiBold, fontSize: 13, color: C.textSecondary },
-  toggleRow: { flexDirection: "row", gap: 4, backgroundColor: C.surfaceSecondary, borderRadius: 8, padding: 2 },
-  toggleBtn: { width: 28, height: 28, borderRadius: 6, alignItems: "center", justifyContent: "center" },
-  toggleBtnActive: { backgroundColor: C.primary },
-  grid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "flex-start", gap: 0 },
-  item: {
-    alignItems: "center", gap: 6,
-    width: (W - H_PAD * 2) / 5,
-    paddingVertical: 8,
-  },
-  iconWrap: { position: "relative" },
-  circle: {
-    width: 48, height: 48, borderRadius: 16,
-    alignItems: "center", justifyContent: "center",
-    ...shadows.sm,
-  },
-  circleDisabled: { opacity: 0.75 },
-  label: { fontFamily: Font.semiBold, color: C.text, fontSize: 11, textAlign: "center" },
-  labelDisabled: { color: C.textMuted },
-  comingSoonBadge: {
-    position: "absolute",
-    top: -5,
-    right: -8,
-    backgroundColor: "#FF9500",
-    borderRadius: 6,
-    paddingHorizontal: 4,
-    paddingVertical: 1,
-    zIndex: 1,
-  },
-  comingSoonText: {
-    fontFamily: Font.bold,
-    fontSize: 7,
-    color: "#fff",
-    letterSpacing: 0.2,
-  },
-});
-
-const sl = StyleSheet.create({
-  list: { gap: 6 },
-  row: {
-    flexDirection: "row", alignItems: "center", gap: 14,
-    backgroundColor: C.surface, borderRadius: 14,
-    paddingHorizontal: 14, paddingVertical: 12,
-    borderWidth: 1, borderColor: C.borderLight,
-    ...shadows.sm,
-  },
-  rowDisabled: { opacity: 0.6 },
-  circle: {
-    width: 44, height: 44, borderRadius: 14,
-    alignItems: "center", justifyContent: "center",
-    flexShrink: 0,
-  },
-  textWrap: { flex: 1 },
-  name: { fontFamily: Font.semiBold, fontSize: 14, color: C.text, marginBottom: 2 },
-  nameDisabled: { color: C.textMuted },
-  desc: { fontFamily: Font.regular, fontSize: 11, color: C.textMuted },
-  comingSoonPill: {
-    backgroundColor: "#FF9500",
-    borderRadius: 8,
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-  },
-  comingSoonPillText: {
-    fontFamily: Font.semiBold,
-    fontSize: 9,
-    color: "#fff",
-  },
-});

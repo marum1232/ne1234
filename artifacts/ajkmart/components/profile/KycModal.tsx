@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator, Image, Modal, ScrollView,
   Text, TextInput, TouchableOpacity, View,
@@ -8,14 +8,17 @@ import * as ImagePicker from "expo-image-picker";
 import * as LegacyFileSystem from "expo-file-system/legacy";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
+import { useTheme } from "@/context/ThemeContext";
 import { T as Typ } from "@/constants/typography";
 import {
-  C, spacing, radii, typography,
+  spacing, radii, typography,
   API, extractApiError,
-  sheet, fld,
+  getSharedStyles,
 } from "./shared";
 
 export function KycModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+  const { colors: C } = useTheme();
+  const { sheet, fld } = useMemo(() => getSharedStyles(C), [C]);
   const { user, updateUser, token } = useAuth();
   const { showToast } = useToast();
 

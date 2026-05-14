@@ -7,7 +7,7 @@ import { useSmartBack } from "@/hooks/useSmartBack";
 import * as Location from "expo-location";
 import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system";
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -37,7 +37,8 @@ import { createOrder, CreateOrderRequestPaymentMethod, type CreateOrderRequestTy
 import { API_BASE, apiRequest, unwrapApiResponse } from "@/utils/api";
 import { AuthGateSheet, useAuthGate, useRoleGate, RoleBlockSheet } from "@/components/AuthGateSheet";
 
-const C = Colors.light;
+import { useTheme } from "@/context/ThemeContext";
+
 type PayMethod = "cash" | "wallet" | "jazzcash" | "easypaisa" | "pickup";
 type CartAvailableOffer = { id: string; name: string; code?: string; discountPct?: number; discountFlat?: number; type: string; minOrderAmount?: number };
 type AutoApplyOffer = { offerId: string; name: string; discount: number; freeDelivery: boolean; savingsMessage: string };
@@ -89,6 +90,8 @@ function GpsSlotRow({ selected, onSelect, onClose }: {
   onSelect: (a: SavedAddress) => void;
   onClose: () => void;
 }) {
+  const { colors: C } = useTheme();
+  const styles = useMemo(() => makeStyles(C), [C]);
   const { language } = useLanguage();
   const T = (key: TranslationKey) => tDual(key, language);
   const [loading, setLoading] = useState(false);
@@ -203,6 +206,8 @@ function AddressPickerModal({
   token: string | null | undefined;
   addrLoaded: React.MutableRefObject<boolean>;
 }) {
+  const { colors: C } = useTheme();
+  const styles = useMemo(() => makeStyles(C), [C]);
   const { language } = useLanguage();
   const T = (key: TranslationKey) => tDual(key, language);
   const [showForm, setShowForm] = useState(false);
@@ -393,6 +398,8 @@ function AddressPickerModal({
 }
 
 function CartScreenInner() {
+  const { colors: C } = useTheme();
+  const styles = useMemo(() => makeStyles(C), [C]);
   const insets = useSafeAreaInsets();
   const { goBack } = useSmartBack();
   const { promoCode: incomingPromoCode } = useLocalSearchParams<{ promoCode?: string }>();
@@ -2207,118 +2214,120 @@ function CartScreenInner() {
 
 export default withErrorBoundary(CartScreenInner);
 
-const styles = StyleSheet.create({
-  container: { flex: 1 },
+function makeStyles(C: typeof Colors.light) {
+  return StyleSheet.create({
+    container: { flex: 1 },
 
-  header: { paddingHorizontal: 16, paddingBottom: 10 },
-  headerRow: { flexDirection: "row", alignItems: "center", gap: 12 },
-  backBtn: { width: 38, height: 38, borderRadius: 12, backgroundColor: C.overlayLight15, alignItems: "center", justifyContent: "center" },
-  headerTitle: { ...Typ.title, color: C.textInverse },
-  headerSub: { ...Typ.caption, color: C.overlayLight75, marginTop: 2 },
-  clearBtn: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: C.overlayLight15, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 10 },
-  clearText: { ...Typ.captionMedium, color: C.overlayLight90 },
-  clearConfirm: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: C.overlayLight15, borderRadius: 14, padding: 12, marginTop: 10 },
-  clearConfirmTxt: { ...Typ.bodyMedium, fontSize: 13, color: C.textInverse },
-  clearNo: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 8, backgroundColor: C.overlayLight20 },
-  clearNoTxt: { ...Typ.captionMedium, color: C.textInverse },
-  clearYes: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 8, backgroundColor: C.red },
-  clearYesTxt: { ...Typ.captionBold, color: C.textInverse },
+    header: { paddingHorizontal: 16, paddingBottom: 10 },
+    headerRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+    backBtn: { width: 38, height: 38, borderRadius: 12, backgroundColor: C.overlayLight15, alignItems: "center", justifyContent: "center" },
+    headerTitle: { ...Typ.title, color: C.textInverse },
+    headerSub: { ...Typ.caption, color: C.overlayLight75, marginTop: 2 },
+    clearBtn: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: C.overlayLight15, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 10 },
+    clearText: { ...Typ.captionMedium, color: C.overlayLight90 },
+    clearConfirm: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: C.overlayLight15, borderRadius: 14, padding: 12, marginTop: 10 },
+    clearConfirmTxt: { ...Typ.bodyMedium, fontSize: 13, color: C.textInverse },
+    clearNo: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 8, backgroundColor: C.overlayLight20 },
+    clearNoTxt: { ...Typ.captionMedium, color: C.textInverse },
+    clearYes: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 8, backgroundColor: C.red },
+    clearYesTxt: { ...Typ.captionBold, color: C.textInverse },
 
-  scroll: { flex: 1 },
-  section: { paddingHorizontal: 16, paddingTop: 18 },
-  sectionTitle: { ...Typ.h3, fontSize: 16, color: C.text, marginBottom: 12 },
+    scroll: { flex: 1 },
+    section: { paddingHorizontal: 16, paddingTop: 18 },
+    sectionTitle: { ...Typ.h3, fontSize: 16, color: C.text, marginBottom: 12 },
 
-  sectionHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 },
-  itemCountBadge: { backgroundColor: C.primary, borderRadius: 12, minWidth: 24, height: 24, alignItems: "center", justifyContent: "center", paddingHorizontal: 8 },
-  itemCountText: { ...Typ.smallBold, color: C.textInverse, fontSize: 12 },
+    sectionHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 },
+    itemCountBadge: { backgroundColor: C.primary, borderRadius: 12, minWidth: 24, height: 24, alignItems: "center", justifyContent: "center", paddingHorizontal: 8 },
+    itemCountText: { ...Typ.smallBold, color: C.textInverse, fontSize: 12 },
 
-  cartItem: { flexDirection: "row", gap: 12, padding: 12, backgroundColor: C.surface, borderRadius: 16, marginBottom: 10, borderWidth: 1, borderColor: C.borderLight, ...Platform.select({ web: { boxShadow: "0 2px 8px rgba(15,23,42,0.06)" }, default: { shadowColor: C.text, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 2 } }) },
-  itemThumb: { width: 72, height: 72, borderRadius: 14, alignItems: "center", justifyContent: "center", overflow: "hidden" },
-  typeBadge: { position: "absolute", top: 4, left: 4, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
-  typeBadgeText: { fontSize: 9, fontFamily: Font.bold, color: C.textInverse, letterSpacing: 0.5, textTransform: "uppercase" },
-  itemInfo: { flex: 1, justifyContent: "space-between" },
-  itemName: { ...Typ.bodySemiBold, color: C.text, fontSize: 14, lineHeight: 20 },
-  itemPriceRow: { flexDirection: "row", alignItems: "center", marginTop: 4 },
-  itemUnitPrice: { ...Typ.caption, color: C.textSecondary, fontSize: 12 },
-  itemUnitSep: { ...Typ.caption, color: C.textMuted, fontSize: 12 },
-  itemQtyInline: { ...Typ.captionMedium, color: C.textSecondary, fontSize: 12 },
-  itemBottomRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 8 },
-  qtyControl: { flexDirection: "row", alignItems: "center", gap: 2, backgroundColor: C.surfaceSecondary, borderRadius: 12, paddingHorizontal: 3, paddingVertical: 3 },
-  qtyBtn: { width: 30, height: 30, borderRadius: 9, backgroundColor: C.surface, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: C.border },
-  qtyBtnDanger: { borderColor: C.danger + "44", backgroundColor: C.danger + "0D" },
-  qtyText: { ...Typ.button, fontFamily: Font.bold, color: C.text, minWidth: 24, textAlign: "center", fontSize: 14 },
-  itemTotal: { ...Typ.title, fontFamily: Font.bold, color: C.text, fontSize: 15 },
+    cartItem: { flexDirection: "row", gap: 12, padding: 12, backgroundColor: C.surface, borderRadius: 16, marginBottom: 10, borderWidth: 1, borderColor: C.borderLight, ...Platform.select({ web: { boxShadow: "0 2px 8px rgba(15,23,42,0.06)" }, default: { shadowColor: C.text, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 2 } }) },
+    itemThumb: { width: 72, height: 72, borderRadius: 14, alignItems: "center", justifyContent: "center", overflow: "hidden" },
+    typeBadge: { position: "absolute", top: 4, left: 4, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
+    typeBadgeText: { fontSize: 9, fontFamily: Font.bold, color: C.textInverse, letterSpacing: 0.5, textTransform: "uppercase" },
+    itemInfo: { flex: 1, justifyContent: "space-between" },
+    itemName: { ...Typ.bodySemiBold, color: C.text, fontSize: 14, lineHeight: 20 },
+    itemPriceRow: { flexDirection: "row", alignItems: "center", marginTop: 4 },
+    itemUnitPrice: { ...Typ.caption, color: C.textSecondary, fontSize: 12 },
+    itemUnitSep: { ...Typ.caption, color: C.textMuted, fontSize: 12 },
+    itemQtyInline: { ...Typ.captionMedium, color: C.textSecondary, fontSize: 12 },
+    itemBottomRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 8 },
+    qtyControl: { flexDirection: "row", alignItems: "center", gap: 2, backgroundColor: C.surfaceSecondary, borderRadius: 12, paddingHorizontal: 3, paddingVertical: 3 },
+    qtyBtn: { width: 30, height: 30, borderRadius: 9, backgroundColor: C.surface, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: C.border },
+    qtyBtnDanger: { borderColor: C.danger + "44", backgroundColor: C.danger + "0D" },
+    qtyText: { ...Typ.button, fontFamily: Font.bold, color: C.text, minWidth: 24, textAlign: "center", fontSize: 14 },
+    itemTotal: { ...Typ.title, fontFamily: Font.bold, color: C.text, fontSize: 15 },
 
-  addrCard: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14, backgroundColor: C.surface, borderRadius: 16, borderWidth: 1.5, borderColor: C.border },
-  addrCardIcon: { width: 44, height: 44, borderRadius: 14, backgroundColor: C.blueSoft, alignItems: "center", justifyContent: "center" },
-  addrCardLabel: { ...Typ.bodySemiBold, color: C.text },
-  addrCardValue: { ...Typ.caption, color: C.textMuted, marginTop: 2 },
-  changeBtn: { flexDirection: "row", alignItems: "center", gap: 2 },
-  changeBtnText: { ...Typ.captionMedium, fontFamily: Font.semiBold, color: C.primary },
+    addrCard: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14, backgroundColor: C.surface, borderRadius: 16, borderWidth: 1.5, borderColor: C.border },
+    addrCardIcon: { width: 44, height: 44, borderRadius: 14, backgroundColor: C.blueSoft, alignItems: "center", justifyContent: "center" },
+    addrCardLabel: { ...Typ.bodySemiBold, color: C.text },
+    addrCardValue: { ...Typ.caption, color: C.textMuted, marginTop: 2 },
+    changeBtn: { flexDirection: "row", alignItems: "center", gap: 2 },
+    changeBtnText: { ...Typ.captionMedium, fontFamily: Font.semiBold, color: C.primary },
 
-  etaRow: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: C.greenBg, marginHorizontal: 16, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: C.greenBorder },
-  etaIconWrap: { width: 32, height: 32, borderRadius: 10, backgroundColor: C.emeraldSoft, alignItems: "center", justifyContent: "center" },
-  etaText: { ...Typ.bodyMedium, fontSize: 13, color: C.emeraldDeep, flex: 1 },
+    etaRow: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: C.greenBg, marginHorizontal: 16, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: C.greenBorder },
+    etaIconWrap: { width: 32, height: 32, borderRadius: 10, backgroundColor: C.emeraldSoft, alignItems: "center", justifyContent: "center" },
+    etaText: { ...Typ.bodyMedium, fontSize: 13, color: C.emeraldDeep, flex: 1 },
 
-  payOption: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14, backgroundColor: C.surface, borderRadius: 16, marginBottom: 8, borderWidth: 1.5, borderColor: C.border },
-  payIcon: { width: 44, height: 44, borderRadius: 14, alignItems: "center", justifyContent: "center" },
-  payLabel: { ...Typ.bodySemiBold, color: C.textSecondary },
-  paySub: { ...Typ.caption, color: C.textMuted, marginTop: 2 },
-  radio: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: C.border, alignItems: "center", justifyContent: "center" },
-  radioDot: { width: 12, height: 12, borderRadius: 6 },
+    payOption: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14, backgroundColor: C.surface, borderRadius: 16, marginBottom: 8, borderWidth: 1.5, borderColor: C.border },
+    payIcon: { width: 44, height: 44, borderRadius: 14, alignItems: "center", justifyContent: "center" },
+    payLabel: { ...Typ.bodySemiBold, color: C.textSecondary },
+    paySub: { ...Typ.caption, color: C.textMuted, marginTop: 2 },
+    radio: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: C.border, alignItems: "center", justifyContent: "center" },
+    radioDot: { width: 12, height: 12, borderRadius: 6 },
 
-  summaryCard: { backgroundColor: C.surface, borderRadius: 18, padding: 16, borderWidth: 1, borderColor: C.border },
-  summaryRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 10 },
-  summaryLabel: { ...Typ.body, fontSize: 13, color: C.textSecondary },
-  summaryValue: { ...Typ.buttonSmall, color: C.text },
-  summaryDivider: { borderTopWidth: 1, borderTopColor: C.border, paddingTop: 12, marginTop: 4 },
-  grandLabel: { ...Typ.h3, fontSize: 16, color: C.text },
-  grandValue: { ...Typ.h3, color: C.primary },
+    summaryCard: { backgroundColor: C.surface, borderRadius: 18, padding: 16, borderWidth: 1, borderColor: C.border },
+    summaryRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 10 },
+    summaryLabel: { ...Typ.body, fontSize: 13, color: C.textSecondary },
+    summaryValue: { ...Typ.buttonSmall, color: C.text },
+    summaryDivider: { borderTopWidth: 1, borderTopColor: C.border, paddingTop: 12, marginTop: 4 },
+    grandLabel: { ...Typ.h3, fontSize: 16, color: C.text },
+    grandValue: { ...Typ.h3, color: C.primary },
 
-  checkoutBar: { position: "absolute", bottom: 0, left: 0, right: 0, flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: C.surface, paddingHorizontal: 16, paddingTop: 14, borderTopWidth: 1, borderTopColor: C.border, ...Platform.select({ web: { boxShadow: "0 -3px 12px rgba(15,23,42,0.08)" }, default: { shadowColor: C.text, shadowOffset: { width: 0, height: -3 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 8 } }) },
-  checkoutTotal: { ...Typ.title, color: C.text },
-  checkoutItems: { ...Typ.caption, color: C.textMuted },
-  checkoutBtn: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: C.primary, paddingHorizontal: 28, paddingVertical: 15, borderRadius: 16, ...Platform.select({ web: { boxShadow: "0 3px 8px rgba(0,102,255,0.3)" }, default: { shadowColor: C.primary, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 } }) },
-  checkoutBtnTxt: { ...Typ.button, fontFamily: Font.bold, color: C.textInverse },
-  minOrderWrap: { flex: 1, marginLeft: 16, gap: 6 },
-  minOrderTxt: { ...Typ.captionMedium, color: C.amber },
-  minOrderBar: { height: 6, backgroundColor: C.amberSoft, borderRadius: 3, overflow: "hidden" as const },
-  minOrderFill: { height: 6, backgroundColor: C.gold, borderRadius: 3 },
+    checkoutBar: { position: "absolute", bottom: 0, left: 0, right: 0, flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: C.surface, paddingHorizontal: 16, paddingTop: 14, borderTopWidth: 1, borderTopColor: C.border, ...Platform.select({ web: { boxShadow: "0 -3px 12px rgba(15,23,42,0.08)" }, default: { shadowColor: C.text, shadowOffset: { width: 0, height: -3 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 8 } }) },
+    checkoutTotal: { ...Typ.title, color: C.text },
+    checkoutItems: { ...Typ.caption, color: C.textMuted },
+    checkoutBtn: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: C.primary, paddingHorizontal: 28, paddingVertical: 15, borderRadius: 16, ...Platform.select({ web: { boxShadow: "0 3px 8px rgba(0,102,255,0.3)" }, default: { shadowColor: C.primary, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 } }) },
+    checkoutBtnTxt: { ...Typ.button, fontFamily: Font.bold, color: C.textInverse },
+    minOrderWrap: { flex: 1, marginLeft: 16, gap: 6 },
+    minOrderTxt: { ...Typ.captionMedium, color: C.amber },
+    minOrderBar: { height: 6, backgroundColor: C.amberSoft, borderRadius: 3, overflow: "hidden" as const },
+    minOrderFill: { height: 6, backgroundColor: C.gold, borderRadius: 3 },
 
-  overlay: { flex: 1, backgroundColor: C.overlayDark50, justifyContent: "flex-end" },
-  sheet: { backgroundColor: C.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 20, paddingBottom: 32 },
-  handle: { width: 40, height: 4, backgroundColor: C.border, borderRadius: 2, alignSelf: "center", marginBottom: 18 },
-  sheetTitle: { ...Typ.h3, color: C.text, marginBottom: 16 },
+    overlay: { flex: 1, backgroundColor: C.overlayDark50, justifyContent: "flex-end" },
+    sheet: { backgroundColor: C.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 20, paddingBottom: 32 },
+    handle: { width: 40, height: 4, backgroundColor: C.border, borderRadius: 2, alignSelf: "center", marginBottom: 18 },
+    sheetTitle: { ...Typ.h3, color: C.text, marginBottom: 16 },
 
-  addrOpt: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14, borderRadius: 16, borderWidth: 1.5, borderColor: C.border, marginBottom: 8 },
-  addrOptSel: { borderColor: C.primary, backgroundColor: C.blueSoft },
-  addrOptIcon: { width: 44, height: 44, borderRadius: 14, alignItems: "center", justifyContent: "center" },
-  addrOptLabel: { ...Typ.bodySemiBold, color: C.text },
-  addrOptAddress: { ...Typ.caption, color: C.textMuted, marginTop: 2 },
-  addrOptCity: { ...Typ.small, color: C.textMuted },
-  defaultTag: { backgroundColor: C.primary, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
-  defaultTagText: { ...Typ.tiny, fontSize: 9, color: C.textInverse },
-  cancelBtn: { paddingVertical: 14, alignItems: "center", marginTop: 8 },
-  cancelBtnText: { ...Typ.bodyMedium, color: C.textSecondary },
+    addrOpt: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14, borderRadius: 16, borderWidth: 1.5, borderColor: C.border, marginBottom: 8 },
+    addrOptSel: { borderColor: C.primary, backgroundColor: C.blueSoft },
+    addrOptIcon: { width: 44, height: 44, borderRadius: 14, alignItems: "center", justifyContent: "center" },
+    addrOptLabel: { ...Typ.bodySemiBold, color: C.text },
+    addrOptAddress: { ...Typ.caption, color: C.textMuted, marginTop: 2 },
+    addrOptCity: { ...Typ.small, color: C.textMuted },
+    defaultTag: { backgroundColor: C.primary, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
+    defaultTagText: { ...Typ.tiny, fontSize: 9, color: C.textInverse },
+    cancelBtn: { paddingVertical: 14, alignItems: "center", marginTop: 8 },
+    cancelBtnText: { ...Typ.bodyMedium, color: C.textSecondary },
 
-  successWrap: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32 },
-  successCircle: { width: 80, height: 80, borderRadius: 40, alignItems: "center", justifyContent: "center", marginBottom: 20 },
-  successTitle: { ...Typ.h2, color: C.text, marginBottom: 8, textAlign: "center" },
-  successId: { ...Typ.subtitle, color: C.primary, marginBottom: 4 },
-  successAddr: { ...Typ.body, fontSize: 13, color: C.textMuted, textAlign: "center", marginBottom: 4 },
-  successEta: { ...Typ.bodySemiBold, color: C.success, marginBottom: 6 },
-  successBtns: { flexDirection: "row", gap: 12, marginTop: 20, width: "100%" },
-  trackBtn: { flex: 2, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: C.primary, borderRadius: 16, paddingVertical: 15, ...Platform.select({ web: { boxShadow: "0 2px 4px rgba(0,102,255,0.3)" }, default: { shadowColor: C.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 4, elevation: 3 } }) },
-  trackBtnTxt: { ...Typ.body, fontFamily: Font.bold, color: C.textInverse },
-  homeBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, backgroundColor: C.blueSoft, borderRadius: 16, paddingVertical: 15 },
-  homeBtnTxt: { ...Typ.bodySemiBold, color: C.primary },
+    successWrap: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32 },
+    successCircle: { width: 80, height: 80, borderRadius: 40, alignItems: "center", justifyContent: "center", marginBottom: 20 },
+    successTitle: { ...Typ.h2, color: C.text, marginBottom: 8, textAlign: "center" },
+    successId: { ...Typ.subtitle, color: C.primary, marginBottom: 4 },
+    successAddr: { ...Typ.body, fontSize: 13, color: C.textMuted, textAlign: "center", marginBottom: 4 },
+    successEta: { ...Typ.bodySemiBold, color: C.success, marginBottom: 6 },
+    successBtns: { flexDirection: "row", gap: 12, marginTop: 20, width: "100%" },
+    trackBtn: { flex: 2, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: C.primary, borderRadius: 16, paddingVertical: 15, ...Platform.select({ web: { boxShadow: "0 2px 4px rgba(0,102,255,0.3)" }, default: { shadowColor: C.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 4, elevation: 3 } }) },
+    trackBtnTxt: { ...Typ.body, fontFamily: Font.bold, color: C.textInverse },
+    homeBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, backgroundColor: C.blueSoft, borderRadius: 16, paddingVertical: 15 },
+    homeBtnTxt: { ...Typ.bodySemiBold, color: C.primary },
 
-  emptyContainer: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32 },
-  emptyIconBox: { width: 88, height: 88, borderRadius: 28, backgroundColor: C.blueSoft, alignItems: "center", justifyContent: "center", marginBottom: 20 },
-  emptyTitle: { ...Typ.title, color: C.text, marginBottom: 8 },
-  emptyText: { ...Typ.body, color: C.textSecondary, marginBottom: 20 },
-  emptyBtns: { flexDirection: "row", gap: 12 },
-  emptyBtn: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: C.primary, paddingHorizontal: 18, paddingVertical: 12, borderRadius: 14 },
-  emptyBtnText: { ...Typ.buttonSmall, color: C.textInverse },
-});
+    emptyContainer: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32 },
+    emptyIconBox: { width: 88, height: 88, borderRadius: 28, backgroundColor: C.blueSoft, alignItems: "center", justifyContent: "center", marginBottom: 20 },
+    emptyTitle: { ...Typ.title, color: C.text, marginBottom: 8 },
+    emptyText: { ...Typ.body, color: C.textSecondary, marginBottom: 20 },
+    emptyBtns: { flexDirection: "row", gap: 12 },
+    emptyBtn: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: C.primary, paddingHorizontal: 18, paddingVertical: 12, borderRadius: 14 },
+    emptyBtnText: { ...Typ.buttonSmall, color: C.textInverse },
+  });
+}
 

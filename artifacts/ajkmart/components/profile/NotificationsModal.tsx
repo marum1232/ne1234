@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator, Modal, RefreshControl, ScrollView,
   Text, TouchableOpacity, View,
@@ -8,16 +8,19 @@ const log = createLogger("[NotificationsModal]");
 import { Ionicons } from "@expo/vector-icons";
 import { router, type Href } from "expo-router";
 import { useToast } from "@/context/ToastContext";
+import { useTheme } from "@/context/ThemeContext";
 import {
-  C, spacing, Font,
+  spacing, Font,
   API, unwrapApiResponse, relativeTime,
-  modalHdr, empty, notifItem,
+  getSharedStyles,
   type Notification,
 } from "./shared";
 
 export function NotificationsModal({ visible, userId, token, onClose }: {
   visible: boolean; userId: string; token?: string; onClose: (unread: number) => void;
 }) {
+  const { colors: C } = useTheme();
+  const { modalHdr, empty, notifItem } = useMemo(() => getSharedStyles(C), [C]);
   const { showToast } = useToast();
   const [notifs, setNotifs] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);

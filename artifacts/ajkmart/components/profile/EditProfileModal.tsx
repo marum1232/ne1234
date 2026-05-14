@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator, Image, Modal, ScrollView,
   Text, TextInput, TouchableOpacity, View,
@@ -8,16 +8,19 @@ import * as ImagePicker from "expo-image-picker";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
 import { usePlatformConfig } from "@/context/PlatformConfigContext";
+import { useTheme } from "@/context/ThemeContext";
 import { T as Typ } from "@/constants/typography";
 import {
-  C, spacing, radii, typography,
+  spacing, radii, typography,
   API, unwrapApiResponse, Font,
   FALLBACK_CITIES, stripPkCode,
   getErrorMessage, extractApiError,
-  sheet, fld, chip, errStyle, btnStyles,
+  getSharedStyles,
 } from "./shared";
 
 export function EditProfileModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+  const { colors: C } = useTheme();
+  const { sheet, fld, chip, errStyle, btnStyles } = useMemo(() => getSharedStyles(C), [C]);
   const { user, updateUser, token } = useAuth();
   const { showToast } = useToast();
   const { config: platformConfig } = usePlatformConfig();

@@ -27,8 +27,6 @@ import { AuthGateSheet, useAuthGate, useRoleGate, RoleBlockSheet } from "@/compo
 import { CartSwitchModal } from "@/components/CartSwitchModal";
 import { SkeletonBlock } from "@/components/ui/SkeletonBlock";
 
-const C = Colors.light;
-
 interface MenuItem {
   id: string;
   name: string;
@@ -65,7 +63,7 @@ interface Restaurant {
   reviewCount?: number;
 }
 
-function MenuItemCard({ item }: { item: MenuItem }) {
+function MenuItemCard({ item, styles, C }: { item: MenuItem, styles: any, C: any }) {
   const { addItem, cartType, itemCount, clearCartAndAdd, items, updateQuantity, removeItem } = useCart();
   const { requireAuth, sheetProps } = useAuthGate();
   const { requireCustomerRole, roleBlockProps } = useRoleGate();
@@ -183,6 +181,7 @@ function MenuItemCard({ item }: { item: MenuItem }) {
 
 export default function FoodRestaurantScreen() {
   const { colors: C } = useTheme();
+  const styles = useMemo(() => makeStyles(C), [C]);
   const { width: W } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const { goBack } = useSmartBack();
@@ -383,7 +382,7 @@ export default function FoodRestaurantScreen() {
         ) : (
           <View style={styles.menuList}>
             {filtered.map(item => (
-              <MenuItemCard key={item.id} item={item} />
+              <MenuItemCard key={item.id} item={item} styles={styles} C={C} />
             ))}
           </View>
         )}
@@ -394,7 +393,8 @@ export default function FoodRestaurantScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(C: typeof Colors.light) {
+  return StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: C.background,
@@ -665,4 +665,5 @@ const styles = StyleSheet.create({
     height: 7,
     borderRadius: 4,
   },
-});
+  });
+}

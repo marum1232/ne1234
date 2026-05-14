@@ -1,7 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Animated, TouchableOpacity, StyleSheet, Alert, type StyleProp, type ViewStyle } from "react-native";
+import { TouchableOpacity, StyleSheet, Alert, type StyleProp, type ViewStyle } from "react-native";
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, withSpring, withSequence } from "react-native-reanimated";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 
 import { useTheme } from "@/context/ThemeContext";
@@ -27,9 +28,13 @@ export function WishlistHeart({
   const isLoggedIn = !!user && !!token;
   const queryClient = useQueryClient();
   const [loading, setLoading] = useState(false);
-  const heartScale = useRef(new Animated.Value(1)).current;
+  const heartScale = useSharedValue(1);
   const { requireAuth, sheetProps } = useAuthGate();
   const pendingFiredRef = useRef(false);
+
+  const heartStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: heartScale.value }],
+  }));
 
   const { data: wishlistItems } = useQuery({
     queryKey: ["wishlist"],
@@ -52,7 +57,9 @@ export function WishlistHeart({
     AsyncStorage.getItem(key).then(async (val) => {
       if (val !== "1") return;
       pendingFiredRef.current = true;
-      await AsyncStorage.removeItem(key).catch(() => {});
+      await AsyncStorage.removeItem(key).catch(() => {
+        // no-op: removal failure is non-critical
+      });
       if (!isInWishlistFromCache) {
         setLocalOverride(true);
         try {
@@ -62,13 +69,17 @@ export function WishlistHeart({
           setLocalOverride(null);
         }
       }
-    }).catch(() => {});
+    }).catch(() => {
+      // no-op: storage read failure is non-critical
+    });
   }, [isLoggedIn, isCustomer, productId]);
 
   const toggle = useCallback(async () => {
     if (!isLoggedIn) {
       const key = `${PENDING_KEY_PREFIX}${productId}`;
-      await AsyncStorage.setItem(key, "1").catch(() => {});
+      await AsyncStorage.setItem(key, "1").catch(() => {
+        // no-op: storing pending wishlist item failed
+      });
       requireAuth(() => {}, { message: "Sign in to save items to your wishlist" });
       return;
     }
@@ -79,10 +90,10 @@ export function WishlistHeart({
     setLoading(true);
     const was = isInWishlist;
     setLocalOverride(!was);
-    Animated.sequence([
-      Animated.timing(heartScale, { toValue: 1.4, duration: 100, useNativeDriver: true }),
-      Animated.spring(heartScale, { toValue: 1, useNativeDriver: true, friction: 4 }),
-    ]).start();
+    heartScale.value = withSequence(
+      withTiming(1.4, { duration: 100 }),
+      withSpring(1, { damping: 8, stiffness: 180 }),
+    );
     try {
       if (was) {
         await removeFromWishlist(productId);
@@ -107,12 +118,13 @@ export function WishlistHeart({
   return (
     <>
       <AuthGateSheet {...sheetProps} />
-      <Animated.View style={[{ transform: [{ scale: heartScale }] }, style]}>
+      <Animated.View style={[heartStyle, style]}>
         <TouchableOpacity activeOpacity={0.7}
           onPress={(e) => { e?.stopPropagation?.(); toggle(); }}
           style={s.btn}
           hitSlop={6}
           accessibilityLabel={isInWishlist ? "Remove from wishlist" : "Add to wishlist"}
+          accessibilityHint={isInWishlist ? "Tap to remove this item from your wishlist" : "Tap to add this item to your wishlist"}
           accessibilityRole="button"
         >
           <Ionicons

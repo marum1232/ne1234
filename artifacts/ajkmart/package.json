@@ -68,6 +68,7 @@
     "@expo-google-fonts/noto-nastaliq-urdu": "^0.4.2",
     "@expo/metro-runtime": "~6.1.2",
     "@react-native-community/netinfo": "11.4.1",
+    "@sentry/browser": "^10.53.1",
     "@tanstack/query-async-storage-persister": "^5.96.2",
     "@tanstack/react-query-persist-client": "^5.96.2",
     "expo-auth-session": "~7.0.11",

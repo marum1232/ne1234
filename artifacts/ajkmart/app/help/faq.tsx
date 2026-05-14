@@ -9,6 +9,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  Platform,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
@@ -16,8 +17,7 @@ import Colors, { spacing, radii, shadows } from "@/constants/colors";
 import { Font } from "@/constants/typography";
 import { API_BASE, unwrapApiResponse } from "@/utils/api";
 import { useSmartBack } from "@/hooks/useSmartBack";
-
-const C = Colors.light;
+import { useTheme } from "@/context/ThemeContext";
 
 interface FAQ {
   id: string;
@@ -27,6 +27,8 @@ interface FAQ {
 }
 
 function FAQItem({ faq }: { faq: FAQ }) {
+  const { colors: C } = useTheme();
+  const styles = useMemo(() => makeStyles(C), [C]);
   const [expanded, setExpanded] = useState(false);
   return (
     <TouchableOpacity
@@ -59,6 +61,8 @@ function FAQItem({ faq }: { faq: FAQ }) {
 export default withErrorBoundary(FAQScreenInner);
 
 function FAQScreenInner() {
+  const { colors: C } = useTheme();
+  const styles = useMemo(() => makeStyles(C), [C]);
   const insets = useSafeAreaInsets();
   const { goBack } = useSmartBack();
   const [search, setSearch] = useState("");
@@ -258,7 +262,8 @@ function FAQScreenInner() {
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(C: typeof Colors.light) {
+  return StyleSheet.create({
   container: { flex: 1, backgroundColor: C.background },
   header: {
     flexDirection: "row",
@@ -269,7 +274,10 @@ const styles = StyleSheet.create({
     backgroundColor: C.surface,
     borderBottomWidth: 1,
     borderBottomColor: C.borderLight,
-    ...shadows.sm,
+    ...Platform.select({
+      web: { boxShadow: `0 1px 3px ${C.shadow}` },
+      default: { shadowColor: C.text, shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 3, elevation: 1 },
+    }),
   },
   backBtn: {
     width: 38,
@@ -298,7 +306,10 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderWidth: 1,
     borderColor: C.border,
-    ...shadows.sm,
+    ...Platform.select({
+      web: { boxShadow: `0 1px 3px ${C.shadow}` },
+      default: { shadowColor: C.text, shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 3, elevation: 1 },
+    }),
   },
   searchInput: {
     flex: 1,
@@ -350,7 +361,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: C.borderLight,
     overflow: "hidden",
-    ...shadows.sm,
+    ...Platform.select({
+      web: { boxShadow: `0 1px 3px ${C.shadow}` },
+      default: { shadowColor: C.text, shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 3, elevation: 1 },
+    }),
   },
   faqItem: { paddingHorizontal: spacing.lg, paddingVertical: 14 },
   faqHeader: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
@@ -449,3 +463,4 @@ const styles = StyleSheet.create({
   },
   retryTxt: { fontFamily: Font.semiBold, fontSize: 14, color: "#fff" },
 });
+}

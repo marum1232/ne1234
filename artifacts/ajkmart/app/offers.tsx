@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import { withErrorBoundary } from "@/utils/withErrorBoundary";
 import {
   View,
@@ -26,7 +26,6 @@ import { useAuth } from "@/context/AuthContext";
 import { CountdownTimer } from "@/components/user-shared";
 import { API_BASE } from "@/utils/api";
 
-const C = Colors.light;
 type IoniconsName = ComponentProps<typeof Ionicons>["name"];
 
 
@@ -120,6 +119,9 @@ function OfferCard({
   bookmarked?: boolean;
   onBookmark?: () => void;
 }) {
+  const { colors: C } = useTheme();
+  const { width: W } = useWindowDimensions();
+  const styles = useMemo(() => makeStyles(C, W), [C, W]);
   const conf = TYPE_CONFIG[offer.type] ?? TYPE_CONFIG["percentage"]!;
   const endTime = new Date(offer.endDate);
   const isFlash = offer.type === "percentage" || offer.type === "flat_discount";
@@ -128,28 +130,28 @@ function OfferCard({
     : null;
 
   return (
-    <TouchableOpacity activeOpacity={0.85} onPress={onPress} style={s.cardWrap}>
+    <TouchableOpacity activeOpacity={0.85} onPress={onPress} style={styles.cardWrap}>
       <LinearGradient
         colors={conf.colors}
-        style={s.cardGradient}
+        style={styles.cardGradient}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
       >
         {/* Decorative circles */}
         <View
           style={[
-            s.decorCircle,
+            styles.decorCircle,
             { width: 90, height: 90, top: -30, right: -20, opacity: 0.18 },
           ]}
         />
         <View
           style={[
-            s.decorCircle,
+            styles.decorCircle,
             { width: 60, height: 60, bottom: -15, left: -10, opacity: 0.12 },
           ]}
         />
 
-        <View style={s.cardInner}>
+        <View style={styles.cardInner}>
           <View
             style={{
               flexDirection: "row",
@@ -158,12 +160,12 @@ function OfferCard({
             }}
           >
             <View style={{ flex: 1 }}>
-              <View style={s.badgePill}>
+              <View style={styles.badgePill}>
                 <Ionicons name={conf.icon} size={11} color="#fff" />
-                <Text style={s.badgeTxt}>{conf.label}</Text>
+                <Text style={styles.badgeTxt}>{conf.label}</Text>
               </View>
-              <Text style={s.discountTxt}>{discountLabel(offer)}</Text>
-              <Text style={s.offerName} numberOfLines={1}>
+              <Text style={styles.discountTxt}>{discountLabel(offer)}</Text>
+              <Text style={styles.offerName} numberOfLines={1}>
                 {offer.name}
               </Text>
             </View>
@@ -184,8 +186,8 @@ function OfferCard({
                 </TouchableOpacity>
               )}
               {offer.code && (
-                <View style={s.codePill}>
-                  <Text style={s.codeTxt}>{offer.code}</Text>
+                <View style={styles.codePill}>
+                  <Text style={styles.codeTxt}>{offer.code}</Text>
                 </View>
               )}
             </View>
@@ -193,21 +195,21 @@ function OfferCard({
 
           <View style={{ gap: 6, marginTop: 10 }}>
             {offer.minOrderAmount && offer.minOrderAmount > 0 ? (
-              <Text style={s.conditionTxt}>
+              <Text style={styles.conditionTxt}>
                 Min order: Rs.{offer.minOrderAmount}
               </Text>
             ) : null}
             {claimedPct !== null && (
               <View>
-                <View style={s.progressBg}>
+                <View style={styles.progressBg}>
                   <View
                     style={[
-                      s.progressFill,
+                      styles.progressFill,
                       { width: `${claimedPct}%` } as ViewStyle,
                     ]}
                   />
                 </View>
-                <Text style={s.claimedTxt}>{claimedPct}% claimed</Text>
+                <Text style={styles.claimedTxt}>{claimedPct}% claimed</Text>
               </View>
             )}
             <View
@@ -217,7 +219,7 @@ function OfferCard({
                 alignItems: "center",
               }}
             >
-              <Text style={s.endsIn}>
+              <Text style={styles.endsIn}>
                 {isFlash ? "⚡ Ends in: " : "⏰ Valid till: "}
               </Text>
               <CountdownTimer targetTime={endTime} />
@@ -238,6 +240,9 @@ function OfferDetailSheet({
   onClose: () => void;
   onUseNow: () => void;
 }) {
+  const { colors: C } = useTheme();
+  const { width: W } = useWindowDimensions();
+  const styles = useMemo(() => makeStyles(C, W), [C, W]);
   const conf = TYPE_CONFIG[offer.type] ?? TYPE_CONFIG["percentage"]!;
 
   return (
@@ -248,14 +253,14 @@ function OfferDetailSheet({
       onRequestClose={onClose}
     >
       <TouchableOpacity
-        style={s.sheetBackdrop}
+        style={styles.sheetBackdrop}
         activeOpacity={1}
         onPress={onClose}
       />
-      <View style={s.sheet}>
+      <View style={styles.sheet}>
         <LinearGradient
           colors={conf.colors}
-          style={s.sheetHeader}
+          style={styles.sheetHeader}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
         >
@@ -266,29 +271,29 @@ function OfferDetailSheet({
               justifyContent: "space-between",
             }}
           >
-            <Text style={s.sheetTitle}>{discountLabel(offer)}</Text>
-            <TouchableOpacity onPress={onClose} style={s.closeBtn}>
+            <Text style={styles.sheetTitle}>{discountLabel(offer)}</Text>
+            <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
               <Ionicons name="close" size={18} color="#fff" />
             </TouchableOpacity>
           </View>
-          <Text style={s.sheetSubtitle}>{offer.name}</Text>
+          <Text style={styles.sheetSubtitle}>{offer.name}</Text>
         </LinearGradient>
         <ScrollView style={{ padding: 20 }}>
           {offer.code && (
-            <View style={s.codeBox}>
-              <Text style={s.codeBoxLabel}>Promo Code</Text>
-              <Text style={s.codeBoxCode}>{offer.code}</Text>
-              <Text style={s.codeBoxHint}>Enter this code at checkout</Text>
+            <View style={styles.codeBox}>
+              <Text style={styles.codeBoxLabel}>Promo Code</Text>
+              <Text style={styles.codeBoxCode}>{offer.code}</Text>
+              <Text style={styles.codeBoxHint}>Enter this code at checkout</Text>
             </View>
           )}
           {offer.description && (
             <View style={{ marginBottom: 16 }}>
-              <Text style={s.detailSectionTitle}>About this offer</Text>
-              <Text style={s.detailText}>{offer.description}</Text>
+              <Text style={styles.detailSectionTitle}>About this offer</Text>
+              <Text style={styles.detailText}>{offer.description}</Text>
             </View>
           )}
           <View style={{ marginBottom: 16 }}>
-            <Text style={s.detailSectionTitle}>Offer Details</Text>
+            <Text style={styles.detailSectionTitle}>Offer Details</Text>
             {[
               offer.discountPct &&
                 `${offer.discountPct}% discount on your order`,
@@ -307,19 +312,19 @@ function OfferDetailSheet({
             ]
               .filter(Boolean)
               .map((line, i) => (
-                <View key={i} style={s.detailRow}>
+                <View key={i} style={styles.detailRow}>
                   <Ionicons
                     name="checkmark-circle"
                     size={16}
                     color={conf.colors[0]}
                   />
-                  <Text style={s.detailText}>{line}</Text>
+                  <Text style={styles.detailText}>{line}</Text>
                 </View>
               ))}
           </View>
           <View style={{ marginBottom: 20 }}>
-            <Text style={s.detailSectionTitle}>Validity</Text>
-            <Text style={s.detailText}>
+            <Text style={styles.detailSectionTitle}>Validity</Text>
+            <Text style={styles.detailText}>
               {new Date(offer.startDate).toLocaleDateString("en-PK", {
                 dateStyle: "long",
               })}{" "}
@@ -332,9 +337,9 @@ function OfferDetailSheet({
           <TouchableOpacity
             activeOpacity={0.85}
             onPress={onUseNow}
-            style={[s.useNowBtn, { backgroundColor: conf.colors[0] }]}
+            style={[styles.useNowBtn, { backgroundColor: conf.colors[0] }]}
           >
-            <Text style={s.useNowTxt}>Use Now</Text>
+            <Text style={styles.useNowTxt}>Use Now</Text>
             <Ionicons name="arrow-forward" size={18} color="#fff" />
           </TouchableOpacity>
           <View style={{ height: 30 }} />
@@ -373,6 +378,7 @@ export default withErrorBoundary(OffersScreenInner);
 function OffersScreenInner() {
   const { colors: C } = useTheme();
   const { width: W } = useWindowDimensions();
+  const styles = useMemo(() => makeStyles(C, W), [C, W]);
   const insets = useSafeAreaInsets();
   const { token } = useAuth();
   const qc = useQueryClient();
@@ -474,13 +480,13 @@ function OffersScreenInner() {
   return (
     <View style={{ flex: 1, backgroundColor: C.background }}>
       {/* Header */}
-      <View style={[s.header, { paddingTop: insets.top + 8 }]}>
-        <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
+      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Ionicons name="chevron-back" size={22} color={C.text} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={s.headerTitle}>Offers & Deals</Text>
-          <Text style={s.headerSub}>
+          <Text style={styles.headerTitle}>Offers & Deals</Text>
+          <Text style={styles.headerSub}>
             {allOffers.length > 0
               ? `${allOffers.length} offers available`
               : "Find great deals"}
@@ -492,7 +498,7 @@ function OffersScreenInner() {
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        style={s.tabsScroll}
+        style={styles.tabsScroll}
         contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}
       >
         {tabOptions.map((tab) => (
@@ -500,11 +506,11 @@ function OffersScreenInner() {
             key={tab.key}
             activeOpacity={0.8}
             onPress={() => setActiveTab(tab.key)}
-            style={[s.tab, activeTab === tab.key && s.tabActive]}
+            style={[styles.tab, activeTab === tab.key && styles.tabActive]}
           >
-            <Text style={s.tabEmoji}>{tab.emoji}</Text>
+            <Text style={styles.tabEmoji}>{tab.emoji}</Text>
             <Text
-              style={[s.tabLabel, activeTab === tab.key && s.tabLabelActive]}
+              style={[styles.tabLabel, activeTab === tab.key && styles.tabLabelActive]}
             >
               {tab.label}
             </Text>
@@ -541,10 +547,10 @@ function OffersScreenInner() {
             </Text>
           </View>
         ) : isError ? (
-          <View style={s.empty}>
+          <View style={styles.empty}>
             <Text style={{ fontSize: 48 }}>⚠️</Text>
-            <Text style={s.emptyTitle}>Could not load offers</Text>
-            <Text style={s.emptySubtitle}>Check your connection and try again.</Text>
+            <Text style={styles.emptyTitle}>Could not load offers</Text>
+            <Text style={styles.emptySubtitle}>Check your connection and try again.</Text>
             <TouchableOpacity
               onPress={() => refetch()}
               style={{
@@ -561,16 +567,16 @@ function OffersScreenInner() {
             </TouchableOpacity>
           </View>
         ) : displayOffers.length === 0 ? (
-          <View style={s.empty}>
+          <View style={styles.empty}>
             <Text style={{ fontSize: 48 }}>
               {activeTab === "saved" ? "🔖" : "🏷️"}
             </Text>
-            <Text style={s.emptyTitle}>
+            <Text style={styles.emptyTitle}>
               {activeTab === "saved"
                 ? "No saved offers"
                 : "No offers right now"}
             </Text>
-            <Text style={s.emptySubtitle}>
+            <Text style={styles.emptySubtitle}>
               {activeTab === "saved"
                 ? "Tap the bookmark icon to save offers for later"
                 : "Check back soon for great deals!"}
@@ -581,9 +587,9 @@ function OffersScreenInner() {
             {/* For You section */}
             {activeTab === "all" && forYouOffers.length > 0 && (
               <View style={{ marginBottom: 8 }}>
-                <View style={s.sectionHeader}>
-                  <Text style={s.sectionEmoji}>✨</Text>
-                  <Text style={s.sectionTitle}>For You</Text>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionEmoji}>✨</Text>
+                  <Text style={styles.sectionTitle}>For You</Text>
                 </View>
                 <ScrollView
                   horizontal
@@ -615,10 +621,10 @@ function OffersScreenInner() {
                 if (groupOffers.length === 0) return null;
                 return (
                   <View key={key} style={{ marginBottom: 8 }}>
-                    <View style={s.sectionHeader}>
-                      <Text style={s.sectionEmoji}>{cfg.emoji}</Text>
-                      <Text style={s.sectionTitle}>{cfg.label}</Text>
-                      <Text style={s.sectionCount}>{groupOffers.length}</Text>
+                    <View style={styles.sectionHeader}>
+                      <Text style={styles.sectionEmoji}>{cfg.emoji}</Text>
+                      <Text style={styles.sectionTitle}>{cfg.label}</Text>
+                      <Text style={styles.sectionCount}>{groupOffers.length}</Text>
                     </View>
                     <ScrollView
                       horizontal
@@ -674,222 +680,224 @@ function OffersScreenInner() {
   );
 }
 
-const s = StyleSheet.create({
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-    backgroundColor: C.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: C.borderLight,
-  },
-  backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    backgroundColor: C.surfaceSecondary,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  headerTitle: { fontFamily: Font.bold, fontSize: 18, color: C.text },
-  headerSub: {
-    fontFamily: Font.regular,
-    fontSize: 12,
-    color: C.textMuted,
-    marginTop: 1,
-  },
-  tabsScroll: { flexGrow: 0, paddingVertical: 10 },
-  tab: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 20,
-    backgroundColor: C.surfaceSecondary,
-    borderWidth: 1,
-    borderColor: C.borderLight,
-  },
-  tabActive: { backgroundColor: C.primary, borderColor: C.primary },
-  tabEmoji: { fontSize: 13 },
-  tabLabel: { fontFamily: Font.medium, fontSize: 12, color: C.textMuted },
-  tabLabelActive: { color: "#fff" },
-  sectionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-  },
-  sectionEmoji: { fontSize: 16 },
-  sectionTitle: { fontFamily: Font.bold, fontSize: 15, color: C.text, flex: 1 },
-  sectionCount: { fontFamily: Font.regular, fontSize: 12, color: C.textMuted },
-  cardWrap: { borderRadius: 18, overflow: "hidden", ...shadows.md },
-  cardGradient: { borderRadius: 18, padding: 16 },
-  cardInner: {},
-  decorCircle: {
-    position: "absolute",
-    borderRadius: 999,
-    backgroundColor: "#fff",
-  },
-  badgePill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: "rgba(255,255,255,0.25)",
-    borderRadius: 20,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    alignSelf: "flex-start",
-    marginBottom: 6,
-  },
-  badgeTxt: { fontFamily: Font.semiBold, fontSize: 10, color: "#fff" },
-  discountTxt: {
-    fontFamily: Font.bold,
-    fontSize: 22,
-    color: "#fff",
-    letterSpacing: -0.5,
-  },
-  offerName: {
-    fontFamily: Font.regular,
-    fontSize: 12,
-    color: "rgba(255,255,255,0.85)",
-    marginTop: 2,
-  },
-  codePill: {
-    backgroundColor: "rgba(255,255,255,0.25)",
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.4)",
-    borderStyle: "dashed",
-  },
-  codeTxt: {
-    fontFamily: Font.bold,
-    fontSize: 12,
-    color: "#fff",
-    letterSpacing: 1.5,
-  },
-  conditionTxt: {
-    fontFamily: Font.regular,
-    fontSize: 11,
-    color: "rgba(255,255,255,0.75)",
-  },
-  progressBg: {
-    height: 4,
-    backgroundColor: "rgba(255,255,255,0.3)",
-    borderRadius: 99,
-    overflow: "hidden",
-  },
-  progressFill: { height: 4, backgroundColor: "#fff", borderRadius: 99 },
-  claimedTxt: {
-    fontFamily: Font.regular,
-    fontSize: 10,
-    color: "rgba(255,255,255,0.7)",
-    marginTop: 3,
-  },
-  endsIn: {
-    fontFamily: Font.regular,
-    fontSize: 11,
-    color: "rgba(255,255,255,0.8)",
-  },
-  timerTxt: { fontFamily: Font.bold, fontSize: 11, color: "#fff" },
-  empty: { alignItems: "center", paddingVertical: 60, paddingHorizontal: 40 },
-  emptyTitle: {
-    fontFamily: Font.bold,
-    fontSize: 18,
-    color: C.text,
-    marginTop: 12,
-  },
-  emptySubtitle: {
-    fontFamily: Font.regular,
-    fontSize: 14,
-    color: C.textMuted,
-    textAlign: "center",
-    marginTop: 6,
-  },
-  // Sheet
-  sheetBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)" },
-  sheet: {
-    backgroundColor: C.surface,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    maxHeight: "85%",
-    overflow: "hidden",
-  },
-  sheetHeader: { padding: 20, paddingBottom: 24 },
-  sheetTitle: { fontFamily: Font.bold, fontSize: 24, color: "#fff" },
-  sheetSubtitle: {
-    fontFamily: Font.regular,
-    fontSize: 14,
-    color: "rgba(255,255,255,0.85)",
-    marginTop: 4,
-  },
-  closeBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "rgba(255,255,255,0.2)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  codeBox: {
-    backgroundColor: C.surfaceSecondary,
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
-    alignItems: "center",
-    borderWidth: 2,
-    borderColor: C.primary,
-    borderStyle: "dashed",
-  },
-  codeBoxLabel: {
-    fontFamily: Font.regular,
-    fontSize: 12,
-    color: C.textMuted,
-    marginBottom: 6,
-  },
-  codeBoxCode: {
-    fontFamily: Font.bold,
-    fontSize: 24,
-    color: C.primary,
-    letterSpacing: 3,
-  },
-  codeBoxHint: {
-    fontFamily: Font.regular,
-    fontSize: 11,
-    color: C.textMuted,
-    marginTop: 4,
-  },
-  detailSectionTitle: {
-    fontFamily: Font.semiBold,
-    fontSize: 14,
-    color: C.text,
-    marginBottom: 10,
-  },
-  detailRow: {
-    flexDirection: "row",
-    gap: 8,
-    marginBottom: 8,
-    alignItems: "flex-start",
-  },
-  detailText: {
-    fontFamily: Font.regular,
-    fontSize: 13,
-    color: C.textSecondary,
-    flex: 1,
-  },
-  useNowBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    borderRadius: 16,
-    paddingVertical: 16,
-    marginTop: 8,
-  },
-  useNowTxt: { fontFamily: Font.bold, fontSize: 16, color: "#fff" },
-});
+function makeStyles(C: typeof Colors.light, W: number) {
+  return StyleSheet.create({
+    header: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+      paddingHorizontal: 16,
+      paddingBottom: 12,
+      backgroundColor: C.surface,
+      borderBottomWidth: 1,
+      borderBottomColor: C.borderLight,
+    },
+    backBtn: {
+      width: 36,
+      height: 36,
+      borderRadius: 12,
+      backgroundColor: C.surfaceSecondary,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    headerTitle: { fontFamily: Font.bold, fontSize: 18, color: C.text },
+    headerSub: {
+      fontFamily: Font.regular,
+      fontSize: 12,
+      color: C.textMuted,
+      marginTop: 1,
+    },
+    tabsScroll: { flexGrow: 0, paddingVertical: 10 },
+    tab: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 5,
+      paddingHorizontal: 12,
+      paddingVertical: 7,
+      borderRadius: 20,
+      backgroundColor: C.surfaceSecondary,
+      borderWidth: 1,
+      borderColor: C.borderLight,
+    },
+    tabActive: { backgroundColor: C.primary, borderColor: C.primary },
+    tabEmoji: { fontSize: 13 },
+    tabLabel: { fontFamily: Font.medium, fontSize: 12, color: C.textMuted },
+    tabLabelActive: { color: "#fff" },
+    sectionHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+    },
+    sectionEmoji: { fontSize: 16 },
+    sectionTitle: { fontFamily: Font.bold, fontSize: 15, color: C.text, flex: 1 },
+    sectionCount: { fontFamily: Font.regular, fontSize: 12, color: C.textMuted },
+    cardWrap: { borderRadius: 18, overflow: "hidden", ...shadows.md },
+    cardGradient: { borderRadius: 18, padding: 16 },
+    cardInner: {},
+    decorCircle: {
+      position: "absolute",
+      borderRadius: 999,
+      backgroundColor: "#fff",
+    },
+    badgePill: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+      backgroundColor: "rgba(255,255,255,0.25)",
+      borderRadius: 20,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      alignSelf: "flex-start",
+      marginBottom: 6,
+    },
+    badgeTxt: { fontFamily: Font.semiBold, fontSize: 10, color: "#fff" },
+    discountTxt: {
+      fontFamily: Font.bold,
+      fontSize: 22,
+      color: "#fff",
+      letterSpacing: -0.5,
+    },
+    offerName: {
+      fontFamily: Font.regular,
+      fontSize: 12,
+      color: "rgba(255,255,255,0.85)",
+      marginTop: 2,
+    },
+    codePill: {
+      backgroundColor: "rgba(255,255,255,0.25)",
+      borderRadius: 10,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderWidth: 1,
+      borderColor: "rgba(255,255,255,0.4)",
+      borderStyle: "dashed",
+    },
+    codeTxt: {
+      fontFamily: Font.bold,
+      fontSize: 12,
+      color: "#fff",
+      letterSpacing: 1.5,
+    },
+    conditionTxt: {
+      fontFamily: Font.regular,
+      fontSize: 11,
+      color: "rgba(255,255,255,0.75)",
+    },
+    progressBg: {
+      height: 4,
+      backgroundColor: "rgba(255,255,255,0.3)",
+      borderRadius: 99,
+      overflow: "hidden",
+    },
+    progressFill: { height: 4, backgroundColor: "#fff", borderRadius: 99 },
+    claimedTxt: {
+      fontFamily: Font.regular,
+      fontSize: 10,
+      color: "rgba(255,255,255,0.7)",
+      marginTop: 3,
+    },
+    endsIn: {
+      fontFamily: Font.regular,
+      fontSize: 11,
+      color: "rgba(255,255,255,0.8)",
+    },
+    timerTxt: { fontFamily: Font.bold, fontSize: 11, color: "#fff" },
+    empty: { alignItems: "center", paddingVertical: 60, paddingHorizontal: 40 },
+    emptyTitle: {
+      fontFamily: Font.bold,
+      fontSize: 18,
+      color: C.text,
+      marginTop: 12,
+    },
+    emptySubtitle: {
+      fontFamily: Font.regular,
+      fontSize: 14,
+      color: C.textMuted,
+      textAlign: "center",
+      marginTop: 6,
+    },
+    // Sheet
+    sheetBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)" },
+    sheet: {
+      backgroundColor: C.surface,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      maxHeight: "85%",
+      overflow: "hidden",
+    },
+    sheetHeader: { padding: 20, paddingBottom: 24 },
+    sheetTitle: { fontFamily: Font.bold, fontSize: 24, color: "#fff" },
+    sheetSubtitle: {
+      fontFamily: Font.regular,
+      fontSize: 14,
+      color: "rgba(255,255,255,0.85)",
+      marginTop: 4,
+    },
+    closeBtn: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: "rgba(255,255,255,0.2)",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    codeBox: {
+      backgroundColor: C.surfaceSecondary,
+      borderRadius: 16,
+      padding: 16,
+      marginBottom: 16,
+      alignItems: "center",
+      borderWidth: 2,
+      borderColor: C.primary,
+      borderStyle: "dashed",
+    },
+    codeBoxLabel: {
+      fontFamily: Font.regular,
+      fontSize: 12,
+      color: C.textMuted,
+      marginBottom: 6,
+    },
+    codeBoxCode: {
+      fontFamily: Font.bold,
+      fontSize: 24,
+      color: C.primary,
+      letterSpacing: 3,
+    },
+    codeBoxHint: {
+      fontFamily: Font.regular,
+      fontSize: 11,
+      color: C.textMuted,
+      marginTop: 4,
+    },
+    detailSectionTitle: {
+      fontFamily: Font.semiBold,
+      fontSize: 14,
+      color: C.text,
+      marginBottom: 10,
+    },
+    detailRow: {
+      flexDirection: "row",
+      gap: 8,
+      marginBottom: 8,
+      alignItems: "flex-start",
+    },
+    detailText: {
+      fontFamily: Font.regular,
+      fontSize: 13,
+      color: C.textSecondary,
+      flex: 1,
+    },
+    useNowBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 8,
+      borderRadius: 16,
+      paddingVertical: 16,
+      marginTop: 8,
+    },
+    useNowTxt: { fontFamily: Font.bold, fontSize: 16, color: "#fff" },
+  });
+}

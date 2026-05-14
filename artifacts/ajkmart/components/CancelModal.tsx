@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Animated,
@@ -16,11 +16,11 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
+import { useTheme } from "@/context/ThemeContext";
 import { unwrapApiResponse } from "@/utils/api";
 import { createLogger } from "@/utils/logger";
 
 const log = createLogger("[CancelModal]");
-const C = Colors.light;
 
 export type CancelTarget = {
   id: string;
@@ -98,6 +98,8 @@ export function CancelModal({
   onClose: () => void;
   onDone: (result: any) => void;
 }) {
+  const { colors: C } = useTheme();
+  const s = useMemo(() => makeStyles(C), [C]);
   const [selectedReason, setSelectedReason] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -388,7 +390,8 @@ export function CancelModal({
 const SHEET_RADIUS = 28;
 const WIDE_RADIUS = 24;
 
-const s = StyleSheet.create({
+function makeStyles(C: typeof Colors.light) {
+  return StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: "rgba(10,14,26,0.55)",
@@ -651,3 +654,4 @@ const s = StyleSheet.create({
     letterSpacing: 0.1,
   },
 });
+}

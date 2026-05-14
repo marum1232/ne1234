@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useSmartBack } from "@/hooks/useSmartBack";
 import { withErrorBoundary } from "@/utils/withErrorBoundary";
-import React, { useCallback } from "react";
+import React, { useCallback, useMemo } from "react";
 import {
   ActivityIndicator,
   TouchableOpacity,
@@ -19,8 +19,7 @@ import { useLanguage } from "@/context/LanguageContext";
 import { tDual, type TranslationKey, type Language } from "@workspace/i18n";
 import { API_BASE, unwrapApiResponse } from "@/utils/api";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
-
-const C = Colors.light;
+import { useTheme } from "@/context/ThemeContext";
 
 function T(key: TranslationKey, lang: Language): string {
   return tDual(key, lang);
@@ -86,6 +85,8 @@ function StarRow({ value }: { value: number }) {
 export default withErrorBoundary(MyReviewsScreenInner);
 
 function MyReviewsScreenInner() {
+  const { colors: C } = useTheme();
+  const s = useMemo(() => makeStyles(C), [C]);
   const { goBack } = useSmartBack();
   const { token } = useAuth();
   const { language } = useLanguage();
@@ -249,21 +250,22 @@ function MyReviewsScreenInner() {
   );
 }
 
-const s = StyleSheet.create({
+function makeStyles(C: typeof Colors.light) {
+  return StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: "#fff",
+    backgroundColor: C.surface,
     borderBottomWidth: 1,
-    borderBottomColor: "#f3f4f6",
+    borderBottomColor: C.borderLight,
   },
   backBtn: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "#f3f4f6",
+    backgroundColor: C.surfaceSecondary,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -272,7 +274,7 @@ const s = StyleSheet.create({
     textAlign: "center",
     fontSize: 17,
     fontWeight: "800",
-    color: "#111",
+    color: C.text,
   },
   centered: {
     flex: 1,
@@ -282,7 +284,7 @@ const s = StyleSheet.create({
   },
   errText: {
     fontSize: 14,
-    color: "#ef4444",
+    color: C.danger,
     marginTop: 12,
     textAlign: "center",
   },
@@ -296,15 +298,15 @@ const s = StyleSheet.create({
   retryTxt: { color: "#fff", fontWeight: "700", fontSize: 14 },
   list: { padding: 16, gap: 12 },
   summaryCard: {
-    backgroundColor: "#fff",
+    backgroundColor: C.surface,
     borderRadius: 20,
     padding: 20,
     alignItems: "center",
     marginBottom: 4,
     ...Platform.select({
-      web: { boxShadow: "0 2px 8px rgba(0,0,0,0.05)" },
+      web: { boxShadow: `0 2px 8px ${C.shadow}` },
       default: {
-        shadowColor: "#000",
+        shadowColor: C.text,
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.05,
         shadowRadius: 8,
@@ -315,32 +317,32 @@ const s = StyleSheet.create({
   summaryCount: {
     fontSize: 32,
     fontWeight: "900",
-    color: "#111",
+    color: C.text,
     marginTop: 4,
   },
-  summaryLabel: { fontSize: 13, color: "#6b7280", marginTop: 2 },
+  summaryLabel: { fontSize: 13, color: C.textMuted, marginTop: 2 },
   empty: { alignItems: "center", paddingVertical: 48 },
   emptyTitle: {
     fontSize: 16,
     fontWeight: "800",
-    color: "#374151",
+    color: C.text,
     marginTop: 12,
   },
   emptySub: {
     fontSize: 13,
-    color: "#9ca3af",
+    color: C.textMuted,
     marginTop: 6,
     textAlign: "center",
     maxWidth: 260,
   },
   card: {
-    backgroundColor: "#fff",
+    backgroundColor: C.surface,
     borderRadius: 16,
     padding: 16,
     ...Platform.select({
-      web: { boxShadow: "0 2px 6px rgba(0,0,0,0.04)" },
+      web: { boxShadow: `0 2px 6px ${C.shadow}` },
       default: {
-        shadowColor: "#000",
+        shadowColor: C.text,
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.04,
         shadowRadius: 6,
@@ -358,7 +360,7 @@ const s = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    backgroundColor: "#f9fafb",
+    backgroundColor: C.surfaceSecondary,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
@@ -373,13 +375,13 @@ const s = StyleSheet.create({
   ratingLabel: {
     fontSize: 11,
     fontWeight: "700",
-    color: "#6b7280",
+    color: C.textMuted,
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
   comment: {
     fontSize: 13,
-    color: "#374151",
+    color: C.text,
     lineHeight: 20,
     fontStyle: "italic",
     marginBottom: 6,
@@ -387,11 +389,12 @@ const s = StyleSheet.create({
   },
   noComment: {
     fontSize: 12,
-    color: "#d1d5db",
+    color: C.textMuted,
     marginBottom: 6,
     fontStyle: "italic",
     marginTop: 4,
   },
-  subject: { fontSize: 11, color: "#6b7280", marginBottom: 2 },
-  date: { fontSize: 11, color: "#9ca3af" },
+  subject: { fontSize: 11, color: C.textMuted, marginBottom: 2 },
+  date: { fontSize: 11, color: C.textMuted },
 });
+}

@@ -4,7 +4,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { createLogger } from "@/utils/logger";
 const log = createLogger("[Wallet]");
 import { router } from "expo-router";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Clipboard from "expo-clipboard";
 import {
@@ -35,9 +35,7 @@ import { tDual } from "@workspace/i18n";
 import { SmartRefresh } from "@/components/ui/SmartRefresh";
 import { useGetWallet, getGetWalletQueryKey } from "@workspace/api-client-react";
 import { API_BASE as API, unwrapApiResponse } from "@/utils/api";
-import { AuthGateSheet } from "@/components/AuthGateSheet";
-
-const C = Colors.light;
+import { useTheme } from "@/context/ThemeContext";
 
 const QUICK_AMOUNTS = [500, 1000, 2000, 5000];
 
@@ -95,6 +93,9 @@ function isDebitTx(tx: WalletTx): boolean {
 }
 
 function TxItem({ tx }: { tx: WalletTx }) {
+  const { colors: C } = useTheme();
+  const styles = useMemo(() => makeWs(C), [C]);
+  const ws = styles;
   const { symbol: currencySymbol } = useCurrency();
   const txStatus: string = tx.status ?? TX_STATUS_PENDING;
   const isManualTx = tx.type === "deposit" || tx.type === "withdrawal";
@@ -152,6 +153,7 @@ function TxItem({ tx }: { tx: WalletTx }) {
 }
 
 function MethodIcon({ id, size = 24 }: { id: string; size?: number }) {
+  const { colors: C } = useTheme();
   if (id === "jazzcash") {
     return <Ionicons name="phone-portrait" size={size} color={C.crimson} />;
   }
@@ -162,6 +164,7 @@ function MethodIcon({ id, size = 24 }: { id: string; size?: number }) {
 }
 
 function MpinInput({ value, onChange, autoFocus }: { value: string; onChange: (v: string) => void; autoFocus?: boolean }) {
+  const { colors: C } = useTheme();
   const inputRef = useRef<TextInput>(null);
   useEffect(() => { if (autoFocus) setTimeout(() => inputRef.current?.focus(), 300); }, []);
   return (
@@ -191,6 +194,9 @@ function MpinInput({ value, onChange, autoFocus }: { value: string; onChange: (v
 }
 
 function MpinSetupModal({ token, onClose, onSuccess }: { token: string | null; onClose: () => void; onSuccess: () => void }) {
+  const { colors: C } = useTheme();
+  const styles = useMemo(() => makeWs(C), [C]);
+  const ws = styles;
   const [step, setStep] = useState<"create" | "confirm">("create");
   const [pin, setPin] = useState("");
   const [confirmPin, setConfirmPin] = useState("");
@@ -266,6 +272,9 @@ function MpinSetupModal({ token, onClose, onSuccess }: { token: string | null; o
 }
 
 function MpinVerifyModal({ token, onClose, onVerified }: { token: string | null; onClose: () => void; onVerified: (pinToken: string) => void }) {
+  const { colors: C } = useTheme();
+  const styles = useMemo(() => makeWs(C), [C]);
+  const ws = styles;
   const [pin, setPin] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -385,6 +394,9 @@ function MpinVerifyModal({ token, onClose, onVerified }: { token: string | null;
 }
 
 function MpinForgotModal({ token, onClose, onReset }: { token: string | null; onClose: () => void; onReset: () => void }) {
+  const { colors: C } = useTheme();
+  const styles = useMemo(() => makeWs(C), [C]);
+  const ws = styles;
   const [step, setStep] = useState<"request" | "verify">("request");
   const [otp, setOtp] = useState("");
   const [newPin, setNewPin] = useState("");
@@ -493,6 +505,9 @@ function MpinForgotModal({ token, onClose, onReset }: { token: string | null; on
 }
 
 function MpinChangeModal({ token, onClose, onSuccess }: { token: string | null; onClose: () => void; onSuccess: () => void }) {
+  const { colors: C } = useTheme();
+  const styles = useMemo(() => makeWs(C), [C]);
+  const ws = styles;
   const [oldPin, setOldPin] = useState("");
   const [newPin, setNewPin] = useState("");
   const [confirmPin, setConfirmPin] = useState("");
@@ -649,6 +664,9 @@ type WithdrawStep = "method" | "details" | "confirm" | "done";
 const NOTE_MAX_LENGTH = 200;
 
 function WithdrawModal({ onClose, onSuccess, onFrozen, token, balance, minWithdrawal, pinToken }: { onClose: () => void; onSuccess: () => void; onFrozen?: () => void; token: string | null; balance: number; minWithdrawal: number; pinToken?: string | null }) {
+  const { colors: C } = useTheme();
+  const styles = useMemo(() => makeWs(C), [C]);
+  const ws = styles;
   const { config: withdrawConfig } = usePlatformConfig();
   const withdrawalProcessingDays = withdrawConfig.customer?.withdrawalProcessingDays;
   const processingText = withdrawalProcessingDays ? `${withdrawalProcessingDays} business day(s)` : "24–48 hours";
@@ -947,6 +965,9 @@ const SUBMITTED_TX_KEY = "wallet_submitted_tx_ids";
 let inMemorySubmittedTxIds: Set<string> = new Set();
 
 function DepositModal({ onClose, onSuccess, onFrozen, token, minTopup, maxTopup }: { onClose: () => void; onSuccess: () => void; onFrozen?: () => void; token: string | null; minTopup: number; maxTopup: number }) {
+  const { colors: C } = useTheme();
+  const styles = useMemo(() => makeWs(C), [C]);
+  const ws = styles;
   const { symbol: currencySymbol, code: currencyCode } = useCurrency();
   const { config: platformCfg } = usePlatformConfig();
   const withdrawalProcessingDays = platformCfg.customer.withdrawalProcessingDays;
@@ -1447,11 +1468,14 @@ function DepositModal({ onClose, onSuccess, onFrozen, token, minTopup, maxTopup 
 }
 
 function WalletScreenInner() {
+  const { colors: C } = useTheme();
+  const styles = useMemo(() => makeWs(C), [C]);
   const insets = useSafeAreaInsets();
   const { user, updateUser, token, socket } = useAuth();
   const { showToast } = useToast();
   const { language } = useLanguage();
   const T = (key: Parameters<typeof tDual>[0]) => tDual(key, language);
+  const ws = styles;
   const qc = useQueryClient();
   /* Fix: use insets.top for all platforms to account for notch/status bar */
   const topPad = Platform.OS === "web" ? 67 : (insets.top > 0 ? insets.top : 44);
@@ -2328,7 +2352,8 @@ function WalletScreenInner() {
 
 export default withErrorBoundary(WalletScreenInner);
 
-const ws = StyleSheet.create({
+function makeWs(C: typeof Colors.light) {
+  return StyleSheet.create({
   actionCard: { flex: 1, alignItems: "center", gap: 8 },
   actionCardIcon: { width: 48, height: 48, borderRadius: 16, alignItems: "center", justifyContent: "center" },
   actionCardTxt: { ...Typ.smallMedium, color: C.textSecondary, textAlign: "center" },
@@ -2374,3 +2399,4 @@ const ws = StyleSheet.create({
   actionBtnTxt: { ...Typ.h3, fontSize: 16, color: C.textInverse },
   input: { borderWidth: 1.5, borderColor: C.border, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14, ...Typ.body, color: C.text, fontSize: 16, textAlign: "center" },
 });
+}

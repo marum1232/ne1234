@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState, useMemo } from "react";
 import { createLogger } from "@/utils/logger";
 const log = createLogger("[BannerCarousel]");
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Dimensions, Platform, Linking, useWindowDimensions } from "react-native";
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Platform, useWindowDimensions } from "react-native";
 import { AdaptiveImage } from "@/components/AdaptiveImage";
 import { Ionicons } from "@expo/vector-icons";
 import { router, type RelativePathString } from "expo-router";
@@ -10,12 +10,12 @@ import { useQuery } from "@tanstack/react-query";
 
 import Colors, { spacing, shadows } from "@/constants/colors";
 import { Font } from "@/constants/typography";
+import { useTheme } from "@/context/ThemeContext";
 import { SkeletonBlock } from "@/components/user-shared";
 import { getBanners, type Banner as _Banner } from "@workspace/api-client-react";
 type Banner = _Banner & { linkType?: string; linkValue?: string; gradient1?: string; gradient2?: string; subtitle?: string; icon?: string };
 import { SERVICE_REGISTRY } from "@/constants/serviceRegistry";
 
-const C = Colors.light;
 const H_PAD = spacing.lg;
 
 function safeNavigate(route: string) {
@@ -38,7 +38,32 @@ function safeNavigate(route: string) {
   router.push(route as RelativePathString);
 }
 
+function makeBanStyles(C: typeof Colors.light) {
+  return StyleSheet.create({
+    headerRow: { flexDirection: "row", alignItems: "baseline", gap: 8, paddingHorizontal: H_PAD, marginBottom: 10 },
+    headerTitle: { fontFamily: Font.bold, fontSize: 16, color: C.text },
+    headerSub: { fontFamily: Font.regular, fontSize: 12, color: C.textMuted },
+    card: { borderRadius: 16, minHeight: 140, overflow: "hidden", position: "relative" as const },
+    bgImage: { position: "absolute" as const, top: 0, left: 0, right: 0, bottom: 0, width: "100%", height: "100%", borderRadius: 16 },
+    overlay: { position: "absolute" as const, top: 0, left: 0, right: 0, bottom: 0, borderRadius: 16 },
+    contentWrap: { flexDirection: "row" as const, alignItems: "center" as const, padding: 18, zIndex: 2 },
+    blob: { position: "absolute" as const, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.1)" },
+    title: { fontFamily: Font.bold, fontSize: 17, color: "#fff", marginBottom: 4, ...Platform.select({ native: { textShadowColor: "rgba(0,0,0,0.3)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 }, web: { textShadow: "0px 1px 3px rgba(0,0,0,0.3)" } }) },
+    desc: { fontFamily: Font.regular, fontSize: 12, color: "rgba(255,255,255,0.9)", lineHeight: 17, marginBottom: 10, ...Platform.select({ native: { textShadowColor: "rgba(0,0,0,0.2)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2 }, web: { textShadow: "0px 1px 2px rgba(0,0,0,0.2)" } }) },
+    cta: { flexDirection: "row" as const, alignItems: "center" as const, gap: 6, backgroundColor: "rgba(255,255,255,0.25)", alignSelf: "flex-start" as const, paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20 },
+    ctaTxt: { fontFamily: Font.semiBold, fontSize: 12, color: "#fff" },
+    iconWrap: { marginLeft: 10 },
+    dotsRow: { flexDirection: "row" as const, justifyContent: "center" as const, gap: 6, marginTop: 10 },
+    dot: { height: 5, borderRadius: 3 },
+    errorCard: { height: 80, borderRadius: 16, backgroundColor: C.surfaceSecondary, borderWidth: 1, borderColor: C.borderLight, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
+    errorTxt: { fontFamily: Font.regular, fontSize: 12, color: C.textMuted },
+  });
+}
+
 export function DynamicBannerCarousel() {
+  const { colors: C } = useTheme();
+  const ban = useMemo(() => makeBanStyles(C), [C]);
+
   const { data: banners, isLoading: bannersLoading, isError: bannersError, refetch: refetchBanners } = useQuery({
     queryKey: ["dynamic-banners", "home"],
     queryFn: () => getBanners({ placement: "home" }),
@@ -92,7 +117,7 @@ export function DynamicBannerCarousel() {
       safeNavigate(b.linkValue);
     } else if (b.linkType === "url" && b.linkValue) {
       if (b.linkValue.startsWith("https://")) {
-        Linking.openURL(b.linkValue);
+        void import("react-native").then(({ Linking }) => Linking.openURL(b.linkValue!));
       } else if (b.linkValue.startsWith("/") || b.linkValue.startsWith("/(")) {
         safeNavigate(b.linkValue);
       }
@@ -171,6 +196,8 @@ export function DynamicBannerCarousel() {
               key={b.id}
               onPress={() => handleBannerPress(b)}
               style={{ width: BANNER_W }}
+              accessibilityLabel={b.title}
+              accessibilityHint="Tap to view this promotion"
             >
               {b.imageUrl ? (
                 <View style={ban.card}>
@@ -218,7 +245,7 @@ export function DynamicBannerCarousel() {
         </ScrollView>
         {items.length > 1 && (
           <View style={ban.dotsRow}>
-            {items.map((_, i) => (
+            {items.map((_: unknown, i: number) => (
               <View key={i} style={[ban.dot, { width: active === i ? 24 : 6, backgroundColor: active === i ? C.primary : C.border }]} />
             ))}
           </View>
@@ -227,23 +254,3 @@ export function DynamicBannerCarousel() {
     </View>
   );
 }
-
-const ban = StyleSheet.create({
-  headerRow: { flexDirection: "row", alignItems: "baseline", gap: 8, paddingHorizontal: H_PAD, marginBottom: 10 },
-  headerTitle: { fontFamily: Font.bold, fontSize: 16, color: C.text },
-  headerSub: { fontFamily: Font.regular, fontSize: 12, color: C.textMuted },
-  card: { borderRadius: 16, minHeight: 140, overflow: "hidden", position: "relative" as const },
-  bgImage: { position: "absolute" as const, top: 0, left: 0, right: 0, bottom: 0, width: "100%", height: "100%", borderRadius: 16 },
-  overlay: { position: "absolute" as const, top: 0, left: 0, right: 0, bottom: 0, borderRadius: 16 },
-  contentWrap: { flexDirection: "row" as const, alignItems: "center" as const, padding: 18, zIndex: 2 },
-  blob: { position: "absolute" as const, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.1)" },
-  title: { fontFamily: Font.bold, fontSize: 17, color: "#fff", marginBottom: 4, ...Platform.select({ native: { textShadowColor: "rgba(0,0,0,0.3)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 }, web: { textShadow: "0px 1px 3px rgba(0,0,0,0.3)" } }) },
-  desc: { fontFamily: Font.regular, fontSize: 12, color: "rgba(255,255,255,0.9)", lineHeight: 17, marginBottom: 10, ...Platform.select({ native: { textShadowColor: "rgba(0,0,0,0.2)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2 }, web: { textShadow: "0px 1px 2px rgba(0,0,0,0.2)" } }) },
-  cta: { flexDirection: "row" as const, alignItems: "center" as const, gap: 6, backgroundColor: "rgba(255,255,255,0.25)", alignSelf: "flex-start" as const, paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20 },
-  ctaTxt: { fontFamily: Font.semiBold, fontSize: 12, color: "#fff" },
-  iconWrap: { marginLeft: 10 },
-  dotsRow: { flexDirection: "row" as const, justifyContent: "center" as const, gap: 6, marginTop: 10 },
-  dot: { height: 5, borderRadius: 3 },
-  errorCard: { height: 80, borderRadius: 16, backgroundColor: C.surfaceSecondary, borderWidth: 1, borderColor: C.borderLight, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
-  errorTxt: { fontFamily: Font.regular, fontSize: 12, color: C.textMuted },
-});

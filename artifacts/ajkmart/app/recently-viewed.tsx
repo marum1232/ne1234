@@ -3,7 +3,7 @@ import { router } from "expo-router";
 import { useSmartBack } from "@/hooks/useSmartBack";
 import { withErrorBoundary } from "@/utils/withErrorBoundary";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import {
   Alert,
   Image,
@@ -22,8 +22,6 @@ import { useTheme } from "@/context/ThemeContext";
 import { Font } from "@/constants/typography";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
 
-const C = Colors.light;
-const CARD_W = (375 - 16 * 2 - 12) / 2;
 const RECENTLY_VIEWED_KEY = "recently_viewed_products";
 
 interface RecentItem {
@@ -40,6 +38,7 @@ function RecentlyViewedScreenInner() {
   const { colors: C } = useTheme();
   const { width } = useWindowDimensions();
   const CARD_W = (width - 16 * 2 - 12) / 2;
+  const styles = useMemo(() => makeStyles(C, CARD_W), [C, CARD_W]);
   const { goBack } = useSmartBack();
   const [items, setItems] = useState<RecentItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -196,124 +195,126 @@ function RecentlyViewedScreenInner() {
   );
 }
 
-const styles = StyleSheet.create({
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: C.border,
-  },
-  backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: C.surfaceSecondary,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  headerTitle: { fontFamily: Font.bold, fontSize: 18, color: C.text },
-  clearBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: C.dangerSoft,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+function makeStyles(C: typeof Colors.light, CARD_W: number) {
+  return StyleSheet.create({
+    header: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: C.border,
+    },
+    backBtn: {
+      width: 40,
+      height: 40,
+      borderRadius: 12,
+      backgroundColor: C.surfaceSecondary,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    headerTitle: { fontFamily: Font.bold, fontSize: 18, color: C.text },
+    clearBtn: {
+      width: 40,
+      height: 40,
+      borderRadius: 12,
+      backgroundColor: C.dangerSoft,
+      alignItems: "center",
+      justifyContent: "center",
+    },
 
-  grid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    gap: 12,
-  },
-  card: {
-    width: CARD_W,
-    backgroundColor: C.surface,
-    borderRadius: 18,
-    overflow: "hidden",
-    ...Platform.select({
-      web: { boxShadow: "0 2px 8px rgba(15,23,42,0.06)" },
-      default: {
-        shadowColor: C.text,
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.06,
-        shadowRadius: 8,
-        elevation: 2,
-      },
-    }),
-  },
-  cardImg: {
-    height: 120,
-    backgroundColor: C.surfaceSecondary,
-    alignItems: "center",
-    justifyContent: "center",
-    overflow: "hidden",
-  },
-  discBadge: {
-    position: "absolute",
-    top: 8,
-    left: 8,
-    backgroundColor: C.danger,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-  },
-  discTxt: { fontFamily: Font.bold, fontSize: 9, color: C.textInverse },
-  cardBody: { padding: 12 },
-  cardName: {
-    fontFamily: Font.semiBold,
-    fontSize: 13,
-    color: C.text,
-    marginBottom: 6,
-    minHeight: 34,
-  },
-  cardFooter: { flexDirection: "row", alignItems: "baseline", gap: 6 },
-  cardPrice: { fontFamily: Font.bold, fontSize: 15, color: C.text },
-  cardOrigPrice: {
-    fontFamily: Font.regular,
-    fontSize: 11,
-    color: C.textMuted,
-    textDecorationLine: "line-through",
-  },
+    grid: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      paddingHorizontal: 16,
+      paddingTop: 16,
+      gap: 12,
+    },
+    card: {
+      width: CARD_W,
+      backgroundColor: C.surface,
+      borderRadius: 18,
+      overflow: "hidden",
+      ...Platform.select({
+        web: { boxShadow: "0 2px 8px rgba(15,23,42,0.06)" },
+        default: {
+          shadowColor: C.text,
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.06,
+          shadowRadius: 8,
+          elevation: 2,
+        },
+      }),
+    },
+    cardImg: {
+      height: 120,
+      backgroundColor: C.surfaceSecondary,
+      alignItems: "center",
+      justifyContent: "center",
+      overflow: "hidden",
+    },
+    discBadge: {
+      position: "absolute",
+      top: 8,
+      left: 8,
+      backgroundColor: C.danger,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 8,
+    },
+    discTxt: { fontFamily: Font.bold, fontSize: 9, color: C.textInverse },
+    cardBody: { padding: 12 },
+    cardName: {
+      fontFamily: Font.semiBold,
+      fontSize: 13,
+      color: C.text,
+      marginBottom: 6,
+      minHeight: 34,
+    },
+    cardFooter: { flexDirection: "row", alignItems: "baseline", gap: 6 },
+    cardPrice: { fontFamily: Font.bold, fontSize: 15, color: C.text },
+    cardOrigPrice: {
+      fontFamily: Font.regular,
+      fontSize: 11,
+      color: C.textMuted,
+      textDecorationLine: "line-through",
+    },
 
-  emptyCenter: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingTop: 100,
-    gap: 10,
-  },
-  emptyIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 24,
-    backgroundColor: C.surfaceSecondary,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 4,
-  },
-  emptyTitle: { fontFamily: Font.bold, fontSize: 17, color: C.text },
-  emptySub: {
-    fontFamily: Font.regular,
-    fontSize: 13,
-    color: C.textMuted,
-    textAlign: "center",
-    paddingHorizontal: 40,
-  },
-  browseBtn: {
-    marginTop: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    backgroundColor: C.primary,
-    paddingHorizontal: 24,
-    paddingVertical: 14,
-    borderRadius: 14,
-  },
-  browseBtnTxt: { fontFamily: Font.bold, fontSize: 14, color: C.textInverse },
-});
+    emptyCenter: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      paddingTop: 100,
+      gap: 10,
+    },
+    emptyIcon: {
+      width: 80,
+      height: 80,
+      borderRadius: 24,
+      backgroundColor: C.surfaceSecondary,
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: 4,
+    },
+    emptyTitle: { fontFamily: Font.bold, fontSize: 17, color: C.text },
+    emptySub: {
+      fontFamily: Font.regular,
+      fontSize: 13,
+      color: C.textMuted,
+      textAlign: "center",
+      paddingHorizontal: 40,
+    },
+    browseBtn: {
+      marginTop: 12,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      backgroundColor: C.primary,
+      paddingHorizontal: 24,
+      paddingVertical: 14,
+      borderRadius: 14,
+    },
+    browseBtnTxt: { fontFamily: Font.bold, fontSize: 14, color: C.textInverse },
+  });
+}

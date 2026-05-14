@@ -24,6 +24,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { useTheme } from "@/context/ThemeContext";
+
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import Colors, { spacing, radii, shadows, typography, getFontFamily } from "@/constants/colors";
 import { T as Typ, Font } from "@/constants/typography";
@@ -50,7 +52,6 @@ const LazyActiveTracker = React.lazy(() => import("@/components/home/ActiveTrack
 const LazyFlashDeals = React.lazy(() => import("@/components/home/FlashDeals").then(m => ({ default: m.FlashDealsSection })));
 const LazyTrending = React.lazy(() => import("@/components/home/TrendingSection").then(m => ({ default: m.TrendingSection })));
 
-const C = Colors.light;
 const H_PAD = spacing.lg;
 
 interface RecentItem {
@@ -61,6 +62,8 @@ interface RecentItem {
 }
 
 function RecentlyViewedSection() {
+  const { colors: C } = useTheme();
+  const rv = useMemo(() => makeRvStyles(C), [C]);
   const [items, setItems] = React.useState<RecentItem[]>([]);
 
   React.useEffect(() => {
@@ -122,17 +125,19 @@ function RecentlyViewedSection() {
   );
 }
 
-const rv = StyleSheet.create({
-  headerRow: { flexDirection: "row", alignItems: "center", paddingHorizontal: H_PAD, marginBottom: 10 },
-  title: { fontFamily: Font.bold, fontSize: 16, color: C.text },
-  clearBtn: { flexDirection: "row", alignItems: "center", gap: 4 },
-  clearTxt: { fontFamily: Font.regular, fontSize: 12, color: C.textMuted },
-  card: { width: 110, backgroundColor: C.surface, borderRadius: 12, overflow: "hidden", ...shadows.sm },
-  img: { width: 110, height: 90 },
-  info: { padding: 8, gap: 3 },
-  name: { fontFamily: Font.medium, fontSize: 11, color: C.text, lineHeight: 15 },
-  price: { fontFamily: Font.bold, fontSize: 12, color: C.primary },
-});
+function makeRvStyles(C: typeof Colors.light) {
+  return StyleSheet.create({
+    headerRow: { flexDirection: "row", alignItems: "center", paddingHorizontal: H_PAD, marginBottom: 10 },
+    title: { fontFamily: Font.bold, fontSize: 16, color: C.text },
+    clearBtn: { flexDirection: "row", alignItems: "center", gap: 4 },
+    clearTxt: { fontFamily: Font.regular, fontSize: 12, color: C.textMuted },
+    card: { width: 110, backgroundColor: C.surface, borderRadius: 12, overflow: "hidden", ...shadows.sm },
+    img: { width: 110, height: 90 },
+    info: { padding: 8, gap: 3 },
+    name: { fontFamily: Font.medium, fontSize: 11, color: C.text, lineHeight: 15 },
+    price: { fontFamily: Font.bold, fontSize: 12, color: C.primary },
+  });
+}
 
 const OFFER_STRIP_CONFIGS = [
   { type: "all",         label: "All Offers",    emoji: "\uD83C\uDFF7\uFE0F", colors: ["#7C3AED","#4F46E5"] as [string,string] },
@@ -143,6 +148,8 @@ const OFFER_STRIP_CONFIGS = [
 ];
 
 function OffersStrip() {
+  const { colors: C } = useTheme();
+  const os = useMemo(() => makeOsStyles(C), [C]);
   const { data, isLoading } = useQuery<{ offers?: unknown[] } | null>({
     queryKey: ["public-offers-home"],
     queryFn: async () => {
@@ -200,20 +207,22 @@ function OffersStrip() {
   );
 }
 
-const os = StyleSheet.create({
-  wrap: { marginTop: 16 },
-  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: H_PAD, marginBottom: 10 },
-  title: { fontFamily: Font.bold, fontSize: 16, color: C.text },
-  countBubble: { backgroundColor: C.primary, borderRadius: 10, paddingHorizontal: 6, paddingVertical: 1 },
-  countTxt: { fontFamily: Font.bold, fontSize: 10, color: "#fff" },
-  viewAllBtn: { flexDirection: "row", alignItems: "center", gap: 3 },
-  viewAllTxt: { fontFamily: Font.semiBold, fontSize: 12, color: C.primary },
-  row: { paddingHorizontal: H_PAD, gap: 10 },
-  card: { width: 100, height: 72, borderRadius: 14, alignItems: "center", justifyContent: "center", gap: 4, ...shadows.sm },
-  cardEmoji: { fontSize: 22 },
-  cardLabel: { fontFamily: Font.semiBold, fontSize: 10, color: "#fff", textAlign: "center" },
-  skeletonCard: { width: 100, height: 72, borderRadius: 14, backgroundColor: C.surfaceSecondary },
-});
+function makeOsStyles(C: typeof Colors.light) {
+  return StyleSheet.create({
+    wrap: { marginTop: 16 },
+    header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: H_PAD, marginBottom: 10 },
+    title: { fontFamily: Font.bold, fontSize: 16, color: C.text },
+    countBubble: { backgroundColor: C.primary, borderRadius: 10, paddingHorizontal: 6, paddingVertical: 1 },
+    countTxt: { fontFamily: Font.bold, fontSize: 10, color: "#fff" },
+    viewAllBtn: { flexDirection: "row", alignItems: "center", gap: 3 },
+    viewAllTxt: { fontFamily: Font.semiBold, fontSize: 12, color: C.primary },
+    row: { paddingHorizontal: H_PAD, gap: 10 },
+    card: { width: 100, height: 72, borderRadius: 14, alignItems: "center", justifyContent: "center", gap: 4, ...shadows.sm },
+    cardEmoji: { fontSize: 22 },
+    cardLabel: { fontFamily: Font.semiBold, fontSize: 10, color: "#fff", textAlign: "center" },
+    skeletonCard: { width: 100, height: 72, borderRadius: 14, backgroundColor: C.surfaceSecondary },
+  });
+}
 
 const WMO_ICONS: Record<number, { icon: string; label: string }> = {
   0: { icon: "sunny-outline", label: "Clear" },
@@ -243,6 +252,8 @@ const WEATHER_CACHE_TTL = 30 * 60_000;
 const SAVED_CITY_KEY = "weather_manual_city";
 
 function WeatherWidget({ userLat, userLng, cityLabel }: { userLat?: number; userLng?: number; cityLabel?: string }) {
+  const { colors: C } = useTheme();
+  const wS = useMemo(() => makeWSStyles(C), [C]);
   const [weather, setWeather] = useState<{ temp: number; code: number; windSpeed: number; humidity: number; feelsLike?: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [locationLabel, setLocationLabel] = useState(cityLabel || "");
@@ -379,24 +390,26 @@ function WeatherWidget({ userLat, userLng, cityLabel }: { userLat?: number; user
   );
 }
 
-const wS = StyleSheet.create({
-  wrap: {
-    marginHorizontal: H_PAD, marginTop: 10,
-    backgroundColor: C.surface, borderRadius: 14,
-    paddingHorizontal: 14, paddingVertical: 12,
-    ...shadows.sm,
-  },
-  row: { flexDirection: "row", alignItems: "center", gap: 10 },
-  skRow: { flexDirection: "row", alignItems: "center", gap: 10 },
-  iconWrap: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: C.primarySoft, alignItems: "center", justifyContent: "center",
-  },
-  label: { fontFamily: Font.semiBold, fontSize: 13, color: C.text },
-  detailRow: { flexDirection: "row", gap: 8 },
-  detail: { fontFamily: Font.regular, fontSize: 11, color: C.textMuted },
-  temp: { fontFamily: Font.bold, fontSize: 22, color: C.primary },
-});
+function makeWSStyles(C: typeof Colors.light) {
+  return StyleSheet.create({
+    wrap: {
+      marginHorizontal: H_PAD, marginTop: 10,
+      backgroundColor: C.surface, borderRadius: 14,
+      paddingHorizontal: 14, paddingVertical: 12,
+      ...shadows.sm,
+    },
+    row: { flexDirection: "row", alignItems: "center", gap: 10 },
+    skRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+    iconWrap: {
+      width: 36, height: 36, borderRadius: 18,
+      backgroundColor: C.primarySoft, alignItems: "center", justifyContent: "center",
+    },
+    label: { fontFamily: Font.semiBold, fontSize: 13, color: C.text },
+    detailRow: { flexDirection: "row", gap: 8 },
+    detail: { fontFamily: Font.regular, fontSize: 11, color: C.textMuted },
+    temp: { fontFamily: Font.bold, fontSize: 22, color: C.primary },
+  });
+}
 
 function HomeSkeleton() {
   const { width: W } = useWindowDimensions();
@@ -418,6 +431,9 @@ function HomeSkeleton() {
 }
 
 export default function HomeScreen() {
+  const { colors: C } = useTheme();
+  const s = useMemo(() => makeSStyles(C), [C]);
+  const lp = useMemo(() => makeLpStyles(C), [C]);
   const insets = useSafeAreaInsets();
   const { user, token } = useAuth();
   const { itemCount } = useCart();
@@ -770,6 +786,8 @@ interface HeaderContentProps {
 }
 
 function HeaderContent({ selectedLocation, platformConfig, itemCount, handleLocationPress, searchOpacity, searchTranslateY, searchMaxHeight, T }: HeaderContentProps) {
+  const { colors: C } = useTheme();
+  const s = useMemo(() => makeSStyles(C), [C]);
   return (
     <>
       <View style={s.hdrRow}>
@@ -823,110 +841,114 @@ function HeaderContent({ selectedLocation, platformConfig, itemCount, handleLoca
   );
 }
 
-const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: C.background },
+function makeSStyles(C: typeof Colors.light) {
+  return StyleSheet.create({
+    root: { flex: 1, backgroundColor: C.background },
 
-  header: { paddingHorizontal: H_PAD, paddingBottom: 8 },
-  hdrRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 6 },
-  locBtn: { flexDirection: "row", alignItems: "center", gap: 4, flex: 1, marginRight: 12 },
-  locTxt: { fontFamily: Font.semiBold, fontSize: 13, color: "#fff", flex: 1 },
+    header: { paddingHorizontal: H_PAD, paddingBottom: 8 },
+    hdrRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 6 },
+    locBtn: { flexDirection: "row", alignItems: "center", gap: 4, flex: 1, marginRight: 12 },
+    locTxt: { fontFamily: Font.semiBold, fontSize: 13, color: "#fff", flex: 1 },
 
-  iconBtn: {
-    width: 38, height: 38, borderRadius: 12,
-    backgroundColor: "rgba(255,255,255,0.15)",
-    alignItems: "center", justifyContent: "center",
-  },
-  cartBadge: {
-    position: "absolute", top: -4, right: -4,
-    backgroundColor: "#FF3B30", borderRadius: 8,
-    minWidth: 16, height: 16,
-    alignItems: "center", justifyContent: "center",
-    paddingHorizontal: 3, borderWidth: 1.5, borderColor: "#0066FF",
-  },
-  cartBadgeTxt: { fontFamily: Font.bold, fontSize: 9, color: "#fff" },
+    iconBtn: {
+      width: 38, height: 38, borderRadius: 12,
+      backgroundColor: "rgba(255,255,255,0.15)",
+      alignItems: "center", justifyContent: "center",
+    },
+    cartBadge: {
+      position: "absolute", top: -4, right: -4,
+      backgroundColor: "#FF3B30", borderRadius: 8,
+      minWidth: 16, height: 16,
+      alignItems: "center", justifyContent: "center",
+      paddingHorizontal: 3, borderWidth: 1.5, borderColor: "#0066FF",
+    },
+    cartBadgeTxt: { fontFamily: Font.bold, fontSize: 9, color: "#fff" },
 
-  searchBar: {
-    flexDirection: "row", alignItems: "center", gap: 10,
-    backgroundColor: "#fff", borderRadius: 12,
-    paddingHorizontal: 14, paddingVertical: 10,
-  },
-  searchText: { flex: 1, fontFamily: Font.regular, fontSize: 13, color: C.textMuted },
-  searchDivider: { width: 1, height: 18, backgroundColor: C.borderLight },
+    searchBar: {
+      flexDirection: "row", alignItems: "center", gap: 10,
+      backgroundColor: "#fff", borderRadius: 12,
+      paddingHorizontal: 14, paddingVertical: 10,
+    },
+    searchText: { flex: 1, fontFamily: Font.regular, fontSize: 13, color: C.textMuted },
+    searchDivider: { width: 1, height: 18, backgroundColor: C.borderLight },
 
-  cartFab: { position: "absolute", right: H_PAD, borderRadius: 99, overflow: "hidden", ...shadows.xl },
-  cartFabGrad: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 12, paddingHorizontal: 18, borderRadius: 99 },
-  cartFabTxt: { fontFamily: Font.bold, fontSize: 13, color: "#fff" },
-  cartFabBadge: { backgroundColor: "#FF3B30", borderRadius: 11, minWidth: 20, height: 20, alignItems: "center", justifyContent: "center", paddingHorizontal: 4, borderWidth: 2, borderColor: C.primary },
-  cartFabBadgeTxt: { fontFamily: Font.bold, fontSize: 10, color: "#fff" },
+    cartFab: { position: "absolute", right: H_PAD, borderRadius: 99, overflow: "hidden", ...shadows.xl },
+    cartFabGrad: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 12, paddingHorizontal: 18, borderRadius: 99 },
+    cartFabTxt: { fontFamily: Font.bold, fontSize: 13, color: "#fff" },
+    cartFabBadge: { backgroundColor: "#FF3B30", borderRadius: 11, minWidth: 20, height: 20, alignItems: "center", justifyContent: "center", paddingHorizontal: 4, borderWidth: 2, borderColor: C.primary },
+    cartFabBadgeTxt: { fontFamily: Font.bold, fontSize: 10, color: "#fff" },
 
-  announceBar: {
-    backgroundColor: C.primary, flexDirection: "row", alignItems: "center",
-    paddingHorizontal: 14, paddingBottom: 6, gap: 8, zIndex: 10,
-  },
-  announceIcon: { width: 22, height: 22, borderRadius: 11, backgroundColor: "rgba(255,255,255,0.2)", alignItems: "center", justifyContent: "center" },
-  announceTxt: { flex: 1, fontFamily: Font.medium, fontSize: 12, color: "#fff" },
-  announceClose: { padding: 4 },
+    announceBar: {
+      backgroundColor: C.primary, flexDirection: "row", alignItems: "center",
+      paddingHorizontal: 14, paddingBottom: 6, gap: 8, zIndex: 10,
+    },
+    announceIcon: { width: 22, height: 22, borderRadius: 11, backgroundColor: "rgba(255,255,255,0.2)", alignItems: "center", justifyContent: "center" },
+    announceTxt: { flex: 1, fontFamily: Font.medium, fontSize: 12, color: "#fff" },
+    announceClose: { padding: 4 },
 
-  promoBanner: {
-    flexDirection: "row", alignItems: "center", gap: 8,
-    marginHorizontal: H_PAD, marginTop: 10, marginBottom: 2,
-    backgroundColor: C.primarySoft, borderRadius: 10,
-    paddingHorizontal: 12, paddingVertical: 8,
-    borderWidth: 1, borderColor: C.blueLightBorder,
-  },
-  promoBannerTxt: { flex: 1, fontFamily: Font.medium, fontSize: 12, color: C.primary },
+    promoBanner: {
+      flexDirection: "row", alignItems: "center", gap: 8,
+      marginHorizontal: H_PAD, marginTop: 10, marginBottom: 2,
+      backgroundColor: C.primarySoft, borderRadius: 10,
+      paddingHorizontal: 12, paddingVertical: 8,
+      borderWidth: 1, borderColor: C.blueLightBorder,
+    },
+    promoBannerTxt: { flex: 1, fontFamily: Font.medium, fontSize: 12, color: C.primary },
 
-  scroll: { paddingBottom: 0 },
-});
+    scroll: { paddingBottom: 0 },
+  });
+}
 
-const lp = StyleSheet.create({
-  overlay: {
-    position: "absolute",
-    top: 0, left: 0, right: 0, bottom: 0,
-    backgroundColor: "rgba(0,0,0,0.4)",
-  },
-  sheet: {
-    position: "absolute",
-    bottom: 0, left: 0, right: 0,
-    backgroundColor: C.surface,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingBottom: 32,
-    maxHeight: "70%",
-    ...shadows.xl,
-  },
-  handle: {
-    width: 36, height: 4, borderRadius: 2,
-    backgroundColor: C.borderLight,
-    alignSelf: "center", marginTop: 10, marginBottom: 4,
-  },
-  header: {
-    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    paddingHorizontal: 16, paddingVertical: 12,
-    borderBottomWidth: 1, borderBottomColor: C.borderLight,
-  },
-  title: { fontFamily: Font.semiBold, fontSize: 16, color: C.text },
-  closeBtn: { padding: 4 },
-  searchRow: {
-    flexDirection: "row", alignItems: "center", gap: 10,
-    marginHorizontal: 16, marginVertical: 10,
-    backgroundColor: C.surfaceSecondary,
-    borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8,
-    borderWidth: 1, borderColor: C.borderLight,
-  },
-  searchInput: {
-    flex: 1, fontFamily: Font.regular, fontSize: 14, color: C.text,
-    paddingVertical: 0,
-  },
-  list: { flex: 1 },
-  areaRow: {
-    flexDirection: "row", alignItems: "center", gap: 12,
-    paddingHorizontal: 16, paddingVertical: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.borderLight,
-  },
-  areaRowSelected: { backgroundColor: C.primarySoft },
-  areaTxt: { flex: 1, fontFamily: Font.regular, fontSize: 15, color: C.text },
-  areaTxtSelected: { fontFamily: Font.semiBold, color: C.primary },
-  emptyRow: { padding: 24, alignItems: "center" },
-  emptyTxt: { fontFamily: Font.regular, fontSize: 14, color: C.textMuted },
-});
+function makeLpStyles(C: typeof Colors.light) {
+  return StyleSheet.create({
+    overlay: {
+      position: "absolute",
+      top: 0, left: 0, right: 0, bottom: 0,
+      backgroundColor: "rgba(0,0,0,0.4)",
+    },
+    sheet: {
+      position: "absolute",
+      bottom: 0, left: 0, right: 0,
+      backgroundColor: C.surface,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      paddingBottom: 32,
+      maxHeight: "70%",
+      ...shadows.xl,
+    },
+    handle: {
+      width: 36, height: 4, borderRadius: 2,
+      backgroundColor: C.borderLight,
+      alignSelf: "center", marginTop: 10, marginBottom: 4,
+    },
+    header: {
+      flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+      paddingHorizontal: 16, paddingVertical: 12,
+      borderBottomWidth: 1, borderBottomColor: C.borderLight,
+    },
+    title: { fontFamily: Font.semiBold, fontSize: 16, color: C.text },
+    closeBtn: { padding: 4 },
+    searchRow: {
+      flexDirection: "row", alignItems: "center", gap: 10,
+      marginHorizontal: 16, marginVertical: 10,
+      backgroundColor: C.surfaceSecondary,
+      borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8,
+      borderWidth: 1, borderColor: C.borderLight,
+    },
+    searchInput: {
+      flex: 1, fontFamily: Font.regular, fontSize: 14, color: C.text,
+      paddingVertical: 0,
+    },
+    list: { flex: 1 },
+    areaRow: {
+      flexDirection: "row", alignItems: "center", gap: 12,
+      paddingHorizontal: 16, paddingVertical: 14,
+      borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.borderLight,
+    },
+    areaRowSelected: { backgroundColor: C.primarySoft },
+    areaTxt: { flex: 1, fontFamily: Font.regular, fontSize: 15, color: C.text },
+    areaTxtSelected: { fontFamily: Font.semiBold, color: C.primary },
+    emptyRow: { padding: 24, alignItems: "center" },
+    emptyTxt: { fontFamily: Font.regular, fontSize: 14, color: C.textMuted },
+  });
+}

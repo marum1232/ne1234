@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import {
   ActivityIndicator, Alert, TouchableOpacity, RefreshControl,
   ScrollView, StyleSheet, Text, View, Platform,
@@ -12,9 +12,9 @@ import Colors from "@/constants/colors";
 import { Font } from "@/constants/typography";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
+import { useTheme } from "@/context/ThemeContext";
 
 const API_BASE = `https://${process.env.EXPO_PUBLIC_DOMAIN}/api`;
-const C = Colors.light;
 
 type SeatTier = "window" | "aisle" | "economy";
 
@@ -54,6 +54,8 @@ const STATUS_INFO: Record<string, { color: string; bg: string; icon: any; label:
 };
 
 export default function VanBookingsScreen() {
+  const { colors: C } = useTheme();
+  const ss = useMemo(() => makeStyles(C), [C]);
   const insets = useSafeAreaInsets();
   const { goBack } = useSmartBack();
   const topPad = Math.max(insets.top, 12);
@@ -236,8 +238,9 @@ export default function VanBookingsScreen() {
   );
 }
 
-const ss = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#F5F6F8" },
+function makeStyles(C: typeof Colors.light) {
+  return StyleSheet.create({
+  root: { flex: 1, backgroundColor: C.background },
   header: { paddingHorizontal: 16, paddingBottom: 18 },
   headerRow: { flexDirection: "row", alignItems: "center" },
   backBtn: { padding: 4 },
@@ -246,33 +249,34 @@ const ss = StyleSheet.create({
   emptyContent: { flex: 1 },
   center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 16 },
   empty: { flex: 1, alignItems: "center", justifyContent: "center" },
-  emptyTitle: { fontFamily: Font.semiBold, fontSize: 17, color: "#374151", marginTop: 12 },
-  emptyDesc: { fontFamily: Font.regular, fontSize: 14, color: "#6B7280", textAlign: "center", marginTop: 6 },
-  card: { borderRadius: 16, overflow: "hidden", marginBottom: 12, ...Platform.select({ web: { boxShadow: "0 3px 10px rgba(0,0,0,0.05)" }, default: { shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 } }) },
+  emptyTitle: { fontFamily: Font.semiBold, fontSize: 17, color: C.text, marginTop: 12 },
+  emptyDesc: { fontFamily: Font.regular, fontSize: 14, color: C.textSecondary, textAlign: "center", marginTop: 6 },
+  card: { borderRadius: 16, overflow: "hidden", marginBottom: 12, ...Platform.select({ web: { boxShadow: `0 3px 10px ${C.shadow}` }, default: { shadowColor: C.text, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 } }) },
   cardTicketHeader: { padding: 14, paddingBottom: 12, flexDirection: "row", alignItems: "center" },
   cardRouteName: { fontFamily: Font.bold, fontSize: 16, color: "#fff" },
   cardRouteFromTo: { fontFamily: Font.regular, fontSize: 12, color: "rgba(255,255,255,0.8)", marginTop: 2 },
   vanCodeBadge: { backgroundColor: "rgba(255,255,255,0.2)", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
   vanCodeText: { fontFamily: Font.bold, fontSize: 13, color: "#E0E7FF" },
-  cardBody: { backgroundColor: "#fff", padding: 14 },
+  cardBody: { backgroundColor: C.surface, padding: 14 },
   cardMeta: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 },
   statusBadge: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
   statusText: { fontFamily: Font.semiBold, fontSize: 12 },
-  cardDate: { fontFamily: Font.semiBold, fontSize: 13, color: "#6B7280" },
+  cardDate: { fontFamily: Font.semiBold, fontSize: 13, color: C.textMuted },
   detailRow: { flexDirection: "row", gap: 16, flexWrap: "wrap", marginBottom: 10 },
   detailItem: { flexDirection: "row", alignItems: "center", gap: 4 },
-  detailText: { fontFamily: Font.regular, fontSize: 13, color: "#374151" },
+  detailText: { fontFamily: Font.regular, fontSize: 13, color: C.text },
   seatBadgesRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginBottom: 6 },
   seatBadge: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, borderWidth: 1 },
   seatBadgeText: { fontFamily: Font.bold, fontSize: 12 },
   seatTierLabel: { fontFamily: Font.regular, fontSize: 10 },
   tierBreakdownWrap: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 8 },
-  tierBreakdownSmall: { fontFamily: Font.regular, fontSize: 11, color: "#6B7280" },
-  trackBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, marginTop: 8, paddingVertical: 10, borderRadius: 10, borderWidth: 1.5, borderColor: "#A5B4FC", backgroundColor: "#EEF2FF" },
-  trackBtnText: { fontFamily: Font.semiBold, fontSize: 14, color: "#6366F1" },
-  cancelBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, marginTop: 8, paddingVertical: 10, borderRadius: 10, borderWidth: 1.5, borderColor: "#FCA5A5", backgroundColor: "#FFF1F1" },
+  tierBreakdownSmall: { fontFamily: Font.regular, fontSize: 11, color: C.textMuted },
+  trackBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, marginTop: 8, paddingVertical: 10, borderRadius: 10, borderWidth: 1.5, borderColor: C.indigoBorder, backgroundColor: C.indigoSoft },
+  trackBtnText: { fontFamily: Font.semiBold, fontSize: 14, color: C.indigo },
+  cancelBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, marginTop: 8, paddingVertical: 10, borderRadius: 10, borderWidth: 1.5, borderColor: C.redBorder, backgroundColor: C.redSoft },
   cancelBtnDisabled: { opacity: 0.6 },
-  cancelBtnText: { fontFamily: Font.semiBold, fontSize: 14, color: "#DC2626" },
-  btnPrimary: { backgroundColor: "#6366F1", borderRadius: 14, paddingHorizontal: 24, paddingVertical: 14, alignItems: "center" },
+  cancelBtnText: { fontFamily: Font.semiBold, fontSize: 14, color: C.red },
+  btnPrimary: { backgroundColor: C.primary, borderRadius: 14, paddingHorizontal: 24, paddingVertical: 14, alignItems: "center" },
   btnPrimaryText: { fontFamily: Font.bold, fontSize: 15, color: "#fff" },
 });
+}

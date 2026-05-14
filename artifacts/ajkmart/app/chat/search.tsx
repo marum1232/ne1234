@@ -17,9 +17,12 @@ import { useToast } from "@/context/ToastContext";
 import { API_BASE } from "@/utils/api";
 import { useSmartBack } from "@/hooks/useSmartBack";
 
-const C = Colors.light;
+import { useTheme } from "@/context/ThemeContext";
+import { useMemo } from "react";
 
 export default function ChatSearchScreen() {
+  const { colors: C } = useTheme();
+  const s = useMemo(() => makeStyles(C), [C]);
   const insets = useSafeAreaInsets();
   const { token } = useAuth();
   const { showToast } = useToast();
@@ -131,7 +134,8 @@ export default function ChatSearchScreen() {
   );
 }
 
-const s = StyleSheet.create({
+function makeStyles(C: typeof Colors.light) {
+  return StyleSheet.create({
   container: { flex: 1, backgroundColor: C.background },
   header: { flexDirection: "row", alignItems: "center", paddingHorizontal: spacing.lg, paddingVertical: spacing.md, gap: 12 },
   backBtn: { padding: 4 },
@@ -154,4 +158,5 @@ const s = StyleSheet.create({
   sendBtnText: { fontSize: 13, fontFamily: Font.bold, color: "#fff" },
   info: { marginHorizontal: spacing.lg, marginTop: spacing.md, flexDirection: "row", gap: 10, padding: spacing.md, backgroundColor: `${C.primary}08`, borderRadius: radii.lg },
   infoText: { flex: 1, fontSize: 13, fontFamily: Font.regular, color: C.textSecondary, lineHeight: 20 },
-});
+  });
+}

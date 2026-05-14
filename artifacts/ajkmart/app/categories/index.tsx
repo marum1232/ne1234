@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSmartBack } from "@/hooks/useSmartBack";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useLanguage } from "@/context/LanguageContext";
 import { tDual, type TranslationKey } from "@workspace/i18n";
 import { withErrorBoundary } from "@/utils/withErrorBoundary";
@@ -28,7 +28,6 @@ import {
 } from "@workspace/api-client-react";
 import { ErrorState } from "@/components/ui/ErrorState";
 
-const C = Colors.light;
 const SIDEBAR_W = 90;
 const RIGHT_W = 375 - SIDEBAR_W;
 
@@ -50,6 +49,7 @@ export default withErrorBoundary(CategoriesBrowseScreenInner);
 
 function CategoriesBrowseScreenInner() {
   const { colors: C } = useTheme();
+  const s = useMemo(() => makeStyles(C), [C]);
   const { width } = useWindowDimensions();
   const RIGHT_W = width - SIDEBAR_W;
   const insets = useSafeAreaInsets();
@@ -403,7 +403,8 @@ function CategoriesBrowseScreenInner() {
   );
 }
 
-const s = StyleSheet.create({
+function makeStyles(C: typeof Colors.light) {
+  return StyleSheet.create({
   container: { flex: 1, backgroundColor: C.background },
   header: {
     flexDirection: "row",
@@ -524,7 +525,7 @@ const s = StyleSheet.create({
     paddingBottom: 4,
   },
   subCard: {
-    width: (RIGHT_W - 20 - 16) / 3,
+    width: (RIGHT_W_CONST - 20 - 16) / 3,
     alignItems: "center",
     paddingVertical: 12,
     paddingHorizontal: 4,
@@ -693,4 +694,6 @@ const s = StyleSheet.create({
     borderRadius: 8,
   },
   ratingText: { fontFamily: Font.semiBold, fontSize: 10, color: "#D97706" },
-});
+  });
+}
+const RIGHT_W_CONST = 375 - SIDEBAR_W;

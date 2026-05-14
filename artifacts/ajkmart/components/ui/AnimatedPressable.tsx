@@ -1,5 +1,12 @@
-import React, { useEffect, useRef } from "react";
-import { Animated, TouchableOpacity, type ViewStyle } from "react-native";
+import React, { useEffect } from "react";
+import { TouchableOpacity, type ViewStyle } from "react-native";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+  withDelay,
+} from "react-native-reanimated";
 
 interface AnimatedPressableProps {
   children: React.ReactNode;
@@ -16,36 +23,43 @@ export function AnimatedPressable({
   delay = 0,
   disabled = false,
 }: AnimatedPressableProps) {
-  const scale = useRef(new Animated.Value(0.96)).current;
-  const opacity = useRef(new Animated.Value(0)).current;
+  const scale = useSharedValue(0.96);
+  const opacity = useSharedValue(0);
 
   useEffect(() => {
-    Animated.parallel([
-      Animated.spring(scale, {
-        toValue: 1,
-        useNativeDriver: true,
-        delay,
-        tension: 50,
-        friction: 7,
-      }),
-      Animated.timing(opacity, {
-        toValue: 1,
-        duration: 350,
-        delay,
-        useNativeDriver: true,
-      }),
-    ]).start();
+    scale.value = withDelay(
+      delay,
+      withSpring(1, { damping: 7, stiffness: 50 }),
+    );
+    opacity.value = withDelay(
+      delay,
+      withTiming(1, { duration: 350 }),
+    );
   }, []);
 
-  const onPressIn = () =>
-    Animated.spring(scale, { toValue: 0.97, useNativeDriver: true, speed: 50 }).start();
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    transform: [{ scale: scale.value }],
+  }));
+
+  const onPressIn = () => {
+    scale.value = withSpring(0.97, { damping: 15, stiffness: 500 });
+  };
+
   const onPressOut = () => {
-    Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 35 }).start();
+    scale.value = withSpring(1, { damping: 10, stiffness: 350 });
   };
 
   return (
-    <Animated.View style={[{ opacity, transform: [{ scale }] }, style]}>
-      <TouchableOpacity activeOpacity={0.8} onPressIn={onPressIn} onPressOut={onPressOut} onPress={disabled ? undefined : onPress} style={{ flex: 1 }} disabled={disabled}>
+    <Animated.View style={[animatedStyle, style]}>
+      <TouchableOpacity
+        activeOpacity={0.8}
+        onPressIn={onPressIn}
+        onPressOut={onPressOut}
+        onPress={disabled ? undefined : onPress}
+        style={{ flex: 1 }}
+        disabled={disabled}
+      >
         {children}
       </TouchableOpacity>
     </Animated.View>

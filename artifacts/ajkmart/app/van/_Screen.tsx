@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   ActivityIndicator, Alert, TouchableOpacity, ScrollView, StyleSheet,
   Text, TextInput, View, Platform,
@@ -14,9 +14,9 @@ import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { tDual } from "@workspace/i18n";
+import { useTheme } from "@/context/ThemeContext";
 
 const API_BASE = `https://${process.env.EXPO_PUBLIC_DOMAIN}/api`;
-const C = Colors.light;
 
 const DAY_NAMES = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 
@@ -50,6 +50,8 @@ interface AvailabilityData {
 type Step = "routes" | "schedules" | "date" | "seats" | "confirm";
 
 export default function VanServiceScreen() {
+  const { colors: C } = useTheme();
+  const ss = useMemo(() => makeStyles(C), [C]);
   const insets = useSafeAreaInsets();
   const { goBack: smartGoBack } = useSmartBack();
   const topPad = Math.max(insets.top, 12);
@@ -532,8 +534,9 @@ export default function VanServiceScreen() {
   return <View style={[ss.root, ss.center]}><ActivityIndicator color={C.primary} /></View>;
 }
 
-const ss = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#F5F6F8" },
+function makeStyles(C: typeof Colors.light) {
+  return StyleSheet.create({
+  root: { flex: 1, backgroundColor: C.background },
   headerGradient: { paddingHorizontal: 16, paddingBottom: 18 },
   headerRow: { flexDirection: "row", alignItems: "center" },
   backBtn: { padding: 4 },
@@ -542,42 +545,42 @@ const ss = StyleSheet.create({
   content: { padding: 16, paddingBottom: 40 },
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
   empty: { alignItems: "center", justifyContent: "center", padding: 32 },
-  emptyTitle: { fontFamily: Font.semiBold, fontSize: 17, color: "#374151", marginTop: 12 },
-  emptyDesc: { fontFamily: Font.regular, fontSize: 14, color: "#6B7280", textAlign: "center", marginTop: 6, lineHeight: 20 },
-  sectionLabel: { fontFamily: Font.semiBold, fontSize: 13, color: "#6B7280", marginBottom: 12, marginTop: 4, textTransform: "uppercase", letterSpacing: 0.5 },
-  routeCard: { flexDirection: "row", alignItems: "center", backgroundColor: "#fff", borderRadius: 16, padding: 16, marginBottom: 10, ...Platform.select({ web: { boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }, default: { shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 } }) },
-  routeIcon: { width: 44, height: 44, borderRadius: 12, backgroundColor: "#EEF2FF", alignItems: "center", justifyContent: "center", marginRight: 12 },
-  routeName: { fontFamily: Font.semiBold, fontSize: 15, color: "#111827" },
-  routeFromTo: { fontFamily: Font.regular, fontSize: 13, color: "#6B7280", marginTop: 2 },
-  routeMeta: { fontFamily: Font.regular, fontSize: 12, color: "#9CA3AF", marginTop: 2 },
+  emptyTitle: { fontFamily: Font.semiBold, fontSize: 17, color: C.text, marginTop: 12 },
+  emptyDesc: { fontFamily: Font.regular, fontSize: 14, color: C.textSecondary, textAlign: "center", marginTop: 6, lineHeight: 20 },
+  sectionLabel: { fontFamily: Font.semiBold, fontSize: 13, color: C.textMuted, marginBottom: 12, marginTop: 4, textTransform: "uppercase", letterSpacing: 0.5 },
+  routeCard: { flexDirection: "row", alignItems: "center", backgroundColor: C.surface, borderRadius: 16, padding: 16, marginBottom: 10, ...Platform.select({ web: { boxShadow: `0 2px 8px ${C.shadow}` }, default: { shadowColor: C.text, shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 } }) },
+  routeIcon: { width: 44, height: 44, borderRadius: 12, backgroundColor: C.primarySoft, alignItems: "center", justifyContent: "center", marginRight: 12 },
+  routeName: { fontFamily: Font.semiBold, fontSize: 15, color: C.text },
+  routeFromTo: { fontFamily: Font.regular, fontSize: 13, color: C.textSecondary, marginTop: 2 },
+  routeMeta: { fontFamily: Font.regular, fontSize: 12, color: C.textMuted, marginTop: 2 },
   routeFareCol: { alignItems: "flex-end", marginRight: 8 },
-  routeFare: { fontFamily: Font.bold, fontSize: 15, color: "#16A34A" },
-  routeFareLabel: { fontFamily: Font.regular, fontSize: 11, color: "#9CA3AF" },
-  scheduleCard: { backgroundColor: "#fff", borderRadius: 16, padding: 16, marginBottom: 10, borderWidth: 2, borderColor: "transparent", ...Platform.select({ web: { boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }, default: { shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 } }) },
-  scheduleCardSelected: { borderColor: "#6366F1" },
+  routeFare: { fontFamily: Font.bold, fontSize: 15, color: C.success },
+  routeFareLabel: { fontFamily: Font.regular, fontSize: 11, color: C.textMuted },
+  scheduleCard: { backgroundColor: C.surface, borderRadius: 16, padding: 16, marginBottom: 10, borderWidth: 2, borderColor: "transparent", ...Platform.select({ web: { boxShadow: `0 2px 8px ${C.shadow}` }, default: { shadowColor: C.text, shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 } }) },
+  scheduleCardSelected: { borderColor: C.primary },
   scheduleRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  scheduleTime: { fontFamily: Font.bold, fontSize: 20, color: "#111827" },
-  scheduleSep: { color: "#9CA3AF" },
-  scheduleReturnTime: { fontFamily: Font.regular, fontSize: 14, color: "#6B7280" },
-  vanCodeBadge: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "#EEF2FF", borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4, alignSelf: "flex-start", marginTop: 8 },
-  vanCodeText: { fontFamily: Font.bold, fontSize: 13, color: "#4338CA" },
+  scheduleTime: { fontFamily: Font.bold, fontSize: 20, color: C.text },
+  scheduleSep: { color: C.textMuted },
+  scheduleReturnTime: { fontFamily: Font.regular, fontSize: 14, color: C.textSecondary },
+  vanCodeBadge: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: C.primarySoft, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4, alignSelf: "flex-start", marginTop: 8 },
+  vanCodeText: { fontFamily: Font.bold, fontSize: 13, color: C.primaryDark },
   daysRow: { flexDirection: "row", gap: 6, marginTop: 10 },
-  dayBadge: { backgroundColor: "#F3F4F6", borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4 },
-  dayBadgeActive: { backgroundColor: "#EEF2FF" },
-  dayBadgeText: { fontFamily: Font.semiBold, fontSize: 11, color: "#6B7280" },
-  dayBadgeTextActive: { color: "#6366F1" },
-  vehicleText: { fontFamily: Font.regular, fontSize: 12, color: "#9CA3AF", marginTop: 8 },
-  datePill: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: "#fff", borderRadius: 12, padding: 14, marginBottom: 8, borderWidth: 2, borderColor: "transparent" },
-  datePillSelected: { borderColor: "#6366F1", backgroundColor: "#EEF2FF" },
+  dayBadge: { backgroundColor: C.surfaceSecondary, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4 },
+  dayBadgeActive: { backgroundColor: C.primarySoft },
+  dayBadgeText: { fontFamily: Font.semiBold, fontSize: 11, color: C.textMuted },
+  dayBadgeTextActive: { color: C.primary },
+  vehicleText: { fontFamily: Font.regular, fontSize: 12, color: C.textMuted, marginTop: 8 },
+  datePill: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: C.surface, borderRadius: 12, padding: 14, marginBottom: 8, borderWidth: 2, borderColor: "transparent" },
+  datePillSelected: { borderColor: C.primary, backgroundColor: C.primarySoft },
   datePillDisabled: { opacity: 0.5 },
-  datePillText: { fontFamily: Font.semiBold, fontSize: 15, color: "#111827" },
-  datePillTextSelected: { color: "#4338CA" },
-  datePillTextDisabled: { color: "#9CA3AF" },
-  notRunning: { fontFamily: Font.regular, fontSize: 11, color: "#EF4444" },
-  inputGroup: { backgroundColor: "#fff", borderRadius: 16, padding: 16, marginBottom: 16, gap: 12 },
-  inputRow: { flexDirection: "row", alignItems: "center", backgroundColor: "#F9FAFB", borderRadius: 10, padding: 12, marginBottom: 8 },
-  dateInput: { fontFamily: Font.regular, fontSize: 15, color: "#111827" },
-  btnPrimary: { backgroundColor: "#6366F1", borderRadius: 14, padding: 16, alignItems: "center", marginTop: 8 },
+  datePillText: { fontFamily: Font.semiBold, fontSize: 15, color: C.text },
+  datePillTextSelected: { color: C.primaryDark },
+  datePillTextDisabled: { color: C.textMuted },
+  notRunning: { fontFamily: Font.regular, fontSize: 11, color: C.danger },
+  inputGroup: { backgroundColor: C.surface, borderRadius: 16, padding: 16, marginBottom: 16, gap: 12 },
+  inputRow: { flexDirection: "row", alignItems: "center", backgroundColor: C.surfaceSecondary, borderRadius: 10, padding: 12, marginBottom: 8 },
+  dateInput: { fontFamily: Font.regular, fontSize: 15, color: C.text },
+  btnPrimary: { backgroundColor: C.primary, borderRadius: 14, padding: 16, alignItems: "center", marginTop: 8 },
   btnPrimaryText: { fontFamily: Font.bold, fontSize: 16, color: "#fff" },
   btnDisabled: { opacity: 0.6 },
   tierLegend: { flexDirection: "row", gap: 8, marginBottom: 12, justifyContent: "center" },
@@ -587,33 +590,34 @@ const ss = StyleSheet.create({
   seatLegend: { flexDirection: "row", gap: 16, marginBottom: 16, justifyContent: "center" },
   legendItem: { flexDirection: "row", alignItems: "center", gap: 6 },
   legendBox: { width: 16, height: 16, borderRadius: 4, borderWidth: 1.5 },
-  legendLabel: { fontFamily: Font.regular, fontSize: 12, color: "#6B7280" },
+  legendLabel: { fontFamily: Font.regular, fontSize: 12, color: C.textMuted },
   driverRow: { flexDirection: "row", alignItems: "center", marginBottom: 8, paddingHorizontal: 4 },
-  driverSeat: { width: 56, height: 40, backgroundColor: "#E5E7EB", borderRadius: 10, alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 2 },
-  driverLabel: { fontFamily: Font.semiBold, fontSize: 10, color: "#6B7280" },
+  driverSeat: { width: 56, height: 40, backgroundColor: C.surfaceSecondary, borderRadius: 10, alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 2 },
+  driverLabel: { fontFamily: Font.semiBold, fontSize: 10, color: C.textMuted },
   seat: { borderRadius: 12, alignItems: "center", justifyContent: "center", gap: 2 },
-  seatBooked: { backgroundColor: "#FEE2E2", borderColor: "#FCA5A5", borderWidth: 2 },
+  seatBooked: { backgroundColor: C.redSoft, borderColor: C.redBorder, borderWidth: 2 },
   seatNum: { fontFamily: Font.bold, fontSize: 13 },
   tierDot: { width: 6, height: 6, borderRadius: 3 },
-  seatSummary: { backgroundColor: "#EEF2FF", borderRadius: 14, padding: 14, marginTop: 8 },
-  seatSummaryText: { fontFamily: Font.semiBold, fontSize: 14, color: "#4338CA", marginBottom: 8, textAlign: "center" },
+  seatSummary: { backgroundColor: C.primarySoft, borderRadius: 14, padding: 14, marginTop: 8 },
+  seatSummaryText: { fontFamily: Font.semiBold, fontSize: 14, color: C.primaryDark, marginBottom: 8, textAlign: "center" },
   tierBreakdownRow: { flexDirection: "row", alignItems: "center", paddingVertical: 3, gap: 6 },
   tierBreakdownDot: { width: 8, height: 8, borderRadius: 4 },
-  tierBreakdownText: { fontFamily: Font.regular, fontSize: 13, color: "#374151", flex: 1 },
-  tierBreakdownFare: { fontFamily: Font.semiBold, fontSize: 13, color: "#374151" },
-  ticketCard: { borderRadius: 16, overflow: "hidden", marginBottom: 16, ...Platform.select({ web: { boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }, default: { shadowColor: "#000", shadowOpacity: 0.08, shadowRadius: 12, elevation: 4 } }) },
+  tierBreakdownText: { fontFamily: Font.regular, fontSize: 13, color: C.text, flex: 1 },
+  tierBreakdownFare: { fontFamily: Font.semiBold, fontSize: 13, color: C.text },
+  ticketCard: { borderRadius: 16, overflow: "hidden", marginBottom: 16, ...Platform.select({ web: { boxShadow: `0 4px 12px ${C.shadow}` }, default: { shadowColor: C.text, shadowOpacity: 0.08, shadowRadius: 12, elevation: 4 } }) },
   ticketHeader: { padding: 16, flexDirection: "row", alignItems: "center", gap: 10 },
   ticketTitle: { fontFamily: Font.bold, fontSize: 18, color: "#fff", flex: 1 },
   ticketVanCode: { fontFamily: Font.bold, fontSize: 14, color: "#E0E7FF", backgroundColor: "rgba(255,255,255,0.15)", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
-  ticketBody: { backgroundColor: "#fff", padding: 16 },
-  confirmRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: "#F3F4F6" },
-  confirmLabel: { fontFamily: Font.regular, fontSize: 13, color: "#6B7280" },
-  confirmValue: { fontFamily: Font.semiBold, fontSize: 13, color: "#111827", maxWidth: "60%", textAlign: "right" },
+  ticketBody: { backgroundColor: C.surface, padding: 16 },
+  confirmRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: C.borderLight },
+  confirmLabel: { fontFamily: Font.regular, fontSize: 13, color: C.textMuted },
+  confirmValue: { fontFamily: Font.semiBold, fontSize: 13, color: C.text, maxWidth: "60%", textAlign: "right" },
   confirmTotal: { borderBottomWidth: 0, paddingTop: 12, marginTop: 4 },
-  confirmTotalLabel: { fontFamily: Font.bold, fontSize: 15, color: "#111827" },
-  confirmTotalValue: { fontFamily: Font.bold, fontSize: 18, color: "#16A34A" },
+  confirmTotalLabel: { fontFamily: Font.bold, fontSize: 15, color: C.text },
+  confirmTotalValue: { fontFamily: Font.bold, fontSize: 18, color: C.success },
   payRow: { flexDirection: "row", gap: 12, marginBottom: 16 },
-  payBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: "#F9FAFB", borderRadius: 12, padding: 14, borderWidth: 2, borderColor: "#E5E7EB" },
-  payBtnSelected: { backgroundColor: "#6366F1", borderColor: "#6366F1" },
-  payBtnText: { fontFamily: Font.semiBold, fontSize: 14, color: "#6B7280" },
+  payBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: C.surfaceSecondary, borderRadius: 12, padding: 14, borderWidth: 2, borderColor: C.border },
+  payBtnSelected: { backgroundColor: C.primary, borderColor: C.primary },
+  payBtnText: { fontFamily: Font.semiBold, fontSize: 14, color: C.textMuted },
 });
+}

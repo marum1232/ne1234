@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useSmartBack } from "@/hooks/useSmartBack";
 import { withErrorBoundary } from "@/utils/withErrorBoundary";
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useRef, useState, useMemo } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -34,8 +34,6 @@ import {
 } from "@workspace/api-client-react";
 
 
-const C = Colors.light;
-const CARD_W = (375 - 16 * 2 - 12) / 2;
 const API_BASE = `https://${process.env.EXPO_PUBLIC_DOMAIN ?? ""}/api`;
 
 function WishlistCard({
@@ -45,6 +43,10 @@ function WishlistCard({
   item: WishlistItem;
   onRemove: (productId: string) => void;
 }) {
+  const { colors: C } = useTheme();
+  const { width } = useWindowDimensions();
+  const CARD_W = (width - 16 * 2 - 12) / 2;
+  const styles = useMemo(() => makeStyles(C, CARD_W), [C, CARD_W]);
   const p = item.product;
   const origPrice = Number(p.originalPrice || 0);
   const pPrice = Number(p.price);
@@ -143,6 +145,7 @@ function WishlistScreenInner() {
   const { colors: C } = useTheme();
   const { width } = useWindowDimensions();
   const CARD_W = (width - 16 * 2 - 12) / 2;
+  const styles = useMemo(() => makeStyles(C, CARD_W), [C, CARD_W]);
   const { goBack } = useSmartBack();
   const {
     user,
@@ -447,213 +450,215 @@ function WishlistScreenInner() {
   );
 }
 
-const styles = StyleSheet.create({
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: C.border,
-  },
-  backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: C.surfaceSecondary,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  headerTitle: { fontFamily: Font.bold, fontSize: 18, color: C.text },
-  countBadge: {
-    minWidth: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: C.primary,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 8,
-  },
-  countTxt: { fontFamily: Font.bold, fontSize: 12, color: C.textInverse },
+function makeStyles(C: typeof Colors.light, CARD_W: number) {
+  return StyleSheet.create({
+    header: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: C.border,
+    },
+    backBtn: {
+      width: 40,
+      height: 40,
+      borderRadius: 12,
+      backgroundColor: C.surfaceSecondary,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    headerTitle: { fontFamily: Font.bold, fontSize: 18, color: C.text },
+    countBadge: {
+      minWidth: 28,
+      height: 28,
+      borderRadius: 14,
+      backgroundColor: C.primary,
+      alignItems: "center",
+      justifyContent: "center",
+      paddingHorizontal: 8,
+    },
+    countTxt: { fontFamily: Font.bold, fontSize: 12, color: C.textInverse },
 
-  grid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    gap: 12,
-  },
-  card: {
-    width: CARD_W,
-    backgroundColor: C.surface,
-    borderRadius: 18,
-    overflow: "hidden",
-    ...Platform.select({
-      web: { boxShadow: "0 2px 8px rgba(15,23,42,0.06)" },
-      default: {
-        shadowColor: C.text,
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.06,
-        shadowRadius: 8,
-        elevation: 2,
-      },
-    }),
-  },
-  cardImg: {
-    height: 120,
-    backgroundColor: C.surfaceSecondary,
-    alignItems: "center",
-    justifyContent: "center",
-    overflow: "hidden",
-  },
-  discBadge: {
-    position: "absolute",
-    top: 8,
-    left: 8,
-    backgroundColor: C.danger,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-  },
-  discTxt: { fontFamily: Font.bold, fontSize: 9, color: C.textInverse },
-  removeBtn: {
-    position: "absolute",
-    top: 8,
-    right: 8,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "rgba(255,255,255,0.9)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  cardBody: { padding: 12 },
-  cardName: {
-    fontFamily: Font.semiBold,
-    fontSize: 13,
-    color: C.text,
-    marginBottom: 3,
-    minHeight: 34,
-  },
-  cardUnit: {
-    fontFamily: Font.regular,
-    fontSize: 11,
-    color: C.textMuted,
-    marginBottom: 6,
-  },
-  cardFooter: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-end",
-  },
-  cardPrice: { fontFamily: Font.bold, fontSize: 16, color: C.text },
-  cardOrigPrice: {
-    fontFamily: Font.regular,
-    fontSize: 11,
-    color: C.textMuted,
-    textDecorationLine: "line-through",
-  },
-  ratingBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 3,
-    backgroundColor: C.surfaceSecondary,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 10,
-  },
-  ratingTxt: { fontFamily: Font.semiBold, fontSize: 10, color: C.text },
-  oosBadge: {
-    marginTop: 6,
-    backgroundColor: C.dangerSoft,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-    alignSelf: "flex-start",
-  },
-  oosTxt: { fontFamily: Font.semiBold, fontSize: 10, color: C.danger },
+    grid: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      paddingHorizontal: 16,
+      paddingTop: 16,
+      gap: 12,
+    },
+    card: {
+      width: CARD_W,
+      backgroundColor: C.surface,
+      borderRadius: 18,
+      overflow: "hidden",
+      ...Platform.select({
+        web: { boxShadow: "0 2px 8px rgba(15,23,42,0.06)" },
+        default: {
+          shadowColor: C.text,
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.06,
+          shadowRadius: 8,
+          elevation: 2,
+        },
+      }),
+    },
+    cardImg: {
+      height: 120,
+      backgroundColor: C.surfaceSecondary,
+      alignItems: "center",
+      justifyContent: "center",
+      overflow: "hidden",
+    },
+    discBadge: {
+      position: "absolute",
+      top: 8,
+      left: 8,
+      backgroundColor: C.danger,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 8,
+    },
+    discTxt: { fontFamily: Font.bold, fontSize: 9, color: C.textInverse },
+    removeBtn: {
+      position: "absolute",
+      top: 8,
+      right: 8,
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: "rgba(255,255,255,0.9)",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    cardBody: { padding: 12 },
+    cardName: {
+      fontFamily: Font.semiBold,
+      fontSize: 13,
+      color: C.text,
+      marginBottom: 3,
+      minHeight: 34,
+    },
+    cardUnit: {
+      fontFamily: Font.regular,
+      fontSize: 11,
+      color: C.textMuted,
+      marginBottom: 6,
+    },
+    cardFooter: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "flex-end",
+    },
+    cardPrice: { fontFamily: Font.bold, fontSize: 16, color: C.text },
+    cardOrigPrice: {
+      fontFamily: Font.regular,
+      fontSize: 11,
+      color: C.textMuted,
+      textDecorationLine: "line-through",
+    },
+    ratingBadge: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 3,
+      backgroundColor: C.surfaceSecondary,
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: 10,
+    },
+    ratingTxt: { fontFamily: Font.semiBold, fontSize: 10, color: C.text },
+    oosBadge: {
+      marginTop: 6,
+      backgroundColor: C.dangerSoft,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 8,
+      alignSelf: "flex-start",
+    },
+    oosTxt: { fontFamily: Font.semiBold, fontSize: 10, color: C.danger },
 
-  emptyCenter: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingTop: 100,
-    gap: 10,
-  },
-  emptyIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 24,
-    backgroundColor: C.surfaceSecondary,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 4,
-  },
-  emptyTitle: { fontFamily: Font.bold, fontSize: 17, color: C.text },
-  emptySub: {
-    fontFamily: Font.regular,
-    fontSize: 13,
-    color: C.textMuted,
-    textAlign: "center",
-    paddingHorizontal: 40,
-  },
-  signInBtn: {
-    marginTop: 12,
-    backgroundColor: C.primary,
-    paddingHorizontal: 32,
-    paddingVertical: 14,
-    borderRadius: 14,
-  },
-  signInBtnTxt: { fontFamily: Font.bold, fontSize: 14, color: C.textInverse },
-  browseBtn: {
-    marginTop: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    backgroundColor: C.primary,
-    paddingHorizontal: 24,
-    paddingVertical: 14,
-    borderRadius: 14,
-  },
-  browseBtnTxt: { fontFamily: Font.bold, fontSize: 14, color: C.textInverse },
-  retryBtn: {
-    marginTop: 8,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: C.primary,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 14,
-  },
-  retryBtnTxt: { fontFamily: Font.bold, fontSize: 14, color: C.textInverse },
+    emptyCenter: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      paddingTop: 100,
+      gap: 10,
+    },
+    emptyIcon: {
+      width: 80,
+      height: 80,
+      borderRadius: 24,
+      backgroundColor: C.surfaceSecondary,
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: 4,
+    },
+    emptyTitle: { fontFamily: Font.bold, fontSize: 17, color: C.text },
+    emptySub: {
+      fontFamily: Font.regular,
+      fontSize: 13,
+      color: C.textMuted,
+      textAlign: "center",
+      paddingHorizontal: 40,
+    },
+    signInBtn: {
+      marginTop: 12,
+      backgroundColor: C.primary,
+      paddingHorizontal: 32,
+      paddingVertical: 14,
+      borderRadius: 14,
+    },
+    signInBtnTxt: { fontFamily: Font.bold, fontSize: 14, color: C.textInverse },
+    browseBtn: {
+      marginTop: 12,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      backgroundColor: C.primary,
+      paddingHorizontal: 24,
+      paddingVertical: 14,
+      borderRadius: 14,
+    },
+    browseBtnTxt: { fontFamily: Font.bold, fontSize: 14, color: C.textInverse },
+    retryBtn: {
+      marginTop: 8,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      backgroundColor: C.primary,
+      paddingHorizontal: 24,
+      paddingVertical: 12,
+      borderRadius: 14,
+    },
+    retryBtnTxt: { fontFamily: Font.bold, fontSize: 14, color: C.textInverse },
 
-  addRoleBtn: {
-    marginTop: 8,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    backgroundColor: "#16A34A",
-    paddingHorizontal: 28,
-    paddingVertical: 14,
-    borderRadius: 14,
-    minWidth: 200,
-    justifyContent: "center",
-  },
-  addRoleBtnTxt: { fontFamily: Font.bold, fontSize: 14, color: "#fff" },
-  addRoleHint: {
-    fontFamily: Font.regular,
-    fontSize: 12,
-    color: C.textMuted,
-    textAlign: "center",
-    paddingHorizontal: 40,
-    lineHeight: 18,
-  },
-  roleErrorTxt: {
-    fontFamily: Font.regular,
-    fontSize: 13,
-    color: "#DC2626",
-    textAlign: "center",
-  },
-});
+    addRoleBtn: {
+      marginTop: 8,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      backgroundColor: "#16A34A",
+      paddingHorizontal: 28,
+      paddingVertical: 14,
+      borderRadius: 14,
+      minWidth: 200,
+      justifyContent: "center",
+    },
+    addRoleBtnTxt: { fontFamily: Font.bold, fontSize: 14, color: "#fff" },
+    addRoleHint: {
+      fontFamily: Font.regular,
+      fontSize: 12,
+      color: C.textMuted,
+      textAlign: "center",
+      paddingHorizontal: 40,
+      lineHeight: 18,
+    },
+    roleErrorTxt: {
+      fontFamily: Font.regular,
+      fontSize: 13,
+      color: "#DC2626",
+      textAlign: "center",
+    },
+  });
+}

@@ -6,7 +6,7 @@ const log = createLogger("[Profile]");
 import { LinearGradient } from "expo-linear-gradient";
 import * as StoreReview from "expo-store-review";
 import { router, useLocalSearchParams } from "expo-router";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Image,
@@ -45,7 +45,7 @@ import {
   PrivacyModal,
   AddressesModal,
 } from "@/components/profile";
-import { stripPkCode } from "@/components/profile/shared";
+import { stripPkCode, getSharedStyles } from "@/components/profile/shared";
 
 function validateMpin(pin: string): string | null {
   if (pin.length !== 4) return "Enter a 4-digit MPIN";
@@ -373,6 +373,7 @@ function ProfileScreenInner() {
   const { user, logout, updateUser, token } = useAuth();
   const { showToast } = useToast();
   const { colors: C } = useTheme();
+  const { sheet, fld, chip, errStyle, btnStyles, primaryBtn, modalHdr, empty, notifItem, privRow, secHdr, secCard, otpStyle, addrHdr, addrAdd, addrItem, LABEL_OPTS } = useMemo(() => getSharedStyles(C), [C]);
   const lvl = getLvlStyles(C);
   const kycSt = getKycStyles(C);
   const pi = getPiStyles(C);

@@ -8,12 +8,12 @@ import { useQuery } from "@tanstack/react-query";
 
 import Colors, { spacing, shadows } from "@/constants/colors";
 import { Font } from "@/constants/typography";
+import { useTheme } from "@/context/ThemeContext";
 import { SkeletonBlock } from "@/components/user-shared";
 import { WishlistHeart } from "@/components/WishlistHeart";
 import { getFlashDeals } from "@workspace/api-client-react";
 import { tDual } from "@workspace/i18n";
 
-const C = Colors.light;
 const H_PAD = spacing.lg;
 
 function FlashCountdownTimer({ targetTime }: { targetTime: Date }) {
@@ -76,7 +76,39 @@ const fct = StyleSheet.create({
   sep: { fontFamily: Font.bold, fontSize: 12, color: "#1F2937", marginTop: -4 },
 });
 
+function makeFdStyles(C: typeof Colors.light) {
+  return StyleSheet.create({
+    section: { marginHorizontal: H_PAD, marginTop: 16, backgroundColor: C.surface, borderRadius: 16, overflow: "hidden", ...shadows.sm },
+    headerGrad: { paddingHorizontal: 14, paddingVertical: 10, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+    headerInner: { flexDirection: "row", alignItems: "center", gap: 6 },
+    headerTitle: { fontFamily: Font.bold, fontSize: 15, color: "#fff" },
+    timerWrap: { flexDirection: "row", alignItems: "center", gap: 6 },
+    endsLabel: { fontFamily: Font.medium, fontSize: 10, color: "rgba(255,255,255,0.8)" },
+    row: { gap: 8, paddingHorizontal: 10, paddingVertical: 12 },
+    card: { width: 120, backgroundColor: C.background, borderRadius: 10, overflow: "hidden", borderWidth: 1, borderColor: C.borderLight, position: "relative" as const },
+    discBadgeCorner: { position: "absolute" as const, top: 4, left: 4, zIndex: 5, backgroundColor: "#FF4444", borderRadius: 4, paddingHorizontal: 5, paddingVertical: 2, alignItems: "center" },
+    discBadgeText: { fontFamily: Font.bold, fontSize: 11, color: "#fff", lineHeight: 14 },
+    discBadgeOff: { fontFamily: Font.bold, fontSize: 7, color: "rgba(255,255,255,0.85)", letterSpacing: 0.5 },
+    imgWrap: { width: 120, height: 100, backgroundColor: "#FAFAFA" },
+    productImg: { width: 120, height: 100 },
+    cardInfo: { padding: 8, gap: 4 },
+    name: { fontFamily: Font.medium, fontSize: 11, color: C.text, lineHeight: 15 },
+    priceRow: { flexDirection: "row", alignItems: "center", gap: 4 },
+    dealPrice: { fontFamily: Font.bold, fontSize: 13, color: "#FF4444" },
+    origPrice: { fontFamily: Font.regular, fontSize: 10, color: C.textMuted, textDecorationLine: "line-through" },
+    progressWrap: { marginTop: 2 },
+    progressBg: { height: 14, backgroundColor: "#FFE4E1", borderRadius: 7, overflow: "hidden", position: "relative" as const, justifyContent: "center" },
+    progressFill: { position: "absolute" as const, left: 0, top: 0, bottom: 0, borderRadius: 7 },
+    progressText: { fontFamily: Font.bold, fontSize: 8, color: "#fff", textAlign: "center", zIndex: 1 },
+    errorRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 20 },
+    errorTxt: { fontFamily: Font.regular, fontSize: 12, color: C.textMuted },
+  });
+}
+
 export function FlashDealsSection({ T, limit = 10 }: { T: (key: Parameters<typeof tDual>[0]) => string; limit?: number }) {
+  const { colors: C } = useTheme();
+  const fd = useMemo(() => makeFdStyles(C), [C]);
+
   const { data: deals, isLoading, isError, refetch } = useQuery({
     queryKey: ["flash-deals", limit],
     queryFn: () => getFlashDeals({ limit }),
@@ -86,7 +118,7 @@ export function FlashDealsSection({ T, limit = 10 }: { T: (key: Parameters<typeo
   const items = deals ?? [];
   const earliestExpiry = useMemo(() => {
     if (items.length === 0) return null;
-    const times = items.map(d => new Date(d.dealExpiresAt).getTime()).filter(t => !isNaN(t));
+    const times = items.map((d: { dealExpiresAt: string }) => new Date(d.dealExpiresAt).getTime()).filter((t: number) => !isNaN(t));
     if (times.length === 0) return null;
     return new Date(Math.min(...times));
   }, [items]);
@@ -162,6 +194,7 @@ export function FlashDealsSection({ T, limit = 10 }: { T: (key: Parameters<typeo
               onPress={() => router.push({ pathname: "/product/[id]", params: { id: item.id } })}
               style={fd.card}
               accessibilityLabel={`${item.name} ${item.discountPercent}% OFF`}
+              accessibilityHint="Tap to view this flash deal product"
             >
               <View style={fd.discBadgeCorner}>
                 <Text style={fd.discBadgeText}>{item.discountPercent}%</Text>
@@ -208,30 +241,3 @@ export function FlashDealsSection({ T, limit = 10 }: { T: (key: Parameters<typeo
     </View>
   );
 }
-
-const fd = StyleSheet.create({
-  section: { marginHorizontal: H_PAD, marginTop: 16, backgroundColor: C.surface, borderRadius: 16, overflow: "hidden", ...shadows.sm },
-  headerGrad: { paddingHorizontal: 14, paddingVertical: 10, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  headerInner: { flexDirection: "row", alignItems: "center", gap: 6 },
-  headerTitle: { fontFamily: Font.bold, fontSize: 15, color: "#fff" },
-  timerWrap: { flexDirection: "row", alignItems: "center", gap: 6 },
-  endsLabel: { fontFamily: Font.medium, fontSize: 10, color: "rgba(255,255,255,0.8)" },
-  row: { gap: 8, paddingHorizontal: 10, paddingVertical: 12 },
-  card: { width: 120, backgroundColor: C.background, borderRadius: 10, overflow: "hidden", borderWidth: 1, borderColor: C.borderLight, position: "relative" as const },
-  discBadgeCorner: { position: "absolute" as const, top: 4, left: 4, zIndex: 5, backgroundColor: "#FF4444", borderRadius: 4, paddingHorizontal: 5, paddingVertical: 2, alignItems: "center" },
-  discBadgeText: { fontFamily: Font.bold, fontSize: 11, color: "#fff", lineHeight: 14 },
-  discBadgeOff: { fontFamily: Font.bold, fontSize: 7, color: "rgba(255,255,255,0.85)", letterSpacing: 0.5 },
-  imgWrap: { width: 120, height: 100, backgroundColor: "#FAFAFA" },
-  productImg: { width: 120, height: 100 },
-  cardInfo: { padding: 8, gap: 4 },
-  name: { fontFamily: Font.medium, fontSize: 11, color: C.text, lineHeight: 15 },
-  priceRow: { flexDirection: "row", alignItems: "center", gap: 4 },
-  dealPrice: { fontFamily: Font.bold, fontSize: 13, color: "#FF4444" },
-  origPrice: { fontFamily: Font.regular, fontSize: 10, color: C.textMuted, textDecorationLine: "line-through" },
-  progressWrap: { marginTop: 2 },
-  progressBg: { height: 14, backgroundColor: "#FFE4E1", borderRadius: 7, overflow: "hidden", position: "relative" as const, justifyContent: "center" },
-  progressFill: { position: "absolute" as const, left: 0, top: 0, bottom: 0, borderRadius: 7 },
-  progressText: { fontFamily: Font.bold, fontSize: 8, color: "#fff", textAlign: "center", zIndex: 1 },
-  errorRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 20 },
-  errorTxt: { fontFamily: Font.regular, fontSize: 12, color: C.textMuted },
-});

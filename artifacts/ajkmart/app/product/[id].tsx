@@ -4,7 +4,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { addRecentItem } from "@/utils/recentlyViewed";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams, useFocusEffect } from "expo-router";
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -46,10 +46,12 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { VideoView, useVideoPlayer } from "expo-video";
 
-const C = Colors.light;
+import { useTheme } from "@/context/ThemeContext";
+
 const SCREEN_W_FALLBACK = 375;
 
 function InlineVideoPlayer({ url, width, height, isActive }: { url: string; width: number; height: number; isActive: boolean }) {
+  const { colors: C } = useTheme();
   const [isMuted, setIsMuted] = useState(true);
   const [isPlaying, setIsPlaying] = useState(isActive);
 
@@ -116,6 +118,7 @@ function InlineVideoPlayer({ url, width, height, isActive }: { url: string; widt
 }
 
 function StarRating({ rating, size = 14 }: { rating: number; size?: number }) {
+  const { colors: C } = useTheme();
   const stars = [];
   for (let i = 1; i <= 5; i++) {
     if (i <= Math.floor(rating)) {
@@ -130,6 +133,7 @@ function StarRating({ rating, size = 14 }: { rating: number; size?: number }) {
 }
 
 function StarPicker({ rating, onRate, size = 32 }: { rating: number; onRate: (r: number) => void; size?: number }) {
+  const { colors: C } = useTheme();
   return (
     <View style={{ flexDirection: "row", gap: 6 }}>
       {[1, 2, 3, 4, 5].map(i => (
@@ -142,6 +146,8 @@ function StarPicker({ rating, onRate, size = 32 }: { rating: number; onRate: (r:
 }
 
 function ReviewCard({ review }: { review: ProductReview }) {
+  const { colors: C } = useTheme();
+  const rs = useMemo(() => makeRsStyles(C), [C]);
   const [fullScreenPhoto, setFullScreenPhoto] = useState<string | null>(null);
   const dateStr = new Date(review.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
   const initial = (review.userName || "C").charAt(0).toUpperCase();
@@ -199,6 +205,8 @@ function WriteReviewModal({
   productId: string;
   onSuccess: () => void;
 }) {
+  const { colors: C } = useTheme();
+  const wr = useMemo(() => makeWrStyles(C), [C]);
   const { token } = useAuth();
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState("");
@@ -390,6 +398,8 @@ function FullScreenImageViewer({
   initialIndex: number;
   onClose: () => void;
 }) {
+  const { colors: C } = useTheme();
+  const fs = useMemo(() => makeFsStyles(C), [C]);
   const { width: screenW } = useWindowDimensions();
   const [activeIdx, setActiveIdx] = useState(initialIndex);
 
@@ -435,6 +445,11 @@ function FullScreenImageViewer({
 }
 
 function ProductDetailScreenInner() {
+  const { colors: C } = useTheme();
+  const styles = useMemo(() => makeStyles(C), [C]);
+  const rs = useMemo(() => makeRsStyles(C), [C]);
+  const wr = useMemo(() => makeWrStyles(C), [C]);
+  const variantStyles = useMemo(() => makeVariantStyles(C), [C]);
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
   const { width: windowWidth } = useWindowDimensions();
@@ -1270,238 +1285,279 @@ function ProductDetailScreenInner() {
   );
 }
 
+function VariantSection({ variants, selected, onSelect, colors: C }: {
+  variants: any[];
+  selected: string | null;
+  onSelect: (id: string) => void;
+  colors: typeof Colors.light;
+}) {
+  const vs = useMemo(() => makeVariantStyles(C), [C]);
+  return (
+    <View style={vs.section}>
+      <Text style={vs.title}>Select Option</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
+        {variants.map(v => {
+          const isSel = selected === v.id;
+          return (
+            <TouchableOpacity activeOpacity={0.7}
+              key={v.id}
+              onPress={() => onSelect(v.id)}
+              disabled={!v.inStock}
+              style={[vs.chip, isSel && vs.chipSelected, !v.inStock && vs.chipOos]}
+            >
+              <Text style={[vs.chipName, isSel && vs.chipNameSelected]}>{v.name}</Text>
+              <Text style={[vs.chipPrice, isSel && vs.chipPriceSelected]}>Rs. {v.price}</Text>
+              {!v.inStock && <Text style={vs.oosLabel}>Out of Stock</Text>}
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
+    </View>
+  );
+}
+
 export default withErrorBoundary(ProductDetailScreenInner);
 
-const rs = StyleSheet.create({
-  card: { backgroundColor: C.surfaceSecondary, borderRadius: 14, padding: 14, gap: 8 },
-  cardHeader: { flexDirection: "row", alignItems: "center", gap: 10 },
-  avatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: C.primarySoft, alignItems: "center", justifyContent: "center" },
-  avatarTxt: { fontFamily: Font.bold, fontSize: 14, color: C.primary },
-  userName: { fontFamily: Font.semiBold, fontSize: 13, color: C.text },
-  date: { fontFamily: Font.regular, fontSize: 11, color: C.textMuted, marginTop: 1 },
-  comment: { fontFamily: Font.regular, fontSize: 13, color: C.textSecondary, lineHeight: 19 },
-  photoRow: { flexDirection: "row", gap: 8, marginTop: 4 },
-  photoThumb: { width: 64, height: 64, borderRadius: 10, backgroundColor: C.border },
-  vendorReplyWrap: { backgroundColor: C.surface, borderRadius: 10, padding: 10, marginTop: 4, borderLeftWidth: 3, borderLeftColor: C.primary },
-  vendorReplyHeader: { flexDirection: "row", alignItems: "center", gap: 4, marginBottom: 4 },
-  vendorReplyLabel: { fontFamily: Font.semiBold, fontSize: 11, color: C.primary },
-  vendorReplyText: { fontFamily: Font.regular, fontSize: 12, color: C.textSecondary, lineHeight: 17 },
-  fullScreenOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.95)", justifyContent: "center", alignItems: "center" },
-  fullScreenClose: { position: "absolute", top: 60, right: 20, zIndex: 10, width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.2)", alignItems: "center", justifyContent: "center" },
-  fullScreenImg: { width: SCREEN_W_FALLBACK, height: SCREEN_W_FALLBACK },
-  writeBtn: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: C.primarySoft, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20 },
-  writeBtnTxt: { fontFamily: Font.semiBold, fontSize: 12, color: C.primary },
-  reviewedHint: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "#ecfdf5", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16 },
-  reviewedHintTxt: { fontFamily: Font.semiBold, fontSize: 11, color: "#059669" },
-  purchaseHint: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: C.surfaceSecondary, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16 },
-  purchaseHintTxt: { fontFamily: Font.regular, fontSize: 11, color: C.textMuted },
-  emptyReviews: { alignItems: "center", paddingVertical: 24, gap: 8 },
-  emptyTitle: { fontFamily: Font.semiBold, fontSize: 15, color: C.text },
-  emptySub: { fontFamily: Font.regular, fontSize: 13, color: C.textMuted },
-  loginBtn: { marginTop: 8, backgroundColor: C.primary, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 12 },
-  loginBtnTxt: { fontFamily: Font.semiBold, fontSize: 13, color: C.textInverse },
-});
+function makeVariantStyles(C: typeof Colors.light) {
+  return StyleSheet.create({
+    section: { marginTop: 12, marginBottom: 4 },
+    title: { ...Typ.h3, fontSize: 15, color: C.text, marginBottom: 10 },
+    chip: { backgroundColor: C.surfaceSecondary, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 10, borderWidth: 1.5, borderColor: C.border, minWidth: 90, alignItems: "center" },
+    chipSelected: { borderColor: C.primary, backgroundColor: C.primarySoft },
+    chipOos: { opacity: 0.5 },
+    chipName: { ...Typ.captionBold, color: C.text, marginBottom: 2 },
+    chipNameSelected: { color: C.primary },
+    chipPrice: { ...Typ.small, color: C.textSecondary },
+    chipPriceSelected: { color: C.primary },
+    oosLabel: { ...Typ.tiny, color: C.danger, marginTop: 2 },
+  });
+}
 
-const wr = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" },
-  sheet: { backgroundColor: C.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 20, paddingBottom: 40, maxHeight: "85%" },
-  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: C.border, alignSelf: "center", marginTop: 10, marginBottom: 8 },
-  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
-  title: { fontFamily: Font.bold, fontSize: 18, color: C.text },
-  closeBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: C.surfaceSecondary, alignItems: "center", justifyContent: "center" },
-  label: { fontFamily: Font.semiBold, fontSize: 14, color: C.text, marginTop: 16, marginBottom: 8 },
-  starRow: { alignItems: "center", paddingVertical: 8 },
-  textInput: { backgroundColor: C.surfaceSecondary, borderRadius: 14, padding: 14, fontFamily: Font.regular, fontSize: 14, color: C.text, minHeight: 100, borderWidth: 1, borderColor: C.border },
-  charCount: { fontFamily: Font.regular, fontSize: 11, color: C.textMuted, textAlign: "right", marginTop: 4 },
-  photoRow: { flexDirection: "row", gap: 10, flexWrap: "wrap" },
-  photoWrap: { position: "relative" },
-  photoPreview: { width: 72, height: 72, borderRadius: 12, backgroundColor: C.border },
-  photoRemove: { position: "absolute", top: -6, right: -6 },
-  addPhotoBtn: { width: 72, height: 72, borderRadius: 12, borderWidth: 1.5, borderColor: C.border, borderStyle: "dashed", alignItems: "center", justifyContent: "center", gap: 4 },
-  addPhotoTxt: { fontFamily: Font.medium, fontSize: 11, color: C.primary },
-  error: { fontFamily: Font.medium, fontSize: 13, color: C.danger, marginTop: 12, textAlign: "center" },
-  submitBtn: { backgroundColor: C.primary, borderRadius: 14, paddingVertical: 16, alignItems: "center", marginTop: 20 },
-  submitBtnDisabled: { backgroundColor: C.textMuted, opacity: 0.6 },
-  submitBtnTxt: { fontFamily: Font.bold, fontSize: 15, color: C.textInverse },
-});
+function makeRsStyles(C: typeof Colors.light) {
+  return StyleSheet.create({
+    card: { backgroundColor: C.surfaceSecondary, borderRadius: 14, padding: 14, gap: 8 },
+    cardHeader: { flexDirection: "row", alignItems: "center", gap: 10 },
+    avatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: C.primarySoft, alignItems: "center", justifyContent: "center" },
+    avatarTxt: { fontFamily: Font.bold, fontSize: 14, color: C.primary },
+    userName: { fontFamily: Font.semiBold, fontSize: 13, color: C.text },
+    date: { fontFamily: Font.regular, fontSize: 11, color: C.textMuted, marginTop: 1 },
+    comment: { fontFamily: Font.regular, fontSize: 13, color: C.textSecondary, lineHeight: 19 },
+    photoRow: { flexDirection: "row", gap: 8, marginTop: 4 },
+    photoThumb: { width: 64, height: 64, borderRadius: 10, backgroundColor: C.border },
+    vendorReplyWrap: { backgroundColor: C.surface, borderRadius: 10, padding: 10, marginTop: 4, borderLeftWidth: 3, borderLeftColor: C.primary },
+    vendorReplyHeader: { flexDirection: "row", alignItems: "center", gap: 4, marginBottom: 4 },
+    vendorReplyLabel: { fontFamily: Font.semiBold, fontSize: 11, color: C.primary },
+    vendorReplyText: { fontFamily: Font.regular, fontSize: 12, color: C.textSecondary, lineHeight: 17 },
+    fullScreenOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.95)", justifyContent: "center", alignItems: "center" },
+    fullScreenClose: { position: "absolute", top: 60, right: 20, zIndex: 10, width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.2)", alignItems: "center", justifyContent: "center" },
+    fullScreenImg: { width: SCREEN_W_FALLBACK, height: SCREEN_W_FALLBACK },
+    writeBtn: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: C.primarySoft, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20 },
+    writeBtnTxt: { fontFamily: Font.semiBold, fontSize: 12, color: C.primary },
+    reviewedHint: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "#ecfdf5", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16 },
+    reviewedHintTxt: { fontFamily: Font.semiBold, fontSize: 11, color: "#059669" },
+    purchaseHint: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: C.surfaceSecondary, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16 },
+    purchaseHintTxt: { fontFamily: Font.regular, fontSize: 11, color: C.textMuted },
+    emptyReviews: { alignItems: "center", paddingVertical: 24, gap: 8 },
+    emptyTitle: { fontFamily: Font.semiBold, fontSize: 15, color: C.text },
+    emptySub: { fontFamily: Font.regular, fontSize: 13, color: C.textMuted },
+    loginBtn: { marginTop: 8, backgroundColor: C.primary, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 12 },
+    loginBtnTxt: { fontFamily: Font.semiBold, fontSize: 13, color: C.textInverse },
+  });
+}
 
-const fs = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: "#000", justifyContent: "center" },
-  closeBtn: { position: "absolute", top: 60, right: 20, zIndex: 10, width: 44, height: 44, borderRadius: 22, backgroundColor: "rgba(255,255,255,0.15)", alignItems: "center", justifyContent: "center" },
-  zoomHint: { position: "absolute", top: 68, alignSelf: "center", zIndex: 10, fontFamily: Font.medium, fontSize: 12, color: "rgba(255,255,255,0.5)" },
-  dotRow: { position: "absolute", bottom: 60, alignSelf: "center", flexDirection: "row", gap: 6 },
-  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: "rgba(255,255,255,0.4)" },
-  dotActive: { backgroundColor: "#fff", width: 20 },
-  counter: { position: "absolute", bottom: 30, alignSelf: "center", fontFamily: Font.medium, fontSize: 13, color: "rgba(255,255,255,0.7)" },
-});
+function makeWrStyles(C: typeof Colors.light) {
+  return StyleSheet.create({
+    overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" },
+    sheet: { backgroundColor: C.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 20, paddingBottom: 40, maxHeight: "85%" },
+    handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: C.border, alignSelf: "center", marginTop: 10, marginBottom: 8 },
+    header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
+    title: { fontFamily: Font.bold, fontSize: 18, color: C.text },
+    closeBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: C.surfaceSecondary, alignItems: "center", justifyContent: "center" },
+    label: { fontFamily: Font.semiBold, fontSize: 14, color: C.text, marginTop: 16, marginBottom: 8 },
+    starRow: { alignItems: "center", paddingVertical: 8 },
+    textInput: { backgroundColor: C.surfaceSecondary, borderRadius: 14, padding: 14, fontFamily: Font.regular, fontSize: 14, color: C.text, minHeight: 100, borderWidth: 1, borderColor: C.border },
+    charCount: { fontFamily: Font.regular, fontSize: 11, color: C.textMuted, textAlign: "right", marginTop: 4 },
+    photoRow: { flexDirection: "row", gap: 10, flexWrap: "wrap" },
+    photoWrap: { position: "relative" },
+    photoPreview: { width: 72, height: 72, borderRadius: 12, backgroundColor: C.border },
+    photoRemove: { position: "absolute", top: -6, right: -6 },
+    addPhotoBtn: { width: 72, height: 72, borderRadius: 12, borderWidth: 1.5, borderColor: C.border, borderStyle: "dashed", alignItems: "center", justifyContent: "center", gap: 4 },
+    addPhotoTxt: { fontFamily: Font.medium, fontSize: 11, color: C.primary },
+    error: { fontFamily: Font.medium, fontSize: 13, color: C.danger, marginTop: 12, textAlign: "center" },
+    submitBtn: { backgroundColor: C.primary, borderRadius: 14, paddingVertical: 16, alignItems: "center", marginTop: 20 },
+    submitBtnDisabled: { backgroundColor: C.textMuted, opacity: 0.6 },
+    submitBtnTxt: { fontFamily: Font.bold, fontSize: 15, color: C.textInverse },
+  });
+}
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: C.background },
+function makeFsStyles(C: typeof Colors.light) {
+  return StyleSheet.create({
+    overlay: { flex: 1, backgroundColor: "#000", justifyContent: "center" },
+    closeBtn: { position: "absolute", top: 60, right: 20, zIndex: 10, width: 44, height: 44, borderRadius: 22, backgroundColor: "rgba(255,255,255,0.15)", alignItems: "center", justifyContent: "center" },
+    zoomHint: { position: "absolute", top: 68, alignSelf: "center", zIndex: 10, fontFamily: Font.medium, fontSize: 12, color: "rgba(255,255,255,0.5)" },
+    dotRow: { position: "absolute", bottom: 60, alignSelf: "center", flexDirection: "row", gap: 6 },
+    dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: "rgba(255,255,255,0.4)" },
+    dotActive: { backgroundColor: "#fff", width: 20 },
+    counter: { position: "absolute", bottom: 30, alignSelf: "center", fontFamily: Font.medium, fontSize: 13, color: "rgba(255,255,255,0.7)" },
+  });
+}
 
-  floatingHeader: {
-    position: "absolute", top: 0, left: 0, right: 0, zIndex: 10,
-    flexDirection: "row", justifyContent: "space-between", alignItems: "center",
-    paddingHorizontal: 16, paddingBottom: 8,
-  },
-  headerBtn: {
-    width: 40, height: 40, borderRadius: 20, backgroundColor: C.overlayDark35,
-    alignItems: "center", justifyContent: "center",
-  },
-  stickyHeader: {
-    position: "absolute", top: 0, left: 0, right: 0, zIndex: 20,
-    backgroundColor: C.surface, borderBottomWidth: 1, borderBottomColor: C.border,
-    paddingBottom: 8,
-  },
-  stickyHeaderInner: {
-    flexDirection: "row", alignItems: "center", paddingHorizontal: 16, gap: 12,
-  },
-  headerBtnSolid: {
-    width: 40, height: 40, borderRadius: 12, backgroundColor: C.surfaceSecondary,
-    alignItems: "center", justifyContent: "center",
-  },
-  stickyTitle: { flex: 1, ...Typ.h3, fontSize: 16, color: C.text },
-  cartBadge: {
-    position: "absolute", top: -4, right: -4, backgroundColor: C.danger,
-    borderRadius: 9, minWidth: 18, height: 18, alignItems: "center", justifyContent: "center",
-    paddingHorizontal: 4,
-  },
-  cartBadgeTxt: { ...Typ.tiny, color: C.textInverse },
+function makeStyles(C: typeof Colors.light) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: C.background },
 
-  imageContainer: { position: "relative", backgroundColor: C.surfaceSecondary },
-  placeholderImage: { width: SCREEN_W_FALLBACK, alignItems: "center", justifyContent: "center" },
-  placeholderIconWrap: { width: 80, height: 80, borderRadius: 24, backgroundColor: "rgba(0,0,0,0.05)", alignItems: "center", justifyContent: "center", marginBottom: 8 },
-  placeholderText: { fontFamily: Font.medium, fontSize: 13, color: C.textMuted },
-  imgCounterBadge: {
-    position: "absolute", bottom: 16, right: 16,
-    flexDirection: "row", alignItems: "center", gap: 4,
-    backgroundColor: "rgba(0,0,0,0.55)", paddingHorizontal: 10, paddingVertical: 5, borderRadius: 14,
-  },
-  imgCounterTxt: { fontFamily: Font.semiBold, fontSize: 12, color: "#fff" },
-  discountBadge: {
-    position: "absolute", top: 16, left: 16, backgroundColor: C.danger,
-    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8,
-  },
-  discountTxt: { fontFamily: Font.bold, fontSize: 14, color: C.textInverse },
+    floatingHeader: {
+      position: "absolute", top: 0, left: 0, right: 0, zIndex: 10,
+      flexDirection: "row", justifyContent: "space-between", alignItems: "center",
+      paddingHorizontal: 16, paddingBottom: 8,
+    },
+    headerBtn: {
+      width: 40, height: 40, borderRadius: 20, backgroundColor: C.overlayDark35,
+      alignItems: "center", justifyContent: "center",
+    },
+    stickyHeader: {
+      position: "absolute", top: 0, left: 0, right: 0, zIndex: 20,
+      backgroundColor: C.surface, borderBottomWidth: 1, borderBottomColor: C.border,
+      paddingBottom: 8,
+    },
+    stickyHeaderInner: {
+      flexDirection: "row", alignItems: "center", paddingHorizontal: 16, gap: 12,
+    },
+    headerBtnSolid: {
+      width: 40, height: 40, borderRadius: 12, backgroundColor: C.surfaceSecondary,
+      alignItems: "center", justifyContent: "center",
+    },
+    stickyTitle: { flex: 1, ...Typ.h3, fontSize: 16, color: C.text },
+    cartBadge: {
+      position: "absolute", top: -4, right: -4, backgroundColor: C.danger,
+      borderRadius: 9, minWidth: 18, height: 18, alignItems: "center", justifyContent: "center",
+      paddingHorizontal: 4,
+    },
+    cartBadgeTxt: { ...Typ.tiny, color: C.textInverse },
 
-  thumbStrip: { flexDirection: "row", gap: 8, paddingHorizontal: 16, paddingVertical: 12, backgroundColor: C.surface },
-  thumbWrap: { width: 56, height: 56, borderRadius: 10, overflow: "hidden", borderWidth: 2, borderColor: "transparent" },
-  thumbActive: { borderColor: C.primary },
-  thumbImg: { width: "100%", height: "100%" },
+    imageContainer: { position: "relative", backgroundColor: C.surfaceSecondary },
+    placeholderImage: { width: SCREEN_W_FALLBACK, alignItems: "center", justifyContent: "center" },
+    placeholderIconWrap: { width: 80, height: 80, borderRadius: 24, backgroundColor: "rgba(0,0,0,0.05)", alignItems: "center", justifyContent: "center", marginBottom: 8 },
+    placeholderText: { fontFamily: Font.medium, fontSize: 13, color: C.textMuted },
+    imgCounterBadge: {
+      position: "absolute", bottom: 16, right: 16,
+      flexDirection: "row", alignItems: "center", gap: 4,
+      backgroundColor: "rgba(0,0,0,0.55)", paddingHorizontal: 10, paddingVertical: 5, borderRadius: 14,
+    },
+    imgCounterTxt: { fontFamily: Font.semiBold, fontSize: 12, color: "#fff" },
+    discountBadge: {
+      position: "absolute", top: 16, left: 16, backgroundColor: C.danger,
+      paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8,
+    },
+    discountTxt: { fontFamily: Font.bold, fontSize: 14, color: C.textInverse },
 
-  contentContainer: { backgroundColor: C.surface, paddingHorizontal: 16 },
+    thumbStrip: { flexDirection: "row", gap: 8, paddingHorizontal: 16, paddingVertical: 12, backgroundColor: C.surface },
+    thumbWrap: { width: 56, height: 56, borderRadius: 10, overflow: "hidden", borderWidth: 2, borderColor: "transparent" },
+    thumbActive: { borderColor: C.primary },
+    thumbImg: { width: "100%", height: "100%" },
 
-  priceBlock: { backgroundColor: C.primarySoft, marginHorizontal: -16, paddingHorizontal: 16, paddingVertical: 14, marginBottom: 14 },
-  priceMainRow: { flexDirection: "row", alignItems: "baseline", gap: 4, flexWrap: "wrap" },
-  priceCurrency: { fontFamily: Font.semiBold, fontSize: 16, color: C.primary },
-  priceAmount: { fontFamily: Font.bold, fontSize: 30, color: C.primary, letterSpacing: -0.5 },
-  origPrice: { fontFamily: Font.regular, fontSize: 15, color: C.textMuted, textDecorationLine: "line-through", marginLeft: 8 },
-  saveBadge: { backgroundColor: C.danger, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, marginLeft: 8 },
-  saveBadgeTxt: { fontFamily: Font.bold, fontSize: 11, color: C.textInverse },
+    contentContainer: { backgroundColor: C.surface, paddingHorizontal: 16 },
 
-  ratingSection: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 8 },
-  ratingNum: { fontFamily: Font.bold, fontSize: 13, color: C.amberDark },
-  reviewCount: { fontFamily: Font.regular, fontSize: 13, color: C.textSecondary },
-  ratingDot: { width: 3, height: 3, borderRadius: 2, backgroundColor: C.textMuted },
-  soldCount: { fontFamily: Font.regular, fontSize: 13, color: C.textSecondary },
+    priceBlock: { backgroundColor: C.primarySoft, marginHorizontal: -16, paddingHorizontal: 16, paddingVertical: 14, marginBottom: 14 },
+    priceMainRow: { flexDirection: "row", alignItems: "baseline", gap: 4, flexWrap: "wrap" },
+    priceCurrency: { fontFamily: Font.semiBold, fontSize: 16, color: C.primary },
+    priceAmount: { fontFamily: Font.bold, fontSize: 30, color: C.primary, letterSpacing: -0.5 },
+    origPrice: { fontFamily: Font.regular, fontSize: 15, color: C.textMuted, textDecorationLine: "line-through", marginLeft: 8 },
+    saveBadge: { backgroundColor: C.danger, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, marginLeft: 8 },
+    saveBadgeTxt: { fontFamily: Font.bold, fontSize: 11, color: C.textInverse },
 
-  titleRow: { flexDirection: "row", alignItems: "flex-start", gap: 12, marginBottom: 8 },
-  productName: { ...Typ.h2, color: C.text, lineHeight: 28, fontSize: 18 },
-  unit: { fontFamily: Font.regular, fontSize: 13, color: C.textSecondary, marginTop: 4 },
-  stockBadge: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: C.successSoft, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },
-  stockDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: C.success },
-  stockTxt: { ...Typ.smallMedium, fontFamily: Font.semiBold, color: C.emerald },
+    ratingSection: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 8 },
+    ratingNum: { fontFamily: Font.bold, fontSize: 13, color: C.amberDark },
+    reviewCount: { fontFamily: Font.regular, fontSize: 13, color: C.textSecondary },
+    ratingDot: { width: 3, height: 3, borderRadius: 2, backgroundColor: C.textMuted },
+    soldCount: { fontFamily: Font.regular, fontSize: 13, color: C.textSecondary },
 
-  divider: { height: 8, backgroundColor: C.background, marginHorizontal: -16, marginVertical: 0 },
+    titleRow: { flexDirection: "row", alignItems: "flex-start", gap: 12, marginBottom: 8 },
+    productName: { ...Typ.h2, color: C.text, lineHeight: 28, fontSize: 18 },
+    unit: { fontFamily: Font.regular, fontSize: 13, color: C.textSecondary, marginTop: 4 },
+    stockBadge: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: C.successSoft, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },
+    stockDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: C.success },
+    stockTxt: { ...Typ.smallMedium, fontFamily: Font.semiBold, color: C.emerald },
 
-  vendorSection: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 14 },
-  vendorIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: C.primarySoft, alignItems: "center", justifyContent: "center" },
-  vendorLabel: { ...Typ.caption, color: C.textMuted },
-  vendorName: { ...Typ.button, color: C.text, marginTop: 1 },
-  deliveryBadge: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: C.successSoft, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },
-  deliveryTime: { ...Typ.smallMedium, fontFamily: Font.semiBold, color: C.emerald },
+    divider: { height: 8, backgroundColor: C.background, marginHorizontal: -16, marginVertical: 0 },
 
-  descSection: { paddingVertical: 14 },
-  descHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 12 },
-  descIconWrap: { width: 28, height: 28, borderRadius: 8, backgroundColor: C.primarySoft, alignItems: "center", justifyContent: "center" },
-  sectionTitle: { fontFamily: Font.bold, fontSize: 15, color: C.text },
-  descBody: {},
-  descText: { fontFamily: Font.regular, fontSize: 14, color: C.textSecondary, lineHeight: 24 },
-  readMoreBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4, paddingVertical: 10, marginTop: 4 },
-  readMoreTxt: { fontFamily: Font.semiBold, fontSize: 13, color: C.primary },
+    vendorSection: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 14 },
+    vendorIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: C.primarySoft, alignItems: "center", justifyContent: "center" },
+    vendorLabel: { ...Typ.caption, color: C.textMuted },
+    vendorName: { ...Typ.button, color: C.text, marginTop: 1 },
+    deliveryBadge: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: C.successSoft, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },
+    deliveryTime: { ...Typ.smallMedium, fontFamily: Font.semiBold, color: C.emerald },
 
-  specsSection: { paddingVertical: 14 },
-  specGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
-  specItem: {
-    flexDirection: "row", alignItems: "center", gap: 10,
-    width: "47%", backgroundColor: C.surfaceSecondary, borderRadius: 12,
-    padding: 12,
-  },
-  specLabel: { ...Typ.small, color: C.textMuted },
-  specValue: { ...Typ.buttonSmall, color: C.text, marginTop: 1 },
+    descSection: { paddingVertical: 14 },
+    descHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 12 },
+    descIconWrap: { width: 28, height: 28, borderRadius: 8, backgroundColor: C.primarySoft, alignItems: "center", justifyContent: "center" },
+    sectionTitle: { fontFamily: Font.bold, fontSize: 15, color: C.text },
+    descBody: {},
+    descText: { fontFamily: Font.regular, fontSize: 14, color: C.textSecondary, lineHeight: 24 },
+    readMoreBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4, paddingVertical: 10, marginTop: 4 },
+    readMoreTxt: { fontFamily: Font.semiBold, fontSize: 13, color: C.primary },
 
-  reviewsSection: { paddingVertical: 14 },
-  ratingOverview: { flexDirection: "row", gap: 20, alignItems: "center" },
-  ratingBig: { alignItems: "center", gap: 6 },
-  ratingBigNum: { ...Typ.h1, fontSize: 40, color: C.text },
-  ratingBigSub: { ...Typ.caption, color: C.textMuted },
-  ratingBars: { flex: 1, gap: 4 },
-  ratingBarRow: { flexDirection: "row", alignItems: "center", gap: 4 },
-  ratingBarLabel: { ...Typ.captionMedium, color: C.textSecondary, width: 12, textAlign: "right" },
-  ratingBarTrack: { flex: 1, height: 6, borderRadius: 3, backgroundColor: C.surfaceSecondary },
-  ratingBarFill: { height: 6, borderRadius: 3, backgroundColor: C.gold },
+    specsSection: { paddingVertical: 14 },
+    specGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+    specItem: {
+      flexDirection: "row", alignItems: "center", gap: 10,
+      width: "47%", backgroundColor: C.surfaceSecondary, borderRadius: 12,
+      padding: 12,
+    },
+    specLabel: { ...Typ.small, color: C.textMuted },
+    specValue: { ...Typ.buttonSmall, color: C.text, marginTop: 1 },
 
-  relatedSection: { paddingVertical: 14 },
-  relatedGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
-  relatedCard: {
-    width: (SCREEN_W_FALLBACK - 32 - 10) / 2, backgroundColor: C.surface, borderRadius: 16,
-    overflow: "hidden", borderWidth: 1, borderColor: C.border,
-  },
-  relatedImg: { height: 100, backgroundColor: C.surfaceSecondary, alignItems: "center", justifyContent: "center", overflow: "hidden" },
-  relatedDiscBadge: { position: "absolute", top: 6, left: 6, backgroundColor: C.danger, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8 },
-  relatedDiscTxt: { ...Typ.tiny, color: C.textInverse },
-  relatedBody: { padding: 10 },
-  relatedName: { ...Typ.captionMedium, color: C.text, marginBottom: 4, minHeight: 30 },
-  relatedPrice: { ...Typ.body, fontFamily: Font.bold, color: C.primary },
+    reviewsSection: { paddingVertical: 14 },
+    ratingOverview: { flexDirection: "row", gap: 20, alignItems: "center" },
+    ratingBig: { alignItems: "center", gap: 6 },
+    ratingBigNum: { ...Typ.h1, fontSize: 40, color: C.text },
+    ratingBigSub: { ...Typ.caption, color: C.textMuted },
+    ratingBars: { flex: 1, gap: 4 },
+    ratingBarRow: { flexDirection: "row", alignItems: "center", gap: 4 },
+    ratingBarLabel: { ...Typ.captionMedium, color: C.textSecondary, width: 12, textAlign: "right" },
+    ratingBarTrack: { flex: 1, height: 6, borderRadius: 3, backgroundColor: C.surfaceSecondary },
+    ratingBarFill: { height: 6, borderRadius: 3, backgroundColor: C.gold },
 
-  stickyFooter: {
-    position: "absolute", bottom: 0, left: 0, right: 0,
-    flexDirection: "row", alignItems: "center", gap: 16,
-    backgroundColor: C.surface, paddingHorizontal: 16, paddingTop: 12,
-    borderTopWidth: 1, borderTopColor: C.border,
-    ...Platform.select({ web: { boxShadow: "0 -4px 12px rgba(15,23,42,0.08)" }, default: { shadowColor: C.text, shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 10 } }),
-  },
-  footerPriceCol: {},
-  footerPriceLabel: { ...Typ.small, color: C.textMuted },
-  footerPrice: { ...Typ.title, color: C.text },
-  addToCartBtn: {
-    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
-    backgroundColor: C.primary, borderRadius: 16, paddingVertical: 16,
-    ...Platform.select({ web: { boxShadow: "0 4px 8px rgba(0,102,255,0.3)" }, default: { shadowColor: C.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 } }),
-  },
-  addToCartBtnDone: { backgroundColor: C.success },
-  addToCartBtnDisabled: { backgroundColor: C.textMuted, ...Platform.select({ web: { boxShadow: "none" }, default: { shadowOpacity: 0 } }) },
-  addToCartTxt: { ...Typ.h3, fontSize: 16, color: C.textInverse },
-  notifyBtn: { backgroundColor: C.textSecondary, ...Platform.select({ web: { boxShadow: "0 4px 8px rgba(0,102,255,0.2)" }, default: { shadowOpacity: 0.2 } }) },
-  notifyBtnActive: { backgroundColor: C.primarySoft, ...Platform.select({ web: { boxShadow: "none" }, default: { shadowOpacity: 0 } }), borderWidth: 1.5, borderColor: C.primary },
+    relatedSection: { paddingVertical: 14 },
+    relatedGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+    relatedCard: {
+      width: (SCREEN_W_FALLBACK - 32 - 10) / 2, backgroundColor: C.surface, borderRadius: 16,
+      overflow: "hidden", borderWidth: 1, borderColor: C.border,
+    },
+    relatedImg: { height: 100, backgroundColor: C.surfaceSecondary, alignItems: "center", justifyContent: "center", overflow: "hidden" },
+    relatedDiscBadge: { position: "absolute", top: 6, left: 6, backgroundColor: C.danger, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8 },
+    relatedDiscTxt: { ...Typ.tiny, color: C.textInverse },
+    relatedBody: { padding: 10 },
+    relatedName: { ...Typ.captionMedium, color: C.text, marginBottom: 4, minHeight: 30 },
+    relatedPrice: { ...Typ.body, fontFamily: Font.bold, color: C.primary },
 
-  errorCenter: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12 },
-  errorIconWrap: { width: 80, height: 80, borderRadius: 24, backgroundColor: C.surfaceSecondary, alignItems: "center", justifyContent: "center", marginBottom: 4 },
-  errorTitle: { ...Typ.h3, color: C.text },
-  errorSub: { ...Typ.body, fontSize: 13, color: C.textMuted },
-  retryBtn: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: C.primary, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 14, marginTop: 4 },
-  retryBtnTxt: { ...Typ.body, fontFamily: Font.bold, color: C.textInverse },
-});
+    stickyFooter: {
+      position: "absolute", bottom: 0, left: 0, right: 0,
+      flexDirection: "row", alignItems: "center", gap: 16,
+      backgroundColor: C.surface, paddingHorizontal: 16, paddingTop: 12,
+      borderTopWidth: 1, borderTopColor: C.border,
+      ...Platform.select({ web: { boxShadow: "0 -4px 12px rgba(15,23,42,0.08)" }, default: { shadowColor: C.text, shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 10 } }),
+    },
+    footerPriceCol: {},
+    footerPriceLabel: { ...Typ.small, color: C.textMuted },
+    footerPrice: { ...Typ.title, color: C.text },
+    addToCartBtn: {
+      flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
+      backgroundColor: C.primary, borderRadius: 16, paddingVertical: 16,
+      ...Platform.select({ web: { boxShadow: "0 4px 8px rgba(0,102,255,0.3)" }, default: { shadowColor: C.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 } }),
+    },
+    addToCartBtnDone: { backgroundColor: C.success },
+    addToCartBtnDisabled: { backgroundColor: C.textMuted, ...Platform.select({ web: { boxShadow: "none" }, default: { shadowOpacity: 0 } }) },
+    addToCartTxt: { ...Typ.h3, fontSize: 16, color: C.textInverse },
+    notifyBtn: { backgroundColor: C.textSecondary, ...Platform.select({ web: { boxShadow: "0 4px 8px rgba(0,102,255,0.2)" }, default: { shadowOpacity: 0.2 } }) },
+    notifyBtnActive: { backgroundColor: C.primarySoft, ...Platform.select({ web: { boxShadow: "none" }, default: { shadowOpacity: 0 } }), borderWidth: 1.5, borderColor: C.primary },
 
-const variantStyles = StyleSheet.create({
-  section: { marginTop: 12, marginBottom: 4 },
-  title: { ...Typ.h3, fontSize: 15, color: C.text, marginBottom: 10 },
-  chip: { backgroundColor: C.surfaceSecondary, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 10, borderWidth: 1.5, borderColor: C.border, minWidth: 90, alignItems: "center" },
-  chipSelected: { borderColor: C.primary, backgroundColor: C.primarySoft },
-  chipOos: { opacity: 0.5 },
-  chipName: { ...Typ.captionBold, color: C.text, marginBottom: 2 },
-  chipNameSelected: { color: C.primary },
-  chipPrice: { ...Typ.small, color: C.textSecondary },
-  chipPriceSelected: { color: C.primary },
-  oosLabel: { ...Typ.tiny, color: C.danger, marginTop: 2 },
-});
+    errorCenter: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12 },
+    errorIconWrap: { width: 80, height: 80, borderRadius: 24, backgroundColor: C.surfaceSecondary, alignItems: "center", justifyContent: "center", marginBottom: 4 },
+    errorTitle: { ...Typ.h3, color: C.text },
+    errorSub: { ...Typ.body, fontSize: 13, color: C.textMuted },
+    retryBtn: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: C.primary, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 14, marginTop: 4 },
+    retryBtnTxt: { ...Typ.body, fontFamily: Font.bold, color: C.textInverse },
+  });
+}
 

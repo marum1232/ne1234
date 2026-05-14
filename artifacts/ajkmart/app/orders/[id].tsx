@@ -51,8 +51,6 @@ import {
 } from "@/lib/orderUtils";
 import type { Socket } from "socket.io-client";
 
-const C = Colors.light;
-
 const LIVE_TRACKING_STATUSES = [
   "picked_up",
   "out_for_delivery",
@@ -101,7 +99,11 @@ interface OrderDetail {
 
 export default withErrorBoundary(OrderDetailScreenInner);
 
+import { useTheme } from "@/context/ThemeContext";
+
 function OrderDetailScreenInner() {
+  const { colors: C } = useTheme();
+  const s = useMemo(() => makeStyles(C), [C]);
   const insets = useSafeAreaInsets();
   const { width: screenWidth } = useWindowDimensions();
   const topPad = Math.max(insets.top, 12);
@@ -1759,7 +1761,8 @@ function OrderDetailScreenInner() {
   );
 }
 
-const s = StyleSheet.create({
+function makeStyles(C: typeof Colors.light) {
+  return StyleSheet.create({
   root: { flex: 1, backgroundColor: C.background },
   headerBar: {
     flexDirection: "row",
@@ -1840,28 +1843,22 @@ const s = StyleSheet.create({
   },
   stepItem: { alignItems: "center", flex: 1, gap: 6, minWidth: 0 },
   stepDot: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: C.background,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: C.surface,
+    borderWidth: 2,
+    borderColor: C.border,
     alignItems: "center",
     justifyContent: "center",
-    flexShrink: 0,
   },
+  stepLine: { flex: 1, height: 2, backgroundColor: C.border, marginHorizontal: -15, marginTop: -20 },
   stepLabel: {
     ...Typ.small,
     fontSize: 9,
     textAlign: "center",
     color: C.textMuted,
     maxWidth: "100%",
-    flexShrink: 1,
-  },
-  stepLine: {
-    height: 2,
-    flex: 0.3,
-    backgroundColor: C.background,
-    marginTop: 13,
-    borderRadius: 1,
     flexShrink: 1,
   },
   card: {
@@ -2055,4 +2052,5 @@ const s = StyleSheet.create({
     marginTop: 4,
   },
   reviewSubmitText: { ...Typ.button, color: C.textInverse },
-});
+  });
+}

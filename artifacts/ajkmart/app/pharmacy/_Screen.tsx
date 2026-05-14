@@ -46,7 +46,6 @@ import { usePlatformConfig } from "@/context/PlatformConfigContext";
 import { AuthGateSheet, useAuthGate, useRoleGate, RoleBlockSheet } from "@/components/AuthGateSheet";
 
 
-const C = Colors.light;
 interface PharmacyProduct {
   id: string;
   name: string;
@@ -84,6 +83,8 @@ interface CartItem extends Med { qty: number }
 const MedCard = React.memo(function MedCard({ med, qty, onAdd, onRemove }: {
   med: Med; qty: number; onAdd: () => void; onRemove: () => void;
 }) {
+  const { colors: C } = useTheme();
+  const s = useMemo(() => makeStyles(C), [C]);
   return (
     <View style={s.medCard}>
       <View style={s.medEmoji}><Text style={{ fontSize: 26 }}>{med?.emoji ?? "💊"}</Text></View>
@@ -121,6 +122,7 @@ const MedCard = React.memo(function MedCard({ med, qty, onAdd, onRemove }: {
 
 function PharmacyScreenInner() {
   const { colors: C } = useTheme();
+  const s = useMemo(() => makeStyles(C), [C]);
   const { width: W } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const { goBack } = useSmartBack();
@@ -1089,9 +1091,8 @@ function PharmacyScreenInner() {
   );
 }
 
-export default PharmacyScreenInner;
-
-const s = StyleSheet.create({
+function makeStyles(C: typeof Colors.light) {
+  return StyleSheet.create({
   root: { flex: 1, backgroundColor: C.background },
 
   header: { paddingHorizontal: 16, paddingBottom: 10 },
@@ -1193,4 +1194,7 @@ const s = StyleSheet.create({
   successMetaTxt: { ...Typ.body, fontSize: 13, color: C.textMuted, flex: 1 },
   successBtn: { width: "100%", alignItems: "center", backgroundColor: C.purple, borderRadius: 16, paddingVertical: 15 },
   successBtnTxt: { ...Typ.button, fontFamily: Font.bold, color: C.textInverse },
-});
+  });
+}
+
+export default PharmacyScreenInner;

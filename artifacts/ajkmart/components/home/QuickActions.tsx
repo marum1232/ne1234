@@ -4,13 +4,12 @@ import { Ionicons } from "@expo/vector-icons";
 import { Link } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 
-import Colors, { spacing } from "@/constants/colors";
+import { spacing } from "@/constants/colors";
 import { Font } from "@/constants/typography";
 import { useLanguage } from "@/context/LanguageContext";
 import { usePerformance } from "@/context/PerformanceContext";
 import { tDual } from "@workspace/i18n";
 
-const C = Colors.light;
 const H_PAD = spacing.lg;
 
 export function GuestSignInStrip() {

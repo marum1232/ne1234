@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   ActivityIndicator, TouchableOpacity, ScrollView, StyleSheet,
   Text, TextInput, View, Platform,
@@ -11,9 +11,9 @@ import Colors from "@/constants/colors";
 import { Font } from "@/constants/typography";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
+import { useTheme } from "@/context/ThemeContext";
 
 const API_BASE = `https://${process.env.EXPO_PUBLIC_DOMAIN}/api`;
-const C = Colors.light;
 
 type SeatTier = "window" | "aisle" | "economy";
 
@@ -33,6 +33,8 @@ interface AvailabilityData {
 type LocalStep = "seats" | "confirm";
 
 export default function VanSeatsScreen() {
+  const { colors: C } = useTheme();
+  const s = useMemo(() => makeStyles(C), [C]);
   const insets = useSafeAreaInsets();
   const topPad = Math.max(insets.top, 12);
   const { user, token } = useAuth();
@@ -381,8 +383,9 @@ export default function VanSeatsScreen() {
   );
 }
 
-const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#F5F6F8" },
+function makeStyles(C: typeof Colors.light) {
+  return StyleSheet.create({
+  root: { flex: 1, backgroundColor: C.background },
   headerGradient: { paddingHorizontal: 16, paddingBottom: 18 },
   headerRow: { flexDirection: "row", alignItems: "center" },
   backBtn: { padding: 4 },
@@ -391,9 +394,9 @@ const s = StyleSheet.create({
   content: { padding: 16, paddingBottom: 40 },
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
   empty: { alignItems: "center", justifyContent: "center", padding: 32 },
-  emptyTitle: { fontFamily: Font.semiBold, fontSize: 17, color: "#374151", marginTop: 12 },
-  emptyDesc: { fontFamily: Font.regular, fontSize: 14, color: "#6B7280", textAlign: "center", marginTop: 6, lineHeight: 20 },
-  sectionLabel: { fontFamily: Font.semiBold, fontSize: 13, color: "#6B7280", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 },
+  emptyTitle: { fontFamily: Font.semiBold, fontSize: 17, color: C.text, marginTop: 12 },
+  emptyDesc: { fontFamily: Font.regular, fontSize: 14, color: C.textSecondary, textAlign: "center", marginTop: 6, lineHeight: 20 },
+  sectionLabel: { fontFamily: Font.semiBold, fontSize: 13, color: C.textMuted, marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 },
   tierLegend: { flexDirection: "row", gap: 8, marginBottom: 12, justifyContent: "center" },
   tierLegendItem: { flex: 1, alignItems: "center", paddingVertical: 8, paddingHorizontal: 4, borderRadius: 10, borderWidth: 1.5 },
   tierLegendLabel: { fontFamily: Font.semiBold, fontSize: 11, marginBottom: 2 },
@@ -401,37 +404,38 @@ const s = StyleSheet.create({
   seatLegend: { flexDirection: "row", gap: 16, marginBottom: 16, justifyContent: "center" },
   legendItem: { flexDirection: "row", alignItems: "center", gap: 6 },
   legendBox: { width: 16, height: 16, borderRadius: 4, borderWidth: 1.5 },
-  legendLabel: { fontFamily: Font.regular, fontSize: 12, color: "#6B7280" },
+  legendLabel: { fontFamily: Font.regular, fontSize: 12, color: C.textMuted },
   driverRow: { flexDirection: "row", alignItems: "center", marginBottom: 8, paddingHorizontal: 4 },
-  driverSeat: { width: 56, height: 40, backgroundColor: "#E5E7EB", borderRadius: 10, alignItems: "center", justifyContent: "center", gap: 2 },
-  driverLabel: { fontFamily: Font.semiBold, fontSize: 10, color: "#6B7280" },
+  driverSeat: { width: 56, height: 40, backgroundColor: C.surfaceSecondary, borderRadius: 10, alignItems: "center", justifyContent: "center", gap: 2 },
+  driverLabel: { fontFamily: Font.semiBold, fontSize: 10, color: C.textMuted },
   seat: { borderRadius: 12, alignItems: "center", justifyContent: "center", gap: 2 },
-  seatBooked: { backgroundColor: "#FEE2E2", borderColor: "#FCA5A5", borderWidth: 2 },
+  seatBooked: { backgroundColor: C.redSoft, borderColor: C.redBorder, borderWidth: 2 },
   seatNum: { fontFamily: Font.bold, fontSize: 13 },
   tierDot: { width: 6, height: 6, borderRadius: 3 },
-  seatSummary: { backgroundColor: "#EEF2FF", borderRadius: 14, padding: 14, marginTop: 8 },
-  seatSummaryText: { fontFamily: Font.semiBold, fontSize: 14, color: "#4338CA", marginBottom: 8, textAlign: "center" },
+  seatSummary: { backgroundColor: C.primarySoft, borderRadius: 14, padding: 14, marginTop: 8 },
+  seatSummaryText: { fontFamily: Font.semiBold, fontSize: 14, color: C.primary, marginBottom: 8, textAlign: "center" },
   tierBreakdownRow: { flexDirection: "row", alignItems: "center", paddingVertical: 3, gap: 6 },
-  tierBreakdownText: { fontFamily: Font.regular, fontSize: 13, color: "#374151", flex: 1 },
-  tierBreakdownFare: { fontFamily: Font.semiBold, fontSize: 13, color: "#374151" },
-  btnPrimary: { backgroundColor: "#6366F1", borderRadius: 14, padding: 16, alignItems: "center" },
+  tierBreakdownText: { fontFamily: Font.regular, fontSize: 13, color: C.text, flex: 1 },
+  tierBreakdownFare: { fontFamily: Font.semiBold, fontSize: 13, color: C.text },
+  btnPrimary: { backgroundColor: C.primary, borderRadius: 14, padding: 16, alignItems: "center" },
   btnPrimaryText: { fontFamily: Font.bold, fontSize: 16, color: "#fff" },
   btnDisabled: { opacity: 0.6 },
-  ticketCard: { borderRadius: 16, overflow: "hidden", marginBottom: 16, ...Platform.select({ web: { boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }, default: { shadowColor: "#000", shadowOpacity: 0.08, shadowRadius: 12, elevation: 4 } }) },
+  ticketCard: { borderRadius: 16, overflow: "hidden", marginBottom: 16, ...Platform.select({ web: { boxShadow: `0 4px 12px ${C.shadow}` }, default: { shadowColor: C.text, shadowOpacity: 0.08, shadowRadius: 12, elevation: 4 } }) },
   ticketHeader: { padding: 16, flexDirection: "row", alignItems: "center", gap: 10 },
   ticketTitle: { fontFamily: Font.bold, fontSize: 18, color: "#fff", flex: 1 },
   ticketVanCode: { fontFamily: Font.bold, fontSize: 14, color: "#E0E7FF", backgroundColor: "rgba(255,255,255,0.15)", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
-  ticketBody: { backgroundColor: "#fff", padding: 16 },
-  confirmRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: "#F3F4F6" },
-  confirmLabel: { fontFamily: Font.regular, fontSize: 13, color: "#6B7280" },
-  confirmValue: { fontFamily: Font.semiBold, fontSize: 13, color: "#111827", maxWidth: "60%", textAlign: "right" },
+  ticketBody: { backgroundColor: C.surface, padding: 16 },
+  confirmRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: C.borderLight },
+  confirmLabel: { fontFamily: Font.regular, fontSize: 13, color: C.textMuted },
+  confirmValue: { fontFamily: Font.semiBold, fontSize: 13, color: C.text, maxWidth: "60%", textAlign: "right" },
   confirmTotal: { borderBottomWidth: 0, paddingTop: 12, marginTop: 4 },
-  confirmTotalLabel: { fontFamily: Font.bold, fontSize: 15, color: "#111827" },
-  confirmTotalValue: { fontFamily: Font.bold, fontSize: 18, color: "#16A34A" },
-  inputGroup: { backgroundColor: "#fff", borderRadius: 16, padding: 16, marginBottom: 16, gap: 12 },
-  inputRow: { flexDirection: "row", alignItems: "center", backgroundColor: "#F9FAFB", borderRadius: 10, padding: 12 },
+  confirmTotalLabel: { fontFamily: Font.bold, fontSize: 15, color: C.text },
+  confirmTotalValue: { fontFamily: Font.bold, fontSize: 18, color: C.success },
+  inputGroup: { backgroundColor: C.surface, borderRadius: 16, padding: 16, marginBottom: 16, gap: 12 },
+  inputRow: { flexDirection: "row", alignItems: "center", backgroundColor: C.surfaceSecondary, borderRadius: 10, padding: 12 },
   payRow: { flexDirection: "row", gap: 12, marginBottom: 8 },
-  payBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: "#F9FAFB", borderRadius: 12, padding: 14, borderWidth: 2, borderColor: "#E5E7EB" },
-  payBtnSelected: { backgroundColor: "#6366F1", borderColor: "#6366F1" },
-  payBtnText: { fontFamily: Font.semiBold, fontSize: 14, color: "#6B7280" },
+  payBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: C.surfaceSecondary, borderRadius: 12, padding: 14, borderWidth: 2, borderColor: C.border },
+  payBtnSelected: { backgroundColor: C.primary, borderColor: C.primary },
+  payBtnText: { fontFamily: Font.semiBold, fontSize: 14, color: C.textMuted },
 });
+}

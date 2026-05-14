@@ -170,7 +170,8 @@ async function migrateLegacyInsecureTokens(): Promise<boolean> {
     /* Mark migration as complete for this device */
     await SecureStore.setItemAsync(MIGRATED_KEY, "1").catch(() => {});
     return hadLegacy;
-  } catch {
+  } catch (e) {
+    log.warn("migrateSecureStore failed — skipping migration:", e);
     return false;
   }
 }
@@ -384,7 +385,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         },
         body: JSON.stringify({ userId }),
       });
-    } catch {}
+    } catch (e) {
+      log.warn("clearCustomerLocation failed:", e);
+    }
   };
 
   const doLogout = async () => {
@@ -540,7 +543,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         profileData ||
                         freshUser;
                     }
-                  } catch {}
+                  } catch (e) {
+                    log.warn("Failed to fetch profile after token refresh:", e);
+                  }
                   await AsyncStorage.setItem(
                     USER_KEY,
                     JSON.stringify(freshUser),
@@ -554,7 +559,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                   return;
                 }
               }
-            } catch {}
+            } catch (e) {
+              log.warn("Token refresh request failed:", e);
+            }
             await AsyncStorage.multiRemove([USER_KEY]);
             await secureDelete(TOKEN_KEY);
             await secureDelete(REFRESH_TOKEN_KEY);
@@ -582,7 +589,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                   );
                 }
               }
-            } catch {}
+            } catch (e) {
+              log.warn("Failed to refresh profile with stored token:", e);
+            }
             setUser(resolvedUser);
             setToken(storedToken);
             setAuthToken(storedToken);
@@ -590,7 +599,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             syncToServer(storedToken).catch(() => {});
           }
         }
-      } catch {}
+      } catch (e) {
+        log.warn("loadAuth failed unexpectedly:", e);
+      }
       setIsLoading(false);
     };
     loadAuth();
@@ -618,7 +629,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           role: "customer",
         }),
       });
-    } catch {}
+    } catch (e) {
+      log.warn("captureCustomerLocation failed:", e);
+    }
   };
 
   const login = async (

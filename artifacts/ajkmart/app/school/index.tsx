@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router, type Href } from "expo-router";
 import { useSmartBack } from "@/hooks/useSmartBack";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState, useMemo } from "react";
 import {
   ActivityIndicator,
   Platform,
@@ -18,8 +18,7 @@ import { Font } from "@/constants/typography";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/utils/api";
-
-const C = Colors.light;
+import { useTheme } from "@/context/ThemeContext";
 
 interface SchoolRoute {
   id: string;
@@ -34,6 +33,8 @@ interface SchoolRoute {
 }
 
 export default function SchoolTransportScreen() {
+  const { colors: C } = useTheme();
+  const styles = useMemo(() => makeStyles(C), [C]);
   const { goBack } = useSmartBack();
   const insets = useSafeAreaInsets();
   const { token } = useAuth();
@@ -162,7 +163,8 @@ export default function SchoolTransportScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(C: typeof Colors.light) {
+  return StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -186,7 +188,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 14,
-    backgroundColor: "#E0F2FE",
+    backgroundColor: C.skyBg,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -210,26 +212,26 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: C.border,
     gap: 10,
-    ...Platform.select({ web: { boxShadow: "0 2px 8px rgba(15,23,42,0.05)" }, default: { shadowColor: C.text, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 } }),
+    ...Platform.select({ web: { boxShadow: `0 2px 8px ${C.shadow}` }, default: { shadowColor: C.text, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 } }),
   },
   cardTop: { flexDirection: "row", alignItems: "center", gap: 10 },
   cardIcon: {
     width: 44,
     height: 44,
     borderRadius: 14,
-    backgroundColor: "#E0F2FE",
+    backgroundColor: C.skyBg,
     alignItems: "center",
     justifyContent: "center",
   },
   routeName: { fontFamily: Font.bold, fontSize: 15, color: C.text },
   routeSchool: { fontFamily: Font.regular, fontSize: 12, color: C.textMuted, marginTop: 2 },
   seatsChip: {
-    backgroundColor: "#DCFCE7",
+    backgroundColor: C.greenLightBg,
     borderRadius: 8,
     paddingHorizontal: 8,
     paddingVertical: 4,
   },
-  seatsText: { fontFamily: Font.semiBold, fontSize: 11, color: "#15803D" },
+  seatsText: { fontFamily: Font.semiBold, fontSize: 11, color: C.greenDeep },
   divider: { height: 1, backgroundColor: C.borderLight },
   cardDetail: { flexDirection: "row", alignItems: "center", gap: 6 },
   detailText: { fontFamily: Font.regular, fontSize: 13, color: C.textMuted, flex: 1 },
@@ -238,10 +240,11 @@ const styles = StyleSheet.create({
   priceAmt: { fontFamily: Font.bold, fontSize: 15, color: C.text },
   bookBtn: {
     marginLeft: "auto",
-    backgroundColor: "#0EA5E9",
+    backgroundColor: C.skyDark,
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 10,
   },
   bookBtnText: { fontFamily: Font.bold, fontSize: 13, color: "#fff" },
 });
+}

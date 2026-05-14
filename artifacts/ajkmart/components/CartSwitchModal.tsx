@@ -1,9 +1,8 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { Modal, TouchableOpacity, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useTheme } from "@/context/ThemeContext";
 import Colors, { spacing, radii, typography } from "@/constants/colors";
-
-const C = Colors.light;
 
 type Props = {
   visible: boolean;
@@ -14,6 +13,7 @@ type Props = {
 };
 
 export function CartSwitchModal({ visible, targetService, currentService, onCancel, onConfirm }: Props) {
+  const { colors: C } = useTheme();
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
       <View style={{ flex: 1, backgroundColor: C.overlay, justifyContent: "flex-end" }}>

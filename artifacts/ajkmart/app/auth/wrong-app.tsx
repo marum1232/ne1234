@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   View,
   Text,
@@ -13,10 +13,11 @@ import Colors from "@/constants/colors";
 import { Font } from "@/constants/typography";
 import { useAuth, hasRole } from "@/context/AuthContext";
 import { API_BASE } from "@/utils/api";
-
-const C = Colors.light;
+import { useTheme } from "@/context/ThemeContext";
 
 export default function WrongAppScreen() {
+  const { colors: C } = useTheme();
+  const styles = useMemo(() => makeStyles(C), [C]);
   const insets = useSafeAreaInsets();
   const { user, token, logout, updateUser } = useAuth();
   const [addingRole, setAddingRole] = useState(false);
@@ -144,7 +145,8 @@ export default function WrongAppScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(C: typeof Colors.light) {
+  return StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: C.background,
@@ -156,7 +158,7 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: C.amberBg,
+    backgroundColor: C.amberSoft,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 28,
@@ -188,7 +190,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    backgroundColor: "#16A34A",
+    backgroundColor: C.success,
     borderRadius: 14,
     paddingVertical: 15,
     paddingHorizontal: 36,
@@ -212,7 +214,7 @@ const styles = StyleSheet.create({
   errorTxt: {
     fontFamily: Font.regular,
     fontSize: 13,
-    color: "#DC2626",
+    color: C.danger,
     textAlign: "center",
     marginBottom: 8,
   },
@@ -243,3 +245,4 @@ const styles = StyleSheet.create({
     color: C.textMuted,
   },
 });
+}

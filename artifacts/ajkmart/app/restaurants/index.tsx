@@ -24,8 +24,6 @@ import { API_BASE, unwrapApiResponse } from "@/utils/api";
 import { useSmartBack } from "@/hooks/useSmartBack";
 import { SkeletonBlock } from "@/components/ui/SkeletonBlock";
 
-
-const C = Colors.light;
 interface Restaurant {
   id: string;
   name: string;
@@ -40,7 +38,7 @@ interface Restaurant {
   avgRating?: number;
 }
 
-function RestaurantCard({ restaurant }: { restaurant: Restaurant }) {
+function RestaurantCard({ restaurant, styles, C }: { restaurant: Restaurant, styles: any, C: any }) {
   const name = restaurant.storeName || restaurant.name;
   return (
     <TouchableOpacity
@@ -145,6 +143,7 @@ export default withErrorBoundary(RestaurantsScreenInner);
 
 function RestaurantsScreenInner() {
   const { colors: C } = useTheme();
+  const styles = useMemo(() => makeStyles(C), [C]);
   const { width: W } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const { goBack } = useSmartBack();
@@ -287,7 +286,7 @@ function RestaurantsScreenInner() {
               tintColor={C.amber}
             />
           }
-          renderItem={({ item }) => <RestaurantCard restaurant={item} />}
+          renderItem={({ item }) => <RestaurantCard restaurant={item} styles={styles} C={C} />}
           ListFooterComponent={<View style={{ height: insets.bottom + 24 }} />}
         />
       )}
@@ -295,7 +294,8 @@ function RestaurantsScreenInner() {
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(C: typeof Colors.light) {
+  return StyleSheet.create({
   container: { flex: 1, backgroundColor: C.background },
   header: { paddingHorizontal: spacing.lg, paddingBottom: 16 },
   headerRow: {
@@ -439,4 +439,5 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   retryTxt: { fontFamily: Font.semiBold, fontSize: 14, color: "#fff" },
-});
+  });
+}

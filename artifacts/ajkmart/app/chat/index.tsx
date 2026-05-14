@@ -1,24 +1,22 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   ActivityIndicator,
   FlatList,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Colors, { spacing, radii, shadows } from "@/constants/colors";
+import Colors, { spacing, radii } from "@/constants/colors";
 import { Font } from "@/constants/typography";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
-import { API_BASE, unwrapApiResponse } from "@/utils/api";
+import { useTheme } from "@/context/ThemeContext";
+import { API_BASE } from "@/utils/api";
 import * as Clipboard from "expo-clipboard";
-
-const C = Colors.light;
 
 interface Conversation {
   id: string;
@@ -35,6 +33,8 @@ interface CommRequest {
 }
 
 export default function ChatListScreen() {
+  const { colors: C } = useTheme();
+  const s = useMemo(() => makeStyles(C), [C]);
   const insets = useSafeAreaInsets();
   const { token } = useAuth();
   const { showToast } = useToast();
@@ -206,40 +206,42 @@ export default function ChatListScreen() {
   );
 }
 
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: C.background },
-  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
-  title: { fontSize: 28, fontFamily: Font.bold, color: C.text },
-  headerRight: { flexDirection: "row", alignItems: "center", gap: 8 },
-  ajkBadge: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: `${C.primary}15`, paddingHorizontal: 10, paddingVertical: 6, borderRadius: radii.full },
-  ajkText: { fontSize: 11, fontFamily: Font.bold, color: C.primary },
-  searchBtn: { padding: 8 },
-  tabs: { flexDirection: "row", paddingHorizontal: spacing.lg, marginBottom: spacing.sm },
-  tab: { paddingVertical: 10, paddingHorizontal: 20, borderRadius: radii.xl, marginRight: 8 },
-  tabActive: { backgroundColor: C.primary },
-  tabText: { fontSize: 14, fontFamily: Font.semiBold, color: C.textSecondary },
-  tabTextActive: { color: "#fff" },
-  convRow: { flexDirection: "row", alignItems: "center", paddingHorizontal: spacing.lg, paddingVertical: 14, gap: 12 },
-  avatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: C.primary, justifyContent: "center", alignItems: "center" },
-  avatarText: { fontSize: 18, fontFamily: Font.bold, color: "#fff" },
-  convInfo: { flex: 1 },
-  convTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  convName: { fontSize: 15, fontFamily: Font.semiBold, color: C.text, flex: 1 },
-  convTime: { fontSize: 11, fontFamily: Font.regular, color: C.textTertiary, marginLeft: 8 },
-  convBottom: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 2 },
-  convMsg: { fontSize: 13, fontFamily: Font.regular, color: C.textSecondary, flex: 1 },
-  badge: { backgroundColor: C.primary, width: 20, height: 20, borderRadius: 10, justifyContent: "center", alignItems: "center", marginLeft: 8 },
-  badgeText: { fontSize: 10, fontFamily: Font.bold, color: "#fff" },
-  reqRow: { flexDirection: "row", alignItems: "center", paddingHorizontal: spacing.lg, paddingVertical: 14, gap: 12 },
-  reqRole: { fontSize: 12, fontFamily: Font.regular, color: C.textTertiary },
-  reqActions: { flexDirection: "row", gap: 8 },
-  acceptBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: C.success, justifyContent: "center", alignItems: "center" },
-  rejectBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: `${C.error}15`, justifyContent: "center", alignItems: "center" },
-  center: { flex: 1, justifyContent: "center", alignItems: "center" },
-  emptyContainer: { flex: 1 },
-  empty: { flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 40 },
-  emptyTitle: { fontSize: 18, fontFamily: Font.semiBold, color: C.text, marginTop: 16 },
-  emptyDesc: { fontSize: 14, fontFamily: Font.regular, color: C.textSecondary, textAlign: "center", marginTop: 8 },
-  emptyBtn: { marginTop: 20, backgroundColor: C.primary, paddingHorizontal: 24, paddingVertical: 12, borderRadius: radii.xl },
-  emptyBtnText: { fontSize: 14, fontFamily: Font.semiBold, color: "#fff" },
-});
+function makeStyles(C: typeof Colors.light) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: C.background },
+    header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
+    title: { fontSize: 28, fontFamily: Font.bold, color: C.text },
+    headerRight: { flexDirection: "row", alignItems: "center", gap: 8 },
+    ajkBadge: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: `${C.primary}15`, paddingHorizontal: 10, paddingVertical: 6, borderRadius: radii.full },
+    ajkText: { fontSize: 11, fontFamily: Font.bold, color: C.primary },
+    searchBtn: { padding: 8 },
+    tabs: { flexDirection: "row", paddingHorizontal: spacing.lg, marginBottom: spacing.sm },
+    tab: { paddingVertical: 10, paddingHorizontal: 20, borderRadius: radii.xl, marginRight: 8 },
+    tabActive: { backgroundColor: C.primary },
+    tabText: { fontSize: 14, fontFamily: Font.semiBold, color: C.textSecondary },
+    tabTextActive: { color: "#fff" },
+    convRow: { flexDirection: "row", alignItems: "center", paddingHorizontal: spacing.lg, paddingVertical: 14, gap: 12 },
+    avatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: C.primary, justifyContent: "center", alignItems: "center" },
+    avatarText: { fontSize: 18, fontFamily: Font.bold, color: "#fff" },
+    convInfo: { flex: 1 },
+    convTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+    convName: { fontSize: 15, fontFamily: Font.semiBold, color: C.text, flex: 1 },
+    convTime: { fontSize: 11, fontFamily: Font.regular, color: C.textTertiary, marginLeft: 8 },
+    convBottom: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 2 },
+    convMsg: { fontSize: 13, fontFamily: Font.regular, color: C.textSecondary, flex: 1 },
+    badge: { backgroundColor: C.primary, width: 20, height: 20, borderRadius: 10, justifyContent: "center", alignItems: "center", marginLeft: 8 },
+    badgeText: { fontSize: 10, fontFamily: Font.bold, color: "#fff" },
+    reqRow: { flexDirection: "row", alignItems: "center", paddingHorizontal: spacing.lg, paddingVertical: 14, gap: 12 },
+    reqRole: { fontSize: 12, fontFamily: Font.regular, color: C.textTertiary },
+    reqActions: { flexDirection: "row", gap: 8 },
+    acceptBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: C.success, justifyContent: "center", alignItems: "center" },
+    rejectBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: `${C.error}15`, justifyContent: "center", alignItems: "center" },
+    center: { flex: 1, justifyContent: "center", alignItems: "center" },
+    emptyContainer: { flex: 1 },
+    empty: { flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 40 },
+    emptyTitle: { fontSize: 18, fontFamily: Font.semiBold, color: C.text, marginTop: 16 },
+    emptyDesc: { fontSize: 14, fontFamily: Font.regular, color: C.textSecondary, textAlign: "center", marginTop: 8 },
+    emptyBtn: { marginTop: 20, backgroundColor: C.primary, paddingHorizontal: 24, paddingVertical: 12, borderRadius: radii.xl },
+    emptyBtnText: { fontSize: 14, fontFamily: Font.semiBold, color: "#fff" },
+  });
+}

@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import React, { useEffect, useRef, useCallback } from "react";
+import React, { useEffect, useRef, useCallback, useMemo } from "react";
 import {
   Animated,
   TouchableOpacity,
@@ -13,8 +13,9 @@ import {
   type StyleProp,
 } from "react-native";
 import Colors, { spacing, radii, shadows, typography } from "@/constants/colors";
+import { useTheme } from "@/context/ThemeContext";
 
-const C = Colors.light;
+export const authColors = Colors.light;
 
 export function OtpDigitInput({
   value,
@@ -29,6 +30,8 @@ export function OtpDigitInput({
   hasError?: boolean;
   onComplete?: (code: string) => void;
 }) {
+  const { colors: C } = useTheme();
+  const otpS = useMemo(() => makeOtpStyles(C), [C]);
   const inputRef = useRef<TextInput>(null);
   const cursorAnim = useRef(new Animated.Value(1)).current;
 
@@ -95,26 +98,28 @@ export function OtpDigitInput({
   );
 }
 
-const otpS = StyleSheet.create({
-  container: { marginBottom: spacing.lg },
-  hidden: { position: "absolute", opacity: 0, height: 1, width: 1 },
-  boxes: { flexDirection: "row", justifyContent: "center", gap: 10 },
-  box: {
-    width: 48,
-    height: 56,
-    borderRadius: radii.md,
-    borderWidth: 2,
-    borderColor: C.border,
-    backgroundColor: C.surfaceSecondary,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  boxActive: { borderColor: C.primary, backgroundColor: C.primarySoft },
-  boxFilled: { borderColor: C.primaryLight, backgroundColor: C.surface },
-  boxError: { borderColor: C.danger, backgroundColor: C.dangerSoft },
-  digit: { ...typography.otp, color: C.text },
-  cursor: { width: 2, height: 24, backgroundColor: C.primary, borderRadius: 1 },
-});
+function makeOtpStyles(C: typeof Colors.light) {
+  return StyleSheet.create({
+    container: { marginBottom: spacing.lg },
+    hidden: { position: "absolute", opacity: 0, height: 1, width: 1 },
+    boxes: { flexDirection: "row", justifyContent: "center", gap: 10 },
+    box: {
+      width: 48,
+      height: 56,
+      borderRadius: radii.md,
+      borderWidth: 2,
+      borderColor: C.border,
+      backgroundColor: C.surfaceSecondary,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    boxActive: { borderColor: C.primary, backgroundColor: C.primarySoft },
+    boxFilled: { borderColor: C.primaryLight, backgroundColor: C.surface },
+    boxError: { borderColor: C.danger, backgroundColor: C.dangerSoft },
+    digit: { ...typography.otp, color: C.text },
+    cursor: { width: 2, height: 24, backgroundColor: C.primary, borderRadius: 1 },
+  });
+}
 
 export function AuthButton({
   label,
@@ -133,6 +138,8 @@ export function AuthButton({
   icon?: keyof typeof Ionicons.glyphMap;
   style?: StyleProp<ViewStyle>;
 }) {
+  const { colors: C } = useTheme();
+  const btnS = useMemo(() => makeBtnStyles(C), [C]);
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const isDisabled = disabled || loading;
 
@@ -194,20 +201,24 @@ export function AuthButton({
   );
 }
 
-const btnS = StyleSheet.create({
-  base: { borderRadius: radii.lg, paddingVertical: 16, alignItems: "center", justifyContent: "center", minHeight: 52 },
-  primary: { backgroundColor: C.primary, ...shadows.md },
-  outline: { backgroundColor: "transparent", borderWidth: 1.5, borderColor: C.border },
-  ghost: { backgroundColor: "transparent" },
-  disabled: { opacity: 0.55 },
-  inner: { flexDirection: "row", alignItems: "center", justifyContent: "center" },
-  text: { ...typography.button },
-  textPrimary: { color: "#fff" },
-  textOutline: { color: C.text },
-  textGhost: { color: C.primary },
-});
+function makeBtnStyles(C: typeof Colors.light) {
+  return StyleSheet.create({
+    base: { borderRadius: radii.lg, paddingVertical: 16, alignItems: "center", justifyContent: "center", minHeight: 52 },
+    primary: { backgroundColor: C.primary, ...shadows.md },
+    outline: { backgroundColor: "transparent", borderWidth: 1.5, borderColor: C.border },
+    ghost: { backgroundColor: "transparent" },
+    disabled: { opacity: 0.55 },
+    inner: { flexDirection: "row", alignItems: "center", justifyContent: "center" },
+    text: { ...typography.button },
+    textPrimary: { color: "#fff" },
+    textOutline: { color: C.text },
+    textGhost: { color: C.primary },
+  });
+}
 
 export function PasswordStrengthBar({ password }: { password: string }) {
+  const { colors: C } = useTheme();
+  const pwdS = useMemo(() => makePwdStyles(C), [C]);
   const checks = [
     { label: "8+ characters", ok: password.length >= 8 },
     { label: "Uppercase letter", ok: /[A-Z]/.test(password) },
@@ -238,16 +249,18 @@ export function PasswordStrengthBar({ password }: { password: string }) {
   );
 }
 
-const pwdS = StyleSheet.create({
-  container: { marginBottom: spacing.lg },
-  bars: { flexDirection: "row", gap: 6, marginBottom: 8 },
-  bar: { flex: 1, height: 4, borderRadius: 2 },
-  label: { ...typography.captionMedium, marginBottom: 6 },
-  checks: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
-  checkRow: { flexDirection: "row", alignItems: "center", gap: 4 },
-  checkText: { ...typography.caption, color: C.textMuted },
-  checkTextOk: { color: C.success },
-});
+function makePwdStyles(C: typeof Colors.light) {
+  return StyleSheet.create({
+    container: { marginBottom: spacing.lg },
+    bars: { flexDirection: "row", gap: 6, marginBottom: 8 },
+    bar: { flex: 1, height: 4, borderRadius: 2 },
+    label: { ...typography.captionMedium, marginBottom: 6 },
+    checks: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
+    checkRow: { flexDirection: "row", alignItems: "center", gap: 4 },
+    checkText: { ...typography.caption, color: C.textMuted },
+    checkTextOk: { color: C.success },
+  });
+}
 
 export function AlertBox({
   type,
@@ -258,6 +271,8 @@ export function AlertBox({
   message: string;
   icon?: keyof typeof Ionicons.glyphMap;
 }) {
+  const { colors: C } = useTheme();
+  const alertS = useMemo(() => makeAlertStyles(C), [C]);
   const config = {
     error: { bg: C.dangerSoft, border: "#FECACA", color: C.danger, defaultIcon: "alert-circle-outline" as const },
     success: { bg: C.successSoft, border: "#80E6CC", color: C.success, defaultIcon: "checkmark-circle-outline" as const },
@@ -273,10 +288,12 @@ export function AlertBox({
   );
 }
 
-const alertS = StyleSheet.create({
-  box: { flexDirection: "row", alignItems: "center", gap: 8, borderRadius: radii.md, paddingHorizontal: 14, paddingVertical: 12, marginBottom: spacing.md, borderWidth: 1 },
-  text: { ...typography.captionMedium, flex: 1, lineHeight: 18 },
-});
+function makeAlertStyles(C: typeof Colors.light) {
+  return StyleSheet.create({
+    box: { flexDirection: "row", alignItems: "center", gap: 8, borderRadius: radii.md, paddingHorizontal: 14, paddingVertical: 12, marginBottom: spacing.md, borderWidth: 1 },
+    text: { ...typography.captionMedium, flex: 1, lineHeight: 18 },
+  });
+}
 
 export function PhoneInput({
   value,
@@ -289,6 +306,8 @@ export function PhoneInput({
   error?: boolean;
   autoFocus?: boolean;
 }) {
+  const { colors: C } = useTheme();
+  const phoneS = useMemo(() => makePhoneStyles(C), [C]);
   return (
     <View style={[phoneS.wrapper, error && phoneS.wrapperError]} accessibilityLabel="Phone number input with country code +92">
       <View style={phoneS.code}>
@@ -311,32 +330,34 @@ export function PhoneInput({
   );
 }
 
-const phoneS = StyleSheet.create({
-  wrapper: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderWidth: 1.5,
-    borderColor: C.border,
-    borderRadius: radii.lg,
-    overflow: "hidden",
-    marginBottom: spacing.md,
-    backgroundColor: C.surfaceSecondary,
-  },
-  wrapperError: { borderColor: C.danger },
-  code: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 16,
-    backgroundColor: C.surface,
-    borderRightWidth: 1,
-    borderRightColor: C.border,
-  },
-  flag: { fontSize: 18 },
-  codeText: { ...typography.subtitle, color: C.text },
-  input: { flex: 1, paddingHorizontal: 16, paddingVertical: 15, ...typography.bodyMedium, color: C.text },
-});
+function makePhoneStyles(C: typeof Colors.light) {
+  return StyleSheet.create({
+    wrapper: {
+      flexDirection: "row",
+      alignItems: "center",
+      borderWidth: 1.5,
+      borderColor: C.border,
+      borderRadius: radii.lg,
+      overflow: "hidden",
+      marginBottom: spacing.md,
+      backgroundColor: C.surfaceSecondary,
+    },
+    wrapperError: { borderColor: C.danger },
+    code: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      paddingHorizontal: 14,
+      paddingVertical: 16,
+      backgroundColor: C.surface,
+      borderRightWidth: 1,
+      borderRightColor: C.border,
+    },
+    flag: { fontSize: 18 },
+    codeText: { ...typography.subtitle, color: C.text },
+    input: { flex: 1, paddingHorizontal: 16, paddingVertical: 15, ...typography.bodyMedium, color: C.text },
+  });
+}
 
 export function InputField({
   label,
@@ -356,6 +377,8 @@ export function InputField({
   onRightIconPress?: () => void;
   containerStyle?: StyleProp<ViewStyle>;
 } & TextInputProps) {
+  const { colors: C } = useTheme();
+  const fieldS = useMemo(() => makeFieldStyles(C), [C]);
   return (
     <View style={containerStyle}>
       {label && <Text style={fieldS.label}>{label}</Text>}
@@ -378,22 +401,24 @@ export function InputField({
   );
 }
 
-const fieldS = StyleSheet.create({
-  label: { ...typography.captionMedium, color: C.textSecondary, marginBottom: 6 },
-  wrapper: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderWidth: 1.5,
-    borderColor: C.border,
-    borderRadius: radii.lg,
-    backgroundColor: C.surfaceSecondary,
-    marginBottom: spacing.md,
-    overflow: "hidden",
-  },
-  wrapperError: { borderColor: C.danger },
-  input: { paddingHorizontal: 16, paddingVertical: 15, ...typography.bodyMedium, color: C.text, flex: 1 },
-  iconBtn: { paddingHorizontal: 14, paddingVertical: 15 },
-});
+function makeFieldStyles(C: typeof Colors.light) {
+  return StyleSheet.create({
+    label: { ...typography.captionMedium, color: C.textSecondary, marginBottom: 6 },
+    wrapper: {
+      flexDirection: "row",
+      alignItems: "center",
+      borderWidth: 1.5,
+      borderColor: C.border,
+      borderRadius: radii.lg,
+      backgroundColor: C.surfaceSecondary,
+      marginBottom: spacing.md,
+      overflow: "hidden",
+    },
+    wrapperError: { borderColor: C.danger },
+    input: { paddingHorizontal: 16, paddingVertical: 15, ...typography.bodyMedium, color: C.text, flex: 1 },
+    iconBtn: { paddingHorizontal: 14, paddingVertical: 15 },
+  });
+}
 
 export function StepProgress({
   total,
@@ -402,6 +427,8 @@ export function StepProgress({
   total: number;
   current: number;
 }) {
+  const { colors: C } = useTheme();
+  const stepS = useMemo(() => makeStepStyles(C), [C]);
   return (
     <View style={stepS.row} accessibilityLabel={`Step ${current} of ${total}`}>
       {Array.from({ length: total }, (_, i) => {
@@ -425,26 +452,30 @@ export function StepProgress({
   );
 }
 
-const stepS = StyleSheet.create({
-  row: { flexDirection: "row", alignItems: "center", justifyContent: "center" },
-  dot: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    borderWidth: 2,
-    borderColor: "rgba(255,255,255,0.3)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  dotActive: { borderColor: "#fff", backgroundColor: "rgba(255,255,255,0.2)" },
-  dotDone: { backgroundColor: C.success, borderColor: C.success },
-  num: { ...typography.captionMedium, color: "rgba(255,255,255,0.45)" },
-  numActive: { color: "#fff" },
-  line: { width: 32, height: 2, backgroundColor: "rgba(255,255,255,0.2)", marginHorizontal: 4 },
-  lineActive: { backgroundColor: C.success },
-});
+function makeStepStyles(C: typeof Colors.light) {
+  return StyleSheet.create({
+    row: { flexDirection: "row", alignItems: "center", justifyContent: "center" },
+    dot: {
+      width: 30,
+      height: 30,
+      borderRadius: 15,
+      borderWidth: 2,
+      borderColor: "rgba(255,255,255,0.3)",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    dotActive: { borderColor: "#fff", backgroundColor: "rgba(255,255,255,0.2)" },
+    dotDone: { backgroundColor: C.success, borderColor: C.success },
+    num: { ...typography.captionMedium, color: "rgba(255,255,255,0.45)" },
+    numActive: { color: "#fff" },
+    line: { width: 32, height: 2, backgroundColor: "rgba(255,255,255,0.2)", marginHorizontal: 4 },
+    lineActive: { backgroundColor: C.success },
+  });
+}
 
 export function ChannelBadge({ channel }: { channel: string }) {
+  const { colors: C } = useTheme();
+  const chS = useMemo(() => makeChStyles(C), [C]);
   const info = {
     whatsapp: { icon: "logo-whatsapp" as const, label: "WhatsApp", color: "#25D366" },
     sms: { icon: "chatbubble-outline" as const, label: "SMS", color: C.primary },
@@ -468,6 +499,8 @@ export function FallbackChannelButtons({
   disabled: boolean;
   onSelect: (ch: string) => void;
 }) {
+  const { colors: C } = useTheme();
+  const chS = useMemo(() => makeChStyles(C), [C]);
   if (!channels.length) return null;
   const labels: Record<string, string> = { whatsapp: "WhatsApp", sms: "SMS", email: "Email" };
   return (
@@ -491,16 +524,20 @@ export function FallbackChannelButtons({
   );
 }
 
-const chS = StyleSheet.create({
-  badge: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: C.surfaceSecondary, paddingHorizontal: 12, paddingVertical: 6, borderRadius: radii.full, alignSelf: "flex-start", marginBottom: spacing.md },
-  text: { ...typography.captionMedium },
-  fallbackRow: { flexDirection: "row", gap: 8, marginBottom: spacing.md, flexWrap: "wrap" },
-  fallbackBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: radii.full, backgroundColor: C.primarySoft, borderWidth: 1, borderColor: C.primary + "30" },
-  fallbackDisabled: { backgroundColor: C.surfaceSecondary, borderColor: C.border },
-  fallbackText: { ...typography.captionMedium, color: C.primary },
-});
+function makeChStyles(C: typeof Colors.light) {
+  return StyleSheet.create({
+    badge: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: C.surfaceSecondary, paddingHorizontal: 12, paddingVertical: 6, borderRadius: radii.full, alignSelf: "flex-start", marginBottom: spacing.md },
+    text: { ...typography.captionMedium },
+    fallbackRow: { flexDirection: "row", gap: 8, marginBottom: spacing.md, flexWrap: "wrap" },
+    fallbackBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: radii.full, backgroundColor: C.primarySoft, borderWidth: 1, borderColor: C.primary + "30" },
+    fallbackDisabled: { backgroundColor: C.surfaceSecondary, borderColor: C.border },
+    fallbackText: { ...typography.captionMedium, color: C.primary },
+  });
+}
 
 export function DevOtpBanner({ otp }: { otp: string }) {
+  const { colors: C } = useTheme();
+  const devS = useMemo(() => makeDevStyles(C), [C]);
   if (!otp) return null;
   return (
     <View style={devS.box}>
@@ -512,13 +549,17 @@ export function DevOtpBanner({ otp }: { otp: string }) {
   );
 }
 
-const devS = StyleSheet.create({
-  box: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: C.successSoft, borderRadius: radii.md, paddingHorizontal: 14, paddingVertical: 10, marginBottom: spacing.md, borderWidth: 1, borderColor: "#80E6CC" },
-  text: { ...typography.captionMedium, color: C.success, flex: 1 },
-  code: { fontFamily: "Inter_700Bold", letterSpacing: 4 },
-});
+function makeDevStyles(C: typeof Colors.light) {
+  return StyleSheet.create({
+    box: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: C.successSoft, borderRadius: radii.md, paddingHorizontal: 14, paddingVertical: 10, marginBottom: spacing.md, borderWidth: 1, borderColor: "#80E6CC" },
+    text: { ...typography.captionMedium, color: C.success, flex: 1 },
+    code: { fontFamily: "Inter_700Bold", letterSpacing: 4 },
+  });
+}
 
 export function Divider({ text = "OR" }: { text?: string }) {
+  const { colors: C } = useTheme();
+  const divS = useMemo(() => makeDivStyles(C), [C]);
   return (
     <View style={divS.row} accessibilityRole="none">
       <View style={divS.line} />
@@ -528,11 +569,13 @@ export function Divider({ text = "OR" }: { text?: string }) {
   );
 }
 
-const divS = StyleSheet.create({
-  row: { flexDirection: "row", alignItems: "center", marginVertical: spacing.xl },
-  line: { flex: 1, height: 1, backgroundColor: C.border },
-  text: { ...typography.captionMedium, color: C.textMuted, marginHorizontal: 14 },
-});
+function makeDivStyles(C: typeof Colors.light) {
+  return StyleSheet.create({
+    row: { flexDirection: "row", alignItems: "center", marginVertical: spacing.xl },
+    line: { flex: 1, height: 1, backgroundColor: C.border },
+    text: { ...typography.captionMedium, color: C.textMuted, marginHorizontal: 14 },
+  });
+}
 
 export function SocialButton({
   provider,
@@ -551,6 +594,8 @@ export function SocialButton({
   disabled?: boolean;
   loading?: boolean;
 }) {
+  const { colors: C } = useTheme();
+  const socialS = useMemo(() => makeSocialStyles(C), [C]);
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
   return (
@@ -578,11 +623,13 @@ export function SocialButton({
   );
 }
 
-const socialS = StyleSheet.create({
-  btn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, borderWidth: 1.5, borderColor: C.border, borderRadius: radii.lg, paddingVertical: 14, marginBottom: spacing.sm },
-  btnDisabled: { opacity: 0.45 },
-  text: { ...typography.bodySemiBold, color: C.text },
-});
+function makeSocialStyles(C: typeof Colors.light) {
+  return StyleSheet.create({
+    btn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, borderWidth: 1.5, borderColor: C.border, borderRadius: radii.lg, paddingVertical: 14, marginBottom: spacing.sm },
+    btnDisabled: { opacity: 0.45 },
+    text: { ...typography.bodySemiBold, color: C.text },
+  });
+}
 
-export const authColors = C;
 export { spacing, radii, shadows, typography };
+

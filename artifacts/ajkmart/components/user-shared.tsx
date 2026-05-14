@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useMemo } from "react";
 import {
   Animated,
   TouchableOpacity,
@@ -15,9 +15,7 @@ import Colors, { spacing, radii, shadows, typography } from "@/constants/colors"
 import { T as Typ, Font } from "@/constants/typography";
 
 import { SkeletonBlock } from "@/components/ui/SkeletonBlock";
-
-const C = Colors.light;
-export { C as userColors };
+import { useTheme } from "@/context/ThemeContext";
 
 export function AnimatedPressable({
   children,
@@ -91,6 +89,8 @@ export function SectionHeader({
   onAction?: () => void;
   style?: StyleProp<ViewStyle>;
 }) {
+  const { colors: C } = useTheme();
+  const us = useMemo(() => makeUsStyles(C), [C]);
   return (
     <View style={[us.secRow, style]}>
       <View style={{ flex: 1 }}>
@@ -137,6 +137,8 @@ export function FilterChip({
   onPress: () => void;
   color?: string;
 }) {
+  const { colors: C } = useTheme();
+  const us = useMemo(() => makeUsStyles(C), [C]);
   const accentColor = color ?? C.primary;
   return (
     <TouchableOpacity activeOpacity={0.7}
@@ -159,6 +161,8 @@ export function ChipRow({
   children: React.ReactNode;
   style?: StyleProp<ViewStyle>;
 }) {
+  const { colors: C } = useTheme();
+  const us = useMemo(() => makeUsStyles(C), [C]);
   return (
     <View style={[us.chipRow, style]}>
       {children}
@@ -179,6 +183,8 @@ export function StatCard({
   color: string;
   bg: string;
 }) {
+  const { colors: C } = useTheme();
+  const us = useMemo(() => makeUsStyles(C), [C]);
   return (
     <View style={[us.statCard, { backgroundColor: bg }]} accessibilityLabel={`${label}: ${value}`}>
       <View style={[us.statIcon, { backgroundColor: color + "18" }]}>
@@ -211,6 +217,8 @@ export function ListItem({
   danger?: boolean;
   accessibilityLabel?: string;
 }) {
+  const { colors: C } = useTheme();
+  const us = useMemo(() => makeUsStyles(C), [C]);
   const color = danger ? C.danger : (iconColor ?? C.text);
   const bg = danger ? C.dangerSoft : (iconBg ?? C.primarySoft);
 
@@ -254,6 +262,8 @@ export function GradientCard({
   onPress?: () => void;
   accessibilityLabel?: string;
 }) {
+  const { colors: C } = useTheme();
+  const us = useMemo(() => makeUsStyles(C), [C]);
   const card = (
     <LinearGradient
       colors={colors}
@@ -288,6 +298,8 @@ export function EmptyState({
   actionLabel?: string;
   onAction?: () => void;
 }) {
+  const { colors: C } = useTheme();
+  const us = useMemo(() => makeUsStyles(C), [C]);
   return (
     <View style={us.empty}>
       <View style={us.emptyCircle}>
@@ -315,6 +327,8 @@ export function StatusBadge({
   bg: string;
   icon?: keyof typeof Ionicons.glyphMap;
 }) {
+  const { colors: C } = useTheme();
+  const us = useMemo(() => makeUsStyles(C), [C]);
   return (
     <View style={[us.badge, { backgroundColor: bg }]} accessibilityLabel={`Status: ${label}`}>
       {icon ? <Ionicons name={icon} size={13} color={color} /> : null}
@@ -324,6 +338,8 @@ export function StatusBadge({
 }
 
 export function Divider({ style }: { style?: StyleProp<ViewStyle> }) {
+  const { colors: C } = useTheme();
+  const us = useMemo(() => makeUsStyles(C), [C]);
   return <View style={[us.divider, style]} />;
 }
 
@@ -338,6 +354,8 @@ export function CardSurface({
   onPress?: () => void;
   accessibilityLabel?: string;
 }) {
+  const { colors: C } = useTheme();
+  const us = useMemo(() => makeUsStyles(C), [C]);
   const content = <View style={[us.surface, style]}>{children}</View>;
   if (onPress) {
     return (
@@ -360,6 +378,8 @@ export function SearchHeader({
   onFilterPress?: () => void;
   style?: StyleProp<ViewStyle>;
 }) {
+  const { colors: C } = useTheme();
+  const us = useMemo(() => makeUsStyles(C), [C]);
   return (
     <TouchableOpacity activeOpacity={0.7}
       onPress={onPress}
@@ -395,6 +415,8 @@ export function CategoryPill({
   onPress?: () => void;
   isActive?: boolean;
 }) {
+  const { colors: C } = useTheme();
+  const us = useMemo(() => makeUsStyles(C), [C]);
   return (
     <TouchableOpacity activeOpacity={0.7}
       onPress={onPress}
@@ -422,6 +444,8 @@ export function CountdownTimer({
   label?: string;
   style?: StyleProp<ViewStyle>;
 }) {
+  const { colors: C } = useTheme();
+  const us = useMemo(() => makeUsStyles(C), [C]);
   const [timeLeft, setTimeLeft] = React.useState({ h: 0, m: 0, s: 0 });
 
   React.useEffect(() => {
@@ -484,200 +508,203 @@ export function SkeletonLoader({
   );
 }
 
-const us = StyleSheet.create({
-  secRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: spacing.lg,
-    marginTop: spacing.xl,
-    marginBottom: spacing.md,
-  },
-  secTitle: { ...typography.h3, color: C.text },
-  secSub: { ...typography.caption, color: C.textMuted, marginTop: 2 },
-  secAction: { ...typography.captionMedium, color: C.primary },
+function makeUsStyles(C: typeof Colors.light) {
+  return StyleSheet.create({
+    secRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingHorizontal: spacing.lg,
+      marginTop: spacing.xl,
+      marginBottom: spacing.md,
+    },
+    secTitle: { ...typography.h3, color: C.text },
+    secSub: { ...typography.caption, color: C.textMuted, marginTop: 2 },
+    secAction: { ...typography.captionMedium, color: C.primary },
 
-  chipRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.sm,
-    paddingHorizontal: spacing.lg,
-  },
-  chip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: radii.full,
-    backgroundColor: C.surfaceSecondary,
-  },
-  chipText: { ...typography.captionMedium, color: C.textSecondary },
+    chipRow: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: spacing.sm,
+      paddingHorizontal: spacing.lg,
+    },
+    chip: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 5,
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: radii.full,
+      backgroundColor: C.surfaceSecondary,
+    },
+    chipText: { ...typography.captionMedium, color: C.textSecondary },
 
-  statCard: {
-    flex: 1,
-    borderRadius: radii.xl,
-    padding: spacing.lg,
-    alignItems: "center",
-    gap: 6,
-  },
-  statIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: radii.lg,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 2,
-  },
-  statValue: { ...typography.h3, color: C.text },
-  statLabel: { ...typography.caption, color: C.textMuted, textAlign: "center" },
+    statCard: {
+      flex: 1,
+      borderRadius: radii.xl,
+      padding: spacing.lg,
+      alignItems: "center",
+      gap: 6,
+    },
+    statIcon: {
+      width: 36,
+      height: 36,
+      borderRadius: radii.lg,
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: 2,
+    },
+    statValue: { ...typography.h3, color: C.text },
+    statLabel: { ...typography.caption, color: C.textMuted, textAlign: "center" },
 
-  listRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-  },
-  listIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: radii.lg,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  listTitle: { ...typography.bodyMedium, color: C.text },
-  listSub: { ...typography.caption, color: C.textMuted, marginTop: 2 },
+    listRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.md,
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.lg,
+    },
+    listIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: radii.lg,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    listTitle: { ...typography.bodyMedium, color: C.text },
+    listSub: { ...typography.caption, color: C.textMuted, marginTop: 2 },
 
-  gradCard: {
-    borderRadius: radii.xxl,
-    padding: spacing.xl,
-    overflow: "hidden",
-  },
+    gradCard: {
+      borderRadius: radii.xxl,
+      padding: spacing.xl,
+      overflow: "hidden",
+    },
 
-  empty: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 60,
-    paddingHorizontal: 32,
-  },
-  emptyCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: C.surfaceSecondary,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 16,
-  },
-  emptyTitle: { ...typography.h3, color: C.text, textAlign: "center", marginBottom: 8 },
-  emptySub: { ...typography.body, color: C.textMuted, textAlign: "center", lineHeight: 21 },
-  emptyCta: {
-    marginTop: 16,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: radii.lg,
-    backgroundColor: C.primarySoft,
-  },
-  emptyCtaTxt: { ...typography.captionMedium, color: C.primary },
+    empty: {
+      alignItems: "center",
+      justifyContent: "center",
+      paddingVertical: 60,
+      paddingHorizontal: 32,
+    },
+    emptyCircle: {
+      width: 80,
+      height: 80,
+      borderRadius: 40,
+      backgroundColor: C.surfaceSecondary,
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: 16,
+    },
+    emptyTitle: { ...typography.h3, color: C.text, textAlign: "center", marginBottom: 8 },
+    emptySub: { ...typography.body, color: C.textMuted, textAlign: "center", lineHeight: 21 },
+    emptyCta: {
+      marginTop: 16,
+      paddingHorizontal: 20,
+      paddingVertical: 10,
+      borderRadius: radii.lg,
+      backgroundColor: C.primarySoft,
+    },
+    emptyCtaTxt: { ...typography.captionMedium, color: C.primary },
 
-  badge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: radii.full,
-  },
-  badgeText: { ...typography.captionMedium },
+    badge: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 5,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: radii.full,
+    },
+    badgeText: { ...typography.captionMedium },
 
-  divider: {
-    height: 1,
-    backgroundColor: C.border,
-    marginHorizontal: spacing.lg,
-    marginVertical: spacing.sm,
-  },
+    divider: {
+      height: 1,
+      backgroundColor: C.border,
+      marginHorizontal: spacing.lg,
+      marginVertical: spacing.sm,
+    },
 
-  surface: {
-    backgroundColor: C.surface,
-    borderRadius: radii.xl,
-    ...shadows.sm,
-    marginHorizontal: spacing.lg,
-    overflow: "hidden",
-  },
+    surface: {
+      backgroundColor: C.surface,
+      borderRadius: radii.xl,
+      ...shadows.sm,
+      marginHorizontal: spacing.lg,
+      overflow: "hidden",
+    },
 
-  searchBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    backgroundColor: C.surface,
-    borderRadius: radii.lg,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 11,
-    ...shadows.sm,
-  },
-  searchIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: radii.sm,
-    backgroundColor: C.primarySoft,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  searchText: { flex: 1, ...typography.body, color: C.textMuted },
-  searchFilter: {
-    width: 32,
-    height: 32,
-    borderRadius: radii.sm,
-    backgroundColor: C.surfaceSecondary,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+    searchBar: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      backgroundColor: C.surface,
+      borderRadius: radii.lg,
+      paddingHorizontal: spacing.md,
+      paddingVertical: 11,
+      ...shadows.sm,
+    },
+    searchIcon: {
+      width: 32,
+      height: 32,
+      borderRadius: radii.sm,
+      backgroundColor: C.primarySoft,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    searchText: { flex: 1, ...typography.body, color: C.textMuted },
+    searchFilter: {
+      width: 32,
+      height: 32,
+      borderRadius: radii.sm,
+      backgroundColor: C.surfaceSecondary,
+      alignItems: "center",
+      justifyContent: "center",
+    },
 
-  catPill: {
-    alignItems: "center",
-    gap: 6,
-    width: 72,
-  },
-  catPillIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  catPillLabel: {
-    ...typography.small,
-    color: C.textSecondary,
-    textAlign: "center",
-  },
+    catPill: {
+      alignItems: "center",
+      gap: 6,
+      width: 72,
+    },
+    catPillIcon: {
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    catPillLabel: {
+      ...typography.small,
+      color: C.textSecondary,
+      textAlign: "center",
+    },
 
-  countdown: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  countdownLabel: {
-    ...typography.captionMedium,
-    color: C.danger,
-    marginRight: 4,
-  },
-  countdownBox: {
-    backgroundColor: C.dangerSoft,
-    borderRadius: 6,
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-    minWidth: 28,
-    alignItems: "center",
-  },
-  countdownDigit: {
-    fontFamily: Font.bold,
-    fontSize: 13,
-    color: C.danger,
-  },
-  countdownSep: {
-    fontFamily: Font.bold,
-    fontSize: 13,
-    color: C.danger,
-  },
-});
+    countdown: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+    },
+    countdownLabel: {
+      ...typography.captionMedium,
+      color: C.danger,
+      marginRight: 4,
+    },
+    countdownBox: {
+      backgroundColor: C.dangerSoft,
+      borderRadius: 6,
+      paddingHorizontal: 6,
+      paddingVertical: 3,
+      minWidth: 28,
+      alignItems: "center",
+    },
+    countdownDigit: {
+      fontFamily: Font.bold,
+      fontSize: 13,
+      color: C.danger,
+    },
+    countdownSep: {
+      fontFamily: Font.bold,
+      fontSize: 13,
+      color: C.danger,
+    },
+  });
+}
+

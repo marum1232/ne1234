@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator, Modal, ScrollView,
   Text, TextInput, TouchableOpacity, View,
@@ -8,16 +8,19 @@ const log = createLogger("[AddressesModal]");
 import { Ionicons } from "@expo/vector-icons";
 import { useToast } from "@/context/ToastContext";
 import { usePlatformConfig } from "@/context/PlatformConfigContext";
+import { useTheme } from "@/context/ThemeContext";
 import {
-  C, spacing, typography,
+  spacing, typography,
   API, unwrapApiResponse,
-  AJK_CITIES_FALLBACK, LABEL_OPTS,
+  AJK_CITIES_FALLBACK,
   getErrorMessage, extractApiError,
   type Address,
-  modalHdr, empty, primaryBtn, chip, addrHdr, addrAdd, addrItem,
+  getSharedStyles,
 } from "./shared";
 
 export function AddressesModal({ visible, userId, token, onClose }: { visible: boolean; userId: string; token?: string; onClose: () => void }) {
+  const { colors: C } = useTheme();
+  const { modalHdr, empty, primaryBtn, chip, addrHdr, addrAdd, addrItem, LABEL_OPTS } = useMemo(() => getSharedStyles(C), [C]);
   const { showToast } = useToast();
   const { config: platformConfig } = usePlatformConfig();
   const AJK_CITIES = (platformConfig?.cities?.length ? platformConfig.cities : AJK_CITIES_FALLBACK) as string[];

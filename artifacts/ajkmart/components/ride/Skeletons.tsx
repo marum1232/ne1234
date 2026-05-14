@@ -1,37 +1,47 @@
-import React, { useEffect, useRef } from "react";
-import { Animated, useColorScheme, useWindowDimensions, View } from "react-native";
+import React, { useEffect } from "react";
+import { useColorScheme, useWindowDimensions, View } from "react-native";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withTiming,
+  cancelAnimation,
+  interpolate,
+} from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
 import Colors from "@/constants/colors";
 
-function SkeletonPulse({ style, dark }: { style?: any; dark?: boolean }) {
-  const shimmerX = useRef(new Animated.Value(0)).current;
+const StyleSheet_absoluteFillObject = {
+  position: "absolute" as const,
+  top: 0,
+  left: 0,
+  right: 0,
+  bottom: 0,
+};
+
+function SkeletonPulse({ style, dark }: { style?: object; dark?: boolean }) {
+  const progress = useSharedValue(0);
   const { width } = useWindowDimensions();
 
   useEffect(() => {
-    const anim = Animated.loop(
-      Animated.timing(shimmerX, {
-        toValue: 1,
-        duration: 1100,
-        useNativeDriver: false,
-      }),
-    );
-    anim.start();
-    return () => anim.stop();
+    progress.value = withRepeat(withTiming(1, { duration: 1100 }), -1, false);
+    return () => cancelAnimation(progress);
   }, []);
 
-  const translateX = shimmerX.interpolate({
-    inputRange: [0, 1],
-    outputRange: [-width, width],
-  });
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      {
+        translateX: interpolate(progress.value, [0, 1], [-width, width]),
+      },
+    ],
+  }));
 
   const baseBg = dark ? "#1E2A40" : "#DDE3EA";
   const shimmerColor = dark ? "rgba(255,255,255,0.09)" : "rgba(255,255,255,0.68)";
 
   return (
     <View style={[{ backgroundColor: baseBg, borderRadius: 10, overflow: "hidden" }, style]}>
-      <Animated.View
-        style={[{ ...StyleSheet_absoluteFillObject, transform: [{ translateX }] }]}
-      >
+      <Animated.View style={[StyleSheet_absoluteFillObject, animatedStyle]}>
         <LinearGradient
           colors={["transparent", shimmerColor, "transparent"]}
           start={{ x: 0, y: 0 }}
@@ -42,14 +52,6 @@ function SkeletonPulse({ style, dark }: { style?: any; dark?: boolean }) {
     </View>
   );
 }
-
-const StyleSheet_absoluteFillObject = {
-  position: "absolute" as const,
-  top: 0,
-  left: 0,
-  right: 0,
-  bottom: 0,
-};
 
 export function ServiceListSkeleton() {
   const colorScheme = useColorScheme();
@@ -129,7 +131,6 @@ export function RideStatusSkeleton() {
   const dark = colorScheme === "dark";
   return (
     <View style={{ flex: 1, backgroundColor: C.background }}>
-      {/* Dark header skeleton */}
       <View style={{ backgroundColor: dark ? "#1E293B" : "#1E293B", padding: 20, paddingTop: 60, paddingBottom: 24, gap: 14 }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 14 }}>
           <SkeletonPulse dark style={{ width: 36, height: 36, borderRadius: 12 }} />
@@ -146,7 +147,6 @@ export function RideStatusSkeleton() {
           <SkeletonPulse dark style={{ width: 50, height: 12, borderRadius: 6 }} />
         </View>
       </View>
-      {/* Cards */}
       <View style={{ padding: 20, gap: 14 }}>
         <View
           style={{
@@ -178,7 +178,6 @@ export function RideStatusSkeleton() {
             ))}
           </View>
         </View>
-        {/* Rider card skeleton — glassmorphism proportions */}
         <View
           style={{
             backgroundColor: C.surface,
@@ -198,7 +197,6 @@ export function RideStatusSkeleton() {
             </View>
             <SkeletonPulse dark={dark} style={{ width: 52, height: 64, borderRadius: 14 }} />
           </View>
-          {/* Action buttons row skeleton */}
           <View style={{ flexDirection: "row", gap: 12, justifyContent: "center" }}>
             {[0, 1].map((i) => (
               <View key={i} style={{ alignItems: "center", gap: 6 }}>

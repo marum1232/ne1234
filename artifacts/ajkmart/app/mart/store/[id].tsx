@@ -26,8 +26,7 @@ import { CartSwitchModal } from "@/components/CartSwitchModal";
 import { SkeletonBlock } from "@/components/ui/SkeletonBlock";
 import { WishlistHeart } from "@/components/WishlistHeart";
 
-const C = Colors.light;
-const CARD_W = (375 - 16 * 2 - 12) / 2;
+const CARD_W_CONST = (375 - 16 * 2 - 12) / 2;
 
 interface MartProduct {
   id: string;
@@ -61,7 +60,7 @@ interface Vendor {
   reviewCount?: number;
 }
 
-function ProductGridCard({ product }: { product: MartProduct }) {
+function ProductGridCard({ product, styles, C }: { product: MartProduct, styles: any, C: any }) {
   const { addItem, cartType, itemCount, clearCartAndAdd, items, updateQuantity, removeItem } = useCart();
   const { requireAuth, sheetProps } = useAuthGate();
   const { requireCustomerRole, roleBlockProps } = useRoleGate();
@@ -109,7 +108,7 @@ function ProductGridCard({ product }: { product: MartProduct }) {
     <TouchableOpacity
       activeOpacity={0.7}
       onPress={() => router.push({ pathname: "/product/[id]", params: { id: product.id } })}
-      style={[styles.productCard, { width: CARD_W }]}
+      style={[styles.productCard, { width: (useWindowDimensions().width - 16 * 2 - 12) / 2 }]}
     >
       <AuthGateSheet {...sheetProps} />
       <RoleBlockSheet {...roleBlockProps} />
@@ -178,6 +177,7 @@ function ProductGridCard({ product }: { product: MartProduct }) {
 
 export default function MartStorePage() {
   const { colors: C } = useTheme();
+  const styles = useMemo(() => makeStyles(C), [C]);
   const { width: W } = useWindowDimensions();
   const CARD_W = (W - 16 * 2 - 12) / 2;
   const insets = useSafeAreaInsets();
@@ -387,7 +387,7 @@ export default function MartStorePage() {
         ) : (
           <View style={styles.productGrid}>
             {filtered.map(item => (
-              <ProductGridCard key={item.id} product={item} />
+              <ProductGridCard key={item.id} product={item} styles={styles} C={C} />
             ))}
           </View>
         )}
@@ -398,7 +398,8 @@ export default function MartStorePage() {
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(C: typeof Colors.light) {
+  return StyleSheet.create({
   root: { flex: 1, backgroundColor: C.background },
   headerBar: {
     flexDirection: "row", alignItems: "center", paddingHorizontal: 16,
@@ -481,4 +482,5 @@ const styles = StyleSheet.create({
   retryBtn: {
     backgroundColor: C.primary, borderRadius: 14, paddingHorizontal: 24, paddingVertical: 12,
   },
-});
+  });
+}

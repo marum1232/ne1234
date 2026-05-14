@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
+import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
 import { useToast } from "@/context/ToastContext";
@@ -24,7 +25,6 @@ import { createPharmacyOrder } from "@workspace/api-client-react";
 import type { CreatePharmacyOrderRequest } from "@workspace/api-client-react";
 
 const log = createLogger("[PharmacyCheckout]");
-const C = Colors.light;
 
 type Step = "review" | "address" | "payment" | "done";
 
@@ -34,6 +34,8 @@ const PAYMENT_OPTIONS = [
 ];
 
 export default function PharmacyCheckoutScreen() {
+  const { colors: C } = useTheme();
+  const s = useMemo(() => makeStyles(C), [C]);
   const { vendorId, rxPhotoUri } = useLocalSearchParams<{ vendorId?: string; rxPhotoUri?: string }>();
   const insets = useSafeAreaInsets();
   const { token, user } = useAuth();
@@ -300,55 +302,57 @@ export default function PharmacyCheckoutScreen() {
   );
 }
 
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F8F9FC" },
-  topBar: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 12, backgroundColor: "#fff", borderBottomWidth: 1, borderBottomColor: C.border, gap: 12 },
-  backBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: C.surface, alignItems: "center", justifyContent: "center" },
-  topTitle: { fontSize: 17, fontWeight: "700", color: C.text },
-  stepBar: { flexDirection: "row", alignItems: "center", justifyContent: "center", paddingVertical: 12, backgroundColor: "#fff", paddingHorizontal: 24 },
-  stepDot: { width: 28, height: 28, borderRadius: 14, backgroundColor: C.border, alignItems: "center", justifyContent: "center" },
-  stepDotActive: { backgroundColor: C.purple },
-  stepDotTxt: { fontSize: 13, fontWeight: "700", color: C.textSecondary },
-  stepDotTxtActive: { color: "#fff" },
-  stepLine: { width: 48, height: 2, backgroundColor: C.border },
-  stepLineActive: { backgroundColor: C.purple },
-  sectionTitle: { fontSize: 16, fontWeight: "700", color: C.text, marginBottom: 14 },
-  cartRow: { flexDirection: "row", alignItems: "center", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: C.border },
-  cartItemName: { fontSize: 14, fontWeight: "600", color: C.text },
-  cartItemQty: { fontSize: 12, color: C.textSecondary, marginTop: 2 },
-  cartItemPrice: { fontSize: 14, fontWeight: "700", color: C.purple },
-  divider: { height: 1, backgroundColor: C.border, marginVertical: 14 },
-  totalRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 6 },
-  totalLabel: { fontSize: 14, color: C.textSecondary },
-  totalVal: { fontSize: 14, color: C.text, fontWeight: "600" },
-  grandTotalRow: { marginTop: 4 },
-  grandTotalLabel: { fontSize: 16, fontWeight: "700", color: C.text },
-  grandTotalVal: { fontSize: 16, fontWeight: "700", color: C.purple },
-  fieldLabel: { fontSize: 13, fontWeight: "600", color: C.text, marginBottom: 6, marginTop: 14 },
-  input: { backgroundColor: "#fff", borderWidth: 1, borderColor: C.border, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 14, color: C.text, textAlignVertical: "top" },
-  rxConfirm: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "#EDE9FE", padding: 10, borderRadius: 8, marginTop: 12 },
-  rxConfirmTxt: { fontSize: 13, color: C.purple, fontWeight: "600" },
-  payOption: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: "#fff", borderWidth: 1, borderColor: C.border, borderRadius: 12, padding: 14, marginBottom: 10 },
-  payOptionActive: { borderColor: C.purple, backgroundColor: "#F5F3FF" },
-  payOptionLabel: { flex: 1, fontSize: 15, fontWeight: "600", color: C.textSecondary },
-  payOptionLabelActive: { color: C.purple },
-  summaryBox: { backgroundColor: "#fff", borderRadius: 12, padding: 14, borderWidth: 1, borderColor: C.border },
-  summaryTitle: { fontSize: 14, fontWeight: "700", color: C.text, marginBottom: 10 },
-  emptyCart: { alignItems: "center", padding: 32, gap: 12 },
-  emptyCartTxt: { fontSize: 15, color: C.textSecondary },
-  emptyCartBtn: { backgroundColor: C.purple, paddingHorizontal: 24, paddingVertical: 10, borderRadius: 10 },
-  emptyCartBtnTxt: { color: "#fff", fontWeight: "700", fontSize: 14 },
-  bottomBar: { position: "absolute", bottom: 0, left: 0, right: 0, backgroundColor: "#fff", paddingHorizontal: 16, paddingTop: 12, borderTopWidth: 1, borderTopColor: C.border },
-  primaryBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: C.purple, paddingVertical: 14, borderRadius: 12 },
-  primaryBtnDisabled: { opacity: 0.5 },
-  primaryBtnTxt: { fontSize: 15, fontWeight: "700", color: "#fff" },
-  doneContainer: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32, backgroundColor: "#F8F9FC", gap: 16 },
-  doneCircle: { width: 88, height: 88, borderRadius: 44, backgroundColor: C.purple, alignItems: "center", justifyContent: "center" },
-  doneTitle: { fontSize: 26, fontWeight: "800", color: C.text },
-  doneSub: { fontSize: 15, color: C.textSecondary, textAlign: "center", lineHeight: 22 },
-  doneOrderId: { fontSize: 13, fontWeight: "700", color: C.purple, backgroundColor: "#EDE9FE", paddingHorizontal: 14, paddingVertical: 6, borderRadius: 8 },
-  doneBtn: { backgroundColor: C.purple, paddingHorizontal: 32, paddingVertical: 14, borderRadius: 12, width: "100%", alignItems: "center" },
-  doneBtnTxt: { color: "#fff", fontSize: 15, fontWeight: "700" },
-  doneBtnSecondary: { borderWidth: 1, borderColor: C.border, paddingHorizontal: 32, paddingVertical: 14, borderRadius: 12, width: "100%", alignItems: "center" },
-  doneBtnSecondaryTxt: { color: C.text, fontSize: 15, fontWeight: "600" },
-});
+function makeStyles(C: typeof Colors.light) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: C.background },
+    topBar: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 12, backgroundColor: C.surface, borderBottomWidth: 1, borderBottomColor: C.border, gap: 12 },
+    backBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: C.surfaceSecondary, alignItems: "center", justifyContent: "center" },
+    topTitle: { fontSize: 17, fontWeight: "700", color: C.text },
+    stepBar: { flexDirection: "row", alignItems: "center", justifyContent: "center", paddingVertical: 12, backgroundColor: C.surface, paddingHorizontal: 24 },
+    stepDot: { width: 28, height: 28, borderRadius: 14, backgroundColor: C.border, alignItems: "center", justifyContent: "center" },
+    stepDotActive: { backgroundColor: C.purple },
+    stepDotTxt: { fontSize: 13, fontWeight: "700", color: C.textSecondary },
+    stepDotTxtActive: { color: "#fff" },
+    stepLine: { width: 48, height: 2, backgroundColor: C.border },
+    stepLineActive: { backgroundColor: C.purple },
+    sectionTitle: { fontSize: 16, fontWeight: "700", color: C.text, marginBottom: 14 },
+    cartRow: { flexDirection: "row", alignItems: "center", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: C.border },
+    cartItemName: { fontSize: 14, fontWeight: "600", color: C.text },
+    cartItemQty: { fontSize: 12, color: C.textSecondary, marginTop: 2 },
+    cartItemPrice: { fontSize: 14, fontWeight: "700", color: C.purple },
+    divider: { height: 1, backgroundColor: C.border, marginVertical: 14 },
+    totalRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 6 },
+    totalLabel: { fontSize: 14, color: C.textSecondary },
+    totalVal: { fontSize: 14, color: C.text, fontWeight: "600" },
+    grandTotalRow: { marginTop: 4 },
+    grandTotalLabel: { fontSize: 16, fontWeight: "700", color: C.text },
+    grandTotalVal: { fontSize: 16, fontWeight: "700", color: C.purple },
+    fieldLabel: { fontSize: 13, fontWeight: "600", color: C.text, marginBottom: 6, marginTop: 14 },
+    input: { backgroundColor: C.surface, borderWidth: 1, borderColor: C.border, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 14, color: C.text, textAlignVertical: "top" },
+    rxConfirm: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "#EDE9FE", padding: 10, borderRadius: 8, marginTop: 12 },
+    rxConfirmTxt: { fontSize: 13, color: C.purple, fontWeight: "600" },
+    payOption: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: C.surface, borderWidth: 1, borderColor: C.border, borderRadius: 12, padding: 14, marginBottom: 10 },
+    payOptionActive: { borderColor: C.purple, backgroundColor: "#F5F3FF" },
+    payOptionLabel: { flex: 1, fontSize: 15, fontWeight: "600", color: C.textSecondary },
+    payOptionLabelActive: { color: C.purple },
+    summaryBox: { backgroundColor: C.surface, borderRadius: 12, padding: 14, borderWidth: 1, borderColor: C.border },
+    summaryTitle: { fontSize: 14, fontWeight: "700", color: C.text, marginBottom: 10 },
+    emptyCart: { alignItems: "center", padding: 32, gap: 12 },
+    emptyCartTxt: { fontSize: 15, color: C.textSecondary },
+    emptyCartBtn: { backgroundColor: C.purple, paddingHorizontal: 24, paddingVertical: 10, borderRadius: 10 },
+    emptyCartBtnTxt: { color: "#fff", fontWeight: "700", fontSize: 14 },
+    bottomBar: { position: "absolute", bottom: 0, left: 0, right: 0, backgroundColor: C.surface, paddingHorizontal: 16, paddingTop: 12, borderTopWidth: 1, borderTopColor: C.border },
+    primaryBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: C.purple, paddingVertical: 14, borderRadius: 12 },
+    primaryBtnDisabled: { opacity: 0.5 },
+    primaryBtnTxt: { fontSize: 15, fontWeight: "700", color: "#fff" },
+    doneContainer: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32, backgroundColor: C.background, gap: 16 },
+    doneCircle: { width: 88, height: 88, borderRadius: 44, backgroundColor: C.purple, alignItems: "center", justifyContent: "center" },
+    doneTitle: { fontSize: 26, fontWeight: "800", color: C.text },
+    doneSub: { fontSize: 15, color: C.textSecondary, textAlign: "center", lineHeight: 22 },
+    doneOrderId: { fontSize: 13, fontWeight: "700", color: C.purple, backgroundColor: "#EDE9FE", paddingHorizontal: 14, paddingVertical: 6, borderRadius: 8 },
+    doneBtn: { backgroundColor: C.purple, paddingHorizontal: 32, paddingVertical: 14, borderRadius: 12, width: "100%", alignItems: "center" },
+    doneBtnTxt: { color: "#fff", fontSize: 15, fontWeight: "700" },
+    doneBtnSecondary: { borderWidth: 1, borderColor: C.border, paddingHorizontal: 32, paddingVertical: 14, borderRadius: 12, width: "100%", alignItems: "center" },
+    doneBtnSecondaryTxt: { color: C.text, fontSize: 15, fontWeight: "600" },
+  });
+}

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   ActivityIndicator, Modal, Text, TextInput,
   TouchableOpacity, View,
@@ -6,13 +6,16 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
+import { useTheme } from "@/context/ThemeContext";
 import { T as Typ } from "@/constants/typography";
 import {
-  C, spacing, radii, typography, Font,
-  API, getErrorMessage, privRow,
+  spacing, radii, typography, Font,
+  API, getErrorMessage, getSharedStyles,
 } from "./shared";
 
 export function DeleteAccountRow({ token }: { token?: string }) {
+  const { colors: C } = useTheme();
+  const { privRow, sheet } = useMemo(() => getSharedStyles(C), [C]);
   const { showToast } = useToast();
   const { logout } = useAuth();
   const [confirmVisible, setConfirmVisible] = useState(false);

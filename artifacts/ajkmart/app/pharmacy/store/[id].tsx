@@ -16,6 +16,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 import Colors from "@/constants/colors";
+import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
 import { useToast } from "@/context/ToastContext";
@@ -24,7 +25,6 @@ import { createLogger } from "@/utils/logger";
 import { SkeletonBlock } from "@/components/ui/SkeletonBlock";
 
 const log = createLogger("[PharmacyStore]");
-const C = Colors.light;
 
 interface PharmacyProduct {
   id: string;
@@ -51,11 +51,13 @@ interface PharmacyVendor {
 
 type Tab = "otc" | "rx";
 
-function ProductCard({ product, qty, onAdd, onRemove }: {
+function ProductCard({ product, qty, onAdd, onRemove, s, C }: {
   product: PharmacyProduct;
   qty: number;
   onAdd: () => void;
   onRemove: () => void;
+  s: any;
+  C: any;
 }) {
   return (
     <View style={s.productCard}>
@@ -104,6 +106,8 @@ function ProductCard({ product, qty, onAdd, onRemove }: {
 }
 
 export default function PharmacyStoreScreen() {
+  const { colors: C } = useTheme();
+  const s = useMemo(() => makeStyles(C), [C]);
   const { id: vendorId } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
   const { token } = useAuth();
@@ -280,6 +284,8 @@ export default function PharmacyStoreScreen() {
                 addItem({ productId: item.id, name: item.name, price: item.price, image: item.image ?? "", type: "pharmacy", quantity: 1 });
               }}
               onRemove={() => removeItem(item.id)}
+              s={s}
+              C={C}
             />
           )}
           contentContainerStyle={{ padding: 12, paddingBottom: insets.bottom + 100 }}
@@ -300,8 +306,9 @@ export default function PharmacyStoreScreen() {
   );
 }
 
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F8F9FC" },
+function makeStyles(C: typeof Colors.light) {
+  return StyleSheet.create({
+  container: { flex: 1, backgroundColor: C.background },
   header: { paddingHorizontal: 16, paddingBottom: 0 },
   headerRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 12 },
   backBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: "rgba(255,255,255,0.2)", alignItems: "center", justifyContent: "center" },
@@ -324,7 +331,7 @@ const s = StyleSheet.create({
   rxBannerTxt: { flex: 1, fontSize: 12, color: C.purple, fontWeight: "500" },
   rxUploadBtn: { backgroundColor: C.purple, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
   rxUploadTxt: { fontSize: 12, fontWeight: "700", color: "#fff" },
-  productCard: { flexDirection: "row", backgroundColor: "#fff", borderRadius: 12, padding: 12, marginBottom: 10, shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 4, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
+  productCard: { flexDirection: "row", backgroundColor: C.surface, borderRadius: 12, padding: 12, marginBottom: 10, shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 4, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
   productImg: { width: 68, height: 68, borderRadius: 10 },
   productImgPlaceholder: { backgroundColor: "#F3E8FF", alignItems: "center", justifyContent: "center" },
   productName: { fontSize: 14, fontWeight: "600", color: C.text, flex: 1 },
@@ -341,8 +348,9 @@ const s = StyleSheet.create({
   addBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: C.purple, alignItems: "center", justifyContent: "center" },
   empty: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, padding: 32 },
   emptyTxt: { fontSize: 14, color: C.textSecondary, textAlign: "center" },
-  checkoutBar: { position: "absolute", bottom: 0, left: 0, right: 0, backgroundColor: "#fff", paddingHorizontal: 16, paddingTop: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderTopWidth: 1, borderTopColor: C.border, shadowColor: "#000", shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: -2 }, elevation: 8 },
+  checkoutBar: { position: "absolute", bottom: 0, left: 0, right: 0, backgroundColor: C.surface, paddingHorizontal: 16, paddingTop: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderTopWidth: 1, borderTopColor: C.border, shadowColor: "#000", shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: -2 }, elevation: 8 },
   checkoutBarTxt: { fontSize: 14, fontWeight: "600", color: C.text },
   checkoutBarBtn: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: C.purple, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 10 },
   checkoutBarBtnTxt: { fontSize: 14, fontWeight: "700", color: "#fff" },
-});
+  });
+}

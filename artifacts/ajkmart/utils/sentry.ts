@@ -1,9 +1,7 @@
 /**
  * Sentry error monitoring — Web-only for Expo.
+ * Uses @sentry/browser loaded via conditional dynamic import on web.
  * For native mobile, use @sentry/react-native with the expo plugin.
- *
- * SDK version is read from EXPO_PUBLIC_SENTRY_SDK_VERSION (default "8.55.0").
- * To pin a specific version set the env var in your build environment.
  */
 import { Platform } from "react-native";
 import { createLogger } from "@/utils/logger";
@@ -11,15 +9,13 @@ const log = createLogger("[Sentry]");
 
 let _initialized = false;
 
-declare global {
-  interface Window {
-    Sentry?: {
-      init: (opts: Record<string, unknown>) => void;
-      captureException: (err: unknown) => void;
-      setUser: (user: { id?: string; email?: string } | null) => void;
-    };
-  }
-}
+type SentryBrowserModule = {
+  init: (opts: Record<string, unknown>) => void;
+  captureException: (err: unknown) => void;
+  setUser: (user: { id?: string; email?: string } | null) => void;
+};
+
+let _sentry: SentryBrowserModule | null = null;
 
 export async function initSentry(
   dsn: string,
@@ -29,45 +25,33 @@ export async function initSentry(
   if (!dsn || _initialized || Platform.OS !== "web") return;
   _initialized = true;
 
-  const sdkVersion =
-    (process.env.EXPO_PUBLIC_SENTRY_SDK_VERSION ?? "").trim() || "8.55.0";
-
-  return new Promise((resolve) => {
-    const script = document.createElement("script");
-    script.src = `https://browser.sentry-cdn.com/${sdkVersion}/bundle.min.js`;
-    script.crossOrigin = "anonymous";
-    script.onload = () => {
-      try {
-        window.Sentry?.init({
-          dsn,
-          environment: environment || "production",
-          sampleRate: sampleRate ?? 1.0,
-          tracesSampleRate: 0.1,
-        });
-      } catch (e) {
-        log.warn("init error:", e);
-      }
-      resolve();
-    };
-    script.onerror = () => {
-      _initialized = false;
-      resolve();
-    };
-    document.head.appendChild(script);
-  });
+  try {
+    const Sentry = await import("@sentry/browser");
+    _sentry = Sentry as unknown as SentryBrowserModule;
+    _sentry.init({
+      dsn,
+      environment: environment || "production",
+      sampleRate: sampleRate ?? 1.0,
+      tracesSampleRate: 0.1,
+    });
+  } catch (e) {
+    log.warn("Sentry init error:", e);
+    _initialized = false;
+    _sentry = null;
+  }
 }
 
 export function captureError(err: unknown): void {
-  if (!_initialized || Platform.OS !== "web") return;
-  window.Sentry?.captureException(err);
+  if (!_initialized || Platform.OS !== "web" || !_sentry) return;
+  _sentry.captureException(err);
 }
 
 export function setSentryUser(id: string, email?: string): void {
-  if (!_initialized || Platform.OS !== "web") return;
-  window.Sentry?.setUser({ id, email });
+  if (!_initialized || Platform.OS !== "web" || !_sentry) return;
+  _sentry.setUser({ id, email });
 }
 
 export function clearSentryUser(): void {
-  if (!_initialized || Platform.OS !== "web") return;
-  window.Sentry?.setUser(null);
+  if (!_initialized || Platform.OS !== "web" || !_sentry) return;
+  _sentry.setUser(null);
 }

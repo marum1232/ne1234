@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import {
   ActivityIndicator,
   AppState,
@@ -23,6 +23,8 @@ import { useToast } from "@/context/ToastContext";
 import { usePlatformConfig } from "@/context/PlatformConfigContext";
 import { API_BASE, SOCKET_BASE, unwrapApiResponse } from "@/utils/api";
 import { useSmartBack } from "@/hooks/useSmartBack";
+
+import { useTheme } from "@/context/ThemeContext";
 
 const DAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
 
@@ -54,7 +56,6 @@ function isWithinSupportHours(
   return { withinHours, label };
 }
 
-const C = Colors.light;
 const SOCKET_URL = SOCKET_BASE;
 
 const draftKey = (userId: string) => `support_chat_draft:${userId}`;
@@ -69,6 +70,8 @@ interface ChatMessage {
 }
 
 export default function SupportChatScreen() {
+  const { colors: C } = useTheme();
+  const styles = useMemo(() => makeStyles(C), [C]);
   const insets = useSafeAreaInsets();
   const { token, user } = useAuth();
   const { showToast } = useToast();
@@ -455,9 +458,9 @@ export default function SupportChatScreen() {
         </View>
       ) : messages.length === 0 ? (
         <View style={styles.center}>
-          <View style={styles.emptyIconWrap}>
+          <div style={styles.emptyIconWrap}>
             <Ionicons name="chatbubbles-outline" size={40} color={C.primary} />
-          </View>
+          </div>
           <Text style={styles.emptyTitle}>How can we help?</Text>
           <Text style={styles.emptySub}>
             Send a message and our support team will get back to you as soon as
@@ -516,7 +519,8 @@ export default function SupportChatScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(C: typeof Colors.light) {
+  return StyleSheet.create({
   container: { flex: 1, backgroundColor: C.background },
   header: {
     flexDirection: "row",
@@ -673,4 +677,5 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     ...shadows.sm,
   },
-});
+  });
+}

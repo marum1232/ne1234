@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { createLogger } from "@/utils/logger";
 const log = createLogger("[Chat]");
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -21,10 +21,10 @@ import Colors, { spacing, radii, shadows } from "@/constants/colors";
 import { Font } from "@/constants/typography";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
+import { useTheme } from "@/context/ThemeContext";
 import { API_BASE, SOCKET_BASE } from "@/utils/api";
 import { useSmartBack } from "@/hooks/useSmartBack";
 
-const C = Colors.light;
 const SOCKET_URL = SOCKET_BASE;
 
 interface Message {
@@ -51,6 +51,8 @@ interface CallSignal {
 }
 
 export default function ChatDetailScreen() {
+  const { colors: C } = useTheme();
+  const st = useMemo(() => makeStyles(C), [C]);
   const { id, name, ajkId: otherAjkId, otherId } = useLocalSearchParams<{ id: string; name: string; ajkId: string; otherId: string }>();
   const insets = useSafeAreaInsets();
   const { token, user, refreshToken } = useAuth();
@@ -459,35 +461,37 @@ export default function ChatDetailScreen() {
   );
 }
 
-const st = StyleSheet.create({
-  container: { flex: 1, backgroundColor: C.background },
-  header: { flexDirection: "row", alignItems: "center", paddingHorizontal: spacing.md, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: C.border, gap: 10 },
-  backBtn: { padding: 4 },
-  headerInfo: { flex: 1 },
-  headerName: { fontSize: 17, fontFamily: Font.semiBold, color: C.text },
-  headerMeta: { fontSize: 12, fontFamily: Font.regular, color: C.textSecondary },
-  callBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: C.success, justifyContent: "center", alignItems: "center" },
-  callBar: { flexDirection: "row", alignItems: "center", backgroundColor: C.success, paddingHorizontal: spacing.lg, paddingVertical: 10, gap: 8 },
-  callText: { flex: 1, fontSize: 14, fontFamily: Font.bold, color: "#fff" },
-  muteBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: "rgba(0,0,0,0.2)", justifyContent: "center", alignItems: "center" },
-  endCallBtn: { backgroundColor: C.error, paddingHorizontal: 16, paddingVertical: 6, borderRadius: radii.lg },
-  endCallText: { fontSize: 13, fontFamily: Font.bold, color: "#fff" },
-  center: { flex: 1, justifyContent: "center", alignItems: "center" },
-  msgWrap: { marginBottom: 6 },
-  msgMine: { alignItems: "flex-end" },
-  msgTheirs: { alignItems: "flex-start" },
-  msgBubble: { maxWidth: "78%", paddingHorizontal: 14, paddingVertical: 10, borderRadius: 18 },
-  bubbleMine: { backgroundColor: C.primary, borderBottomRightRadius: 4 },
-  bubbleTheirs: { backgroundColor: C.surface, borderBottomLeftRadius: 4, borderWidth: 1, borderColor: C.border },
-  msgText: { fontSize: 15, fontFamily: Font.regular, color: C.text, lineHeight: 21 },
-  msgTextMine: { color: "#fff" },
-  msgMeta: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 4 },
-  msgTime: { fontSize: 10, fontFamily: Font.regular, color: C.textTertiary },
-  msgTimeMine: { color: "rgba(255,255,255,0.7)" },
-  emptyChat: { flex: 1, justifyContent: "center", alignItems: "center", paddingTop: 80 },
-  emptyChatText: { fontSize: 15, fontFamily: Font.regular, color: C.textSecondary, marginTop: 12 },
-  inputBar: { flexDirection: "row", alignItems: "flex-end", paddingHorizontal: spacing.md, paddingTop: 8, borderTopWidth: 1, borderTopColor: C.border, backgroundColor: C.surface, gap: 8 },
-  input: { flex: 1, fontSize: 15, fontFamily: Font.regular, color: C.text, backgroundColor: C.background, borderRadius: radii.xl, paddingHorizontal: 16, paddingVertical: 10, maxHeight: 100, borderWidth: 1, borderColor: C.border },
-  sendBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: C.primary, justifyContent: "center", alignItems: "center" },
-  sendBtnDisabled: { opacity: 0.5 },
-});
+function makeStyles(C: typeof Colors.light) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: C.background },
+    header: { flexDirection: "row", alignItems: "center", paddingHorizontal: spacing.md, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: C.border, gap: 10 },
+    backBtn: { padding: 4 },
+    headerInfo: { flex: 1 },
+    headerName: { fontSize: 17, fontFamily: Font.semiBold, color: C.text },
+    headerMeta: { fontSize: 12, fontFamily: Font.regular, color: C.textSecondary },
+    callBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: C.success, justifyContent: "center", alignItems: "center" },
+    callBar: { flexDirection: "row", alignItems: "center", backgroundColor: C.success, paddingHorizontal: spacing.lg, paddingVertical: 10, gap: 8 },
+    callText: { flex: 1, fontSize: 14, fontFamily: Font.bold, color: "#fff" },
+    muteBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: "rgba(0,0,0,0.2)", justifyContent: "center", alignItems: "center" },
+    endCallBtn: { backgroundColor: C.error, paddingHorizontal: 16, paddingVertical: 6, borderRadius: radii.lg },
+    endCallText: { fontSize: 13, fontFamily: Font.bold, color: "#fff" },
+    center: { flex: 1, justifyContent: "center", alignItems: "center" },
+    msgWrap: { marginBottom: 6 },
+    msgMine: { alignItems: "flex-end" },
+    msgTheirs: { alignItems: "flex-start" },
+    msgBubble: { maxWidth: "78%", paddingHorizontal: 14, paddingVertical: 10, borderRadius: 18 },
+    bubbleMine: { backgroundColor: C.primary, borderBottomRightRadius: 4 },
+    bubbleTheirs: { backgroundColor: C.surface, borderBottomLeftRadius: 4, borderWidth: 1, borderColor: C.border },
+    msgText: { fontSize: 15, fontFamily: Font.regular, color: C.text, lineHeight: 21 },
+    msgTextMine: { color: "#fff" },
+    msgMeta: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 4 },
+    msgTime: { fontSize: 10, fontFamily: Font.regular, color: C.textTertiary },
+    msgTimeMine: { color: "rgba(255,255,255,0.7)" },
+    emptyChat: { flex: 1, justifyContent: "center", alignItems: "center", paddingTop: 80 },
+    emptyChatText: { fontSize: 15, fontFamily: Font.regular, color: C.textSecondary, marginTop: 12 },
+    inputBar: { flexDirection: "row", alignItems: "flex-end", paddingHorizontal: spacing.md, paddingTop: 8, borderTopWidth: 1, borderTopColor: C.border, backgroundColor: C.surface, gap: 8 },
+    input: { flex: 1, fontSize: 15, fontFamily: Font.regular, color: C.text, backgroundColor: C.background, borderRadius: radii.xl, paddingHorizontal: 16, paddingVertical: 10, maxHeight: 100, borderWidth: 1, borderColor: C.border },
+    sendBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: C.primary, justifyContent: "center", alignItems: "center" },
+    sendBtnDisabled: { opacity: 0.5 },
+  });
+}

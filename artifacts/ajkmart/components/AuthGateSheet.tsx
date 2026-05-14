@@ -1,17 +1,16 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router, type Href } from "expo-router";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import Colors, { radii, spacing } from "@/constants/colors";
 import { Font } from "@/constants/typography";
 import { BottomSheet } from "@/components/ui/BottomSheet";
 import { useAuth, hasRole } from "@/context/AuthContext";
+import { useTheme } from "@/context/ThemeContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLanguage } from "@/context/LanguageContext";
 import { tDual, type TranslationKey } from "@workspace/i18n";
-
-const C = Colors.light;
 
 interface AuthGateSheetProps {
   visible: boolean;
@@ -20,7 +19,23 @@ interface AuthGateSheetProps {
   message?: string;
 }
 
+function makeSStyles(C: typeof Colors.light) {
+  return StyleSheet.create({
+    content: { alignItems: "center", paddingTop: 8 },
+    iconWrap: { marginBottom: 16 },
+    iconCircle: { width: 64, height: 64, borderRadius: 32, alignItems: "center", justifyContent: "center" },
+    title: { fontFamily: Font.bold, fontSize: 20, color: C.text, textAlign: "center", marginBottom: 8 },
+    message: { fontFamily: Font.regular, fontSize: 14, color: C.textSecondary, textAlign: "center", lineHeight: 22, marginBottom: 24, paddingHorizontal: 8 },
+    signInBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: C.primary, borderRadius: 14, paddingVertical: 14, paddingHorizontal: 32, width: "100%", marginBottom: 12 },
+    signInTxt: { fontFamily: Font.bold, fontSize: 15, color: "#fff" },
+    browseBtn: { paddingVertical: 12, paddingHorizontal: 32 },
+    browseTxt: { fontFamily: Font.semiBold, fontSize: 14, color: C.textMuted },
+  });
+}
+
 export function AuthGateSheet({ visible, onClose, returnTo, message }: AuthGateSheetProps) {
+  const { colors: C } = useTheme();
+  const s = useMemo(() => makeSStyles(C), [C]);
   const { language } = useLanguage();
   const T = (key: TranslationKey) => tDual(key, language);
   const handleSignIn = async () => {
@@ -39,17 +54,12 @@ export function AuthGateSheet({ visible, onClose, returnTo, message }: AuthGateS
             <Ionicons name="lock-closed-outline" size={28} color="#fff" />
           </LinearGradient>
         </View>
-
         <Text style={s.title}>{T("signInToContinue")}</Text>
-        <Text style={s.message}>
-          {message || T("signInDefaultMsg")}
-        </Text>
-
+        <Text style={s.message}>{message || T("signInDefaultMsg")}</Text>
         <Pressable onPress={handleSignIn} style={s.signInBtn} accessibilityRole="button">
           <Ionicons name="person-circle-outline" size={18} color="#fff" />
           <Text style={s.signInTxt}>{T("signInRegister")}</Text>
         </Pressable>
-
         <Pressable onPress={async () => {
           await AsyncStorage.removeItem("@ajkmart_auth_return_to").catch((e: unknown) => console.warn("[AuthGateSheet] Failed to clear return_to:", e));
           onClose();
@@ -62,6 +72,8 @@ export function AuthGateSheet({ visible, onClose, returnTo, message }: AuthGateS
 }
 
 export function RoleBlockSheet({ visible, onClose, userRole }: { visible: boolean; onClose: () => void; userRole?: string }) {
+  const { colors: C } = useTheme();
+  const s = useMemo(() => makeSStyles(C), [C]);
   const { language } = useLanguage();
   const T = (key: TranslationKey) => tDual(key, language);
   return (
@@ -72,17 +84,14 @@ export function RoleBlockSheet({ visible, onClose, userRole }: { visible: boolea
             <Ionicons name="alert-circle-outline" size={28} color={C.amber} />
           </View>
         </View>
-
         <Text style={s.title}>{T("customerAccountRequired")}</Text>
         <Text style={s.message}>
           {`You're logged in as a ${userRole || "non-customer"} account. Cart, checkout, and ordering features are only available for customer accounts. Please switch to a customer account to continue.`}
         </Text>
-
         <Pressable onPress={() => { onClose(); router.back(); }} style={s.signInBtn} accessibilityRole="button">
           <Ionicons name="arrow-back" size={18} color="#fff" />
           <Text style={s.signInTxt}>{T("goBack")}</Text>
         </Pressable>
-
         <Pressable onPress={onClose} style={s.browseBtn} accessibilityRole="button">
           <Text style={s.browseTxt}>{T("dismiss")}</Text>
         </Pressable>
@@ -160,62 +169,3 @@ export function useRoleGate() {
     },
   };
 }
-
-const s = StyleSheet.create({
-  content: {
-    alignItems: "center",
-    paddingTop: 8,
-  },
-  iconWrap: {
-    marginBottom: 16,
-  },
-  iconCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  title: {
-    fontFamily: Font.bold,
-    fontSize: 20,
-    color: C.text,
-    textAlign: "center",
-    marginBottom: 8,
-  },
-  message: {
-    fontFamily: Font.regular,
-    fontSize: 14,
-    color: C.textSecondary,
-    textAlign: "center",
-    lineHeight: 22,
-    marginBottom: 24,
-    paddingHorizontal: 8,
-  },
-  signInBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    backgroundColor: C.primary,
-    borderRadius: 14,
-    paddingVertical: 14,
-    paddingHorizontal: 32,
-    width: "100%",
-    marginBottom: 12,
-  },
-  signInTxt: {
-    fontFamily: Font.bold,
-    fontSize: 15,
-    color: "#fff",
-  },
-  browseBtn: {
-    paddingVertical: 12,
-    paddingHorizontal: 32,
-  },
-  browseTxt: {
-    fontFamily: Font.semiBold,
-    fontSize: 14,
-    color: C.textMuted,
-  },
-});

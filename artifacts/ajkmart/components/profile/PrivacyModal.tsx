@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator, Alert, Image, Linking, Modal,
   ScrollView, Switch, Text, TextInput, TouchableOpacity, View,
@@ -12,18 +12,21 @@ import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
 import { usePlatformConfig, isMethodEnabled } from "@/context/PlatformConfigContext";
 import { useLanguage } from "@/context/LanguageContext";
+import { useTheme } from "@/context/ThemeContext";
 import { LANGUAGE_OPTIONS, type Language } from "@workspace/i18n";
 import { T as Typ } from "@/constants/typography";
 import Accordion from "@/components/Accordion";
 import {
-  C, spacing, radii, typography, Font,
+  spacing, radii, typography, Font,
   API, unwrapApiResponse,
   getErrorMessage,
-  modalHdr, primaryBtn, privRow, secCard, otpStyle, errStyle, btnStyles,
+  getSharedStyles,
 } from "./shared";
 import { DeleteAccountRow } from "./DeleteAccountRow";
 
 export function PrivacyModal({ visible, userId, token, onClose }: { visible: boolean; userId: string; token?: string; onClose: () => void }) {
+  const { colors: C } = useTheme();
+  const { modalHdr, primaryBtn, privRow, secCard, otpStyle, errStyle, btnStyles } = useMemo(() => getSharedStyles(C), [C]);
   const { showToast } = useToast();
   const { biometricEnabled, setBiometricEnabled, user, updateUser, logout } = useAuth();
   const { config } = usePlatformConfig();

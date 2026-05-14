@@ -3,11 +3,11 @@ import { useAuth } from "@/context/AuthContext";
 import { ActivityIndicator, View } from "react-native";
 import Colors from "@/constants/colors";
 import { hasSeenOnboarding } from "./onboarding";
-import React, { useEffect, useState } from "react";
-
-const C = Colors.light;
+import React, { useEffect, useState, useMemo } from "react";
+import { useTheme } from "@/context/ThemeContext";
 
 export default function RootIndex() {
+  const { colors: C } = useTheme();
   const { isLoading } = useAuth();
   const [onboardingChecked, setOnboardingChecked] = useState(false);
   const [hasOnboarded, setHasOnboarded] = useState(false);

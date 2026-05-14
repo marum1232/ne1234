@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { withErrorBoundary } from "@/utils/withErrorBoundary";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router, type RelativePathString } from "expo-router";
-import React, { useState, useCallback, useRef, useEffect } from "react";
+import React, { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { createLogger } from "@/utils/logger";
 const log = createLogger("[Orders]");
 import type { Socket } from "socket.io-client";
@@ -39,7 +39,7 @@ import { useCollapsibleHeader } from "@/hooks/useCollapsibleHeader";
 import { CancelModal } from "@/components/CancelModal";
 import type { CancelTarget } from "@/components/CancelModal";
 import { API_BASE, unwrapApiResponse } from "@/utils/api";
-import { AuthGateSheet } from "@/components/AuthGateSheet";
+import { useTheme } from "@/context/ThemeContext";
 import {
   SkeletonBlock,
   SkeletonRows,
@@ -52,8 +52,6 @@ import {
   PARCEL_STATUS_MAP,
   RIDE_STEPS,
 } from "@/lib/orderUtils";
-
-const C = Colors.light;
 
 interface OrderItemShape {
   productId?: string;
@@ -139,6 +137,8 @@ function OrderCard({ order, liveTracking, reviews, cancelWindowMin, refundDays, 
   onReorder?: (o: OrderShape) => void;
   onCardPress?: () => void;
 }) {
+  const { colors: C } = useTheme();
+  const styles = useMemo(() => makeStyles(C), [C]);
   const { language } = useLanguage();
   const T = (key: TranslationKey) => tDual(key, language);
   const { config } = usePlatformConfig();
@@ -323,6 +323,8 @@ function RideCard({ ride, liveTracking, reviews, ratingWindowHours, serverNow, o
   onCancel: (o: RideShape) => void;
   onCardPress?: () => void;
 }) {
+  const { colors: C } = useTheme();
+  const styles = useMemo(() => makeStyles(C), [C]);
   const { language } = useLanguage();
   const T = (key: TranslationKey) => tDual(key, language);
   const { config: rideConfig } = usePlatformConfig();
@@ -557,6 +559,8 @@ function PharmacyCard({ order, reviews, cancelWindowMin, serverNow, onRate, onCa
   onCancel: (o: OrderShape) => void;
   onCardPress?: () => void;
 }) {
+  const { colors: C } = useTheme();
+  const styles = useMemo(() => makeStyles(C), [C]);
   const { language } = useLanguage();
   const T = (key: TranslationKey) => tDual(key, language);
   const [itemsExpanded, setItemsExpanded] = useState(false);
@@ -680,6 +684,8 @@ interface ParcelShape {
 }
 
 function ParcelCard({ booking, onCardPress }: { booking: ParcelShape; onCardPress?: () => void }) {
+  const { colors: C } = useTheme();
+  const styles = useMemo(() => makeStyles(C), [C]);
   const { language } = useLanguage();
   const T = (key: TranslationKey) => tDual(key, language);
   const [hovered, setHovered] = useState(false);
@@ -788,6 +794,7 @@ function ParcelCard({ booking, onCardPress }: { booking: ParcelShape; onCardPres
 }
 
 function StarPicker({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  const { colors: C } = useTheme();
   return (
     <View style={{ flexDirection: "row", justifyContent: "center", gap: 12, marginVertical: 8 }} accessibilityRole="adjustable" accessibilityLabel={`Rating: ${value} of 5 stars`}>
       {[1, 2, 3, 4, 5].map(s => (
@@ -816,6 +823,8 @@ function ReviewModal({ target, userId, apiBase, token, language, onClose, onDone
   onClose: () => void;
   onDone: (orderId: string) => void;
 }) {
+  const { colors: C } = useTheme();
+  const rm = useMemo(() => makeRm(C), [C]);
   const t = (k: TranslationKey) => tDual(k, language);
   const orderType: string = String(target._type ?? target.type ?? "order");
   const isRideOrder = orderType === "ride";
@@ -971,32 +980,8 @@ function ReviewModal({ target, userId, apiBase, token, language, onClose, onDone
   );
 }
 
-const rm = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: C.overlayDark50, justifyContent: "flex-end" },
-  sheet:    { backgroundColor: C.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24, paddingBottom: 40, maxHeight: "90%" },
-  handle:   { width: 40, height: 4, backgroundColor: C.border, borderRadius: 2, alignSelf: "center", marginBottom: 20 },
-  headerIconWrap: { alignItems: "center", marginBottom: 14 },
-  headerIcon: { width: 52, height: 52, borderRadius: 18, alignItems: "center", justifyContent: "center" },
-  title:    { ...Typ.h2, color: C.text, textAlign: "center", marginBottom: 4 },
-  sub:      { ...Typ.body, fontSize: 13, color: C.textSecondary, textAlign: "center", marginBottom: 16 },
-  sectionLabel: { ...Typ.buttonSmall, color: C.textSecondary, textAlign: "center", marginTop: 4, marginBottom: 2 },
-  divider:  { height: 1, backgroundColor: C.border, marginVertical: 12 },
-  ratingLabel: { ...Typ.bodySemiBold, color: C.amberBrown, textAlign: "center", marginBottom: 4, marginTop: 2 },
-  input: {
-    borderWidth: 1.5, borderColor: C.border, borderRadius: 16,
-    padding: 14, ...Typ.body, color: C.text,
-    minHeight: 72, textAlignVertical: "top", marginTop: 8, marginBottom: 8, backgroundColor: C.surfaceSecondary,
-  },
-  error:    { ...Typ.body, fontSize: 13, color: C.red, textAlign: "center", marginBottom: 8 },
-  btns:     { flexDirection: "row", gap: 12, marginTop: 8 },
-  cancelBtn: { flex: 1, borderWidth: 1.5, borderColor: C.border, borderRadius: 16, paddingVertical: 15, alignItems: "center" },
-  cancelText:{ ...Typ.bodySemiBold, color: C.textSecondary },
-  submitBtn: { flex: 2, backgroundColor: C.primary, borderRadius: 16, paddingVertical: 15, alignItems: "center", justifyContent: "center", ...Platform.select({ web: { boxShadow: "0 2px 4px rgba(0,102,255,0.3)" }, default: { shadowColor: C.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 4, elevation: 3 } }) },
-  submitText:{ ...Typ.body, fontFamily: Font.bold, color: C.textInverse },
-});
-
-
 function EmptyDetailPanel() {
+  const { colors: C } = useTheme();
   return (
     <View style={{ flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32, backgroundColor: C.background }}>
       <View style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: C.blueSoft, alignItems: "center", justifyContent: "center", marginBottom: 16 }}>
@@ -1012,6 +997,7 @@ function OrderDetailPanel({ id, type, orders, rides, pharmOrders, parcels, onClo
   orders: OrderShape[]; rides: RideShape[]; pharmOrders: OrderShape[]; parcels: ParcelShape[];
   onClose: () => void;
 }) {
+  const { colors: C } = useTheme();
   const { language } = useLanguage();
   const T = (key: TranslationKey) => tDual(key, language);
 
@@ -1114,6 +1100,8 @@ function OrderDetailPanel({ id, type, orders, rides, pharmOrders, parcels, onClo
 }
 
 function SectionHeader({ title, count, active }: { title: string; count: number; active?: boolean }) {
+  const { colors: C } = useTheme();
+  const styles = useMemo(() => makeStyles(C), [C]);
   return (
     <View style={styles.secRow}>
       {active && <View style={styles.activeDot} />}
@@ -1126,6 +1114,8 @@ function SectionHeader({ title, count, active }: { title: string; count: number;
 }
 
 function OrdersScreenInner() {
+  const { colors: C } = useTheme();
+  const styles = useMemo(() => makeStyles(C), [C]);
   const insets = useSafeAreaInsets();
   const { width: screenWidth } = useWindowDimensions();
   const { user, token } = useAuth();
@@ -2003,7 +1993,34 @@ function OrdersScreenInner() {
 
 export default withErrorBoundary(OrdersScreenInner);
 
-const styles = StyleSheet.create({
+function makeRm(C: typeof Colors.light) {
+  return StyleSheet.create({
+    backdrop: { flex: 1, backgroundColor: C.overlayDark50, justifyContent: "flex-end" },
+    sheet:    { backgroundColor: C.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24, paddingBottom: 40, maxHeight: "90%" },
+    handle:   { width: 40, height: 4, backgroundColor: C.border, borderRadius: 2, alignSelf: "center", marginBottom: 20 },
+    headerIconWrap: { alignItems: "center", marginBottom: 14 },
+    headerIcon: { width: 52, height: 52, borderRadius: 18, alignItems: "center", justifyContent: "center" },
+    title:    { ...Typ.h2, color: C.text, textAlign: "center", marginBottom: 4 },
+    sub:      { ...Typ.body, fontSize: 13, color: C.textSecondary, textAlign: "center", marginBottom: 16 },
+    sectionLabel: { ...Typ.buttonSmall, color: C.textSecondary, textAlign: "center", marginTop: 4, marginBottom: 2 },
+    divider:  { height: 1, backgroundColor: C.border, marginVertical: 12 },
+    ratingLabel: { ...Typ.bodySemiBold, color: C.amberBrown, textAlign: "center", marginBottom: 4, marginTop: 2 },
+    input: {
+      borderWidth: 1.5, borderColor: C.border, borderRadius: 16,
+      padding: 14, ...Typ.body, color: C.text,
+      minHeight: 72, textAlignVertical: "top", marginTop: 8, marginBottom: 8, backgroundColor: C.surfaceSecondary,
+    },
+    error:    { ...Typ.body, fontSize: 13, color: C.red, textAlign: "center", marginBottom: 8 },
+    btns:     { flexDirection: "row", gap: 12, marginTop: 8 },
+    cancelBtn: { flex: 1, borderWidth: 1.5, borderColor: C.border, borderRadius: 16, paddingVertical: 15, alignItems: "center" },
+    cancelText: { ...Typ.bodySemiBold, color: C.textSecondary },
+    submitBtn: { flex: 2, backgroundColor: C.primary, borderRadius: 16, paddingVertical: 15, alignItems: "center", justifyContent: "center", ...Platform.select({ web: { boxShadow: "0 2px 4px rgba(0,102,255,0.3)" } as object, default: { shadowColor: C.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 4, elevation: 3 } }) },
+    submitText: { ...Typ.body, fontFamily: Font.bold, color: C.textInverse },
+  });
+}
+
+function makeStyles(C: typeof Colors.light) {
+  return StyleSheet.create({
   container: { flex: 1 },
   header: { paddingHorizontal: 20, paddingBottom: 12 },
   headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 },
@@ -2211,6 +2228,7 @@ const styles = StyleSheet.create({
   cardGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
   cardGridItem: { flexBasis: "48%", flexGrow: 1, minWidth: 280 },
 });
+}
 
 export const webPointer = Platform.select<object>({ web: { cursor: "pointer" } }) ?? {};
 

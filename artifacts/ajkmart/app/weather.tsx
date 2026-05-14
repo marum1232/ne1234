@@ -66,6 +66,12 @@ const WMO_ICONS: Record<
   71: { icon: "snow", label: "Light Snow", gradient: ["#E0EAFC", "#CFDEF3"] },
   73: { icon: "snow", label: "Snow", gradient: ["#c9d6ff", "#e2e2e2"] },
   75: { icon: "snow", label: "Heavy Snow", gradient: ["#8e9eab", "#eef2f3"] },
+  69: { icon: "rainy", label: "Showers", gradient: ["#667db6", "#0082c8"] },
+  70: {
+    icon: "rainy",
+    label: "Moderate Showers",
+    gradient: ["#373B44", "#4286f4"],
+  },
   80: { icon: "rainy", label: "Showers", gradient: ["#667db6", "#0082c8"] },
   81: {
     icon: "rainy",
@@ -153,7 +159,6 @@ async function fetchForecast(
   };
 
   const hourly: ForecastData["hourly"] = [];
-  const nowH = new Date().getHours();
   for (let i = 0; i < Math.min(48, data.hourly.time.length); i++) {
     hourly.push({
       time: data.hourly.time[i],
@@ -228,7 +233,6 @@ async function geocodeCity(
 
 type Tab = "hourly" | "daily";
 
-const C = Colors.light;
 const W = 375;
 
 export default withErrorBoundary(WeatherDetailScreenInner);
@@ -236,6 +240,7 @@ export default withErrorBoundary(WeatherDetailScreenInner);
 function WeatherDetailScreenInner() {
   const { colors: C } = useTheme();
   const { width: W } = useWindowDimensions();
+  const styles = useMemo(() => makeStyles(C, W), [C, W]);
   const insets = useSafeAreaInsets();
   const { goBack } = useSmartBack();
   const [forecast, setForecast] = useState<ForecastData | null>(null);
@@ -522,18 +527,18 @@ function WeatherDetailScreenInner() {
         contentContainerStyle={{ paddingBottom: 40 }}
       >
         {/* Header */}
-        <View style={[s.header, { paddingTop: insets.top + 8 }]}>
+        <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
           <TouchableOpacity
             onPress={goBack}
-            style={s.backBtn}
+            style={styles.backBtn}
             activeOpacity={0.7}
           >
             <Ionicons name="chevron-back" size={22} color="#fff" />
           </TouchableOpacity>
-          <Text style={s.headerTitle}>Weather</Text>
+          <Text style={styles.headerTitle}>Weather</Text>
           <TouchableOpacity
             onPress={() => setShowCityInput((v) => !v)}
-            style={s.addCityBtn}
+            style={styles.addCityBtn}
             activeOpacity={0.7}
           >
             <Ionicons
@@ -546,11 +551,11 @@ function WeatherDetailScreenInner() {
 
         {/* City search */}
         {showCityInput && (
-          <View style={s.searchWrap}>
-            <View style={s.searchRow}>
+          <View style={styles.searchWrap}>
+            <View style={styles.searchRow}>
               <Ionicons name="search" size={16} color={C.textMuted} />
               <TextInput
-                style={s.searchInput}
+                style={styles.searchInput}
                 placeholder="Search city..."
                 placeholderTextColor={C.textMuted}
                 value={cityQuery}
@@ -566,22 +571,22 @@ function WeatherDetailScreenInner() {
             {savedCity && (
               <TouchableOpacity
                 onPress={handleUseGps}
-                style={s.gpsBtn}
+                style={styles.gpsBtn}
                 activeOpacity={0.7}
               >
                 <Ionicons name="navigate" size={14} color={C.primary} />
-                <Text style={s.gpsBtnText}>Use GPS Location</Text>
+                <Text style={styles.gpsBtnText}>Use GPS Location</Text>
               </TouchableOpacity>
             )}
             {searchResults.map((city, i) => (
               <TouchableOpacity
                 key={i}
                 onPress={() => handleSelectCity(city)}
-                style={s.resultRow}
+                style={styles.resultRow}
                 activeOpacity={0.7}
               >
                 <Ionicons name="location-outline" size={16} color={C.primary} />
-                <Text style={s.resultText} numberOfLines={1}>
+                <Text style={styles.resultText} numberOfLines={1}>
                   {city.name}
                 </Text>
               </TouchableOpacity>
@@ -589,7 +594,7 @@ function WeatherDetailScreenInner() {
             {searchResults.length === 0 &&
               cityQuery.length > 0 &&
               !searching && (
-                <Text style={s.noResult}>
+                <Text style={styles.noResult}>
                   No cities found. Try a different name.
                 </Text>
               )}
@@ -597,263 +602,252 @@ function WeatherDetailScreenInner() {
         )}
 
         {loading ? (
-          <View style={s.loadingWrap}>
+          <View style={styles.loadingWrap}>
             <ActivityIndicator size="large" color="#fff" />
-            <Text style={s.loadingText}>Loading weather...</Text>
+            <Text style={styles.loadingText}>Loading weather...</Text>
           </View>
         ) : error ? (
-          <View style={s.errorWrap}>
+          <View style={styles.errorWrap}>
             <Ionicons
               name="cloud-offline-outline"
               size={48}
               color="rgba(255,255,255,0.6)"
             />
-            <Text style={s.errorText}>{error}</Text>
+            <Text style={styles.errorText}>{error}</Text>
             <TouchableOpacity
               onPress={() => setShowCityInput(true)}
-              style={s.errorBtn}
+              style={styles.errorBtn}
             >
-              <Text style={s.errorBtnText}>Add City Manually</Text>
+              <Text style={styles.errorBtnText}>Add City Manually</Text>
             </TouchableOpacity>
           </View>
         ) : forecast ? (
           <>
             {/* Current weather hero */}
-            <View style={s.heroWrap}>
-              <View style={s.locationRow}>
+            <View style={styles.heroWrap}>
+              <View style={styles.locationRow}>
                 <Ionicons
                   name={forecast.isGps ? "navigate" : "location"}
                   size={14}
                   color="rgba(255,255,255,0.8)"
                 />
-                <Text style={s.locationText}>{forecast.locationName}</Text>
-                {forecast.isGps && <View style={s.gpsDot} />}
+                <Text style={styles.locationText}>{forecast.locationName}</Text>
+                {forecast.isGps && <View style={styles.gpsDot} />}
               </View>
-              <Text style={s.heroTemp}>{forecast.current.temp}°</Text>
-              <View style={s.heroCondRow}>
+              <Text style={styles.heroTemp}>{forecast.current.temp}°</Text>
+              <View style={styles.heroCondRow}>
                 <Ionicons
                   name={safeWmoIcon(wmo.icon)}
                   size={24}
                   color="rgba(255,255,255,0.9)"
                 />
-                <Text style={s.heroCondText}>{wmo.label}</Text>
+                <Text style={styles.heroCondText}>{wmo.label}</Text>
               </View>
-              <Text style={s.heroFeelsLike}>
+              <Text style={styles.heroFeelsLike}>
                 Feels like {forecast.current.feelsLike}°C
               </Text>
 
               {/* Quick stats */}
-              <View style={s.statsRow}>
-                <View style={s.statItem}>
+              <View style={styles.statsRow}>
+                <View style={styles.statItem}>
                   <Ionicons
                     name="water-outline"
                     size={16}
                     color="rgba(255,255,255,0.7)"
                   />
-                  <Text style={s.statValue}>{forecast.current.humidity}%</Text>
-                  <Text style={s.statLabel}>Humidity</Text>
+                  <Text style={styles.statValue}>{forecast.current.humidity}%</Text>
+                  <Text style={styles.statLabel}>Humidity</Text>
                 </View>
-                <View style={s.statDivider} />
-                <View style={s.statItem}>
+                <View style={styles.statDivider} />
+                <View style={styles.statItem}>
                   <Ionicons
                     name="speedometer-outline"
                     size={16}
                     color="rgba(255,255,255,0.7)"
                   />
-                  <Text style={s.statValue}>
+                  <Text style={styles.statValue}>
                     {forecast.current.windSpeed} km/h
                   </Text>
-                  <Text style={s.statLabel}>Wind</Text>
+                  <Text style={styles.statLabel}>Wind</Text>
                 </View>
-                <View style={s.statDivider} />
-                <View style={s.statItem}>
+                <View style={styles.statDivider} />
+                <View style={styles.statItem}>
                   <Ionicons
                     name="sunny-outline"
                     size={16}
                     color="rgba(255,255,255,0.7)"
                   />
-                  <Text style={s.statValue}>{forecast.current.uvIndex}</Text>
-                  <Text style={s.statLabel}>UV Index</Text>
+                  <Text style={styles.statValue}>{forecast.current.uvIndex}</Text>
+                  <Text style={styles.statLabel}>UV Index</Text>
                 </View>
-                <View style={s.statDivider} />
-                <View style={s.statItem}>
+                <View style={styles.statDivider} />
+                <View style={styles.statItem}>
                   <Ionicons
                     name="eye-outline"
                     size={16}
                     color="rgba(255,255,255,0.7)"
                   />
-                  <Text style={s.statValue}>
+                  <Text style={styles.statValue}>
                     {forecast.current.visibility} km
                   </Text>
-                  <Text style={s.statLabel}>Visibility</Text>
+                  <Text style={styles.statLabel}>Visibility</Text>
                 </View>
               </View>
             </View>
 
-            {/* Tab selector */}
-            <View style={s.tabRow}>
-              {(["hourly", "daily"] as Tab[]).map((t) => (
-                <TouchableOpacity
-                  key={t}
-                  onPress={() => setTab(t)}
-                  style={[s.tabBtn, tab === t && s.tabBtnActive]}
-                  activeOpacity={0.7}
+            {/* Forecast Tabs */}
+            <View style={styles.tabRow}>
+              <TouchableOpacity
+                onPress={() => setTab("hourly")}
+                style={[styles.tabBtn, tab === "hourly" && styles.tabBtnActive]}
+                activeOpacity={0.7}
+              >
+                <Text
+                  style={[
+                    styles.tabText,
+                    tab === "hourly" && styles.tabTextActive,
+                  ]}
                 >
-                  <Text style={[s.tabText, tab === t && s.tabTextActive]}>
-                    {t === "hourly" ? "Hourly" : "7-Day"}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+                  Hourly
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setTab("daily")}
+                style={[styles.tabBtn, tab === "daily" && styles.tabBtnActive]}
+                activeOpacity={0.7}
+              >
+                <Text
+                  style={[
+                    styles.tabText,
+                    tab === "daily" && styles.tabTextActive,
+                  ]}
+                >
+                  7-Day
+                </Text>
+              </TouchableOpacity>
             </View>
 
-            {/* Hourly forecast */}
-            {tab === "hourly" && (
+            {tab === "hourly" ? (
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
-                style={s.hScroll}
+                style={styles.hScroll}
                 contentContainerStyle={{ paddingHorizontal: 16, gap: 10 }}
               >
-                {visibleHourly.slice(0, 24).map((h, i) => {
-                  const hWmo = WMO_ICONS[h.code] ?? WMO_ICONS[0];
+                {visibleHourly.map((h, i) => {
                   const isNow = i === 0;
+                  const itemWmo = WMO_ICONS[h.code] ?? WMO_ICONS[0]!;
                   return (
-                    <View key={i} style={[s.hourCard, isNow && s.hourCardNow]}>
-                      <Text style={[s.hourTime, isNow && s.hourTimeNow]}>
+                    <View
+                      key={i}
+                      style={[styles.hourCard, isNow && styles.hourCardNow]}
+                    >
+                      <Text
+                        style={[styles.hourTime, isNow && styles.hourTimeNow]}
+                      >
                         {isNow ? "Now" : formatTime(h.time)}
                       </Text>
                       <Ionicons
-                        name={safeWmoIcon(hWmo.icon)}
+                        name={safeWmoIcon(itemWmo.icon)}
                         size={22}
-                        color={isNow ? C.primary : C.textSecondary}
+                        color={isNow ? C.primary : "rgba(255,255,255,0.8)"}
                       />
-                      <Text style={[s.hourTemp, isNow && s.hourTempNow]}>
+                      <Text
+                        style={[styles.hourTemp, isNow && styles.hourTempNow]}
+                      >
                         {h.temp}°
                       </Text>
-                      <View style={s.hourPrecipRow}>
-                        <Ionicons name="water" size={10} color="#60a5fa" />
-                        <Text style={s.hourPrecip}>{h.precipitation}%</Text>
-                      </View>
+                      {h.precipitation > 0 && (
+                        <View style={styles.hourPrecipRow}>
+                          <Ionicons name="rainy" size={10} color="#60a5fa" />
+                          <Text style={styles.hourPrecip}>
+                            {h.precipitation}%
+                          </Text>
+                        </View>
+                      )}
                     </View>
                   );
                 })}
               </ScrollView>
-            )}
-
-            {/* Daily forecast */}
-            {tab === "daily" && (
-              <View style={s.dailyWrap}>
+            ) : (
+              <View style={styles.dailyWrap}>
                 {forecast.daily.map((d, i) => {
-                  const dWmo = WMO_ICONS[d.code] ?? WMO_ICONS[0];
-                  const maxT = Math.max(
-                    ...forecast.daily.map((dd) => dd.tempMax),
-                  );
-                  const minT = Math.min(
-                    ...forecast.daily.map((dd) => dd.tempMin),
-                  );
-                  const range = maxT - minT || 1;
-                  const barLeft = ((d.tempMin - minT) / range) * 100;
-                  const barWidth = ((d.tempMax - d.tempMin) / range) * 100;
-
+                  const itemWmo = WMO_ICONS[d.code] ?? WMO_ICONS[0]!;
+                  const isToday = i === 0;
                   return (
-                    <View key={i} style={s.dayRow}>
-                      <Text style={s.dayName}>{formatDay(d.date)}</Text>
+                    <View key={i} style={styles.dayRow}>
+                      <Text style={styles.dayName}>
+                        {isToday ? "Today" : formatDay(d.date)}
+                      </Text>
                       <Ionicons
-                        name={safeWmoIcon(dWmo.icon)}
+                        name={safeWmoIcon(itemWmo.icon)}
                         size={20}
-                        color={C.textSecondary}
-                        style={{ width: 28 }}
+                        color="rgba(255,255,255,0.9)"
                       />
-                      <Text style={s.dayTempMin}>{d.tempMin}°</Text>
-                      <View style={s.dayBarTrack}>
+                      <Text style={styles.dayTempMin}>{d.tempMin}°</Text>
+                      <View style={styles.dayBarTrack}>
                         <LinearGradient
-                          colors={["#60a5fa", "#f97316"]}
+                          colors={["#60a5fa", "#f59e0b"]}
                           start={{ x: 0, y: 0 }}
                           end={{ x: 1, y: 0 }}
                           style={[
-                            s.dayBarFill,
+                            styles.dayBarFill,
                             {
-                              left: `${barLeft}%`,
-                              width: `${Math.max(barWidth, 8)}%`,
+                              left: `${((d.tempMin + 10) / 60) * 100}%`,
+                              right: `${100 - ((d.tempMax + 10) / 60) * 100}%`,
                             },
                           ]}
                         />
                       </View>
-                      <Text style={s.dayTempMax}>{d.tempMax}°</Text>
+                      <Text style={styles.dayTempMax}>{d.tempMax}°</Text>
                     </View>
                   );
                 })}
               </View>
             )}
 
-            {/* Details cards */}
-            <View style={s.detailsGrid}>
-              {forecast.daily[0] && (
-                <>
-                  <View style={s.detailCard}>
-                    <View style={s.detailCardHeader}>
-                      <Ionicons
-                        name="sunny-outline"
-                        size={14}
-                        color={C.primary}
-                      />
-                      <Text style={s.detailCardTitle}>Sunrise & Sunset</Text>
-                    </View>
-                    <View style={s.sunRow}>
-                      <View style={s.sunItem}>
-                        <Ionicons
-                          name="arrow-up-outline"
-                          size={16}
-                          color="#f59e0b"
-                        />
-                        <Text style={s.sunTime}>
-                          {formatSunTime(forecast.daily[0].sunrise)}
-                        </Text>
-                        <Text style={s.sunLabel}>Sunrise</Text>
-                      </View>
-                      <View style={s.sunItem}>
-                        <Ionicons
-                          name="arrow-down-outline"
-                          size={16}
-                          color="#ef4444"
-                        />
-                        <Text style={s.sunTime}>
-                          {formatSunTime(forecast.daily[0].sunset)}
-                        </Text>
-                        <Text style={s.sunLabel}>Sunset</Text>
-                      </View>
-                    </View>
+            {/* Extra details grid */}
+            <View style={styles.detailsGrid}>
+              <View style={styles.detailCard}>
+                <View style={styles.detailCardHeader}>
+                  <Ionicons
+                    name="sunny-outline"
+                    size={14}
+                    color="rgba(255,255,255,0.4)"
+                  />
+                  <Text style={styles.detailCardTitle}>Sun</Text>
+                </View>
+                <View style={styles.sunRow}>
+                  <View style={styles.sunItem}>
+                    <Text style={styles.sunTime}>
+                      {formatSunTime(forecast.daily[0]!.sunrise)}
+                    </Text>
+                    <Text style={styles.sunLabel}>Sunrise</Text>
                   </View>
-                  <View style={s.detailCard}>
-                    <View style={s.detailCardHeader}>
-                      <Ionicons
-                        name="analytics-outline"
-                        size={14}
-                        color={C.primary}
-                      />
-                      <Text style={s.detailCardTitle}>Pressure & Rain</Text>
-                    </View>
-                    <View style={s.sunRow}>
-                      <View style={s.sunItem}>
-                        <Text style={s.sunTime}>
-                          {forecast.current.pressure} hPa
-                        </Text>
-                        <Text style={s.sunLabel}>Pressure</Text>
-                      </View>
-                      <View style={s.sunItem}>
-                        <Text style={s.sunTime}>
-                          {forecast.daily[0].precipitation} mm
-                        </Text>
-                        <Text style={s.sunLabel}>Rain Today</Text>
-                      </View>
-                    </View>
+                  <View style={styles.sunItem}>
+                    <Text style={styles.sunTime}>
+                      {formatSunTime(forecast.daily[0]!.sunset)}
+                    </Text>
+                    <Text style={styles.sunLabel}>Sunset</Text>
                   </View>
-                </>
-              )}
+                </View>
+              </View>
+
+              <View style={styles.detailCard}>
+                <View style={styles.detailCardHeader}>
+                  <Ionicons
+                    name="speedometer-outline"
+                    size={14}
+                    color="rgba(255,255,255,0.4)"
+                  />
+                  <Text style={styles.detailCardTitle}>Pressure</Text>
+                </View>
+                <Text style={styles.sunTime}>{forecast.current.pressure} hPa</Text>
+                <Text style={styles.sunLabel}>Surface pressure</Text>
+              </View>
             </View>
 
-            {/* Source info */}
-            <Text style={s.source}>Powered by Open-Meteo</Text>
+            <Text style={styles.source}>Data from Open-Meteo.com</Text>
           </>
         ) : null}
       </ScrollView>
@@ -861,378 +855,389 @@ function WeatherDetailScreenInner() {
   );
 }
 
-const s = StyleSheet.create({
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingBottom: 8,
-  },
-  backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "rgba(255,255,255,0.15)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  headerTitle: {
-    flex: 1,
-    textAlign: "center",
-    fontFamily: Font.semiBold,
-    fontSize: 17,
-    color: "#fff",
-  },
-  addCityBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "rgba(255,255,255,0.15)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  searchWrap: {
-    marginHorizontal: 16,
-    backgroundColor: C.surface,
-    borderRadius: 16,
-    padding: 12,
-    gap: 8,
-    ...shadows.md,
-  },
-  searchRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    backgroundColor: C.background,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    height: 44,
-  },
-  searchInput: {
-    flex: 1,
-    fontFamily: Font.regular,
-    fontSize: 14,
-    color: C.text,
-  },
-  gpsBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingVertical: 8,
-    paddingHorizontal: 4,
-  },
-  gpsBtnText: {
-    fontFamily: Font.medium,
-    fontSize: 13,
-    color: C.primary,
-  },
-  resultRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 4,
-    borderTopWidth: 1,
-    borderTopColor: C.border,
-  },
-  resultText: {
-    fontFamily: Font.regular,
-    fontSize: 14,
-    color: C.text,
-    flex: 1,
-  },
-  noResult: {
-    fontFamily: Font.regular,
-    fontSize: 13,
-    color: C.textMuted,
-    textAlign: "center",
-    paddingVertical: 12,
-  },
-  loadingWrap: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingTop: 100,
-    gap: 12,
-  },
-  loadingText: {
-    fontFamily: Font.medium,
-    fontSize: 14,
-    color: "rgba(255,255,255,0.7)",
-  },
-  errorWrap: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingTop: 80,
-    gap: 12,
-    paddingHorizontal: 32,
-  },
-  errorText: {
-    fontFamily: Font.regular,
-    fontSize: 14,
-    color: "rgba(255,255,255,0.7)",
-    textAlign: "center",
-  },
-  errorBtn: {
-    backgroundColor: "rgba(255,255,255,0.2)",
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 12,
-    marginTop: 8,
-  },
-  errorBtnText: {
-    fontFamily: Font.semiBold,
-    fontSize: 13,
-    color: "#fff",
-  },
-  heroWrap: {
-    alignItems: "center",
-    paddingTop: 12,
-    paddingBottom: 24,
-  },
-  locationRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    marginBottom: 8,
-  },
-  locationText: {
-    fontFamily: Font.medium,
-    fontSize: 14,
-    color: "rgba(255,255,255,0.85)",
-  },
-  gpsDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: "#4ade80",
-  },
-  heroTemp: {
-    fontFamily: Font.bold,
-    fontSize: 80,
-    color: "#fff",
-    lineHeight: 90,
-    ...Platform.select({
-      web: { textShadow: "0px 2px 8px rgba(0,0,0,0.15)" },
-      default: {
-        textShadowColor: "rgba(0,0,0,0.15)",
-        textShadowOffset: { width: 0, height: 2 },
-        textShadowRadius: 8,
-      },
-    }),
-  },
-  heroCondRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginTop: 4,
-  },
-  heroCondText: {
-    fontFamily: Font.semiBold,
-    fontSize: 18,
-    color: "rgba(255,255,255,0.9)",
-  },
-  heroFeelsLike: {
-    fontFamily: Font.regular,
-    fontSize: 13,
-    color: "rgba(255,255,255,0.6)",
-    marginTop: 4,
-  },
-  statsRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 20,
-    backgroundColor: "rgba(255,255,255,0.12)",
-    borderRadius: 16,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    marginHorizontal: 16,
-  },
-  statItem: {
-    flex: 1,
-    alignItems: "center",
-    gap: 4,
-  },
-  statValue: {
-    fontFamily: Font.semiBold,
-    fontSize: 13,
-    color: "#fff",
-  },
-  statLabel: {
-    fontFamily: Font.regular,
-    fontSize: 10,
-    color: "rgba(255,255,255,0.5)",
-  },
-  statDivider: {
-    width: 1,
-    height: 28,
-    backgroundColor: "rgba(255,255,255,0.15)",
-  },
-  tabRow: {
-    flexDirection: "row",
-    marginHorizontal: 16,
-    marginTop: 16,
-    marginBottom: 12,
-    backgroundColor: "rgba(255,255,255,0.08)",
-    borderRadius: 12,
-    padding: 3,
-  },
-  tabBtn: {
-    flex: 1,
-    paddingVertical: 10,
-    alignItems: "center",
-    borderRadius: 10,
-  },
-  tabBtnActive: {
-    backgroundColor: C.surface,
-    ...shadows.sm,
-  },
-  tabText: {
-    fontFamily: Font.medium,
-    fontSize: 13,
-    color: "rgba(255,255,255,0.5)",
-  },
-  tabTextActive: {
-    color: C.text,
-    fontFamily: Font.semiBold,
-  },
-  hScroll: {
-    marginBottom: 16,
-  },
-  hourCard: {
-    width: 64,
-    backgroundColor: "rgba(255,255,255,0.08)",
-    borderRadius: 16,
-    paddingVertical: 12,
-    alignItems: "center",
-    gap: 6,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.06)",
-  },
-  hourCardNow: {
-    backgroundColor: C.surface,
-    borderColor: C.primary + "30",
-    ...shadows.sm,
-  },
-  hourTime: {
-    fontFamily: Font.medium,
-    fontSize: 11,
-    color: "rgba(255,255,255,0.5)",
-  },
-  hourTimeNow: { color: C.primary },
-  hourTemp: {
-    fontFamily: Font.bold,
-    fontSize: 16,
-    color: "rgba(255,255,255,0.9)",
-  },
-  hourTempNow: { color: C.text },
-  hourPrecipRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 2,
-  },
-  hourPrecip: {
-    fontFamily: Font.regular,
-    fontSize: 10,
-    color: "#60a5fa",
-  },
-  dailyWrap: {
-    marginHorizontal: 16,
-    backgroundColor: "rgba(255,255,255,0.08)",
-    borderRadius: 16,
-    paddingVertical: 6,
-    paddingHorizontal: 14,
-    marginBottom: 16,
-  },
-  dayRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(255,255,255,0.06)",
-    gap: 8,
-  },
-  dayName: {
-    fontFamily: Font.medium,
-    fontSize: 13,
-    color: "rgba(255,255,255,0.8)",
-    width: 80,
-  },
-  dayTempMin: {
-    fontFamily: Font.regular,
-    fontSize: 13,
-    color: "rgba(255,255,255,0.4)",
-    width: 30,
-    textAlign: "right",
-  },
-  dayBarTrack: {
-    flex: 1,
-    height: 4,
-    backgroundColor: "rgba(255,255,255,0.1)",
-    borderRadius: 2,
-    overflow: "hidden",
-  },
-  dayBarFill: {
-    position: "absolute",
-    top: 0,
-    height: 4,
-    borderRadius: 2,
-  },
-  dayTempMax: {
-    fontFamily: Font.semiBold,
-    fontSize: 13,
-    color: "rgba(255,255,255,0.9)",
-    width: 30,
-  },
-  detailsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    paddingHorizontal: 16,
-    gap: 10,
-    marginBottom: 16,
-  },
-  detailCard: {
-    flex: 1,
-    minWidth: (W - 42) / 2,
-    backgroundColor: "rgba(255,255,255,0.08)",
-    borderRadius: 16,
-    padding: 14,
-    gap: 12,
-  },
-  detailCardHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  detailCardTitle: {
-    fontFamily: Font.medium,
-    fontSize: 11,
-    color: "rgba(255,255,255,0.5)",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-  },
-  sunRow: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-  },
-  sunItem: {
-    alignItems: "center",
-    gap: 4,
-  },
-  sunTime: {
-    fontFamily: Font.semiBold,
-    fontSize: 15,
-    color: "rgba(255,255,255,0.9)",
-  },
-  sunLabel: {
-    fontFamily: Font.regular,
-    fontSize: 10,
-    color: "rgba(255,255,255,0.4)",
-  },
-  source: {
-    fontFamily: Font.regular,
-    fontSize: 11,
-    color: "rgba(255,255,255,0.25)",
-    textAlign: "center",
-    marginTop: 8,
-  },
-});
+function makeStyles(C: typeof Colors.light, W: number) {
+  return StyleSheet.create({
+    header: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingHorizontal: 16,
+      paddingBottom: 12,
+      zIndex: 20,
+    },
+    backBtn: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: "rgba(0,0,0,0.45)",
+      alignItems: "center",
+      justifyContent: "center",
+      borderWidth: 1,
+      borderColor: "rgba(255,255,255,0.15)",
+    },
+    headerTitle: {
+      fontFamily: Font.bold,
+      fontSize: 17,
+      color: "#fff",
+    },
+    addCityBtn: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: "rgba(0,0,0,0.45)",
+      alignItems: "center",
+      justifyContent: "center",
+      borderWidth: 1,
+      borderColor: "rgba(255,255,255,0.15)",
+    },
+    searchWrap: {
+      backgroundColor: C.surface,
+      marginHorizontal: 16,
+      marginTop: 8,
+      borderRadius: 16,
+      padding: 12,
+      gap: 12,
+      ...shadows.md,
+      zIndex: 30,
+    },
+    searchRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: C.surfaceSecondary,
+      paddingHorizontal: 12,
+      borderRadius: 12,
+      height: 46,
+      gap: 10,
+    },
+    searchInput: {
+      flex: 1,
+      fontFamily: Font.regular,
+      fontSize: 15,
+      color: C.text,
+      paddingVertical: 8,
+    },
+    gpsBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      paddingVertical: 4,
+    },
+    gpsBtnText: {
+      fontFamily: Font.medium,
+      fontSize: 14,
+      color: C.primary,
+    },
+    resultRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      paddingVertical: 10,
+      borderBottomWidth: 1,
+      borderBottomColor: C.borderLight,
+    },
+    resultText: {
+      fontFamily: Font.regular,
+      fontSize: 14,
+      color: C.text,
+      flex: 1,
+    },
+    noResult: {
+      fontFamily: Font.regular,
+      fontSize: 13,
+      color: C.textMuted,
+      textAlign: "center",
+      paddingVertical: 8,
+    },
+    loadingWrap: {
+      paddingTop: 100,
+      alignItems: "center",
+      gap: 16,
+    },
+    loadingText: {
+      fontFamily: Font.medium,
+      fontSize: 15,
+      color: "#fff",
+      opacity: 0.8,
+    },
+    errorWrap: {
+      paddingTop: 100,
+      alignItems: "center",
+      gap: 16,
+      paddingHorizontal: 40,
+    },
+    errorText: {
+      fontFamily: Font.regular,
+      fontSize: 15,
+      color: "#fff",
+      textAlign: "center",
+      lineHeight: 22,
+      opacity: 0.9,
+    },
+    errorBtn: {
+      backgroundColor: "rgba(255,255,255,0.2)",
+      paddingHorizontal: 24,
+      paddingVertical: 12,
+      borderRadius: 12,
+    },
+    errorBtnText: {
+      fontFamily: Font.semiBold,
+      fontSize: 14,
+      color: "#fff",
+    },
+    heroWrap: {
+      alignItems: "center",
+      paddingTop: 20,
+      paddingBottom: 40,
+    },
+    locationRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      backgroundColor: "rgba(0,0,0,0.2)",
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 20,
+    },
+    locationText: {
+      fontFamily: Font.bold,
+      fontSize: 15,
+      color: "#fff",
+    },
+    gpsDot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+      backgroundColor: "#4ade80",
+    },
+    heroTemp: {
+      fontFamily: Font.bold,
+      fontSize: 80,
+      color: "#fff",
+      lineHeight: 90,
+      ...Platform.select({
+        web: { textShadow: "0px 2px 8px rgba(0,0,0,0.15)" },
+        default: {
+          textShadowColor: "rgba(0,0,0,0.15)",
+          textShadowOffset: { width: 0, height: 2 },
+          textShadowRadius: 8,
+          elevation: 0,
+        },
+      }),
+    },
+    heroCondRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      marginTop: 4,
+    },
+    heroCondText: {
+      fontFamily: Font.semiBold,
+      fontSize: 18,
+      color: "rgba(255,255,255,0.9)",
+    },
+    heroFeelsLike: {
+      fontFamily: Font.regular,
+      fontSize: 13,
+      color: "rgba(255,255,255,0.6)",
+      marginTop: 4,
+    },
+    statsRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginTop: 20,
+      backgroundColor: "rgba(255,255,255,0.12)",
+      borderRadius: 16,
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      marginHorizontal: 16,
+    },
+    statItem: {
+      flex: 1,
+      alignItems: "center",
+      gap: 4,
+    },
+    statValue: {
+      fontFamily: Font.semiBold,
+      fontSize: 13,
+      color: "#fff",
+    },
+    statLabel: {
+      fontFamily: Font.regular,
+      fontSize: 10,
+      color: "rgba(255,255,255,0.5)",
+    },
+    statDivider: {
+      width: 1,
+      height: 28,
+      backgroundColor: "rgba(255,255,255,0.15)",
+    },
+    tabRow: {
+      flexDirection: "row",
+      marginHorizontal: 16,
+      marginTop: 16,
+      marginBottom: 12,
+      backgroundColor: "rgba(255,255,255,0.08)",
+      borderRadius: 12,
+      padding: 3,
+    },
+    tabBtn: {
+      flex: 1,
+      paddingVertical: 10,
+      alignItems: "center",
+      borderRadius: 10,
+    },
+    tabBtnActive: {
+      backgroundColor: C.surface,
+      ...shadows.sm,
+    },
+    tabText: {
+      fontFamily: Font.medium,
+      fontSize: 13,
+      color: "rgba(255,255,255,0.5)",
+    },
+    tabTextActive: {
+      color: C.text,
+      fontFamily: Font.semiBold,
+    },
+    hScroll: {
+      marginBottom: 16,
+    },
+    hourCard: {
+      width: 64,
+      backgroundColor: "rgba(255,255,255,0.08)",
+      borderRadius: 16,
+      paddingVertical: 12,
+      alignItems: "center",
+      gap: 6,
+      borderWidth: 1,
+      borderColor: "rgba(255,255,255,0.06)",
+    },
+    hourCardNow: {
+      backgroundColor: C.surface,
+      borderColor: C.primary + "30",
+      ...shadows.sm,
+    },
+    hourTime: {
+      fontFamily: Font.medium,
+      fontSize: 11,
+      color: "rgba(255,255,255,0.5)",
+    },
+    hourTimeNow: { color: C.primary },
+    hourTemp: {
+      fontFamily: Font.bold,
+      fontSize: 16,
+      color: "rgba(255,255,255,0.9)",
+    },
+    hourTempNow: { color: C.text },
+    hourPrecipRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 2,
+    },
+    hourPrecip: {
+      fontFamily: Font.regular,
+      fontSize: 10,
+      color: "#60a5fa",
+    },
+    dailyWrap: {
+      marginHorizontal: 16,
+      backgroundColor: "rgba(255,255,255,0.08)",
+      borderRadius: 16,
+      paddingVertical: 6,
+      paddingHorizontal: 14,
+      marginBottom: 16,
+    },
+    dayRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: "rgba(255,255,255,0.06)",
+      gap: 8,
+    },
+    dayName: {
+      fontFamily: Font.medium,
+      fontSize: 13,
+      color: "rgba(255,255,255,0.8)",
+      width: 80,
+    },
+    dayTempMin: {
+      fontFamily: Font.regular,
+      fontSize: 13,
+      color: "rgba(255,255,255,0.4)",
+      width: 30,
+      textAlign: "right",
+    },
+    dayBarTrack: {
+      flex: 1,
+      height: 4,
+      backgroundColor: "rgba(255,255,255,0.1)",
+      borderRadius: 2,
+      overflow: "hidden",
+    },
+    dayBarFill: {
+      position: "absolute",
+      top: 0,
+      height: 4,
+      borderRadius: 2,
+    },
+    dayTempMax: {
+      fontFamily: Font.semiBold,
+      fontSize: 13,
+      color: "rgba(255,255,255,0.9)",
+      width: 30,
+    },
+    detailsGrid: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      paddingHorizontal: 16,
+      gap: 10,
+      marginBottom: 16,
+    },
+    detailCard: {
+      flex: 1,
+      minWidth: (W - 42) / 2,
+      backgroundColor: "rgba(255,255,255,0.08)",
+      borderRadius: 16,
+      padding: 14,
+      gap: 12,
+    },
+    detailCardHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+    },
+    detailCardTitle: {
+      fontFamily: Font.medium,
+      fontSize: 11,
+      color: "rgba(255,255,255,0.5)",
+      textTransform: "uppercase",
+      letterSpacing: 0.5,
+    },
+    sunRow: {
+      flexDirection: "row",
+      justifyContent: "space-around",
+    },
+    sunItem: {
+      alignItems: "center",
+      gap: 4,
+    },
+    sunTime: {
+      fontFamily: Font.semiBold,
+      fontSize: 15,
+      color: "rgba(255,255,255,0.9)",
+    },
+    sunLabel: {
+      fontFamily: Font.regular,
+      fontSize: 10,
+      color: "rgba(255,255,255,0.4)",
+    },
+    source: {
+      fontFamily: Font.regular,
+      fontSize: 11,
+      color: "rgba(255,255,255,0.25)",
+      textAlign: "center",
+      marginTop: 8,
+    },
+  });
+}

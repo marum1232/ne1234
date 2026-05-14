@@ -36,7 +36,6 @@ import { WishlistHeart } from "@/components/WishlistHeart";
 import { CartSwitchModal } from "@/components/CartSwitchModal";
 import { AuthGateSheet, useAuthGate, useRoleGate, RoleBlockSheet } from "@/components/AuthGateSheet";
 
-const C = Colors.light;
 const FLASH_CARD_W = (375 - 16 * 2 - 12) / 2;
 const PRODUCT_CARD_W = (375 - 16 * 2 - 12) / 2;
 const RECENTLY_VIEWED_KEY = "recently_viewed_products";
@@ -80,6 +79,8 @@ function toMartProduct(p: { id: string; name: string; price: string | number; im
 }
 
 function MartRecentlyViewed() {
+  const { colors: C } = useTheme();
+  const styles = useMemo(() => makeRecentlyViewedStyles(C), [C]);
   const [items, setItems] = React.useState<RecentItem[]>([]);
   React.useEffect(() => {
     AsyncStorage.getItem(RECENTLY_VIEWED_KEY)
@@ -127,6 +128,8 @@ function MartRecentlyViewed() {
 }
 
 function QuantityStepper({ quantity, onIncrement, onDecrement }: { quantity: number; onIncrement: () => void; onDecrement: () => void }) {
+  const { colors: C } = useTheme();
+  const styles = useMemo(() => makeStyles(C), [C]);
   return (
     <View style={styles.stepperRow}>
       <TouchableOpacity activeOpacity={0.7} onPress={(e) => { e?.stopPropagation?.(); onDecrement(); }} style={styles.stepperBtn}>
@@ -141,6 +144,8 @@ function QuantityStepper({ quantity, onIncrement, onDecrement }: { quantity: num
 }
 
 function AddToCartButton({ onPress, added, disabled }: { onPress: () => void; added: boolean; disabled?: boolean }) {
+  const { colors: C } = useTheme();
+  const styles = useMemo(() => makeStyles(C), [C]);
   const scale = useRef(new Animated.Value(1)).current;
 
   const handlePress = (e: { stopPropagation?: () => void }) => {
@@ -163,6 +168,8 @@ function AddToCartButton({ onPress, added, disabled }: { onPress: () => void; ad
 }
 
 const FlashCard = React.memo(function FlashCard({ product }: { product: FlashDealProduct }) {
+  const { colors: C } = useTheme();
+  const styles = useMemo(() => makeStyles(C), [C]);
   const { addItem, cartType, itemCount, clearCartAndAdd } = useCart();
   const { language } = useLanguage();
   const T = (key: TranslationKey) => tDual(key, language);
@@ -250,6 +257,8 @@ const FlashCard = React.memo(function FlashCard({ product }: { product: FlashDea
 });
 
 const ProductCard = React.memo(function ProductCard({ product }: { product: MartProduct }) {
+  const { colors: C } = useTheme();
+  const styles = useMemo(() => makeStyles(C), [C]);
   const { addItem, cartType, itemCount, clearCartAndAdd, items, updateQuantity, removeItem } = useCart();
   const [added, setAdded] = useState(false);
   const addedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -355,6 +364,7 @@ const ProductCard = React.memo(function ProductCard({ product }: { product: Mart
 
 function MartScreenInner() {
   const { colors: C } = useTheme();
+  const styles = useMemo(() => makeStyles(C), [C]);
   const { width } = useWindowDimensions();
   const FLASH_CARD_W = (width - 16 * 2 - 12) / 2;
   const PRODUCT_CARD_W = (width - 16 * 2 - 12) / 2;
@@ -621,9 +631,18 @@ function MartScreenInner() {
   );
 }
 
-export default MartScreenInner;
+function makeRecentlyViewedStyles(C: typeof Colors.light) {
+  return StyleSheet.create({
+  recentItem: { width: 90, gap: 6 },
+  recentImgWrap: { width: 90, height: 90, borderRadius: 18, backgroundColor: C.surfaceSecondary, alignItems: "center", justifyContent: "center", overflow: "hidden", borderWidth: 1, borderColor: C.borderLight },
+  recentImg: { width: "100%", height: "100%" },
+  recentName: { ...Typ.tiny, fontFamily: Font.semiBold, color: C.text, textAlign: "center" },
+  recentPrice: { ...Typ.tiny, color: C.primary, textAlign: "center", fontFamily: Font.bold },
+  });
+}
 
-const styles = StyleSheet.create({
+function makeStyles(C: typeof Colors.light) {
+  return StyleSheet.create({
   container: { flex: 1, backgroundColor: C.background },
 
   header: { paddingHorizontal: 16, paddingBottom: 10 },
@@ -696,4 +715,7 @@ const styles = StyleSheet.create({
   emptyIconWrap: { width: 80, height: 80, borderRadius: 24, backgroundColor: C.surfaceSecondary, alignItems: "center", justifyContent: "center", marginBottom: 4 },
   emptyTitle: { ...Typ.h3, color: C.text },
   emptyTxt: { ...Typ.body, color: C.textSecondary },
-});
+  });
+}
+
+export default MartScreenInner;

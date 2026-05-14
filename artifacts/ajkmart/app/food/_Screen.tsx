@@ -19,6 +19,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import Colors, { typography } from "@/constants/colors";
+import { useTheme } from "@/context/ThemeContext";
 import { T as Typ, Font } from "@/constants/typography";
 import { useCollapsibleHeader } from "@/hooks/useCollapsibleHeader";
 import { SkeletonBlock } from "@/components/ui/SkeletonBlock";
@@ -31,8 +32,6 @@ import { useQuery } from "@tanstack/react-query";
 import { API_BASE, unwrapApiResponse } from "@/utils/api";
 import { CartSwitchModal } from "@/components/CartSwitchModal";
 import { AuthGateSheet, useAuthGate, useRoleGate, RoleBlockSheet } from "@/components/AuthGateSheet";
-
-const C = Colors.light;
 
 interface FoodProduct {
   id: string;
@@ -86,6 +85,8 @@ interface RawVendorData {
 }
 
 const FoodCard = React.memo(function FoodCard({ item }: { item: FoodProduct }) {
+  const { colors: C } = useTheme();
+  const styles = useMemo(() => makeCardStyles(C), [C]);
   const { addItem, cartType, itemCount, clearCartAndAdd, items, updateQuantity, removeItem } = useCart();
   const [added, setAdded] = useState(false);
   const scale = useRef(new Animated.Value(1)).current;
@@ -196,6 +197,8 @@ interface RestaurantCard {
 }
 
 function FoodScreenInner() {
+  const { colors: C } = useTheme();
+  const styles = useMemo(() => makeStyles(C), [C]);
   const insets = useSafeAreaInsets();
   const { goBack } = useSmartBack();
   const { itemCount, cartType, clearCart } = useCart();
@@ -550,9 +553,31 @@ function FoodScreenInner() {
   );
 }
 
-export default FoodScreenInner;
+function makeCardStyles(C: typeof Colors.light) {
+  return StyleSheet.create({
+  foodCard: { backgroundColor: C.surface, borderRadius: 18, flexDirection: "row", overflow: "hidden", ...Platform.select({ web: { boxShadow: "0 2px 8px rgba(15,23,42,0.07)" }, default: { shadowColor: C.text, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.07, shadowRadius: 8, elevation: 3 } }) },
+  foodImageBox: { width: 110, backgroundColor: C.amberSoft, alignItems: "center", justifyContent: "center", overflow: "hidden" },
+  timeBadge: { position: "absolute", bottom: 8, left: 8, flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: C.overlayDark60, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10 },
+  timeText: { ...Typ.smallMedium, fontSize: 10, color: C.textInverse },
+  foodInfo: { flex: 1, padding: 14, justifyContent: "center" },
+  foodName: { ...typography.button, fontFamily: Font.bold, color: C.text, marginBottom: 3 },
+  foodVendor: { ...typography.caption, color: C.textSecondary, marginBottom: 8 },
+  ratingRow: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 10 },
+  ratingPill: { flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: C.amberSoft, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8 },
+  ratingText: { ...typography.caption, fontFamily: Font.bold, color: C.amberDark },
+  reviewCount: { ...typography.small, color: C.textMuted },
+  foodFooter: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  foodPrice: { ...typography.h3, fontSize: 17, color: C.text },
+  addBtn: { width: 34, height: 34, borderRadius: 11, backgroundColor: C.food, alignItems: "center", justifyContent: "center", ...Platform.select({ web: { boxShadow: "0 2px 4px rgba(255,149,0,0.3)" }, default: { shadowColor: C.food, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 4, elevation: 3 } }) },
+  addBtnAdded: { backgroundColor: C.success },
+  stepperRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  stepperBtn: { width: 28, height: 28, borderRadius: 8, backgroundColor: C.dangerSoft, alignItems: "center", justifyContent: "center" },
+  stepperQty: { ...typography.body, fontFamily: Font.bold, color: C.text, minWidth: 18, textAlign: "center" },
+  });
+}
 
-const styles = StyleSheet.create({
+function makeStyles(C: typeof Colors.light) {
+  return StyleSheet.create({
   container: { flex: 1, backgroundColor: C.background },
   header: { paddingHorizontal: 16, paddingBottom: 10 },
   headerRow: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 8 },
@@ -584,25 +609,7 @@ const styles = StyleSheet.create({
   countBadge: { backgroundColor: C.food, borderRadius: 10, minWidth: 24, height: 24, alignItems: "center", justifyContent: "center", paddingHorizontal: 6 },
   countBadgeTxt: { ...typography.small, fontFamily: Font.bold, color: C.textInverse },
 
-  foodList: { paddingHorizontal: 16, paddingTop: 4, gap: 12 },
-  foodCard: { backgroundColor: C.surface, borderRadius: 18, flexDirection: "row", overflow: "hidden", ...Platform.select({ web: { boxShadow: "0 2px 8px rgba(15,23,42,0.07)" }, default: { shadowColor: C.text, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.07, shadowRadius: 8, elevation: 3 } }) },
-  foodImageBox: { width: 110, backgroundColor: C.amberSoft, alignItems: "center", justifyContent: "center", overflow: "hidden" },
-  timeBadge: { position: "absolute", bottom: 8, left: 8, flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: C.overlayDark60, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10 },
-  timeText: { ...Typ.smallMedium, fontSize: 10, color: C.textInverse },
-  foodInfo: { flex: 1, padding: 14, justifyContent: "center" },
-  foodName: { ...typography.button, fontFamily: Font.bold, color: C.text, marginBottom: 3 },
-  foodVendor: { ...typography.caption, color: C.textSecondary, marginBottom: 8 },
-  ratingRow: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 10 },
-  ratingPill: { flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: C.amberSoft, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8 },
-  ratingText: { ...typography.caption, fontFamily: Font.bold, color: C.amberDark },
-  reviewCount: { ...typography.small, color: C.textMuted },
-  foodFooter: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  foodPrice: { ...typography.h3, fontSize: 17, color: C.text },
-  addBtn: { width: 34, height: 34, borderRadius: 11, backgroundColor: C.food, alignItems: "center", justifyContent: "center", ...Platform.select({ web: { boxShadow: "0 2px 4px rgba(255,149,0,0.3)" }, default: { shadowColor: C.food, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 4, elevation: 3 } }) },
-  addBtnAdded: { backgroundColor: C.success },
-  stepperRow: { flexDirection: "row", alignItems: "center", gap: 6 },
-  stepperBtn: { width: 28, height: 28, borderRadius: 8, backgroundColor: C.dangerSoft, alignItems: "center", justifyContent: "center" },
-  stepperQty: { ...typography.body, fontFamily: Font.bold, color: C.text, minWidth: 18, textAlign: "center" },
+  foodList: { paddingHorizontal: 16, gap: 12 },
 
   center: { flex: 1, alignItems: "center", justifyContent: "center", paddingTop: 80, gap: 12 },
   errorIcon: { width: 80, height: 80, borderRadius: 24, backgroundColor: C.surfaceSecondary, alignItems: "center", justifyContent: "center", marginBottom: 4 },
@@ -617,4 +624,7 @@ const styles = StyleSheet.create({
   emptyIcon: { width: 80, height: 80, borderRadius: 24, backgroundColor: C.surfaceSecondary, alignItems: "center", justifyContent: "center", marginBottom: 4 },
   emptyTitle: { ...typography.h3, color: C.text },
   emptyText: { ...typography.body, color: C.textSecondary },
-});
+  });
+}
+
+export default FoodScreenInner;

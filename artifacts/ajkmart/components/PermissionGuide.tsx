@@ -1,5 +1,5 @@
 import * as Linking from "expo-linking";
-import React from "react";
+import React, { useMemo } from "react";
 import {
   Alert,
   Modal,
@@ -10,9 +10,8 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTheme } from "@/context/ThemeContext";
 import Colors from "@/constants/colors";
-
-const C = Colors.light;
 
 export type PermissionType =
   | "camera"
@@ -84,6 +83,8 @@ interface PermissionGuideProps {
 }
 
 export function PermissionGuide({ visible, type, customMessage, onClose }: PermissionGuideProps) {
+  const { colors: C } = useTheme();
+  const styles = useMemo(() => makeStyles(C), [C]);
   const insets = useSafeAreaInsets();
   const cfg = CONFIGS[type];
 
@@ -108,7 +109,8 @@ export function PermissionGuide({ visible, type, customMessage, onClose }: Permi
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(C: typeof Colors.light) {
+  return StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.55)",
@@ -174,3 +176,4 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
 });
+}

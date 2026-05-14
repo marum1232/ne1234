@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { View, TouchableOpacity, Text, Platform } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
 import { useSmartBack } from "@/hooks/useSmartBack";
-import Colors from "@/constants/colors";
+import { useTheme } from "@/context/ThemeContext";
 import { T as Typ, Font } from "@/constants/typography";
 import { useAuth } from "@/context/AuthContext";
 import { usePlatformConfig } from "@/context/PlatformConfigContext";
@@ -15,9 +15,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { getRide, type Ride } from "@workspace/api-client-react";
 import { useApiCall } from "@/hooks/useApiCall";
 
-const C = Colors.light;
 
 function RideScreenInner() {
+  const { colors: C } = useTheme();
   const insets = useSafeAreaInsets();
   const { goBack } = useSmartBack();
   const topPad = Math.max(insets.top, 12);

@@ -1,14 +1,42 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 
 import Colors, { spacing, shadows } from "@/constants/colors";
 import { Font } from "@/constants/typography";
+import { useTheme } from "@/context/ThemeContext";
 import { API_BASE } from "@/utils/api";
 
-const C = Colors.light;
 const H_PAD = spacing.lg;
+
+function makeStStyles(C: typeof Colors.light) {
+  return StyleSheet.create({
+    wrap: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginHorizontal: H_PAD,
+      marginTop: 8,
+      backgroundColor: C.surface,
+      borderRadius: 14,
+      paddingVertical: 10,
+      borderWidth: 1,
+      borderColor: C.borderLight,
+      ...shadows.sm,
+    },
+    item: { flex: 1, alignItems: "center", gap: 3 },
+    iconBox: {
+      width: 30,
+      height: 30,
+      borderRadius: 10,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    value: { fontFamily: Font.bold, fontSize: 13, color: C.text },
+    label: { fontFamily: Font.regular, fontSize: 10, color: C.textMuted },
+    divider: { width: 1, height: 36, backgroundColor: C.borderLight },
+  });
+}
 
 export function ServiceStatsStrip({
   rideCfg,
@@ -17,6 +45,9 @@ export function ServiceStatsStrip({
   rideCfg: { bikeMinFare: number };
   features: { mart: boolean; food: boolean; rides: boolean };
 }) {
+  const { colors: C } = useTheme();
+  const st = useMemo(() => makeStStyles(C), [C]);
+
   const { data, isLoading } = useQuery<{
     productCount?: number;
     restaurantCount?: number;
@@ -102,29 +133,3 @@ export function ServiceStatsStrip({
     </View>
   );
 }
-
-const st = StyleSheet.create({
-  wrap: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginHorizontal: H_PAD,
-    marginTop: 8,
-    backgroundColor: C.surface,
-    borderRadius: 14,
-    paddingVertical: 10,
-    borderWidth: 1,
-    borderColor: C.borderLight,
-    ...shadows.sm,
-  },
-  item: { flex: 1, alignItems: "center", gap: 3 },
-  iconBox: {
-    width: 30,
-    height: 30,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  value: { fontFamily: Font.bold, fontSize: 13, color: C.text },
-  label: { fontFamily: Font.regular, fontSize: 10, color: C.textMuted },
-  divider: { width: 1, height: 36, backgroundColor: C.borderLight },
-});

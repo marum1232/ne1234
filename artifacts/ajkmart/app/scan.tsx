@@ -11,19 +11,20 @@ import {
   View,
 } from "react-native";
 import { router } from "expo-router";
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useMemo } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { PermissionGuide } from "@/components/PermissionGuide";
 import Colors from "@/constants/colors";
 import { Font } from "@/constants/typography";
 import { useToast } from "@/context/ToastContext";
 import { API_BASE } from "@/utils/api";
-
-const C = Colors.light;
+import { useTheme } from "@/context/ThemeContext";
 
 export default withErrorBoundary(ScanScreenInner);
 
 function ScanScreenInner() {
+  const { colors: C } = useTheme();
+  const s = useMemo(() => makeStyles(C), [C]);
   const insets = useSafeAreaInsets();
   const { showToast } = useToast();
   const [permission, requestPermission] = useCameraPermissions();
@@ -245,156 +246,158 @@ const FRAME = 240;
 const CORNER = 24;
 const BORDER = 3;
 
-const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#000" },
-  center: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#000",
-  },
-  header: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-    zIndex: 20,
-  },
-  headerBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(0,0,0,0.45)",
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.15)",
-  },
-  headerTitle: {
-    fontFamily: Font.bold,
-    fontSize: 17,
-    color: "#fff",
-  },
-  overlay: { ...(StyleSheet.absoluteFillObject as object), zIndex: 10 },
-  topMask: { flex: 1, backgroundColor: "rgba(0,0,0,0.55)" },
-  middleRow: { flexDirection: "row", height: FRAME },
-  sideMask: { flex: 1, backgroundColor: "rgba(0,0,0,0.55)" },
-  scanFrame: { width: FRAME, height: FRAME, position: "relative" },
-  bottomMask: {
-    flex: 1.2,
-    backgroundColor: "rgba(0,0,0,0.55)",
-    alignItems: "center",
-    paddingTop: 28,
-    gap: 16,
-  },
-  hint: {
-    fontFamily: Font.medium,
-    fontSize: 14,
-    color: "rgba(255,255,255,0.8)",
-    textAlign: "center",
-    paddingHorizontal: 32,
-  },
-  rescanBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    backgroundColor: "rgba(255,255,255,0.12)",
-    borderRadius: 20,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
-  },
-  rescanTxt: { fontFamily: Font.semiBold, fontSize: 13, color: "#fff" },
-  corner: {
-    position: "absolute",
-    width: CORNER,
-    height: CORNER,
-    borderColor: "#fff",
-  },
-  tl: {
-    top: 0,
-    left: 0,
-    borderTopWidth: BORDER,
-    borderLeftWidth: BORDER,
-    borderTopLeftRadius: 4,
-  },
-  tr: {
-    top: 0,
-    right: 0,
-    borderTopWidth: BORDER,
-    borderRightWidth: BORDER,
-    borderTopRightRadius: 4,
-  },
-  bl: {
-    bottom: 0,
-    left: 0,
-    borderBottomWidth: BORDER,
-    borderLeftWidth: BORDER,
-    borderBottomLeftRadius: 4,
-  },
-  br: {
-    bottom: 0,
-    right: 0,
-    borderBottomWidth: BORDER,
-    borderRightWidth: BORDER,
-    borderBottomRightRadius: 4,
-  },
-  scanLine: {
-    position: "absolute",
-    left: 8,
-    right: 8,
-    top: "45%",
-    height: 2,
-    backgroundColor: "#22C55E",
-    borderRadius: 1,
-    opacity: 0.85,
-  },
-  permContainer: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 32,
-    gap: 16,
-  },
-  permIconWrap: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: C.primarySoft,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 8,
-  },
-  permTitle: {
-    fontFamily: Font.bold,
-    fontSize: 22,
-    color: C.text,
-    textAlign: "center",
-  },
-  permSub: {
-    fontFamily: Font.regular,
-    fontSize: 14,
-    color: C.textSecondary,
-    textAlign: "center",
-    lineHeight: 22,
-  },
-  permBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    backgroundColor: C.primary,
-    borderRadius: 14,
-    paddingHorizontal: 28,
-    paddingVertical: 14,
-    marginTop: 8,
-  },
-  permBtnTxt: { fontFamily: Font.bold, fontSize: 15, color: "#fff" },
-  backBtn: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4 },
-  backBtnTxt: { fontFamily: Font.medium, fontSize: 14, color: C.textSecondary },
-});
+function makeStyles(C: typeof Colors.light) {
+  return StyleSheet.create({
+    root: { flex: 1, backgroundColor: "#000" },
+    center: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: "#000",
+    },
+    header: {
+      position: "absolute",
+      top: 0,
+      left: 0,
+      right: 0,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingHorizontal: 16,
+      paddingBottom: 12,
+      zIndex: 20,
+    },
+    headerBtn: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: "rgba(0,0,0,0.45)",
+      alignItems: "center",
+      justifyContent: "center",
+      borderWidth: 1,
+      borderColor: "rgba(255,255,255,0.15)",
+    },
+    headerTitle: {
+      fontFamily: Font.bold,
+      fontSize: 17,
+      color: "#fff",
+    },
+    overlay: { ...(StyleSheet.absoluteFillObject as object), zIndex: 10 },
+    topMask: { flex: 1, backgroundColor: "rgba(0,0,0,0.55)" },
+    middleRow: { flexDirection: "row", height: FRAME },
+    sideMask: { flex: 1, backgroundColor: "rgba(0,0,0,0.55)" },
+    scanFrame: { width: FRAME, height: FRAME, position: "relative" },
+    bottomMask: {
+      flex: 1.2,
+      backgroundColor: "rgba(0,0,0,0.55)",
+      alignItems: "center",
+      paddingTop: 28,
+      gap: 16,
+    },
+    hint: {
+      fontFamily: Font.medium,
+      fontSize: 14,
+      color: "rgba(255,255,255,0.8)",
+      textAlign: "center",
+      paddingHorizontal: 32,
+    },
+    rescanBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      backgroundColor: "rgba(255,255,255,0.12)",
+      borderRadius: 20,
+      paddingHorizontal: 20,
+      paddingVertical: 10,
+      borderWidth: 1,
+      borderColor: "rgba(255,255,255,0.2)",
+    },
+    rescanTxt: { fontFamily: Font.semiBold, fontSize: 13, color: "#fff" },
+    corner: {
+      position: "absolute",
+      width: CORNER,
+      height: CORNER,
+      borderColor: "#fff",
+    },
+    tl: {
+      top: 0,
+      left: 0,
+      borderTopWidth: BORDER,
+      borderLeftWidth: BORDER,
+      borderTopLeftRadius: 4,
+    },
+    tr: {
+      top: 0,
+      right: 0,
+      borderTopWidth: BORDER,
+      borderRightWidth: BORDER,
+      borderTopRightRadius: 4,
+    },
+    bl: {
+      bottom: 0,
+      left: 0,
+      borderBottomWidth: BORDER,
+      borderLeftWidth: BORDER,
+      borderBottomLeftRadius: 4,
+    },
+    br: {
+      bottom: 0,
+      right: 0,
+      borderBottomWidth: BORDER,
+      borderRightWidth: BORDER,
+      borderBottomRightRadius: 4,
+    },
+    scanLine: {
+      position: "absolute",
+      left: 8,
+      right: 8,
+      top: "45%",
+      height: 2,
+      backgroundColor: "#22C55E",
+      borderRadius: 1,
+      opacity: 0.85,
+    },
+    permContainer: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      paddingHorizontal: 32,
+      gap: 16,
+    },
+    permIconWrap: {
+      width: 100,
+      height: 100,
+      borderRadius: 50,
+      backgroundColor: C.primarySoft,
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: 8,
+    },
+    permTitle: {
+      fontFamily: Font.bold,
+      fontSize: 22,
+      color: C.text,
+      textAlign: "center",
+    },
+    permSub: {
+      fontFamily: Font.regular,
+      fontSize: 14,
+      color: C.textSecondary,
+      textAlign: "center",
+      lineHeight: 22,
+    },
+    permBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      backgroundColor: C.primary,
+      borderRadius: 14,
+      paddingHorizontal: 28,
+      paddingVertical: 14,
+      marginTop: 8,
+    },
+    permBtnTxt: { fontFamily: Font.bold, fontSize: 15, color: "#fff" },
+    backBtn: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4 },
+    backBtnTxt: { fontFamily: Font.medium, fontSize: 14, color: C.textSecondary },
+  });
+}

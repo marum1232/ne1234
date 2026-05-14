@@ -7,7 +7,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useSmartBack } from "@/hooks/useSmartBack";
 import { useMapsAutocomplete, resolveLocation } from "@/hooks/useMaps";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useMemo } from "react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import {
   ActivityIndicator,
@@ -23,6 +23,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
+import { useTheme } from "@/context/ThemeContext";
 import { T as Typ, Font } from "@/constants/typography";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
@@ -35,8 +36,6 @@ import type { CreateParcelBookingRequest } from "@workspace/api-client-react";
 import { normalizePhone, isValidPakistaniPhone, buildPhoneValidator } from "@/utils/phone";
 import { AuthGateSheet, useAuthGate } from "@/components/AuthGateSheet";
 
-
-const C = Colors.light;
 
 interface ParcelType {
   id: string;
@@ -58,6 +57,8 @@ const PARCEL_TYPE_DEFS: Omit<ParcelType, "baseFare">[] = [
 const steps = ["Sender", "Receiver", "Parcel", "Payment"];
 
 function Steps({ current, labels }: { current: number; labels: string[] }) {
+  const { colors: C } = useTheme();
+  const ss = useMemo(() => makeStepsStyles(C), [C]);
   return (
     <View style={ss.steps}>
       {labels.map((lbl, i) => (
@@ -82,6 +83,8 @@ function Steps({ current, labels }: { current: number; labels: string[] }) {
 const PARCEL_DRAFT_KEY = "parcel_wizard_draft";
 
 function ParcelScreenInner() {
+  const { colors: C } = useTheme();
+  const ss = useMemo(() => makeStyles(C), [C]);
   const insets = useSafeAreaInsets();
   const { goBack } = useSmartBack();
   const topPad = Math.max(insets.top, 12);
@@ -903,17 +906,8 @@ function ParcelScreenInner() {
   );
 }
 
-export default ParcelScreenInner;
-
-const ss = StyleSheet.create({
-  root: { flex: 1, backgroundColor: C.background },
-
-  header: { paddingHorizontal: 16, paddingBottom: 16 },
-  hdrRow: { flexDirection: "row", alignItems: "center", marginBottom: 16 },
-  backBtn: { width: 38, height: 38, borderRadius: 12, backgroundColor: C.overlayLight20, alignItems: "center", justifyContent: "center" },
-  hdrTitle: { ...Typ.title, color: C.textInverse },
-  hdrSub: { ...Typ.caption, color: C.overlayLight85, marginTop: 2 },
-
+function makeStepsStyles(C: typeof Colors.light) {
+  return StyleSheet.create({
   steps: { flexDirection: "row", alignItems: "center", paddingHorizontal: 4 },
   stepItem: { alignItems: "center", gap: 4 },
   stepDot: { width: 28, height: 28, borderRadius: 14, backgroundColor: C.overlayLight30, alignItems: "center", justifyContent: "center" },
@@ -922,6 +916,18 @@ const ss = StyleSheet.create({
   stepLbl: { ...Typ.smallMedium, fontSize: 9, color: C.overlayLight80 },
   stepLine: { flex: 1, height: 2, backgroundColor: C.overlayLight30, marginBottom: 16 },
   stepLineActive: { backgroundColor: C.amber },
+  });
+}
+
+function makeStyles(C: typeof Colors.light) {
+  return StyleSheet.create({
+  root: { flex: 1, backgroundColor: C.background },
+
+  header: { paddingHorizontal: 16, paddingBottom: 16 },
+  hdrRow: { flexDirection: "row", alignItems: "center", marginBottom: 16 },
+  backBtn: { width: 38, height: 38, borderRadius: 12, backgroundColor: C.overlayLight20, alignItems: "center", justifyContent: "center" },
+  hdrTitle: { ...Typ.title, color: C.textInverse },
+  hdrSub: { ...Typ.caption, color: C.overlayLight85, marginTop: 2 },
 
   scroll: { padding: 16, paddingBottom: 24 },
   card: { backgroundColor: C.surface, borderRadius: 18, padding: 18, marginBottom: 12, borderWidth: 1, borderColor: C.border, ...Platform.select({ web: { boxShadow: "0 2px 8px rgba(15,23,42,0.05)" }, default: { shadowColor: C.text, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 } }) },
@@ -988,4 +994,7 @@ const ss = StyleSheet.create({
   fareVal: { ...Typ.h2, color: C.amber },
   doneBtn: { backgroundColor: C.amber, borderRadius: 14, paddingVertical: 14, paddingHorizontal: 24, alignItems: "center", justifyContent: "center", flexDirection: "row" },
   doneBtnTxt: { ...Typ.body, fontFamily: Font.bold, color: C.textInverse },
-});
+  });
+}
+
+export default ParcelScreenInner;

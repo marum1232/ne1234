@@ -23,8 +23,6 @@ import { API_BASE, unwrapApiResponse } from "@/utils/api";
 import { useSmartBack } from "@/hooks/useSmartBack";
 import { SkeletonBlock } from "@/components/ui/SkeletonBlock";
 
-
-const C = Colors.light;
 interface PharmacyStore {
   id: string;
   name: string;
@@ -39,7 +37,7 @@ interface PharmacyStore {
   avgRating?: number;
 }
 
-function StoreCard({ store }: { store: PharmacyStore }) {
+function StoreCard({ store, styles, C }: { store: PharmacyStore, styles: any, C: any }) {
   const name = store.storeName || store.name;
   return (
     <TouchableOpacity
@@ -101,6 +99,7 @@ function StoreCard({ store }: { store: PharmacyStore }) {
 
 export default function PharmacyStoresScreen() {
   const { colors: C } = useTheme();
+  const styles = useMemo(() => makeStyles(C), [C]);
   const { width: W } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const { goBack } = useSmartBack("/pharmacy");
@@ -232,14 +231,15 @@ export default function PharmacyStoresScreen() {
           showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={isFetching && !isLoading} onRefresh={onRefresh} tintColor={C.purple} />}
           ListEmptyComponent={renderEmpty}
-          renderItem={({ item }) => <StoreCard store={item} />}
+          renderItem={({ item }) => <StoreCard store={item} styles={styles} C={C} />}
         />
       )}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(C: typeof Colors.light) {
+  return StyleSheet.create({
   header: { paddingHorizontal: spacing.md, paddingBottom: 16 },
   headerRow: { flexDirection: "row", alignItems: "center", gap: 12 },
   backBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: "rgba(255,255,255,0.15)", alignItems: "center", justifyContent: "center" },
@@ -263,4 +263,5 @@ const styles = StyleSheet.create({
   emptyWrap: { flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.xl, gap: 12, marginTop: 60 },
   emptyTitle: { fontFamily: Font.bold, fontSize: 16, color: C.text, textAlign: "center" },
   emptySub: { fontFamily: Font.regular, fontSize: 13, color: C.textMuted, textAlign: "center", lineHeight: 20 },
-});
+  });
+}
