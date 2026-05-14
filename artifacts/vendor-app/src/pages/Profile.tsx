@@ -39,7 +39,6 @@ export default function Profile() {
   const [editing, setEditing] = useState<EditSection>(null);
   const [saving, setSaving]   = useState(false);
   const [toast, setToast]     = useState("");
-  const [showLangPicker, setShowLangPicker] = useState(false);
 
   const { language, setLanguage, loading: langLoading } = useLanguage();
   const { isDark, toggleDark } = useTheme();
@@ -341,57 +340,12 @@ export default function Profile() {
                 </p>
               </div>
             </div>
-            {/* Language Picker */}
-            <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-              <button
-                onClick={() => setShowLangPicker(v => !v)}
-                className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-gray-50 transition-colors"
-              >
-                <div className="flex items-center gap-3">
-                  <span className="text-xl">🌐</span>
-                  <div className="text-left">
-                    <div className="text-sm font-bold text-gray-800">Language / زبان</div>
-                    <div className="text-xs text-gray-400">{LANGUAGE_OPTIONS.find(o => o.value === language)?.label || "Select Language"}</div>
-                  </div>
-                </div>
-                <span className="text-gray-400 text-sm">{showLangPicker ? "▲" : "▼"}</span>
-              </button>
-              {showLangPicker && (
-                <div className="border-t border-gray-100 p-3 space-y-2">
-                  {LANGUAGE_OPTIONS.map(opt => (
-                    <button
-                      key={opt.value}
-                      disabled={langLoading}
-                      onClick={async () => {
-                        await setLanguage(opt.value as Language);
-                        setShowLangPicker(false);
-                        showToast("Language save ho gayi!");
-                      }}
-                      className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl border-2 transition-colors text-left ${
-                        language === opt.value
-                          ? "border-orange-400 bg-orange-50"
-                          : "border-gray-100 bg-gray-50 hover:border-orange-200"
-                      }`}
-                    >
-                      <div>
-                        <div className={`text-sm font-semibold ${language === opt.value ? "text-orange-700" : "text-gray-700"}`}>{opt.label}</div>
-                        <div className="text-xs text-gray-400 mt-0.5">{opt.nativeLabel}</div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {opt.rtl && <span className="text-xs bg-amber-100 text-amber-600 font-bold px-1.5 py-0.5 rounded">RTL</span>}
-                        {language === opt.value && <span className="text-orange-500 text-lg">✓</span>}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
             <div className={CARD}>
               <div className="px-4 py-3.5 border-b border-gray-100">
-                <p className="font-bold text-gray-800 text-sm">🎨 Display</p>
+                <p className="font-bold text-gray-800 text-sm">🎨 Display & Language</p>
               </div>
-              <div className="px-4 py-3">
+              <div className="px-4 py-3 space-y-4">
+                {/* Dark mode */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${isDark ? "bg-indigo-100" : "bg-gray-100"}`}>
@@ -409,6 +363,31 @@ export default function Profile() {
                   >
                     <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${isDark ? "translate-x-5" : "translate-x-0.5"}`}/>
                   </button>
+                </div>
+                {/* Language */}
+                <div className="flex items-start gap-3">
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-emerald-50 shrink-0 mt-0.5">
+                    <span className="text-base leading-none">🌐</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-gray-800 mb-2">Language</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {LANGUAGE_OPTIONS.map(opt => (
+                        <button
+                          key={opt.value}
+                          disabled={langLoading}
+                          onClick={() => setLanguage(opt.value as Language)}
+                          className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold border transition-all ${
+                            language === opt.value
+                              ? "bg-orange-50 border-orange-400 text-orange-700"
+                              : "bg-gray-50 border-gray-200 text-gray-500 hover:border-orange-200"
+                          }`}
+                        >
+                          {opt.nativeLabel}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

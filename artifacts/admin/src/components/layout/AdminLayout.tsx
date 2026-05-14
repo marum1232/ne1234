@@ -30,7 +30,7 @@ import { useLanguage } from "@/lib/useLanguage";
 import { useAdminAuth } from "@/lib/adminAuthContext";
 import { safeLocalGet, safeLocalSet } from "@/lib/safeStorage";
 import { useTheme } from "@/lib/useTheme";
-import { tDual, type TranslationKey, LANGUAGE_OPTIONS } from "@workspace/i18n";
+import { tDual, type TranslationKey, type Language, LANGUAGE_OPTIONS } from "@workspace/i18n";
 import { io, type Socket } from "socket.io-client";
 import { adminFetch } from "@/lib/adminFetcher";
 import { getAdminTiming } from "@/lib/adminTiming";
@@ -968,7 +968,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                   {LANGUAGE_OPTIONS.map(opt => (
                     <button
                       key={opt.value}
-                      onClick={() => { setLanguage(opt.value as "en" | "ur"); setLangOpen(false); }}
+                      onClick={() => { setLanguage(opt.value as Language); setLangOpen(false); }}
                       className="w-full text-left px-4 py-2.5 text-sm transition-colors flex items-center gap-2"
                       style={{
                         fontWeight: language === opt.value ? 600 : 400,
