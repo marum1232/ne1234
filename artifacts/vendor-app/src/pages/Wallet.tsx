@@ -294,6 +294,13 @@ export default function Wallet() {
   const todayEarned = transactions.filter(t => t.type === "credit" && new Date(t.createdAt) >= today).reduce((s, t) => s + Number(t.amount), 0);
   const weekEarned  = transactions.filter(t => t.type === "credit" && new Date(t.createdAt) >= weekAgo).reduce((s, t) => s + Number(t.amount), 0);
 
+  const handlePullRefresh = useCallback(async () => {
+    await Promise.all([
+      qc.invalidateQueries({ queryKey: ["vendor-wallet"] }),
+      qc.invalidateQueries({ queryKey: ["vendor-stats"] }),
+    ]);
+  }, [qc]);
+
   if (!config.features.wallet) {
     return (
       <div className="bg-gray-50 md:bg-transparent">
@@ -308,13 +315,6 @@ export default function Wallet() {
       </div>
     );
   }
-
-  const handlePullRefresh = useCallback(async () => {
-    await Promise.all([
-      qc.invalidateQueries({ queryKey: ["vendor-wallet"] }),
-      qc.invalidateQueries({ queryKey: ["vendor-stats"] }),
-    ]);
-  }, [qc]);
 
   return (
     <ErrorBoundary fallback={(reset) => (

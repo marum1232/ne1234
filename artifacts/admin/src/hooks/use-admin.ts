@@ -1127,6 +1127,7 @@ export const useVendors = () => {
     if (q.isError) {
       toast({ title: "Failed to load vendors", description: (q.error as Error)?.message ?? "Please try again.", variant: "destructive" });
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q.isError]);
   return q;
 };

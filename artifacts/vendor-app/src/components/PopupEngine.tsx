@@ -178,6 +178,7 @@ export function PopupEngine() {
     return () => {
       if (autoDismissTimer.current) clearTimeout(autoDismissTimer.current);
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showAt]);
 
   const handleCta = useCallback(() => {

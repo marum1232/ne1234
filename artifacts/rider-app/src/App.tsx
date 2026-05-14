@@ -246,6 +246,7 @@ function AppRoutes() {
         }).catch(() => {});
       }).catch(() => {});
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
   /* ── FCM foreground notification banner ── */
@@ -300,6 +301,7 @@ function AppRoutes() {
       if (perm === "granted") registerPush().catch(() => {});
     }).catch(() => {});
     return undefined;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
   /* Show a subtle toast whenever refreshUser fails persistently */

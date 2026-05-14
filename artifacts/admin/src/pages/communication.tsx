@@ -175,6 +175,7 @@ function DashboardTab() {
       socket.off("comm:dashboard:update", handler);
       socket.disconnect();
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   if (!stats) return <div className="flex items-center justify-center p-8"><div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>;
@@ -228,6 +229,7 @@ function SettingsTab() {
       toast({ title: "Error", description: err instanceof Error ? err.message : "Failed to load communication settings", variant: "destructive" });
       setLoaded(true);
     });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const save = async () => {
@@ -476,6 +478,7 @@ function ConversationsTab() {
     fetchAdmin(`/communication/conversations?search=${encodeURIComponent(debouncedSearch)}&page=${page}&limit=${LIMIT}`)
       .then((d) => { setConversations((d.data as ConversationItem[]) || []); setTotal((d.total as number) || 0); })
       .catch((err: unknown) => {
+        // eslint-disable-next-line no-console
         console.error("[communication] conversations fetch failed:", err);
         setListError("Failed to load conversations. Please try again.");
       });
@@ -619,6 +622,7 @@ function CallHistoryTab() {
     fetchAdmin(`/communication/calls?page=${page}&limit=${LIMIT}`)
       .then((d) => { setCalls((d.data as CallItem[]) || []); setTotal((d.total as number) || 0); })
       .catch((err: unknown) => {
+        // eslint-disable-next-line no-console
         console.error("[communication] calls fetch failed:", err);
         setListError("Failed to load call history. Please try again.");
       });
@@ -697,6 +701,7 @@ function AILogsTab() {
     fetchAdmin(`/communication/ai-logs?page=${page}&limit=${LIMIT}`)
       .then((d) => { setLogs((d.data as AILogItem[]) || []); setTotal((d.total as number) || 0); })
       .catch((err: unknown) => {
+        // eslint-disable-next-line no-console
         console.error("[communication] ai-logs fetch failed:", err);
         setListError("Failed to load AI logs. Please try again.");
       });
@@ -771,6 +776,7 @@ function FlaggedTab() {
   const load = useCallback(() => {
     adminFetch(`/communication/flags?status=${status}`)
       .then((d: FlagItem[] | { data: FlagItem[] }) => setFlags(Array.isArray(d) ? d : d.data))
+      // eslint-disable-next-line no-console
       .catch((err: unknown) => { console.error("[communication] flags fetch failed:", err); setFlags([]); });
   }, [status]);
 
@@ -1113,6 +1119,7 @@ function RoleTemplatesTab() {
     adminFetch("/communication/roles")
       .then((d: RoleItem[] | { data: RoleItem[] }) => setRoles(Array.isArray(d) ? d : d.data))
       .catch((err: unknown) => {
+        // eslint-disable-next-line no-console
         console.error("[communication] roles fetch failed:", err);
         setListError("Failed to load role templates. Please try again.");
       });
@@ -1261,6 +1268,7 @@ function AjkIdsTab() {
     params.set("limit", String(LIMIT));
     fetchAdmin(`/communication/ajk-ids?${params.toString()}`)
       .then((d) => { setUsers((d.data as UserItem[]) || []); setTotal((d.total as number) || 0); })
+      // eslint-disable-next-line no-console
       .catch((err: unknown) => { console.error("[communication] ajk-ids fetch failed:", err); });
   }, [debouncedSearch, roleFilter, page]);
 

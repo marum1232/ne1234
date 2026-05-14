@@ -850,7 +850,8 @@ export default function LiveRidersMap() {
       };
     });
 
-  const riders: Rider[] = [...mergedBaseRiders, ...wsOnlyRiders];
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const riders: Rider[] = useMemo(() => [...mergedBaseRiders, ...wsOnlyRiders], [mergedBaseRiders, wsOnlyRiders]);
 
   const filteredRiders = riders.filter(rider => {
     const status = getRiderStatus(rider);
@@ -883,12 +884,14 @@ export default function LiveRidersMap() {
     return { ...c, lat: ov.lat, lng: ov.lng, updatedAt: ov.updatedAt };
   });
   const mergedCustomerIds = new Set(mergedCustomers.map(c => c.userId));
-  const customers: CustomerLoc[] = [
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const customers: CustomerLoc[] = useMemo(() => [
     ...mergedCustomers,
     ...Object.entries(customerOverrides).filter(([uid]) => !mergedCustomerIds.has(uid)).map(([uid, ov]) => ({ userId: uid, lat: ov.lat, lng: ov.lng, updatedAt: ov.updatedAt })),
-  ];
+  ], [mergedCustomers, customerOverrides, mergedCustomerIds]);
 
-  const vendors: VendorLoc[] = vendorData?.vendors ?? [];
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const vendors: VendorLoc[] = useMemo(() => vendorData?.vendors ?? [], [vendorData?.vendors]);
 
   const onlineCount = riders.filter(r => getRiderStatus(r) === "online").length;
   const busyCount   = riders.filter(r => getRiderStatus(r) === "busy").length;

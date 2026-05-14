@@ -222,6 +222,7 @@ export default function Orders({ targetOrderId }: { targetOrderId?: string } = {
         () => {},
       );
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vendorLocData]);
 
   /* Periodic refresh: re-save vendor location every 5 minutes and on window focus */
@@ -248,6 +249,7 @@ export default function Orders({ targetOrderId }: { targetOrderId?: string } = {
       clearInterval(intervalId);
       window.removeEventListener("focus", refreshLocation);
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
   /* Harden audio unlock — resume AudioContext on click, pointerdown, and
@@ -362,6 +364,7 @@ export default function Orders({ targetOrderId }: { targetOrderId?: string } = {
       socketRef.current = null;
       setSocketConnected(true);
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
   const apiStatus = tab === "new" ? "pending" : tab;

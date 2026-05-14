@@ -1304,6 +1304,7 @@ function parseUserDocuments(user: any): { files: { type: string; url: string; la
         }
       }
     } catch (err) {
+      // eslint-disable-next-line no-console
       console.warn("[parseUserDocuments] JSON parse failed:", err);
     }
   }

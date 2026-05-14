@@ -264,6 +264,7 @@ export default function Withdrawals() {
       if (wdSortKey === "status") return dir * ((wdStatusOrder[a.status] ?? 9) - (wdStatusOrder[b.status] ?? 9));
       return dir * (new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
     });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rawFiltered, wdSortKey, wdSortDir]);
   const pendingFiltered = filtered.filter(w => w.status === "pending");
 

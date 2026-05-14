@@ -4,8 +4,12 @@
  * Uses esbuild to bundle TypeScript → ESM, with pino worker-thread support.
  */
 import { build } from "esbuild";
-import { pinoPlugin } from "esbuild-plugin-pino";
+import { esbuildPluginPino } from "esbuild-plugin-pino";
 import { mkdirSync } from "fs";
+import { createRequire } from "module";
+
+// esbuild-plugin-pino uses require() internally; make it available in ESM context
+const require = createRequire(import.meta.url);
 
 mkdirSync("dist", { recursive: true });
 
@@ -17,7 +21,7 @@ await build({
   outfile: "dist/index.mjs",
   target: "node20",
   sourcemap: true,
-  plugins: [pinoPlugin({ transports: ["pino-pretty"] })],
+  plugins: [esbuildPluginPino({ transports: ["pino-pretty"] })],
   packages: "external",
   define: {
     "process.env.NODE_ENV": JSON.stringify(process.env.NODE_ENV ?? "production"),

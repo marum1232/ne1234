@@ -228,7 +228,7 @@ export default function Products() {
     queryFn: () => api.getProducts(search || undefined, filterCat !== "all" ? filterCat : undefined),
     refetchInterval: 60000,
   });
-  const products: any[] = Array.isArray(data?.products) ? data.products : [];
+  const products: any[] = useMemo(() => Array.isArray(data?.products) ? data.products : [], [data?.products]);
 
   const { data: allData, isLoading: allDataLoading, isSuccess: allDataSuccess } = useQuery({
     queryKey: ["vendor-products-all"],

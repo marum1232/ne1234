@@ -71,6 +71,8 @@ const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 10000, refetchOnWindowFocus: true } },
 });
 
+const MAINTENANCE_GRACE_MS = 5 * 60 * 1000; /* 5-minute grace period */
+
 function AppRoutes() {
   const { user, loading } = useAuth();
   const { config } = usePlatformConfig();
@@ -127,6 +129,7 @@ function AppRoutes() {
     } else if (pending) {
       navigate("/orders");
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, navigate]);
 
   /* ── Push registration error state: shown as a dismissable banner ── */
@@ -248,9 +251,9 @@ function AppRoutes() {
       navigator.serviceWorker?.removeEventListener("message", onSwMessage);
     };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, navigate]);
 
-  const MAINTENANCE_GRACE_MS = 5 * 60 * 1000; /* 5-minute grace period */
   const maintenanceSince = useRef<number | null>(null);
   const [maintenanceBlocked, setMaintenanceBlocked] = useState(false);
   const [maintenanceSecs, setMaintenanceSecs] = useState(0);

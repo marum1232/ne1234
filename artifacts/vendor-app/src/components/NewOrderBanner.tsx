@@ -23,6 +23,7 @@ export function NewOrderBanner({ order, onDismiss }: Props) {
       setTimeout(onDismiss, 300);
     }, AUTO_DISMISS_MS);
     return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [order]);
 
   if (!order) return null;

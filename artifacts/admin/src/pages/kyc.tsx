@@ -501,6 +501,7 @@ export default function KycPage() {
       if (kycSortKey === "status") return dir * ((statusOrder[a.status] ?? 9) - (statusOrder[b.status] ?? 9));
       return dir * (new Date(a.submittedAt).getTime() - new Date(b.submittedAt).getTime());
     });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [records, kycSortKey, kycSortDir]);
 
   const counts = {

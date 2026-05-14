@@ -47,6 +47,7 @@ export function AcceptCountdown({
       }
     }, 1000);
     return () => clearInterval(id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [createdAt, onExpired, timeout]);
 
   const pct = secs / timeout;

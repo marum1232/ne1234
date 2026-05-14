@@ -137,9 +137,9 @@ export default function Analytics() {
   });
 
   const summary         = data?.summary || { totalOrders: 0, totalRevenue: 0 };
-  const dailyData       = (data?.daily as Array<{ date: string; orders: number; revenue: number }>) || [];
-  const topProducts     = (data?.topProducts as Array<{ productId: string; name: string; orders: number; quantity?: number; revenue: number }>) || [];
-  const byStatus        = (data?.byStatus as Record<string, number>) || {};
+  const dailyData       = useMemo(() => (data?.daily as Array<{ date: string; orders: number; revenue: number }>) ?? [], [data?.daily]);
+  const topProducts     = useMemo(() => (data?.topProducts as Array<{ productId: string; name: string; orders: number; quantity?: number; revenue: number }>) ?? [], [data?.topProducts]);
+  const byStatus        = useMemo(() => (data?.byStatus as Record<string, number>) ?? {}, [data?.byStatus]);
   const peakHours       = (data?.peakHours as Array<{ hour: number; orders: number; revenue: number }>) || [];
   const returnRate      = (data?.returnRate as { totalCustomers: number; returningCustomers: number; rate: number }) || { totalCustomers: 0, returningCustomers: 0, rate: 0 };
   const period          = (data?.period as { days: number; from: string; to: string }) || { days: preset === "custom" ? 0 : (preset as number), from: "", to: "" };

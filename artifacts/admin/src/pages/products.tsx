@@ -537,7 +537,7 @@ export default function Products() {
     setTimeout(() => URL.revokeObjectURL(csvUrl), 0);
   };
 
-  const products = data?.products || [];
+  const products = useMemo(() => data?.products || [], [data?.products]);
   const pendingProducts = pendingData?.products || [];
   const vendors = [...new Set(products.filter((p: ProductRow) => p.vendorName).map((p: ProductRow) => p.vendorName as string))] as string[];
   const q = search.toLowerCase();

@@ -51,7 +51,7 @@ export default function WhatsAppDeliveryLog() {
     refetchInterval: 30_000,
   });
 
-  const logs: any[] = data?.logs ?? [];
+  const logs: any[] = useMemo(() => data?.logs ?? [], [data?.logs]);
   const total: number = data?.total ?? 0;
   const hasMore = page * LIMIT < total;
 

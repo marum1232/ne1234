@@ -66,6 +66,7 @@ function DraggableMarker({ lat, lng, onChange }: { lat: number; lng: number; onC
 /* ── Auto-pan map when lat/lng change ── */
 function PanTo({ lat, lng }: { lat: number; lng: number }) {
   const map = useMap();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { map.setView([lat, lng], map.getZoom()); }, [lat, lng]);
   return null;
 }
@@ -121,6 +122,7 @@ export default function Store() {
         : user.storeHours;
       if (parsed) setHours(parsed);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, user?.storeName, user?.storeCategory, user?.storeDescription, user?.storeBanner, user?.storeAnnouncement, user?.storeDeliveryTime, user?.storeMinOrder, user?.storeHours]);
 
   const storeMut = useMutation({

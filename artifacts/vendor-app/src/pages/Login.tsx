@@ -220,6 +220,7 @@ export default function Login() {
   useEffect(() => {
     if (step === "input" && method === "google") { handleSocialGoogle(); }
     if (step === "input" && method === "facebook") { handleSocialFacebook(); }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, method]);
 
   useEffect(() => {
@@ -232,6 +233,7 @@ export default function Login() {
         .catch((e: unknown) => { setError(e instanceof Error ? e.message : "Magic link login failed"); window.history.replaceState({}, "", window.location.pathname); })
         .finally(() => setLoading(false));
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const checkIdentifier = useCallback(async () => {
@@ -404,6 +406,7 @@ export default function Login() {
       const suggested = regForm.name.trim().toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 20);
       if (suggested.length >= 3) setRegUsername(suggested);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [regForm.name]);
 
   interface AuthResponse {

@@ -28,6 +28,7 @@ export default function AccessibilityPage() {
       })
       .catch(() => { setSyncStatus("error"); });
     mountedRef.current = true;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {

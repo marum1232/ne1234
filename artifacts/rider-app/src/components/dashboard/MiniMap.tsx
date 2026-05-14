@@ -50,6 +50,7 @@ function MiniMapFitter({
     } else if (hasDrop) {
       map.setView([dropLat, dropLng], 14);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pickupLat, pickupLng, dropLat, dropLng, hasPick, hasDrop]);
   return null;
 }

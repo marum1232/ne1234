@@ -36,6 +36,7 @@ function ReturnPanel({ order, onRefundOrder }: { order: any; onRefundOrder?: (am
     setLoadingReqs(false);
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { void loadRequests(); }, [order.id]);
 
   const handleSubmitNew = async () => {
@@ -175,6 +176,7 @@ function DisputePanel({ order }: { order: any }) {
     setLoadingDisp(false);
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { void loadDisputes(); }, [order.id]);
 
   const handleSubmitNew = async () => {

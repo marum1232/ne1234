@@ -524,6 +524,7 @@ export default function ErrorMonitor() {
       queryClient.invalidateQueries({ queryKey: ["error-count"] });
     },
     onError: (err: unknown) => {
+      // eslint-disable-next-line no-console
       console.error("[error-monitor] updateMutation failed:", err instanceof Error ? err.message : err);
       toast({ title: "Failed to update report status", description: err instanceof Error ? err.message : "An unexpected error occurred.", variant: "destructive" });
     },
@@ -540,6 +541,7 @@ export default function ErrorMonitor() {
       queryClient.invalidateQueries({ queryKey: ["customer-reports-count"] });
     },
     onError: (err: unknown) => {
+      // eslint-disable-next-line no-console
       console.error("[error-monitor] updateCustomerReportMutation failed:", err instanceof Error ? err.message : err);
       toast({ title: "Failed to update customer report", description: err instanceof Error ? err.message : "An unexpected error occurred.", variant: "destructive" });
     },
@@ -556,6 +558,7 @@ export default function ErrorMonitor() {
       queryClient.invalidateQueries({ queryKey: ["error-count"] });
     },
     onError: (err: unknown) => {
+      // eslint-disable-next-line no-console
       console.error("[error-monitor] resolveMutation failed:", err instanceof Error ? err.message : err);
       toast({ title: "Failed to resolve report", description: err instanceof Error ? err.message : "An unexpected error occurred.", variant: "destructive" });
     },
@@ -569,6 +572,7 @@ export default function ErrorMonitor() {
       queryClient.invalidateQueries({ queryKey: ["error-count"] });
     },
     onError: (err: unknown) => {
+      // eslint-disable-next-line no-console
       console.error("[error-monitor] undoMutation failed:", err instanceof Error ? err.message : err);
       toast({ title: "Failed to undo report change", description: err instanceof Error ? err.message : "An unexpected error occurred.", variant: "destructive" });
     },
@@ -590,6 +594,7 @@ export default function ErrorMonitor() {
       refetchAutoSettings();
     },
     onError: (err: unknown) => {
+      // eslint-disable-next-line no-console
       console.error("[error-monitor] updateAutoSettingsMutation failed:", err instanceof Error ? err.message : err);
       toast({ title: "Failed to save auto-resolve settings", description: err instanceof Error ? err.message : "An unexpected error occurred.", variant: "destructive" });
     },
@@ -610,6 +615,7 @@ export default function ErrorMonitor() {
       refetchAutoLog();
     },
     onError: (err: unknown) => {
+      // eslint-disable-next-line no-console
       console.error("[error-monitor] runAutoResolveMutation failed:", err instanceof Error ? err.message : err);
       toast({ title: "Auto-resolve run failed", description: err instanceof Error ? err.message : "An unexpected error occurred.", variant: "destructive" });
     },

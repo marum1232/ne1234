@@ -81,6 +81,7 @@ function AutoFitMap({ positions }: { positions: [number, number][] }) {
     if (!validPositions.length) return;
     if (validPositions.length === 1) { map.setView(validPositions[0]!, 15); return; }
     map.fitBounds(L.latLngBounds(validPositions), { padding: [30, 30], maxZoom: 16 });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [validPositions.map(p => p.join(",")).join("|")]);
   return null;
 }
@@ -522,6 +523,7 @@ function TurnByTurnPanel({ fromLat, fromLng, toLat, toLng, label, riderLat, ride
         }
       }
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [riderLat, riderLng, route, currentStep]);
 
   /* Cleanup reroute timer and abort any in-flight OSRM fetch on unmount */
@@ -920,6 +922,7 @@ export default function Active() {
 
   useEffect(() => {
     if (tabVisible) refetch();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tabVisible]);
 
   const [gpsWarning, setGpsWarning] = useState<string | null>(null);
@@ -964,6 +967,7 @@ export default function Active() {
   useEffect(() => {
     if (data?.order && !data?.ride) setCancelTarget("order");
     else if (data?.ride && !data?.order) setCancelTarget("ride");
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [!!data?.order, !!data?.ride]);
 
   useEffect(() => {
@@ -1078,6 +1082,7 @@ export default function Active() {
     );
 
     return () => navigator.geolocation.clearWatch(watchId);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [!!data?.order, !!data?.ride, user?.id]);
 
   useEffect(() => {

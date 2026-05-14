@@ -109,7 +109,7 @@ export default function Reviews() {
     createdAt: string;
     customerName: string | null;
     vendorReply: string | null;
-  }>                          = data?.reviews      ?? [];
+  }>                          = useMemo(() => data?.reviews ?? [], [data?.reviews]);
   const total: number         = data?.total        ?? 0;
   const pages: number         = data?.pages        ?? 1;
   const avgRating: number | null = data?.avgRating ?? null;

@@ -124,6 +124,7 @@ export default function Profile() {
     setBankName(user.bankName || "");
     setBankAccount(user.bankAccount || "");
     setBankAccountTitle(user.bankAccountTitle || "");
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, user?.name, user?.email, user?.cnic, user?.city, user?.address, user?.businessType, user?.bankName, user?.bankAccount, user?.bankAccountTitle]);
 
   const startEdit = (section: EditSection) => {

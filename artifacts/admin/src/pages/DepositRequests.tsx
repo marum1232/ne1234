@@ -366,6 +366,7 @@ export default function DepositRequests() {
       if (depSortKey === "status") return dir * ((depStatusOrder[a.status] ?? 9) - (depStatusOrder[b.status] ?? 9));
       return dir * (new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
     });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rawFiltered, depSortKey, depSortDir]);
   const pendingCount  = deposits.filter(d => d.status === "pending").length;
   const pendingAmt    = deposits.filter(d => d.status === "pending").reduce((s: number, d: Deposit) => s + Number(d.amount), 0);

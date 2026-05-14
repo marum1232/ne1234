@@ -316,12 +316,13 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
   [q]);
 
   /* Apply category filter to static items */
-  const filteredStaticItems =
+  const filteredStaticItems = useMemo(() =>
     activeFilter === "All"
       ? localStaticItems
       : activeFilter === "Users" || activeFilter === "Orders" || activeFilter === "Rides"
         ? []
-        : localStaticItems.filter(e => e.category === activeFilter);
+        : localStaticItems.filter(e => e.category === activeFilter),
+  [activeFilter, localStaticItems]);
 
   /* ── AI results enriched with full index entries ── */
   const aiResults: AiResult[] = aiData?.data?.results ?? aiData?.results ?? [];
@@ -332,10 +333,10 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
 
   /* ── Live DB results ── */
   const live: LiveSearchResponse = (liveData ?? {}) as LiveSearchResponse;
-  const liveUsers:    LiveUser[]  = live.users    ?? [];
-  const liveRides:    LiveRide[]  = live.rides    ?? [];
-  const liveOrders:   LiveOrder[] = live.orders   ?? [];
-  const livePharmacy: LiveOrder[] = live.pharmacy ?? [];
+  const liveUsers    = useMemo((): LiveUser[]  => live.users    ?? [], [live.users]);
+  const liveRides    = useMemo((): LiveRide[]  => live.rides    ?? [], [live.rides]);
+  const liveOrders   = useMemo((): LiveOrder[] => live.orders   ?? [], [live.orders]);
+  const livePharmacy = useMemo((): LiveOrder[] => live.pharmacy ?? [], [live.pharmacy]);
 
   /* Apply per-category filtering */
   const showUsers  = activeFilter === "All" || activeFilter === "Users";
@@ -343,11 +344,11 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
   const showOrders = activeFilter === "All" || activeFilter === "Orders";
 
   /* Client-side status filter on live results */
-  const filterByStatus = <T extends { status?: string }>(items: T[]): T[] => {
+  const filterByStatus = useCallback(<T extends { status?: string }>(items: T[]): T[] => {
     if (!activeStatus) return items;
     const accepted = STATUS_ALIASES[activeStatus];
     return items.filter(i => accepted.includes(i.status ?? ""));
-  };
+  }, [activeStatus]);
 
   /* Build full item list: AI → static → live */
   const allItems = useMemo<CmdItem[]>(() => [
@@ -363,7 +364,6 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
           ...livePharmacy.map(p => ({ ...p, _pharm: true })),
         ]).map((o): CmdItem => ({ _type: "order", ...o }))
       : []),
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   ], [aiEnrichedItems, filteredStaticItems, showUsers, liveUsers, showRides, filterByStatus, liveRides, showOrders, liveOrders, livePharmacy]);
 
   /* ── Reset selection on list/query change; clear stale cmd result ── */
