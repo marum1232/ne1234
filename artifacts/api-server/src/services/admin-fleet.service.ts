@@ -886,7 +886,7 @@ export class FleetService {
 
     let rider: {
       name: string | null;
-      phone: string;
+      phone: string | null;
       email: string | null;
     } | null = null;
     if (ride.riderId) {

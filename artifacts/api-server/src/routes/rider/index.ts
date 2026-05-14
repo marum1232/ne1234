@@ -717,7 +717,7 @@ router.get("/active", async (req, res) => {
   ]);
 
   // Enrich with customer name/phone so rider can call the customer
-  let enrichedRide = null;
+  let enrichedRide: (Omit<NonNullable<typeof ride[0]>, 'fare' | 'distance'> & { fare: number; distance: number; customerName: string | null; customerPhone: string | null }) | null = null;
   if (ride[0]) {
     const [customer] = await db.select({ name: usersTable.name, phone: usersTable.phone })
       .from(usersTable).where(eq(usersTable.id, ride[0].userId)).limit(1);
@@ -731,7 +731,7 @@ router.get("/active", async (req, res) => {
     };
   }
 
-  let enrichedOrder = null;
+  let enrichedOrder: (Omit<NonNullable<typeof order[0]>, 'total'> & { total: number; customerName: string | null; customerPhone: string | null; vendorStoreName: string | null; vendorPhone: string | null }) | null = null;
   if (order[0]) {
     type CustomerRow = { name: string | null; phone: string | null };
   type VendorRow   = { storeName: string | null; phone: string | null };

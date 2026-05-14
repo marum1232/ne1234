@@ -100,7 +100,7 @@ function checkEnv(): void {
     }
 
     // In production, validate all JWT secrets meet strength requirements
-    const secretErrors = [];
+    const secretErrors: string[] = [];
     for (const k of JWT_SECRET_VARS) {
       const secret = process.env[k];
       if (secret) {

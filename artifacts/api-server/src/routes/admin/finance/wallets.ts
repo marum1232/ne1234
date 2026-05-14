@@ -572,8 +572,8 @@ router.get("/riders", async (_req, res) => {
       penaltyRows.map((r: Record<string, unknown>) => [
         r.riderId,
         parseFloat(String(r.total ?? "0")),
-      ]),
-    ) as Map<string, number>;
+      ]) as [string, number][]
+    );
     const ratingMap = new Map(
       ratingRows.map((r: Record<string, unknown>) => [
         r.riderId,
@@ -581,8 +581,8 @@ router.get("/riders", async (_req, res) => {
           avg: parseFloat(String(r.avgRating ?? "0")),
           count: (r.ratingCount as number) ?? 0,
         },
-      ]),
-    ) as Map<string, { avg: number; count: number }>;
+      ]) as [string, { avg: number; count: number }][]
+    );
 
     sendSuccess(res, {
       riders: riders.map((r) => ({
