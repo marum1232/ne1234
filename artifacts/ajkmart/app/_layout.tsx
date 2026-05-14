@@ -1,6 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createLogger } from "@/utils/logger";
-const log = createLogger("[Layout]");
 import { AuthGuard } from "@/app/_handlers/AuthGuard";
 import { SuspendedScreen } from "@/app/_handlers/SuspendedScreen";
 import { MaintenanceScreen } from "@/app/_handlers/MaintenanceScreen";
@@ -14,10 +13,7 @@ import { MisconfigScreen } from "@/app/_handlers/MisconfigScreen";
 import { ApiUnreachableScreen } from "@/app/_handlers/ApiUnreachableScreen";
 import { PushNotificationHandler } from "@/app/_handlers/PushNotificationHandler";
 import { _domain, log, WHATS_NEW_KEY } from "@/app/_handlers/_shared";
-import {
-  QueryClient,
-  useQueryClient,
-} from "@tanstack/react-query";
+import { QueryClient, useQueryClient } from "@tanstack/react-query";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { createAsyncStoragePersister } from "@tanstack/query-async-storage-persister";
 import {
@@ -70,17 +66,20 @@ import { OfflineBar, SlowConnectionBar } from "@/components/OfflineBar";
 SplashScreen.preventAutoHideAsync();
 
 if (Platform.OS === "web" && typeof window !== "undefined") {
-  window.addEventListener("unhandledrejection", (event: PromiseRejectionEvent) => {
-    const msg: string = event?.reason?.message ?? String(event?.reason ?? "");
-    const isRouterTimeout =
-      /\b6000ms\b/.test(msg) ||
-      /\b\d+ms timeout exceeded\b/.test(msg) ||
-      (msg.includes("timeout") && msg.toLowerCase().includes("route"));
-    if (isRouterTimeout) {
-      event.preventDefault();
-      log.warn("Suppressed Expo Router startup timeout:", msg);
-    }
-  });
+  window.addEventListener(
+    "unhandledrejection",
+    (event: PromiseRejectionEvent) => {
+      const msg: string = event?.reason?.message ?? String(event?.reason ?? "");
+      const isRouterTimeout =
+        /\b6000ms\b/.test(msg) ||
+        /\b\d+ms timeout exceeded\b/.test(msg) ||
+        (msg.includes("timeout") && msg.toLowerCase().includes("route"));
+      if (isRouterTimeout) {
+        event.preventDefault();
+        log.warn("Suppressed Expo Router startup timeout:", msg);
+      }
+    },
+  );
 }
 
 function DeferredProviders({ children }: { children: React.ReactNode }) {
@@ -163,10 +162,16 @@ function RootLayoutNav() {
   const installedVersion = Constants.expoConfig?.version ?? "";
   const minAppVersion = config.compliance?.minAppVersion ?? "";
   const STRICT_SEMVER_RE = /^\d+\.\d+\.\d+$/;
-  const _cur = typeof installedVersion === "string" ? installedVersion.trim() : "";
+  const _cur =
+    typeof installedVersion === "string" ? installedVersion.trim() : "";
   const _min = typeof minAppVersion === "string" ? minAppVersion.trim() : "";
   let forceUpdate = false;
-  if (!_cur || !_min || !STRICT_SEMVER_RE.test(_cur) || !STRICT_SEMVER_RE.test(_min)) {
+  if (
+    !_cur ||
+    !_min ||
+    !STRICT_SEMVER_RE.test(_cur) ||
+    !STRICT_SEMVER_RE.test(_min)
+  ) {
     log.warn(
       "ForceUpdate: Skipping force-update check — invalid or missing version data",
       { installedVersion: _cur || "(empty)", minAppVersion: _min || "(empty)" },
@@ -236,23 +241,38 @@ function RootLayoutNav() {
     const doInit = () => {
       deferredInitDone.current = true;
       if (integ.sentry && integ.sentryDsn) {
-        initSentry(integ.sentryDsn, integ.sentryEnvironment, integ.sentrySampleRate).catch((err) => { log.warn("[layout] Sentry init failed:", err); });
+        initSentry(
+          integ.sentryDsn,
+          integ.sentryEnvironment,
+          integ.sentrySampleRate,
+        ).catch((err) => {
+          log.warn("[layout] Sentry init failed:", err);
+        });
       }
       if (integ.analytics && integ.analyticsTrackingId) {
-        initAnalytics(integ.analyticsPlatform, integ.analyticsTrackingId, integ.analyticsDebug ?? false);
+        initAnalytics(
+          integ.analyticsPlatform,
+          integ.analyticsTrackingId,
+          integ.analyticsDebug ?? false,
+        );
         trackScreen("app_start");
       }
     };
     const timer = setTimeout(doInit, 1500);
     return () => clearTimeout(timer);
-  }, [config?.integrations?.sentryDsn, config?.integrations?.analyticsTrackingId]);
+  }, [
+    config?.integrations?.sentryDsn,
+    config?.integrations?.analyticsTrackingId,
+  ]);
 
   useEffect(() => {
     if (!user?.id || !token) return;
     const timer = setTimeout(() => {
       setSentryUser(String(user.id));
       identifyUser(String(user.id));
-      registerPush(token).catch((err) => { log.warn("[layout] Push registration failed:", err); });
+      registerPush(token).catch((err) => {
+        log.warn("[layout] Push registration failed:", err);
+      });
     }, 2000);
     return () => clearTimeout(timer);
   }, [user?.id, token]);
@@ -260,7 +280,10 @@ function RootLayoutNav() {
   const lastCheckedTermsVersionRef = useRef<string | null>(null);
   useEffect(() => {
     const currentTermsVersion = config.compliance?.termsVersion ?? null;
-    if (currentTermsVersion && currentTermsVersion !== lastCheckedTermsVersionRef.current) {
+    if (
+      currentTermsVersion &&
+      currentTermsVersion !== lastCheckedTermsVersionRef.current
+    ) {
       termsCheckedRef.current = false;
     }
   }, [config.compliance?.termsVersion]);
@@ -276,12 +299,15 @@ function RootLayoutNav() {
     })
       .then((r) => r.json())
       .then((data) => {
-        const accepted = data?.data?.acceptedTermsVersion ?? data?.acceptedTermsVersion;
+        const accepted =
+          data?.data?.acceptedTermsVersion ?? data?.acceptedTermsVersion;
         if (!accepted || accepted !== termsVersion) {
           setShowTerms(true);
         }
       })
-      .catch((err) => { log.debug("[layout] Compliance status fetch failed:", err); });
+      .catch((err) => {
+        log.debug("[layout] Compliance status fetch failed:", err);
+      });
   }, [user?.id, config.compliance?.termsVersion, forceUpdate]);
 
   useEffect(() => {
@@ -293,7 +319,9 @@ function RootLayoutNav() {
           setTimeout(() => setShowWhatsNew(true), 1500);
         }
       })
-      .catch((err) => { log.debug("[layout] WhatsNew check failed:", err); });
+      .catch((err) => {
+        log.debug("[layout] WhatsNew check failed:", err);
+      });
   }, [user?.id, installedVersion, config.releaseNotes?.length, forceUpdate]);
 
   if (isSuspended) return <SuspendedScreen />;
@@ -343,13 +371,18 @@ function RootLayoutNav() {
         releaseNotes={config.releaseNotes ?? []}
         appVersion={installedVersion}
         onDismiss={() => {
-          AsyncStorage.setItem(WHATS_NEW_KEY, installedVersion).catch((err) => { log.debug("[layout] Failed to save WhatsNew version:", err); });
+          AsyncStorage.setItem(WHATS_NEW_KEY, installedVersion).catch((err) => {
+            log.debug("[layout] Failed to save WhatsNew version:", err);
+          });
           setShowWhatsNew(false);
         }}
       />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="index" options={{ headerShown: false }} />
-        <Stack.Screen name="onboarding" options={{ headerShown: false, gestureEnabled: false }} />
+        <Stack.Screen
+          name="onboarding"
+          options={{ headerShown: false, gestureEnabled: false }}
+        />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="auth" options={{ headerShown: false }} />
         <Stack.Screen name="mart/index" options={{ headerShown: false }} />
@@ -358,7 +391,10 @@ function RootLayoutNav() {
         <Stack.Screen name="cart/index" options={{ headerShown: false }} />
         <Stack.Screen name="pharmacy/index" options={{ headerShown: false }} />
         <Stack.Screen name="parcel/index" options={{ headerShown: false }} />
-        <Stack.Screen name="categories/index" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="categories/index"
+          options={{ headerShown: false }}
+        />
         <Stack.Screen name="order/index" options={{ headerShown: false }} />
         <Stack.Screen name="orders/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="school/index" options={{ headerShown: false }} />
@@ -368,7 +404,9 @@ function RootLayoutNav() {
   );
 }
 
-async function probeApiHealth(domain: string): Promise<{ reachable: boolean; url: string }> {
+async function probeApiHealth(
+  domain: string,
+): Promise<{ reachable: boolean; url: string }> {
   const url = `https://${domain}/api/health`;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 5000);
@@ -384,7 +422,9 @@ async function probeApiHealth(domain: string): Promise<{ reachable: boolean; url
 
 export default function RootLayout() {
   const [ready, setReady] = useState(false);
-  const [apiReachable, setApiReachable] = useState<boolean | null>(_domain ? null : true);
+  const [apiReachable, setApiReachable] = useState<boolean | null>(
+    _domain ? null : true,
+  );
   const [apiUrl, setApiUrl] = useState(`https://${_domain}/api/health`);
   const [retrying, setRetrying] = useState(false);
 
@@ -424,18 +464,21 @@ export default function RootLayout() {
 
     const loadAllFonts = async () => {
       try {
-        const timeout = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+        const timeout = (ms: number) =>
+          new Promise<void>((r) => setTimeout(r, ms));
         // eslint-disable-next-line ajk-local/no-silent-catch -- font loading failure is cosmetic; app renders with system fonts
         await Promise.race([
           loadCoreFonts(),
           timeout(Platform.OS === "web" ? 2000 : 6000),
         ]).catch(() => {});
-        const savedLang = await AsyncStorage.getItem("@ajkmart_language").catch(() => null);
+        const savedLang = await AsyncStorage.getItem("@ajkmart_language").catch(
+          () => null,
+        );
         if (savedLang === "ur" || savedLang === "en_ur") {
           // eslint-disable-next-line ajk-local/no-silent-catch -- Urdu font loading is cosmetic; app renders with system fonts
-        loadUrduFonts().catch(() => {});
+          loadUrduFonts().catch(() => {});
         }
-      // eslint-disable-next-line ajk-local/no-silent-catch -- font loading failure is intentionally swallowed; app renders with system fonts
+        // eslint-disable-next-line ajk-local/no-silent-catch -- font loading failure is intentionally swallowed; app renders with system fonts
       } catch {
         // Silently continue — the app renders with system fonts as fallback.
       }
@@ -465,8 +508,25 @@ export default function RootLayout() {
   if (!ready || (_domain && apiReachable === null)) {
     return (
       <WebShell>
-        <View style={{ flex: 1, backgroundColor: "#0047B3", alignItems: "center", justifyContent: "center", gap: 20 }}>
-          <View style={{ width: 72, height: 72, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.15)", alignItems: "center", justifyContent: "center" }}>
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: "#0047B3",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 20,
+          }}
+        >
+          <View
+            style={{
+              width: 72,
+              height: 72,
+              borderRadius: 20,
+              backgroundColor: "rgba(255,255,255,0.15)",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
             <Text style={{ fontSize: 36 }}>🛒</Text>
           </View>
           <ActivityIndicator size="large" color="#ffffff" />
@@ -486,7 +546,11 @@ export default function RootLayout() {
   if (apiReachable === false) {
     return (
       <WebShell>
-        <ApiUnreachableScreen url={apiUrl} onRetry={handleRetry} retrying={retrying} />
+        <ApiUnreachableScreen
+          url={apiUrl}
+          onRetry={handleRetry}
+          retrying={retrying}
+        />
       </WebShell>
     );
   }

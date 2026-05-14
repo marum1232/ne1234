@@ -1,18 +1,57 @@
-import { useState, useEffect, useCallback, useRef, type ElementType, type ReactNode } from "react";
+import {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  type ElementType,
+  type ReactNode,
+} from "react";
 import { adminFetch } from "@/lib/adminFetcher";
 import { PageHeader } from "@/components/shared";
 import {
-  Shield, RefreshCw, CheckCircle2, XCircle, Loader2,
-  Search, Clock, AlertTriangle, Users, ChevronRight,
-  UserCheck, UserX, Info, ListChecks, Plus, Trash2, CalendarDays,
-  ShieldOff, Activity, Zap, Gauge, KeyRound, Eye, EyeOff,
+  Shield,
+  RefreshCw,
+  CheckCircle2,
+  XCircle,
+  Loader2,
+  Search,
+  Clock,
+  AlertTriangle,
+  Users,
+  ChevronRight,
+  UserCheck,
+  UserX,
+  Info,
+  ListChecks,
+  Plus,
+  Trash2,
+  CalendarDays,
+  ShieldOff,
+  Activity,
+  Zap,
+  Gauge,
+  KeyRound,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { useOtpWhitelist, useAddOtpWhitelist, useUpdateOtpWhitelist, useDeleteOtpWhitelist, usePlatformSettings, useUpdatePlatformSettings } from "@/hooks/use-admin";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  useOtpWhitelist,
+  useAddOtpWhitelist,
+  useUpdateOtpWhitelist,
+  useDeleteOtpWhitelist,
+  usePlatformSettings,
+  useUpdatePlatformSettings,
+} from "@/hooks/use-admin";
 
 const BYPASS_CODE_REGEX = /^[0-9]{6}$/;
 
@@ -22,11 +61,22 @@ interface ApiError {
 }
 
 function isApiError(value: unknown): value is ApiError {
-  return typeof value === "object" && value !== null && ("status" in value || "message" in value);
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    ("status" in value || "message" in value)
+  );
 }
 
-function errorMessage(value: unknown, fallback = "Something went wrong"): string {
-  if (isApiError(value) && typeof value.message === "string" && value.message.length > 0) {
+function errorMessage(
+  value: unknown,
+  fallback = "Something went wrong",
+): string {
+  if (
+    isApiError(value) &&
+    typeof value.message === "string" &&
+    value.message.length > 0
+  ) {
     return value.message;
   }
   if (value instanceof Error) return value.message;
@@ -48,7 +98,10 @@ async function api(method: string, path: string, body?: unknown) {
 function useCountdown(targetIso: string | null) {
   const [remaining, setRemaining] = useState(0);
   useEffect(() => {
-    if (!targetIso) { setRemaining(0); return; }
+    if (!targetIso) {
+      setRemaining(0);
+      return;
+    }
     const tick = () => {
       const diff = Math.max(0, new Date(targetIso).getTime() - Date.now());
       setRemaining(diff);
@@ -71,14 +124,21 @@ function fmtCountdown(ms: number) {
 }
 
 function fmtDate(iso: string) {
-  return new Date(iso).toLocaleString("en-PK", { dateStyle: "medium", timeStyle: "short" });
+  return new Date(iso).toLocaleString("en-PK", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
 }
 
 function generateBypassCode() {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-type OTPStatus = { isGloballyDisabled: boolean; disabledUntil: string | null; activeBypassCount: number };
+type OTPStatus = {
+  isGloballyDisabled: boolean;
+  disabledUntil: string | null;
+  activeBypassCount: number;
+};
 
 type UserRow = {
   id: string;
@@ -99,7 +159,10 @@ type OtpWhitelistEntry = {
   updatedAt: string;
 };
 
-type OtpAuditEvent = "login_otp_bypass" | "login_global_otp_bypass" | "otp_send_bypassed";
+type OtpAuditEvent =
+  | "login_otp_bypass"
+  | "login_global_otp_bypass"
+  | "otp_send_bypassed";
 
 type AuditRow = {
   id: string;
@@ -120,25 +183,47 @@ function isBypassActive(otpBypassUntil: string | null | undefined): boolean {
 
 /* ── Design primitives ───────────────────────────────────────────────────── */
 
-function ProCard({ children, className = "" }: { children: ReactNode; className?: string }) {
+function ProCard({
+  children,
+  className = "",
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
   return (
-    <div className={`rounded-2xl border border-border bg-white shadow-sm overflow-hidden ${className}`}>
+    <div
+      className={`rounded-2xl border border-border bg-white shadow-sm overflow-hidden ${className}`}
+    >
       {children}
     </div>
   );
 }
 
-function CardHeader({ icon: Icon, label, sub, color, gradient }: {
-  icon: ElementType; label: string; sub?: string; color: string; gradient: string;
+function CardHeader({
+  icon: Icon,
+  label,
+  sub,
+  color,
+  gradient,
+}: {
+  icon: ElementType;
+  label: string;
+  sub?: string;
+  color: string;
+  gradient: string;
 }) {
   return (
     <div className={`px-5 py-4 border-b border-border/60 ${gradient}`}>
       <div className="flex items-center gap-2.5">
-        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${color} bg-white/60 backdrop-blur-sm`}>
+        <div
+          className={`w-8 h-8 rounded-lg flex items-center justify-center ${color} bg-white/60 backdrop-blur-sm`}
+        >
           <Icon className="w-4 h-4" />
         </div>
         <div>
-          <h3 className="text-sm font-bold font-display text-gray-900 leading-none">{label}</h3>
+          <h3 className="text-sm font-bold font-display text-gray-900 leading-none">
+            {label}
+          </h3>
           {sub && <p className="text-[11px] text-gray-500 mt-0.5">{sub}</p>}
         </div>
       </div>
@@ -146,27 +231,52 @@ function CardHeader({ icon: Icon, label, sub, color, gradient }: {
   );
 }
 
-function StatCard({ icon: Icon, label, value, sub, accent }: {
-  icon: ElementType; label: string; value: ReactNode; sub?: string; accent: string;
+function StatCard({
+  icon: Icon,
+  label,
+  value,
+  sub,
+  accent,
+}: {
+  icon: ElementType;
+  label: string;
+  value: ReactNode;
+  sub?: string;
+  accent: string;
 }) {
   return (
-    <div className={`rounded-2xl border bg-white shadow-sm px-5 py-4 flex items-center gap-4`}>
-      <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${accent}`}>
+    <div
+      className={`rounded-2xl border bg-white shadow-sm px-5 py-4 flex items-center gap-4`}
+    >
+      <div
+        className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${accent}`}
+      >
         <Icon className="w-5 h-5" />
       </div>
       <div className="min-w-0">
-        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{label}</p>
-        <p className="text-xl font-bold font-display text-foreground leading-tight mt-0.5">{value}</p>
-        {sub && <p className="text-[11px] text-muted-foreground mt-0.5">{sub}</p>}
+        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+          {label}
+        </p>
+        <p className="text-xl font-bold font-display text-foreground leading-tight mt-0.5">
+          {value}
+        </p>
+        {sub && (
+          <p className="text-[11px] text-muted-foreground mt-0.5">{sub}</p>
+        )}
       </div>
     </div>
   );
 }
 
 function AvatarInitial({ name }: { name: string | null }) {
-  const initials = (name ?? "?").split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase();
+  const initials = (name ?? "?")
+    .split(" ")
+    .map((w) => w[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
   return (
-    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center flex-shrink-0 text-white text-xs font-bold shadow-sm">
+    <div className="w-9 h-9 rounded-full bg-linear-to-br from-indigo-400 to-purple-500 flex items-center justify-center shrink-0 text-white text-xs font-bold shadow-sm">
       {initials}
     </div>
   );
@@ -192,49 +302,59 @@ type DeliveryOtpResult = {
 export default function OtpControl() {
   const { toast } = useToast();
 
-  const [status, setStatus]           = useState<OTPStatus | null>(null);
+  const [status, setStatus] = useState<OTPStatus | null>(null);
   const [statusLoading, setStatusLoading] = useState(false);
   const [customMinutes, setCustomMinutes] = useState("");
   const remaining = useCountdown(status?.disabledUntil ?? null);
 
-  const [query, setQuery]             = useState("");
-  const [users, setUsers]             = useState<UserRow[]>([]);
-  const [searching, setSearching]     = useState(false);
-  const [bypassMins, setBypassMins]   = useState<Record<string, string>>({});
+  const [query, setQuery] = useState("");
+  const [users, setUsers] = useState<UserRow[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [bypassMins, setBypassMins] = useState<Record<string, string>>({});
   const searchAbortRef = useRef<AbortController | null>(null);
 
-  const [auditRows, setAuditRows]     = useState<AuditRow[]>([]);
+  const [auditRows, setAuditRows] = useState<AuditRow[]>([]);
   const [auditLoading, setAuditLoading] = useState(false);
 
   /* ── Global-suspension confirmation modal ── */
-  const [suspendModal, setSuspendModal] = useState<{ open: boolean; mins: number }>({ open: false, mins: 0 });
+  const [suspendModal, setSuspendModal] = useState<{
+    open: boolean;
+    mins: number;
+  }>({ open: false, mins: 0 });
   const [suspendReason, setSuspendReason] = useState("");
   const [suspendPending, setSuspendPending] = useState(false);
 
   /* ── OTP Rate Limiting card ── */
   const { data: settingsData } = usePlatformSettings();
   const updateSettings = useUpdatePlatformSettings();
-  const getSetting = useCallback((key: string, fallback: string) =>
-    (settingsData?.settings ?? []).find((s: { key: string; value: string }) => s.key === key)?.value ?? fallback,
-  [settingsData?.settings]);
+  const getSetting = useCallback(
+    (key: string, fallback: string) =>
+      (settingsData?.settings ?? []).find(
+        (s: { key: string; value: string }) => s.key === key,
+      )?.value ?? fallback,
+    [settingsData?.settings],
+  );
   const [rlPhone, setRlPhone] = useState("");
-  const [rlIp, setRlIp]       = useState("");
+  const [rlIp, setRlIp] = useState("");
   const [rlWindow, setRlWindow] = useState("");
   const [rlSaving, setRlSaving] = useState(false);
   useEffect(() => {
-    if (rawSettings.length > 0) {
+    if (settingsData?.settings?.length > 0) {
       setRlPhone(getSetting("security_otp_max_per_phone", "5"));
       setRlIp(getSetting("security_otp_max_per_ip", "20"));
       setRlWindow(getSetting("security_otp_window_min", "60"));
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settingsData, getSetting]);
 
   /* ── Delivery OTP Viewer ── */
-  const [rideIdInput, setRideIdInput]     = useState("");
+  const [rideIdInput, setRideIdInput] = useState("");
   const [otpLookupResult, setOtpLookupResult] = useState<{
-    rideId: string; otp: string | null; otpStatus: "Pending" | "Used" | "Expired";
-    createdAt: string; rideStatus: string;
+    rideId: string;
+    otp: string | null;
+    otpStatus: "Pending" | "Used" | "Expired";
+    createdAt: string;
+    rideStatus: string;
   } | null>(null);
   const [otpLookupError, setOtpLookupError] = useState<string | null>(null);
   const [otpLookupLoading, setOtpLookupLoading] = useState(false);
@@ -246,7 +366,9 @@ export default function OtpControl() {
       if (d?.data) setStatus(d.data);
     } catch (err) {
       toast({ title: "Failed to load OTP status", variant: "destructive" });
-    } finally { setStatusLoading(false); }
+    } finally {
+      setStatusLoading(false);
+    }
   }, [toast]);
 
   const loadAudit = useCallback(async () => {
@@ -254,32 +376,50 @@ export default function OtpControl() {
     try {
       const d = await api("GET", "/otp/audit?page=1");
       if (d?.data?.entries) {
-        const bypass = (d.data.entries as AuditRow[]).filter(e =>
-          e.event === "login_otp_bypass" || e.event === "login_global_otp_bypass" || e.event === "otp_send_bypassed"
-        ).slice(0, 20);
+        const bypass = (d.data.entries as AuditRow[])
+          .filter(
+            (e) =>
+              e.event === "login_otp_bypass" ||
+              e.event === "login_global_otp_bypass" ||
+              e.event === "otp_send_bypassed",
+          )
+          .slice(0, 20);
         setAuditRows(bypass);
       }
     } catch (err) {
-      toast({ title: "Failed to load audit log", description: err instanceof Error ? err.message : "Unknown error", variant: "destructive" });
-    } finally { setAuditLoading(false); }
+      toast({
+        title: "Failed to load audit log",
+        description: err instanceof Error ? err.message : "Unknown error",
+        variant: "destructive",
+      });
+    } finally {
+      setAuditLoading(false);
+    }
   }, [toast]);
 
   const loadRateLimits = useCallback(async () => {
     try {
       const d = await adminFetch("/platform-settings");
       const settings: Array<{ key: string; value: string }> = d?.settings ?? [];
-      const get = (key: string, def: string) => settings.find(s => s.key === key)?.value ?? def;
+      const get = (key: string, def: string) =>
+        settings.find((s) => s.key === key)?.value ?? def;
       const perPhone = get("security_otp_max_per_phone", "5");
-      const perIp    = get("security_otp_max_per_ip", "10");
-      const winMin   = get("security_otp_window_min", "10");
-      setRlPhone(perPhone); setRlIp(perIp); setRlWindow(winMin);
+      const perIp = get("security_otp_max_per_ip", "10");
+      const winMin = get("security_otp_window_min", "10");
+      setRlPhone(perPhone);
+      setRlIp(perIp);
+      setRlWindow(winMin);
     } catch (err) {
       // eslint-disable-next-line no-console
       console.warn("[otp-control] Failed to load rate-limit settings:", err);
     }
   }, []);
 
-  useEffect(() => { loadStatus(); loadAudit(); loadRateLimits(); }, [loadStatus, loadAudit, loadRateLimits]);
+  useEffect(() => {
+    loadStatus();
+    loadAudit();
+    loadRateLimits();
+  }, [loadStatus, loadAudit, loadRateLimits]);
 
   useEffect(() => {
     if (status?.isGloballyDisabled && remaining === 0 && status.disabledUntil) {
@@ -287,7 +427,12 @@ export default function OtpControl() {
       return () => clearTimeout(t);
     }
     return undefined;
-  }, [remaining, status?.isGloballyDisabled, status?.disabledUntil, loadStatus]);
+  }, [
+    remaining,
+    status?.isGloballyDisabled,
+    status?.disabledUntil,
+    loadStatus,
+  ]);
 
   const openSuspendModal = (mins: number) => {
     if (!mins || mins <= 0) return;
@@ -299,17 +444,32 @@ export default function OtpControl() {
     if (!suspendReason.trim()) return;
     setSuspendPending(true);
     try {
-      const d = await api("POST", "/otp/disable", { minutes: suspendModal.mins, reason: suspendReason.trim() });
+      const d = await api("POST", "/otp/disable", {
+        minutes: suspendModal.mins,
+        reason: suspendReason.trim(),
+      });
       if (d?.data) {
-        toast({ title: "OTP Suspended", description: `All OTPs suspended for ${suspendModal.mins} minute(s).` });
-        loadStatus(); loadAudit();
+        toast({
+          title: "OTP Suspended",
+          description: `All OTPs suspended for ${suspendModal.mins} minute(s).`,
+        });
+        loadStatus();
+        loadAudit();
         setSuspendModal({ open: false, mins: 0 });
         setSuspendReason("");
       } else {
-        toast({ title: "Error", description: d?.error ?? "Failed", variant: "destructive" });
+        toast({
+          title: "Error",
+          description: d?.error ?? "Failed",
+          variant: "destructive",
+        });
       }
     } catch (e: unknown) {
-      toast({ title: "Error", description: errorMessage(e, "Failed to suspend OTPs."), variant: "destructive" });
+      toast({
+        title: "Error",
+        description: errorMessage(e, "Failed to suspend OTPs."),
+        variant: "destructive",
+      });
     } finally {
       setSuspendPending(false);
     }
@@ -317,22 +477,40 @@ export default function OtpControl() {
 
   const saveRateLimits = async () => {
     const phone = parseInt(rlPhone, 10);
-    const ip    = parseInt(rlIp, 10);
-    const win   = parseInt(rlWindow, 10);
-    if (isNaN(phone) || phone < 1 || isNaN(ip) || ip < 1 || isNaN(win) || win < 1) {
-      toast({ title: "Invalid values", description: "All rate limit fields must be positive integers.", variant: "destructive" });
+    const ip = parseInt(rlIp, 10);
+    const win = parseInt(rlWindow, 10);
+    if (
+      isNaN(phone) ||
+      phone < 1 ||
+      isNaN(ip) ||
+      ip < 1 ||
+      isNaN(win) ||
+      win < 1
+    ) {
+      toast({
+        title: "Invalid values",
+        description: "All rate limit fields must be positive integers.",
+        variant: "destructive",
+      });
       return;
     }
     setRlSaving(true);
     try {
       await updateSettings.mutateAsync([
         { key: "security_otp_max_per_phone", value: String(phone) },
-        { key: "security_otp_max_per_ip",    value: String(ip) },
-        { key: "security_otp_window_min",     value: String(win) },
+        { key: "security_otp_max_per_ip", value: String(ip) },
+        { key: "security_otp_window_min", value: String(win) },
       ]);
-      toast({ title: "Rate limits saved", description: "OTP rate limiting settings updated." });
+      toast({
+        title: "Rate limits saved",
+        description: "OTP rate limiting settings updated.",
+      });
     } catch (e: unknown) {
-      toast({ title: "Failed to save", description: errorMessage(e, "Could not update rate limit settings."), variant: "destructive" });
+      toast({
+        title: "Failed to save",
+        description: errorMessage(e, "Could not update rate limit settings."),
+        variant: "destructive",
+      });
     } finally {
       setRlSaving(false);
     }
@@ -375,42 +553,86 @@ export default function OtpControl() {
         { signal: ctrl.signal },
       );
       if (ctrl.signal.aborted) return;
-      setUsers((d?.users ?? []).map((u: UserRow) => ({
-        id: u.id, name: u.name, phone: u.phone,
-        email: u.email ?? null, otpBypassUntil: u.otpBypassUntil ?? null,
-      })));
+      setUsers(
+        (d?.users ?? []).map((u: UserRow) => ({
+          id: u.id,
+          name: u.name,
+          phone: u.phone,
+          email: u.email ?? null,
+          otpBypassUntil: u.otpBypassUntil ?? null,
+        })),
+      );
     } catch (e: unknown) {
       if (e instanceof DOMException && e.name === "AbortError") return;
-      if (isApiError(e) && (e as { name?: string }).name === "AbortError") return;
-      toast({ title: "Search failed", description: errorMessage(e, "Could not load users."), variant: "destructive" });
+      if (isApiError(e) && (e as { name?: string }).name === "AbortError")
+        return;
+      toast({
+        title: "Search failed",
+        description: errorMessage(e, "Could not load users."),
+        variant: "destructive",
+      });
     } finally {
-      if (searchAbortRef.current === ctrl) { searchAbortRef.current = null; setSearching(false); }
+      if (searchAbortRef.current === ctrl) {
+        searchAbortRef.current = null;
+        setSearching(false);
+      }
     }
   }, [query, toast]);
 
   useEffect(() => {
-    const t = setTimeout(() => { if (query.trim().length >= 2) searchUsers(); }, 400);
+    const t = setTimeout(() => {
+      if (query.trim().length >= 2) searchUsers();
+    }, 400);
     return () => clearTimeout(t);
   }, [query, searchUsers]);
 
-  useEffect(() => () => { searchAbortRef.current?.abort(); }, []);
+  useEffect(
+    () => () => {
+      searchAbortRef.current?.abort();
+    },
+    [],
+  );
 
   const grantBypass = async (userId: string, mins: number) => {
     try {
-      const d = await api("POST", `/users/${userId}/otp/bypass`, { minutes: mins });
+      const d = await api("POST", `/users/${userId}/otp/bypass`, {
+        minutes: mins,
+      });
       if (d?.data?.bypassUntil) {
-        toast({ title: "Bypass Granted", description: `OTP bypass active for ${mins} minute(s).` });
-        setUsers(prev => prev.map(u => u.id === userId ? { ...u, otpBypassUntil: d.data.bypassUntil } : u));
+        toast({
+          title: "Bypass Granted",
+          description: `OTP bypass active for ${mins} minute(s).`,
+        });
+        setUsers((prev) =>
+          prev.map((u) =>
+            u.id === userId ? { ...u, otpBypassUntil: d.data.bypassUntil } : u,
+          ),
+        );
         loadStatus();
       } else {
-        toast({ title: "Error", description: d?.error ?? "Failed", variant: "destructive" });
+        toast({
+          title: "Error",
+          description: d?.error ?? "Failed",
+          variant: "destructive",
+        });
       }
     } catch (e: unknown) {
       if (isApiError(e) && e.status === 409) {
-        toast({ title: "Bypass already active", description: errorMessage(e, "User already has an active OTP bypass."), variant: "destructive" });
+        toast({
+          title: "Bypass already active",
+          description: errorMessage(
+            e,
+            "User already has an active OTP bypass.",
+          ),
+          variant: "destructive",
+        });
         return;
       }
-      toast({ title: "Error", description: errorMessage(e, "Failed to grant bypass."), variant: "destructive" });
+      toast({
+        title: "Error",
+        description: errorMessage(e, "Failed to grant bypass."),
+        variant: "destructive",
+      });
     }
   };
 
@@ -418,10 +640,16 @@ export default function OtpControl() {
     try {
       await api("DELETE", `/users/${userId}/otp/bypass`);
       toast({ title: "Bypass Removed" });
-      setUsers(prev => prev.map(u => u.id === userId ? { ...u, otpBypassUntil: null } : u));
+      setUsers((prev) =>
+        prev.map((u) => (u.id === userId ? { ...u, otpBypassUntil: null } : u)),
+      );
       loadStatus();
     } catch (e: unknown) {
-      toast({ title: "Error", description: errorMessage(e, "Failed to remove bypass."), variant: "destructive" });
+      toast({
+        title: "Error",
+        description: errorMessage(e, "Failed to remove bypass."),
+        variant: "destructive",
+      });
     }
   };
 
@@ -453,8 +681,19 @@ export default function OtpControl() {
         iconBgClass="bg-indigo-100"
         iconColorClass="text-indigo-700"
         actions={
-          <Button size="sm" variant="outline" onClick={() => { loadStatus(); loadAudit(); }} disabled={statusLoading} className="gap-1.5 rounded-xl">
-            <RefreshCw className={`w-3.5 h-3.5 ${statusLoading ? "animate-spin" : ""}`} />
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              loadStatus();
+              loadAudit();
+            }}
+            disabled={statusLoading}
+            className="gap-1.5 rounded-xl"
+          >
+            <RefreshCw
+              className={`w-3.5 h-3.5 ${statusLoading ? "animate-spin" : ""}`}
+            />
             Refresh
           </Button>
         }
@@ -466,14 +705,26 @@ export default function OtpControl() {
           icon={status?.isGloballyDisabled ? ShieldOff : Shield}
           label="Global OTP"
           value={
-            status === null
-              ? <span className="flex items-center gap-1"><Loader2 className="w-4 h-4 animate-spin text-muted-foreground" /></span>
-              : status.isGloballyDisabled
-                ? <span className="text-red-600">Suspended</span>
-                : <span className="text-green-600">Active</span>
+            status === null ? (
+              <span className="flex items-center gap-1">
+                <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+              </span>
+            ) : status.isGloballyDisabled ? (
+              <span className="text-red-600">Suspended</span>
+            ) : (
+              <span className="text-green-600">Active</span>
+            )
           }
-          sub={status?.isGloballyDisabled && remaining > 0 ? `Restores in ${fmtCountdown(remaining)}` : "All users must verify"}
-          accent={status?.isGloballyDisabled ? "bg-red-100 text-red-600" : "bg-green-100 text-green-600"}
+          sub={
+            status?.isGloballyDisabled && remaining > 0
+              ? `Restores in ${fmtCountdown(remaining)}`
+              : "All users must verify"
+          }
+          accent={
+            status?.isGloballyDisabled
+              ? "bg-red-100 text-red-600"
+              : "bg-green-100 text-green-600"
+          }
         />
         <StatCard
           icon={Users}
@@ -485,7 +736,15 @@ export default function OtpControl() {
         <StatCard
           icon={Activity}
           label="Audit Events"
-          value={auditLoading ? <span className="flex items-center gap-1"><Loader2 className="w-4 h-4 animate-spin text-muted-foreground" /></span> : auditRows.length}
+          value={
+            auditLoading ? (
+              <span className="flex items-center gap-1">
+                <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+              </span>
+            ) : (
+              auditRows.length
+            )
+          }
           sub="No-OTP logins recorded"
           accent="bg-purple-100 text-purple-600"
         />
@@ -501,7 +760,6 @@ export default function OtpControl() {
           gradient="bg-gradient-to-r from-indigo-50/80 to-slate-50"
         />
         <div className="p-5 space-y-4">
-
           {/* Status banner */}
           {status === null ? (
             <div className="h-16 rounded-xl bg-muted/30 border border-border flex items-center justify-center">
@@ -509,29 +767,59 @@ export default function OtpControl() {
             </div>
           ) : status.isGloballyDisabled ? (
             <div className="rounded-xl bg-red-50 border-2 border-red-200 p-4 flex items-center gap-4">
-              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center shrink-0">
                 <AlertTriangle className="w-5 h-5 text-red-600" />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <p className="text-sm font-bold text-red-800">OTPs are GLOBALLY SUSPENDED</p>
+                  <p className="text-sm font-bold text-red-800">
+                    OTPs are GLOBALLY SUSPENDED
+                  </p>
                   <span className="inline-flex items-center gap-1 text-xs font-mono font-bold bg-red-200 text-red-800 px-2 py-0.5 rounded-lg">
-                    <Clock className="w-3 h-3" />{fmtCountdown(remaining)}
+                    <Clock className="w-3 h-3" />
+                    {fmtCountdown(remaining)}
                   </span>
                 </div>
-                <p className="text-xs text-red-600 mt-0.5">All users can log in without OTP. Auto-restores when the timer expires.</p>
+                <p className="text-xs text-red-600 mt-0.5">
+                  All users can log in without OTP. Auto-restores when the timer
+                  expires.
+                </p>
               </div>
-              <Button size="sm" variant="destructive" onClick={() => api("DELETE", "/otp/disable").then(() => { toast({ title: "OTPs Restored", description: "Global OTP suspension lifted." }); loadStatus(); loadAudit(); }).catch((e: unknown) => { toast({ title: "Error", description: errorMessage(e, "Failed to restore OTPs."), variant: "destructive" }); })} className="shrink-0 rounded-xl">
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={() =>
+                  api("DELETE", "/otp/disable")
+                    .then(() => {
+                      toast({
+                        title: "OTPs Restored",
+                        description: "Global OTP suspension lifted.",
+                      });
+                      loadStatus();
+                      loadAudit();
+                    })
+                    .catch((e: unknown) => {
+                      toast({
+                        title: "Error",
+                        description: errorMessage(e, "Failed to restore OTPs."),
+                        variant: "destructive",
+                      });
+                    })
+                }
+                className="shrink-0 rounded-xl"
+              >
                 Restore Now
               </Button>
             </div>
           ) : (
             <div className="rounded-xl bg-green-50 border border-green-200 p-4 flex items-center gap-4">
-              <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+              <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center shrink-0">
                 <CheckCircle2 className="w-5 h-5 text-green-600" />
               </div>
               <div>
-                <p className="text-sm font-bold text-green-800">OTPs are ACTIVE</p>
+                <p className="text-sm font-bold text-green-800">
+                  OTPs are ACTIVE
+                </p>
                 <p className="text-xs text-green-600 mt-0.5">
                   {status.activeBypassCount > 0
                     ? `${status.activeBypassCount} user(s) have per-user bypass active.`
@@ -543,20 +831,30 @@ export default function OtpControl() {
 
           {/* Info notice */}
           <div className="flex items-start gap-2.5 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-xl p-3">
-            <Info className="w-4 h-4 flex-shrink-0 mt-0.5 text-amber-600" />
-            <span>Use during SMS/OTP delivery outages. OTP verification auto-resumes when the timer expires. New registrations during suspension will have <code className="bg-amber-100 px-1 py-0.5 rounded text-[10px]">is_verified = false</code>.</span>
+            <Info className="w-4 h-4 shrink-0 mt-0.5 text-amber-600" />
+            <span>
+              Use during SMS/OTP delivery outages. OTP verification auto-resumes
+              when the timer expires. New registrations during suspension will
+              have{" "}
+              <code className="bg-amber-100 px-1 py-0.5 rounded text-[10px]">
+                is_verified = false
+              </code>
+              .
+            </span>
           </div>
 
           {/* Suspend buttons */}
           <div>
-            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2.5">Suspend for</p>
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2.5">
+              Suspend for
+            </p>
             <div className="flex flex-wrap gap-2">
               {[
                 { label: "30 min", mins: 30 },
                 { label: "1 hour", mins: 60 },
                 { label: "2 hours", mins: 120 },
                 { label: "24 hours", mins: 1440 },
-              ].map(opt => (
+              ].map((opt) => (
                 <button
                   key={opt.mins}
                   onClick={() => openSuspendModal(opt.mins)}
@@ -571,7 +869,7 @@ export default function OtpControl() {
                   type="number"
                   placeholder="Custom min"
                   value={customMinutes}
-                  onChange={e => setCustomMinutes(e.target.value)}
+                  onChange={(e) => setCustomMinutes(e.target.value)}
                   className="w-28 h-8 text-xs rounded-xl"
                   min={1}
                   max={10080}
@@ -580,7 +878,12 @@ export default function OtpControl() {
                   onClick={() => {
                     const m = parseInt(customMinutes, 10);
                     if (Number.isNaN(m) || m <= 0) {
-                      toast({ title: "Invalid duration", description: "Enter a whole number of minutes greater than 0.", variant: "destructive" });
+                      toast({
+                        title: "Invalid duration",
+                        description:
+                          "Enter a whole number of minutes greater than 0.",
+                        variant: "destructive",
+                      });
                       return;
                     }
                     openSuspendModal(m);
@@ -597,7 +900,13 @@ export default function OtpControl() {
       </ProCard>
 
       {/* ── Suspension Confirmation Modal ── */}
-      <Dialog open={suspendModal.open} onOpenChange={open => { if (!open && !suspendPending) setSuspendModal({ open: false, mins: 0 }); }}>
+      <Dialog
+        open={suspendModal.open}
+        onOpenChange={(open) => {
+          if (!open && !suspendPending)
+            setSuspendModal({ open: false, mins: 0 });
+        }}
+      >
         <DialogContent className="max-w-md rounded-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-red-600">
@@ -607,11 +916,14 @@ export default function OtpControl() {
           <div className="space-y-4 mt-1">
             <div className="bg-red-50 border border-red-200 rounded-xl p-3">
               <p className="text-sm text-red-800">
-                You are about to suspend OTP verification for <strong>all users</strong> for{" "}
-                <strong>{suspendModal.mins >= 60
-                  ? `${suspendModal.mins / 60 === Math.floor(suspendModal.mins / 60) ? suspendModal.mins / 60 + " hour(s)" : suspendModal.mins + " minutes"}`
-                  : `${suspendModal.mins} minute(s)`}</strong>.
-                Users will be able to log in without receiving an OTP code.
+                You are about to suspend OTP verification for{" "}
+                <strong>all users</strong> for{" "}
+                <strong>
+                  {suspendModal.mins >= 60
+                    ? `${suspendModal.mins / 60 === Math.floor(suspendModal.mins / 60) ? suspendModal.mins / 60 + " hour(s)" : suspendModal.mins + " minutes"}`
+                    : `${suspendModal.mins} minute(s)`}
+                </strong>
+                . Users will be able to log in without receiving an OTP code.
               </p>
             </div>
             <div className="space-y-1.5">
@@ -620,11 +932,14 @@ export default function OtpControl() {
               </label>
               <textarea
                 value={suspendReason}
-                onChange={e => setSuspendReason(e.target.value)}
+                onChange={(e) => setSuspendReason(e.target.value)}
                 placeholder="e.g. SMS gateway outage — Twilio down, users cannot receive OTP codes"
                 className="w-full rounded-xl border border-input bg-background px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-red-300 h-24"
               />
-              <p className="text-[11px] text-muted-foreground">This reason is written to the audit log and included in the admin notification.</p>
+              <p className="text-[11px] text-muted-foreground">
+                This reason is written to the audit log and included in the
+                admin notification.
+              </p>
             </div>
             <div className="flex gap-2">
               <Button
@@ -641,7 +956,15 @@ export default function OtpControl() {
                 onClick={confirmSuspend}
                 disabled={!suspendReason.trim() || suspendPending}
               >
-                {suspendPending ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Suspending…</> : <><ShieldOff className="w-3.5 h-3.5" /> Confirm Suspension</>}
+                {suspendPending ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" /> Suspending…
+                  </>
+                ) : (
+                  <>
+                    <ShieldOff className="w-3.5 h-3.5" /> Confirm Suspension
+                  </>
+                )}
               </Button>
             </div>
           </div>
@@ -658,7 +981,6 @@ export default function OtpControl() {
           gradient="bg-gradient-to-r from-blue-50/80 to-slate-50"
         />
         <div className="p-5 space-y-4">
-
           {/* Search */}
           <div className="relative">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
@@ -669,14 +991,14 @@ export default function OtpControl() {
               className="pl-10 pr-10 rounded-xl h-10 text-sm focus-visible:ring-blue-400"
               placeholder="Search by name, phone, or email…"
               value={query}
-              onChange={e => setQuery(e.target.value)}
+              onChange={(e) => setQuery(e.target.value)}
             />
           </div>
 
           {/* Results */}
           {users.length > 0 && (
             <div className="space-y-2">
-              {users.map(user => {
+              {users.map((user) => {
                 const bypassActive = isBypassActive(user.otpBypassUntil);
                 return (
                   <div
@@ -687,10 +1009,13 @@ export default function OtpControl() {
                       <AvatarInitial name={user.name} />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <p className="text-sm font-semibold text-foreground">{user.name ?? "Unnamed"}</p>
+                          <p className="text-sm font-semibold text-foreground">
+                            {user.name ?? "Unnamed"}
+                          </p>
                           {bypassActive ? (
                             <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-green-100 text-green-700 border border-green-200 px-1.5 py-0.5 rounded-full">
-                              <UserCheck className="w-2.5 h-2.5" /> Bypass Active
+                              <UserCheck className="w-2.5 h-2.5" /> Bypass
+                              Active
                             </span>
                           ) : (
                             <span className="inline-flex items-center gap-1 text-[10px] font-medium bg-muted text-muted-foreground border border-border px-1.5 py-0.5 rounded-full">
@@ -698,10 +1023,13 @@ export default function OtpControl() {
                             </span>
                           )}
                         </div>
-                        <p className="text-xs text-muted-foreground font-mono mt-0.5">{user.phone ?? user.email ?? "—"}</p>
+                        <p className="text-xs text-muted-foreground font-mono mt-0.5">
+                          {user.phone ?? user.email ?? "—"}
+                        </p>
                         {bypassActive && user.otpBypassUntil && (
                           <p className="text-[10px] text-green-700 mt-0.5 flex items-center gap-1">
-                            <Clock className="w-3 h-3" /> Until {fmtDate(user.otpBypassUntil)}
+                            <Clock className="w-3 h-3" /> Until{" "}
+                            {fmtDate(user.otpBypassUntil)}
                           </p>
                         )}
                       </div>
@@ -722,7 +1050,7 @@ export default function OtpControl() {
                             { label: "15 min", mins: 15 },
                             { label: "1 hour", mins: 60 },
                             { label: "24 hrs", mins: 1440 },
-                          ].map(opt => (
+                          ].map((opt) => (
                             <button
                               key={opt.mins}
                               onClick={() => grantBypass(user.id, opt.mins)}
@@ -736,12 +1064,23 @@ export default function OtpControl() {
                               type="number"
                               placeholder="min"
                               value={bypassMins[user.id] ?? ""}
-                              onChange={e => setBypassMins(p => ({ ...p, [user.id]: e.target.value }))}
+                              onChange={(e) =>
+                                setBypassMins((p) => ({
+                                  ...p,
+                                  [user.id]: e.target.value,
+                                }))
+                              }
                               className="w-16 h-7 text-xs rounded-lg"
                               min={1}
                             />
                             <button
-                              onClick={() => { const m = parseInt(bypassMins[user.id] ?? "", 10); if (m > 0) grantBypass(user.id, m); }}
+                              onClick={() => {
+                                const m = parseInt(
+                                  bypassMins[user.id] ?? "",
+                                  10,
+                                );
+                                if (m > 0) grantBypass(user.id, m);
+                              }}
                               className="px-2.5 py-1.5 h-7 rounded-lg text-xs font-semibold border border-border text-foreground bg-white hover:bg-muted/40 transition-colors"
                             >
                               Custom
@@ -797,14 +1136,24 @@ export default function OtpControl() {
                   key={row.id}
                   className={`flex items-center gap-3 px-3 py-2.5 text-xs transition-colors hover:bg-muted/30 ${i === 0 ? "rounded-t-xl" : ""} ${i === auditRows.length - 1 ? "rounded-b-xl" : ""}`}
                 >
-                  <div className={`w-2 h-2 rounded-full flex-shrink-0 ${eventColors[row.event] ?? "bg-gray-400"}`} />
-                  <span className="font-mono text-muted-foreground w-36 shrink-0 hidden sm:block">{fmtDate(row.createdAt)}</span>
-                  <ChevronRight className="w-3 h-3 text-muted-foreground/50 flex-shrink-0 hidden sm:block" />
-                  <span className="font-semibold text-foreground flex-1 truncate">{row.name ?? row.phone ?? row.userId ?? "—"}</span>
-                  <span className={`shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full border ${eventBadgeColors[row.event] ?? "bg-muted text-muted-foreground border-border"}`}>
+                  <div
+                    className={`w-2 h-2 rounded-full shrink-0 ${eventColors[row.event] ?? "bg-gray-400"}`}
+                  />
+                  <span className="font-mono text-muted-foreground w-36 shrink-0 hidden sm:block">
+                    {fmtDate(row.createdAt)}
+                  </span>
+                  <ChevronRight className="w-3 h-3 text-muted-foreground/50 shrink-0 hidden sm:block" />
+                  <span className="font-semibold text-foreground flex-1 truncate">
+                    {row.name ?? row.phone ?? row.userId ?? "—"}
+                  </span>
+                  <span
+                    className={`shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full border ${eventBadgeColors[row.event] ?? "bg-muted text-muted-foreground border-border"}`}
+                  >
                     {eventLabel[row.event] ?? row.event}
                   </span>
-                  <span className="text-muted-foreground font-mono shrink-0 hidden md:block">{row.ip}</span>
+                  <span className="text-muted-foreground font-mono shrink-0 hidden md:block">
+                    {row.ip}
+                  </span>
                 </div>
               ))}
             </div>
@@ -816,7 +1165,9 @@ export default function OtpControl() {
               disabled={auditLoading}
               className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
             >
-              <RefreshCw className={`w-3 h-3 ${auditLoading ? "animate-spin" : ""}`} />
+              <RefreshCw
+                className={`w-3 h-3 ${auditLoading ? "animate-spin" : ""}`}
+              />
               Refresh log
             </button>
           </div>
@@ -842,13 +1193,15 @@ export default function OtpControl() {
               <Input
                 type="number"
                 value={rlPhone}
-                onChange={e => setRlPhone(e.target.value)}
+                onChange={(e) => setRlPhone(e.target.value)}
                 className="rounded-xl text-sm h-9"
                 min={1}
                 max={100}
                 placeholder="5"
               />
-              <p className="text-[10px] text-muted-foreground">OTPs per phone per window</p>
+              <p className="text-[10px] text-muted-foreground">
+                OTPs per phone per window
+              </p>
             </div>
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-foreground uppercase tracking-wider flex items-center gap-1.5">
@@ -858,13 +1211,15 @@ export default function OtpControl() {
               <Input
                 type="number"
                 value={rlIp}
-                onChange={e => setRlIp(e.target.value)}
+                onChange={(e) => setRlIp(e.target.value)}
                 className="rounded-xl text-sm h-9"
                 min={1}
                 max={500}
                 placeholder="20"
               />
-              <p className="text-[10px] text-muted-foreground">OTPs per IP per window</p>
+              <p className="text-[10px] text-muted-foreground">
+                OTPs per IP per window
+              </p>
             </div>
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-foreground uppercase tracking-wider flex items-center gap-1.5">
@@ -874,13 +1229,15 @@ export default function OtpControl() {
               <Input
                 type="number"
                 value={rlWindow}
-                onChange={e => setRlWindow(e.target.value)}
+                onChange={(e) => setRlWindow(e.target.value)}
                 className="rounded-xl text-sm h-9"
                 min={1}
                 max={1440}
                 placeholder="60"
               />
-              <p className="text-[10px] text-muted-foreground">Rolling window duration</p>
+              <p className="text-[10px] text-muted-foreground">
+                Rolling window duration
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-3 pt-1">
@@ -890,9 +1247,17 @@ export default function OtpControl() {
               onClick={saveRateLimits}
               disabled={rlSaving || updateSettings.isPending}
             >
-              {rlSaving ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Saving…</> : "Save Rate Limits"}
+              {rlSaving ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" /> Saving…
+                </>
+              ) : (
+                "Save Rate Limits"
+              )}
             </Button>
-            <p className="text-xs text-muted-foreground">Changes apply to new OTP requests immediately.</p>
+            <p className="text-xs text-muted-foreground">
+              Changes apply to new OTP requests immediately.
+            </p>
           </div>
         </div>
       </ProCard>
@@ -912,8 +1277,14 @@ export default function OtpControl() {
               className="flex-1 rounded-xl h-10 text-sm font-mono"
               placeholder="Enter Ride ID or Delivery ID…"
               value={rideIdInput}
-              onChange={e => { setRideIdInput(e.target.value); setOtpLookupResult(null); setOtpLookupError(null); }}
-              onKeyDown={e => { if (e.key === "Enter") lookupDeliveryOtp(); }}
+              onChange={(e) => {
+                setRideIdInput(e.target.value);
+                setOtpLookupResult(null);
+                setOtpLookupError(null);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") lookupDeliveryOtp();
+              }}
             />
             <Button
               size="sm"
@@ -921,13 +1292,17 @@ export default function OtpControl() {
               onClick={lookupDeliveryOtp}
               disabled={!rideIdInput.trim() || otpLookupLoading}
             >
-              {otpLookupLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Look Up"}
+              {otpLookupLoading ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                "Look Up"
+              )}
             </Button>
           </div>
 
           {otpLookupError && (
             <div className="flex items-start gap-2.5 bg-red-50 border border-red-200 rounded-xl px-3.5 py-3">
-              <XCircle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
+              <XCircle className="w-4 h-4 text-red-500 mt-0.5 shrink-0" />
               <p className="text-sm text-red-800">{otpLookupError}</p>
             </div>
           )}
@@ -935,13 +1310,17 @@ export default function OtpControl() {
           {otpLookupResult && (
             <div className="bg-teal-50 border border-teal-200 rounded-xl p-4 space-y-3">
               <div className="flex items-center justify-between">
-                <p className="text-xs font-semibold text-teal-700 uppercase tracking-wider">Ride {otpLookupResult.rideId}</p>
+                <p className="text-xs font-semibold text-teal-700 uppercase tracking-wider">
+                  Ride {otpLookupResult.rideId}
+                </p>
                 <Badge
                   variant="outline"
                   className={`text-[10px] font-bold ${
-                    otpLookupResult.otpStatus === "Used"    ? "bg-green-100 text-green-700 border-green-300" :
-                    otpLookupResult.otpStatus === "Expired" ? "bg-red-100 text-red-700 border-red-300" :
-                    "bg-amber-100 text-amber-700 border-amber-300"
+                    otpLookupResult.otpStatus === "Used"
+                      ? "bg-green-100 text-green-700 border-green-300"
+                      : otpLookupResult.otpStatus === "Expired"
+                        ? "bg-red-100 text-red-700 border-red-300"
+                        : "bg-amber-100 text-amber-700 border-amber-300"
                   }`}
                 >
                   {otpLookupResult.otpStatus}
@@ -949,33 +1328,50 @@ export default function OtpControl() {
               </div>
               <div className="flex items-center gap-3">
                 <div className="flex-1">
-                  <p className="text-[10px] text-muted-foreground mb-1">OTP Code</p>
+                  <p className="text-[10px] text-muted-foreground mb-1">
+                    OTP Code
+                  </p>
                   {otpLookupResult.otp ? (
                     <div className="flex items-center gap-2">
-                      <code className={`font-mono font-bold text-xl tracking-[0.3em] text-teal-900 bg-white border border-teal-300 px-3 py-1.5 rounded-lg ${!otpVisible ? "blur-sm select-none" : ""}`}>
+                      <code
+                        className={`font-mono font-bold text-xl tracking-[0.3em] text-teal-900 bg-white border border-teal-300 px-3 py-1.5 rounded-lg ${!otpVisible ? "blur-sm select-none" : ""}`}
+                      >
                         {otpLookupResult.otp}
                       </code>
                       <button
-                        onClick={() => setOtpVisible(v => !v)}
+                        onClick={() => setOtpVisible((v) => !v)}
                         className="w-8 h-8 flex items-center justify-center rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
                         title={otpVisible ? "Hide OTP" : "Reveal OTP"}
                       >
-                        {otpVisible ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        {otpVisible ? (
+                          <EyeOff className="w-4 h-4" />
+                        ) : (
+                          <Eye className="w-4 h-4" />
+                        )}
                       </button>
                     </div>
                   ) : (
-                    <span className="text-sm text-muted-foreground italic">No OTP generated</span>
+                    <span className="text-sm text-muted-foreground italic">
+                      No OTP generated
+                    </span>
                   )}
                 </div>
                 <div className="text-right shrink-0">
-                  <p className="text-[10px] text-muted-foreground mb-0.5">Ride Status</p>
-                  <p className="text-xs font-semibold text-foreground capitalize">{otpLookupResult.rideStatus}</p>
-                  <p className="text-[10px] text-muted-foreground mt-1">{new Date(otpLookupResult.createdAt).toLocaleString()}</p>
+                  <p className="text-[10px] text-muted-foreground mb-0.5">
+                    Ride Status
+                  </p>
+                  <p className="text-xs font-semibold text-foreground capitalize">
+                    {otpLookupResult.rideStatus}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    {new Date(otpLookupResult.createdAt).toLocaleString()}
+                  </p>
                 </div>
               </div>
               {!otpVisible && otpLookupResult.otp && (
                 <p className="text-[11px] text-teal-600 flex items-center gap-1">
-                  <AlertTriangle className="w-3 h-3" /> Click the eye icon to reveal the OTP — only do this when assisting a customer.
+                  <AlertTriangle className="w-3 h-3" /> Click the eye icon to
+                  reveal the OTP — only do this when assisting a customer.
                 </p>
               )}
             </div>
@@ -1020,7 +1416,11 @@ function WhitelistSection() {
     }
     const code = bypassCode?.trim() || generateBypassCode();
     if (!BYPASS_CODE_REGEX.test(code)) {
-      toast({ title: "Invalid bypass code", description: "Use a 6-digit numeric code.", variant: "destructive" });
+      toast({
+        title: "Invalid bypass code",
+        description: "Use a 6-digit numeric code.",
+        variant: "destructive",
+      });
       return;
     }
     setAdding(true);
@@ -1031,26 +1431,58 @@ function WhitelistSection() {
         bypassCode: code,
         expiresAt: expiresAt ? new Date(expiresAt).toISOString() : undefined,
       });
-      toast({ title: "Added to whitelist", description: `Bypass code ${code} is active.` });
-      setIdentifier(""); setLabel(""); setBypassCode(generateBypassCode()); setExpiresAt("");
+      toast({
+        title: "Added to whitelist",
+        description: `Bypass code ${code} is active.`,
+      });
+      setIdentifier("");
+      setLabel("");
+      setBypassCode(generateBypassCode());
+      setExpiresAt("");
     } catch (e: unknown) {
-      toast({ title: "Error", description: errorMessage(e, "Could not add whitelist entry."), variant: "destructive" });
-    } finally { setAdding(false); }
+      toast({
+        title: "Error",
+        description: errorMessage(e, "Could not add whitelist entry."),
+        variant: "destructive",
+      });
+    } finally {
+      setAdding(false);
+    }
   }
 
   async function handleToggle(entry: OtpWhitelistEntry) {
     try {
-      await updateEntry.mutateAsync({ id: entry.id, isActive: !entry.isActive });
-      toast({ title: entry.isActive ? "Whitelist entry disabled" : "Whitelist entry enabled", description: entry.identifier });
+      await updateEntry.mutateAsync({
+        id: entry.id,
+        isActive: !entry.isActive,
+      });
+      toast({
+        title: entry.isActive
+          ? "Whitelist entry disabled"
+          : "Whitelist entry enabled",
+        description: entry.identifier,
+      });
     } catch (e: unknown) {
-      toast({ title: "Error", description: errorMessage(e, "Could not update whitelist entry."), variant: "destructive" });
+      toast({
+        title: "Error",
+        description: errorMessage(e, "Could not update whitelist entry."),
+        variant: "destructive",
+      });
     }
   }
 
   async function handleDelete(id: string, identifier: string) {
     if (!confirm(`Remove "${identifier}" from whitelist?`)) return;
-    try { await deleteEntry.mutateAsync(id); toast({ title: "Removed from whitelist" }); }
-    catch (e: unknown) { toast({ title: "Error", description: errorMessage(e, "Could not delete entry."), variant: "destructive" }); }
+    try {
+      await deleteEntry.mutateAsync(id);
+      toast({ title: "Removed from whitelist" });
+    } catch (e: unknown) {
+      toast({
+        title: "Error",
+        description: errorMessage(e, "Could not delete entry."),
+        variant: "destructive",
+      });
+    }
   }
 
   return (
@@ -1063,35 +1495,39 @@ function WhitelistSection() {
         gradient="bg-gradient-to-r from-indigo-50/80 to-slate-50"
       />
       <div className="p-5 space-y-5">
-
         {/* Info */}
         <div className="flex items-start gap-2.5 text-xs text-indigo-800 bg-indigo-50 border border-indigo-200 rounded-xl p-3">
-          <Zap className="w-4 h-4 flex-shrink-0 mt-0.5 text-indigo-500" />
-          <span>Perfect for App Store reviewers and testers. Identifiers here bypass real SMS and accept the configured 6-digit bypass code.</span>
+          <Zap className="w-4 h-4 shrink-0 mt-0.5 text-indigo-500" />
+          <span>
+            Perfect for App Store reviewers and testers. Identifiers here bypass
+            real SMS and accept the configured 6-digit bypass code.
+          </span>
         </div>
 
         {/* Add form */}
         <div className="rounded-xl border border-border bg-muted/20 p-4 space-y-3">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Add Entry</p>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+            Add Entry
+          </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             <Input
               className="rounded-xl h-9 text-sm"
               placeholder="Phone or email (identifier)"
               value={identifier}
-              onChange={e => setIdentifier(e.target.value)}
+              onChange={(e) => setIdentifier(e.target.value)}
             />
             <Input
               className="rounded-xl h-9 text-sm"
               placeholder="Label (e.g. Apple Reviewer)"
               value={label}
-              onChange={e => setLabel(e.target.value)}
+              onChange={(e) => setLabel(e.target.value)}
             />
             <div className="relative">
               <Input
                 className="rounded-xl h-9 text-sm font-mono pr-16"
                 placeholder="Bypass code (6 digits)"
                 value={bypassCode}
-                onChange={e => setBypassCode(e.target.value)}
+                onChange={(e) => setBypassCode(e.target.value)}
               />
               <button
                 onClick={() => setBypassCode(generateBypassCode())}
@@ -1105,7 +1541,7 @@ function WhitelistSection() {
               type="datetime-local"
               placeholder="Expires (optional)"
               value={expiresAt}
-              onChange={e => setExpiresAt(e.target.value)}
+              onChange={(e) => setExpiresAt(e.target.value)}
             />
           </div>
           <Button
@@ -1114,7 +1550,11 @@ function WhitelistSection() {
             onClick={handleAdd}
             disabled={adding}
           >
-            {adding ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+            {adding ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Plus className="w-3.5 h-3.5" />
+            )}
             Add to Whitelist
           </Button>
         </div>
@@ -1142,15 +1582,20 @@ function WhitelistSection() {
               >
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <p className="font-semibold text-foreground truncate">{entry.identifier}</p>
-                    {entry.isActive
-                      ? <CheckCircle2 className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
-                      : <XCircle className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
-                    }
+                    <p className="font-semibold text-foreground truncate">
+                      {entry.identifier}
+                    </p>
+                    {entry.isActive ? (
+                      <CheckCircle2 className="w-3.5 h-3.5 text-green-500 shrink-0" />
+                    ) : (
+                      <XCircle className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                    )}
                   </div>
                   <div className="flex items-center gap-2 mt-1 flex-wrap">
                     {entry.label && (
-                      <span className="text-xs text-muted-foreground">{entry.label}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {entry.label}
+                      </span>
                     )}
                     <span className="text-[10px] font-mono bg-white border border-border text-foreground px-1.5 py-0.5 rounded-md">
                       {entry.bypassCode}
@@ -1158,10 +1603,13 @@ function WhitelistSection() {
                     {entry.expiresAt && (
                       <span className="text-[10px] text-muted-foreground flex items-center gap-1">
                         <CalendarDays className="w-3 h-3" />
-                        {new Date(entry.expiresAt) < new Date()
-                          ? <span className="text-red-500 font-medium">Expired</span>
-                          : `Expires ${new Date(entry.expiresAt).toLocaleDateString()}`
-                        }
+                        {new Date(entry.expiresAt) < new Date() ? (
+                          <span className="text-red-500 font-medium">
+                            Expired
+                          </span>
+                        ) : (
+                          `Expires ${new Date(entry.expiresAt).toLocaleDateString()}`
+                        )}
                       </span>
                     )}
                   </div>

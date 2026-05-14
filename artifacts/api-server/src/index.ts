@@ -102,15 +102,17 @@ function checkEnv(): void {
     // In production, validate all JWT secrets meet strength requirements
     const secretErrors = [];
     for (const k of JWT_SECRET_VARS) {
-      if (process.env[k]) {
-        const error = validateJwtSecret(k, process.env[k]!);
+      const secret = process.env[k];
+      if (secret) {
+        const error = validateJwtSecret(k, secret);
         if (error) secretErrors.push(error);
       }
     }
     
     // Validate encryption key
-    if (process.env.ENCRYPTION_MASTER_KEY) {
-      const encError = validateEncryptionKey(process.env.ENCRYPTION_MASTER_KEY);
+    const encKey = process.env.ENCRYPTION_MASTER_KEY;
+    if (encKey) {
+      const encError = validateEncryptionKey(encKey);
       if (encError) secretErrors.push(encError);
     }
 

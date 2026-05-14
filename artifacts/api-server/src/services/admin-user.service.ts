@@ -1,6 +1,6 @@
 /**
  * UserService - Admin User Management
- * 
+ *
  * Centralized business logic for:
  * - Authentication & Authorization
  * - User CRUD operations
@@ -25,12 +25,20 @@ import {
 } from "@workspace/db/schema";
 import { eq, and, sql, inArray, desc, gt } from "drizzle-orm";
 import { generateId } from "../lib/id.js";
-import { hashPassword, validatePasswordStrength, verifyAdminSecret } from "./password.js";
+import {
+  hashPassword,
+  validatePasswordStrength,
+  verifyAdminSecret,
+} from "./password.js";
 import { recordAdminPasswordSnapshot } from "./admin-password-watch.service.js";
 import { verifyTotpToken, generateTotpSecret, generateTotpQr } from "./totp.js";
 import { canonicalizePhone } from "@workspace/phone-utils";
 import { logger } from "../lib/logger.js";
-import { getPlatformSettings, invalidateSettingsCache, signAdminJwt } from "../routes/admin-shared.js";
+import {
+  getPlatformSettings,
+  invalidateSettingsCache,
+  signAdminJwt,
+} from "../routes/admin-shared.js";
 import { generateSecureOtp } from "./password.js";
 import { createHash } from "crypto";
 import { resolveAdminPermissions } from "./permissions.service.js";
@@ -70,7 +78,11 @@ export class UserService {
     const trimPhone = input.phone?.trim() || null;
     const trimEmail = input.email?.trim().toLowerCase() || null;
     const trimName = input.name?.trim() || null;
-    const trimUsername = input.username?.trim().toLowerCase().replace(/[^a-z0-9_]/g, "") || null;
+    const trimUsername =
+      input.username
+        ?.trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9_]/g, "") || null;
 
     // Validate inputs
     if (!trimPhone && !trimName) {
@@ -126,10 +138,12 @@ export class UserService {
     }
 
     const validRoles = ["customer", "rider", "vendor"];
-    const userRole = validRoles.includes(input.role || "") ? input.role : "customer";
+    const userRole = validRoles.includes(input.role || "")
+      ? input.role
+      : "customer";
 
     // Hash temporary password if provided
-    let passwordHash = null;
+    let passwordHash: string | null = null;
     if (input.tempPassword) {
       const strengthCheck = validatePasswordStrength(input.tempPassword);
       if (!strengthCheck.ok) {
@@ -160,9 +174,15 @@ export class UserService {
     // Auto-create blank profile row so leftJoin immediately returns a profile
     // object instead of null, avoiding a data gap in the admin UI.
     if (userRole === "vendor") {
-      await db.insert(vendorProfilesTable).values({ userId }).onConflictDoNothing();
+      await db
+        .insert(vendorProfilesTable)
+        .values({ userId })
+        .onConflictDoNothing();
     } else if (userRole === "rider") {
-      await db.insert(riderProfilesTable).values({ userId }).onConflictDoNothing();
+      await db
+        .insert(riderProfilesTable)
+        .values({ userId })
+        .onConflictDoNothing();
     }
 
     logger.info({ userId, phone: canonPhone }, "[UserService] User created");
@@ -213,7 +233,10 @@ export class UserService {
   /**
    * Set user status (active/suspended/banned)
    */
-  static async setUserStatus(userId: string, status: "active" | "suspended" | "banned") {
+  static async setUserStatus(
+    userId: string,
+    status: "active" | "suspended" | "banned",
+  ) {
     const [user] = await db
       .select()
       .from(usersTable)
@@ -230,7 +253,10 @@ export class UserService {
         : status === "suspended"
           ? { isActive: false, isBanned: false }
           : { isActive: false, isBanned: true };
-    await db.update(usersTable).set({ ...flags, updatedAt: new Date() }).where(eq(usersTable.id, userId));
+    await db
+      .update(usersTable)
+      .set({ ...flags, updatedAt: new Date() })
+      .where(eq(usersTable.id, userId));
 
     logger.info({ userId, status }, "[UserService] User status changed");
 
@@ -254,12 +280,24 @@ export class UserService {
     const now = new Date();
     await db
       .update(usersTable)
-      .set({ kycStatus: "verified", approvalStatus: "approved", isActive: true, isBanned: false, updatedAt: now })
+      .set({
+        kycStatus: "verified",
+        approvalStatus: "approved",
+        isActive: true,
+        isBanned: false,
+        updatedAt: now,
+      })
       .where(eq(usersTable.id, userId));
 
     await Promise.allSettled([
-      db.update(vendorProfilesTable).set({ updatedAt: now }).where(eq(vendorProfilesTable.userId, userId)),
-      db.update(riderProfilesTable).set({ updatedAt: now }).where(eq(riderProfilesTable.userId, userId)),
+      db
+        .update(vendorProfilesTable)
+        .set({ updatedAt: now })
+        .where(eq(vendorProfilesTable.userId, userId)),
+      db
+        .update(riderProfilesTable)
+        .set({ updatedAt: now })
+        .where(eq(riderProfilesTable.userId, userId)),
     ]);
 
     logger.info({ userId }, "[UserService] User approved");
@@ -312,10 +350,20 @@ export class UserService {
     }
 
     // Soft-delete: set deletedAt + deactivate so isNull(deletedAt) filters exclude this user
-    await db.update(usersTable).set({ deletedAt: new Date(), isActive: false, isBanned: true, updatedAt: new Date() }).where(eq(usersTable.id, userId));
+    await db
+      .update(usersTable)
+      .set({
+        deletedAt: new Date(),
+        isActive: false,
+        isBanned: true,
+        updatedAt: new Date(),
+      })
+      .where(eq(usersTable.id, userId));
 
     // Revoke all sessions
-    await db.delete(userSessionsTable).where(eq(userSessionsTable.userId, userId));
+    await db
+      .delete(userSessionsTable)
+      .where(eq(userSessionsTable.userId, userId));
 
     logger.info({ userId }, "[UserService] User deleted");
 
@@ -363,7 +411,10 @@ export class UserService {
       passwordChangedAt: null,
     });
 
-    logger.info({ adminId, name: input.name, role: input.role }, "[UserService] Admin account created");
+    logger.info(
+      { adminId, name: input.name, role: input.role },
+      "[UserService] Admin account created",
+    );
 
     return { adminId };
   }
@@ -506,7 +557,10 @@ export class UserService {
     }
 
     const disabledUntil = new Date(Date.now() + minutes * 60 * 1000);
-    await this.upsertSetting("otp_global_disabled_until", disabledUntil.toISOString());
+    await this.upsertSetting(
+      "otp_global_disabled_until",
+      disabledUntil.toISOString(),
+    );
 
     return { disabledUntil: disabledUntil.toISOString(), minutes };
   }
@@ -533,54 +587,106 @@ export class UserService {
     const offset = (pageNum - 1) * limit;
 
     const otpEvents = [
-      "otp_sent", "otp_verified", "otp_failed", "otp_verified_new_user",
-      "login_otp_bypass", "login_global_otp_bypass", "otp_reuse_attempt",
-      "otp_expired", "otp_send_bypassed", "otp_send_global_bypassed",
-      "admin_otp_bypass_set", "admin_otp_bypass_cancel", "admin_otp_generate",
-      "admin_otp_global_disable", "admin_otp_global_restore",
+      "otp_sent",
+      "otp_verified",
+      "otp_failed",
+      "otp_verified_new_user",
+      "login_otp_bypass",
+      "login_global_otp_bypass",
+      "otp_reuse_attempt",
+      "otp_expired",
+      "otp_send_bypassed",
+      "otp_send_global_bypassed",
+      "admin_otp_bypass_set",
+      "admin_otp_bypass_cancel",
+      "admin_otp_generate",
+      "admin_otp_global_disable",
+      "admin_otp_global_restore",
     ];
 
-    const conditions: any[] = [sql`${authAuditLogTable.event} IN (${sql.join(otpEvents.map(e => sql`${e}`), sql`, `)})`];
+    const conditions: any[] = [
+      sql`${authAuditLogTable.event} IN (${sql.join(
+        otpEvents.map((e) => sql`${e}`),
+        sql`, `,
+      )})`,
+    ];
 
-    if (filters?.userId) conditions.push(sql`${authAuditLogTable.userId} = ${filters.userId}`);
-    if (filters?.from) conditions.push(sql`${authAuditLogTable.createdAt} >= ${new Date(filters.from)}`);
-    if (filters?.to) conditions.push(sql`${authAuditLogTable.createdAt} <= ${new Date(filters.to)}`);
+    if (filters?.userId)
+      conditions.push(sql`${authAuditLogTable.userId} = ${filters.userId}`);
+    if (filters?.from)
+      conditions.push(
+        sql`${authAuditLogTable.createdAt} >= ${new Date(filters.from)}`,
+      );
+    if (filters?.to)
+      conditions.push(
+        sql`${authAuditLogTable.createdAt} <= ${new Date(filters.to)}`,
+      );
 
     const whereClause = and(...conditions);
 
     const [rows, [{ total }]] = await Promise.all([
-      db.select().from(authAuditLogTable)
+      db
+        .select()
+        .from(authAuditLogTable)
         .where(whereClause)
         .orderBy(desc(authAuditLogTable.createdAt))
         .limit(limit)
         .offset(offset),
-      db.select({ total: sql<number>`COUNT(*)::int` }).from(authAuditLogTable).where(whereClause),
+      db
+        .select({ total: sql<number>`COUNT(*)::int` })
+        .from(authAuditLogTable)
+        .where(whereClause),
     ]);
 
     // Batch-fetch user info
-    const userIds = [...new Set(rows.map(r => r.userId).filter((id): id is string => !!id))];
-    const userMap = new Map<string, { phone: string | null; name: string | null }>();
+    const userIds = [
+      ...new Set(rows.map((r) => r.userId).filter((id): id is string => !!id)),
+    ];
+    const userMap = new Map<
+      string,
+      { phone: string | null; name: string | null }
+    >();
     if (userIds.length > 0) {
-      const users = await db.select({ id: usersTable.id, phone: usersTable.phone, name: usersTable.name })
-        .from(usersTable).where(inArray(usersTable.id, userIds));
-      for (const u of users) userMap.set(u.id, { phone: u.phone, name: u.name });
+      const users = await db
+        .select({
+          id: usersTable.id,
+          phone: usersTable.phone,
+          name: usersTable.name,
+        })
+        .from(usersTable)
+        .where(inArray(usersTable.id, userIds));
+      for (const u of users)
+        userMap.set(u.id, { phone: u.phone, name: u.name });
     }
 
-    const FAIL_EVENTS = new Set(["otp_failed", "otp_reuse_attempt", "otp_expired", "otp_rate_limit_exceeded"]);
+    const FAIL_EVENTS = new Set([
+      "otp_failed",
+      "otp_reuse_attempt",
+      "otp_expired",
+      "otp_rate_limit_exceeded",
+    ]);
 
     const enriched = rows.map((row) => {
       const userInfo = row.userId ? (userMap.get(row.userId) ?? {}) : {};
       let metadata: Record<string, unknown> = {};
-      try { metadata = row.metadata ? JSON.parse(row.metadata) : {}; } catch {}
+      try {
+        metadata = row.metadata ? JSON.parse(row.metadata) : {};
+      } catch {}
       const metaResult = metadata?.result as string | null | undefined;
-      const derivedResult = metaResult ?? (FAIL_EVENTS.has(row.event) ? "fail" : "success");
+      const derivedResult =
+        metaResult ?? (FAIL_EVENTS.has(row.event) ? "fail" : "success");
 
       return {
         id: row.id,
         event: row.event,
         userId: row.userId,
-        phone: (userInfo as { phone?: string | null; name?: string | null }).phone ?? (metadata?.phone as string | null) ?? null,
-        name: (userInfo as { phone?: string | null; name?: string | null }).name ?? null,
+        phone:
+          (userInfo as { phone?: string | null; name?: string | null }).phone ??
+          (metadata?.phone as string | null) ??
+          null,
+        name:
+          (userInfo as { phone?: string | null; name?: string | null }).name ??
+          null,
         ip: row.ip,
         channel: (metadata?.channel as string | null) ?? null,
         result: derivedResult,
@@ -603,9 +709,15 @@ export class UserService {
   static async getOtpChannels() {
     const settings = await getPlatformSettings();
     const raw = settings["otp_channel_priority"] ?? "whatsapp,sms,email";
-    const channels = raw.split(",").map(s => s.trim()).filter(Boolean);
+    const channels = raw
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
     const allChannels = ["whatsapp", "sms", "email"];
-    const ordered = [...channels, ...allChannels.filter(c => !channels.includes(c))];
+    const ordered = [
+      ...channels,
+      ...allChannels.filter((c) => !channels.includes(c)),
+    ];
     return { channels: ordered };
   }
 
@@ -618,8 +730,10 @@ export class UserService {
     }
     const valid = ["whatsapp", "sms", "email"];
     const seen = new Set<string>();
-    const deduped = (channels as string[]).filter(c => valid.includes(c) && !seen.has(c) && seen.add(c));
-    const canonical = [...deduped, ...valid.filter(c => !seen.has(c))];
+    const deduped = (channels as string[]).filter(
+      (c) => valid.includes(c) && !seen.has(c) && seen.add(c),
+    );
+    const canonical = [...deduped, ...valid.filter((c) => !seen.has(c))];
     if (deduped.length === 0) {
       throw new Error("No valid channels provided");
     }
@@ -632,15 +746,28 @@ export class UserService {
    * Generate OTP for user
    */
   static async generateOtpForUser(userId: string) {
-    const [user] = await db.select({ id: usersTable.id, phone: usersTable.phone, name: usersTable.name })
-      .from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+    const [user] = await db
+      .select({
+        id: usersTable.id,
+        phone: usersTable.phone,
+        name: usersTable.name,
+      })
+      .from(usersTable)
+      .where(eq(usersTable.id, userId))
+      .limit(1);
     if (!user) throw new Error("User not found");
 
     const otp = generateSecureOtp();
     const otpExpiry = new Date(Date.now() + 5 * 60 * 1000);
 
-    await db.update(usersTable)
-      .set({ otpCode: this.hashOtp(otp), otpExpiry, otpUsed: false, updatedAt: new Date() })
+    await db
+      .update(usersTable)
+      .set({
+        otpCode: this.hashOtp(otp),
+        otpExpiry,
+        otpUsed: false,
+        updatedAt: new Date(),
+      })
       .where(eq(usersTable.id, userId));
 
     return { otp, expiresAt: otpExpiry.toISOString(), phone: user.phone };
@@ -686,7 +813,12 @@ export class UserService {
     }
 
     if (admin.totpEnabled && admin.totpSecret) {
-      const tempToken = signAdminJwt(admin.id, "mfa_challenge", admin.name, 5 / 60);
+      const tempToken = signAdminJwt(
+        admin.id,
+        "mfa_challenge",
+        admin.name,
+        5 / 60,
+      );
       return { requiresMfa: true, tempToken };
     }
 

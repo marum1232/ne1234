@@ -1,14 +1,32 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { deliveryWhitelistTable, deliveryAccessRequestsTable, systemAuditLogTable, usersTable, notificationsTable, platformSettingsTable, vendorProfilesTable } from "@workspace/db/schema";
+import {
+  deliveryWhitelistTable,
+  deliveryAccessRequestsTable,
+  systemAuditLogTable,
+  usersTable,
+  notificationsTable,
+  platformSettingsTable,
+  vendorProfilesTable,
+} from "@workspace/db/schema";
 import { eq, and, or, desc, ilike, count, sql } from "drizzle-orm";
 import {
   type AdminRequest,
-  getCachedSettings, invalidatePlatformSettingsCache,
+  getCachedSettings,
+  invalidatePlatformSettingsCache,
 } from "../admin-shared.js";
 import { generateId } from "../../lib/id.js";
-import { addAuditLog, invalidateDeliveryAccessCache } from "../../lib/delivery-access.js";
-import { sendSuccess, sendCreated, sendError, sendNotFound, sendValidationError } from "../../lib/response.js";
+import {
+  addAuditLog,
+  invalidateDeliveryAccessCache,
+} from "../../lib/delivery-access.js";
+import {
+  sendSuccess,
+  sendCreated,
+  sendError,
+  sendNotFound,
+  sendValidationError,
+} from "../../lib/response.js";
 import { logger } from "../../lib/logger.js";
 
 const router = Router();
@@ -22,13 +40,16 @@ router.get("/delivery-access", async (req, res) => {
     const s = await getCachedSettings();
     const mode = s["delivery_access_mode"] ?? "all";
     const page = Math.max(1, parseInt(String(req.query["page"] || "1"), 10));
-    const limit = Math.min(100, Math.max(1, parseInt(String(req.query["limit"] || "50"), 10)));
+    const limit = Math.min(
+      100,
+      Math.max(1, parseInt(String(req.query["limit"] || "50"), 10)),
+    );
     const offset = (page - 1) * limit;
     const typeFilter = req.query["type"] as string | undefined;
     const search = req.query["search"] as string | undefined;
     const statusFilter = req.query["status"] as string | undefined;
 
-    const conditions = [];
+    const conditions: any[] = [];
     if (typeFilter && VALID_TYPES.includes(typeFilter)) {
       conditions.push(eq(deliveryWhitelistTable.type, typeFilter));
     }
@@ -74,7 +95,10 @@ router.get("/delivery-access", async (req, res) => {
       })
       .from(deliveryWhitelistTable)
       .leftJoin(usersTable, eq(deliveryWhitelistTable.targetId, usersTable.id))
-      .leftJoin(vendorProfilesTable, eq(deliveryWhitelistTable.targetId, vendorProfilesTable.userId))
+      .leftJoin(
+        vendorProfilesTable,
+        eq(deliveryWhitelistTable.targetId, vendorProfilesTable.userId),
+      )
       .where(whereClause)
       .orderBy(desc(deliveryWhitelistTable.createdAt))
       .limit(limit)
@@ -90,22 +114,28 @@ router.put("/delivery-access/mode", async (req, res) => {
   try {
     const { mode } = req.body;
     if (!mode || !VALID_MODES.includes(mode)) {
-      sendValidationError(res, `Invalid mode. Must be one of: ${VALID_MODES.join(", ")}`);
+      sendValidationError(
+        res,
+        `Invalid mode. Must be one of: ${VALID_MODES.join(", ")}`,
+      );
       return;
     }
 
     const s = await getCachedSettings();
     const oldMode = s["delivery_access_mode"] ?? "all";
 
-    await db.insert(platformSettingsTable).values({
-      key: "delivery_access_mode",
-      value: mode,
-      label: "Delivery Access Mode",
-      category: "delivery",
-    }).onConflictDoUpdate({
-      target: platformSettingsTable.key,
-      set: { value: mode, updatedAt: new Date() },
-    });
+    await db
+      .insert(platformSettingsTable)
+      .values({
+        key: "delivery_access_mode",
+        value: mode,
+        label: "Delivery Access Mode",
+        category: "delivery",
+      })
+      .onConflictDoUpdate({
+        target: platformSettingsTable.key,
+        set: { value: mode, updatedAt: new Date() },
+      });
 
     invalidatePlatformSettingsCache();
     invalidateDeliveryAccessCache();
@@ -129,41 +159,60 @@ router.put("/delivery-access/mode", async (req, res) => {
 router.get("/delivery-access/whitelist", async (req, res) => {
   try {
     const page = Math.max(1, parseInt(String(req.query["page"] || "1"), 10));
-    const limit = Math.min(100, Math.max(1, parseInt(String(req.query["limit"] || "50"), 10)));
+    const limit = Math.min(
+      100,
+      Math.max(1, parseInt(String(req.query["limit"] || "50"), 10)),
+    );
     const offset = (page - 1) * limit;
     const typeFilter = req.query["type"] as string | undefined;
     const statusFilter = req.query["status"] as string | undefined;
     const search = req.query["search"] as string | undefined;
 
-    const conditions = [];
-    if (typeFilter && VALID_TYPES.includes(typeFilter)) conditions.push(eq(deliveryWhitelistTable.type, typeFilter));
-    if (statusFilter) conditions.push(eq(deliveryWhitelistTable.status, statusFilter));
+    const conditions: any[] = [];
+    if (typeFilter && VALID_TYPES.includes(typeFilter))
+      conditions.push(eq(deliveryWhitelistTable.type, typeFilter));
+    if (statusFilter)
+      conditions.push(eq(deliveryWhitelistTable.status, statusFilter));
     if (search) {
-      conditions.push(or(
-        ilike(usersTable.name, `%${search}%`),
-        ilike(usersTable.phone, `%${search}%`),
-      )!);
+      conditions.push(
+        or(
+          ilike(usersTable.name, `%${search}%`),
+          ilike(usersTable.phone, `%${search}%`),
+        )!,
+      );
     }
     const where = conditions.length > 0 ? and(...conditions) : undefined;
-    const [countRow] = await db.select({ total: count() }).from(deliveryWhitelistTable)
-      .leftJoin(usersTable, eq(deliveryWhitelistTable.targetId, usersTable.id)).where(where);
-    const rows = await db.select({
-      id: deliveryWhitelistTable.id,
-      type: deliveryWhitelistTable.type,
-      targetId: deliveryWhitelistTable.targetId,
-      serviceType: deliveryWhitelistTable.serviceType,
-      status: deliveryWhitelistTable.status,
-      validUntil: deliveryWhitelistTable.validUntil,
-      notes: deliveryWhitelistTable.notes,
-      createdAt: deliveryWhitelistTable.createdAt,
-      userName: usersTable.name,
-      userPhone: usersTable.phone,
-    }).from(deliveryWhitelistTable)
+    const [countRow] = await db
+      .select({ total: count() })
+      .from(deliveryWhitelistTable)
+      .leftJoin(usersTable, eq(deliveryWhitelistTable.targetId, usersTable.id))
+      .where(where);
+    const rows = await db
+      .select({
+        id: deliveryWhitelistTable.id,
+        type: deliveryWhitelistTable.type,
+        targetId: deliveryWhitelistTable.targetId,
+        serviceType: deliveryWhitelistTable.serviceType,
+        status: deliveryWhitelistTable.status,
+        validUntil: deliveryWhitelistTable.validUntil,
+        notes: deliveryWhitelistTable.notes,
+        createdAt: deliveryWhitelistTable.createdAt,
+        userName: usersTable.name,
+        userPhone: usersTable.phone,
+      })
+      .from(deliveryWhitelistTable)
       .leftJoin(usersTable, eq(deliveryWhitelistTable.targetId, usersTable.id))
       .where(where)
       .orderBy(desc(deliveryWhitelistTable.createdAt))
-      .limit(limit).offset(offset);
-    sendSuccess(res, { whitelist: rows, total: countRow?.total ?? 0, page, limit, pages: Math.ceil((countRow?.total ?? 0) / limit) });
+      .limit(limit)
+      .offset(offset);
+    sendSuccess(res, {
+      whitelist: rows,
+      total: countRow?.total ?? 0,
+      page,
+      limit,
+      pages: Math.ceil((countRow?.total ?? 0) / limit),
+    });
   } catch (e) {
     logger.error({ err: e }, "[delivery-access] whitelist GET error");
     sendError(res, "Failed to load whitelist", 500);
@@ -172,7 +221,8 @@ router.get("/delivery-access/whitelist", async (req, res) => {
 
 router.post("/delivery-access/whitelist", async (req, res) => {
   try {
-    const { type, targetId, serviceType, validUntil, deliveryLabel, notes } = req.body;
+    const { type, targetId, serviceType, validUntil, deliveryLabel, notes } =
+      req.body;
 
     if (!type || !VALID_TYPES.includes(type)) {
       sendValidationError(res, "type must be 'vendor' or 'user'");
@@ -183,11 +233,18 @@ router.post("/delivery-access/whitelist", async (req, res) => {
       return;
     }
     if (serviceType && !VALID_SERVICE_TYPES.includes(serviceType)) {
-      sendValidationError(res, `serviceType must be one of: ${VALID_SERVICE_TYPES.join(", ")}`);
+      sendValidationError(
+        res,
+        `serviceType must be one of: ${VALID_SERVICE_TYPES.join(", ")}`,
+      );
       return;
     }
 
-    const [user] = await db.select({ id: usersTable.id, name: usersTable.name }).from(usersTable).where(eq(usersTable.id, targetId)).limit(1);
+    const [user] = await db
+      .select({ id: usersTable.id, name: usersTable.name })
+      .from(usersTable)
+      .where(eq(usersTable.id, targetId))
+      .limit(1);
     if (!user) {
       sendNotFound(res, "Target user/vendor not found");
       return;
@@ -203,7 +260,7 @@ router.post("/delivery-access/whitelist", async (req, res) => {
       serviceType: serviceType || "all",
       status: "active",
       validUntil: validUntil ? new Date(validUntil) : null,
-      deliveryLabel: type === "vendor" ? (deliveryLabel || null) : null,
+      deliveryLabel: type === "vendor" ? deliveryLabel || null : null,
       notes: notes || null,
       createdBy: adminReq.adminId ?? adminReq.adminName ?? "admin",
     });
@@ -216,7 +273,10 @@ router.post("/delivery-access/whitelist", async (req, res) => {
       action: "whitelist_add",
       targetType: type,
       targetId,
-      newValue: JSON.stringify({ serviceType: serviceType || "all", deliveryLabel }),
+      newValue: JSON.stringify({
+        serviceType: serviceType || "all",
+        deliveryLabel,
+      }),
     });
 
     sendCreated(res, { id, type, targetId, serviceType: serviceType || "all" });
@@ -237,10 +297,15 @@ router.post("/delivery-access/whitelist/bulk", async (req, res) => {
     const results: { id: string; targetId: string; status: string }[] = [];
 
     for (const entry of entries) {
-      const { type, targetId, serviceType, validUntil, deliveryLabel, notes } = entry;
+      const { type, targetId, serviceType, validUntil, deliveryLabel, notes } =
+        entry;
       if (!type || !VALID_TYPES.includes(type) || !targetId) continue;
 
-      const [user] = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.id, targetId)).limit(1);
+      const [user] = await db
+        .select({ id: usersTable.id })
+        .from(usersTable)
+        .where(eq(usersTable.id, targetId))
+        .limit(1);
       if (!user) {
         results.push({ id: "", targetId, status: "not_found" });
         continue;
@@ -254,7 +319,7 @@ router.post("/delivery-access/whitelist/bulk", async (req, res) => {
         serviceType: serviceType || "all",
         status: "active",
         validUntil: validUntil ? new Date(validUntil) : null,
-        deliveryLabel: type === "vendor" ? (deliveryLabel || null) : null,
+        deliveryLabel: type === "vendor" ? deliveryLabel || null : null,
         notes: notes || null,
         createdBy: adminReq.adminId ?? "admin",
       });
@@ -268,7 +333,7 @@ router.post("/delivery-access/whitelist/bulk", async (req, res) => {
       adminName: adminReq.adminName,
       action: "whitelist_bulk_add",
       targetType: "bulk",
-      newValue: `${results.filter(r => r.status === "added").length} entries added`,
+      newValue: `${results.filter((r) => r.status === "added").length} entries added`,
     });
 
     sendSuccess(res, { results });
@@ -282,19 +347,29 @@ router.patch("/delivery-access/whitelist/:id", async (req, res) => {
     const { id } = req.params;
     const { deliveryLabel, notes, validUntil, status } = req.body;
 
-    const [existing] = await db.select().from(deliveryWhitelistTable).where(eq(deliveryWhitelistTable.id, id!)).limit(1);
+    const [existing] = await db
+      .select()
+      .from(deliveryWhitelistTable)
+      .where(eq(deliveryWhitelistTable.id, id!))
+      .limit(1);
     if (!existing) {
       sendNotFound(res, "Whitelist entry not found");
       return;
     }
 
     const updates: Record<string, any> = { updatedAt: new Date() };
-    if (deliveryLabel !== undefined) updates.deliveryLabel = deliveryLabel || null;
+    if (deliveryLabel !== undefined)
+      updates.deliveryLabel = deliveryLabel || null;
     if (notes !== undefined) updates.notes = notes || null;
-    if (validUntil !== undefined) updates.validUntil = validUntil ? new Date(validUntil) : null;
-    if (status && ["active", "expired"].includes(status)) updates.status = status;
+    if (validUntil !== undefined)
+      updates.validUntil = validUntil ? new Date(validUntil) : null;
+    if (status && ["active", "expired"].includes(status))
+      updates.status = status;
 
-    await db.update(deliveryWhitelistTable).set(updates).where(eq(deliveryWhitelistTable.id, id!));
+    await db
+      .update(deliveryWhitelistTable)
+      .set(updates)
+      .where(eq(deliveryWhitelistTable.id, id!));
     invalidateDeliveryAccessCache();
 
     const adminReq = req as AdminRequest;
@@ -304,7 +379,11 @@ router.patch("/delivery-access/whitelist/:id", async (req, res) => {
       action: "whitelist_update",
       targetType: existing.type,
       targetId: existing.targetId,
-      oldValue: JSON.stringify({ deliveryLabel: existing.deliveryLabel, notes: existing.notes, status: existing.status }),
+      oldValue: JSON.stringify({
+        deliveryLabel: existing.deliveryLabel,
+        notes: existing.notes,
+        status: existing.status,
+      }),
       newValue: JSON.stringify(updates),
     });
 
@@ -317,13 +396,19 @@ router.patch("/delivery-access/whitelist/:id", async (req, res) => {
 router.delete("/delivery-access/whitelist/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const [existing] = await db.select().from(deliveryWhitelistTable).where(eq(deliveryWhitelistTable.id, id!)).limit(1);
+    const [existing] = await db
+      .select()
+      .from(deliveryWhitelistTable)
+      .where(eq(deliveryWhitelistTable.id, id!))
+      .limit(1);
     if (!existing) {
       sendNotFound(res, "Whitelist entry not found");
       return;
     }
 
-    await db.delete(deliveryWhitelistTable).where(eq(deliveryWhitelistTable.id, id!));
+    await db
+      .delete(deliveryWhitelistTable)
+      .where(eq(deliveryWhitelistTable.id, id!));
     invalidateDeliveryAccessCache();
 
     const adminReq = req as AdminRequest;
@@ -333,7 +418,10 @@ router.delete("/delivery-access/whitelist/:id", async (req, res) => {
       action: "whitelist_remove",
       targetType: existing.type,
       targetId: existing.targetId,
-      oldValue: JSON.stringify({ serviceType: existing.serviceType, deliveryLabel: existing.deliveryLabel }),
+      oldValue: JSON.stringify({
+        serviceType: existing.serviceType,
+        deliveryLabel: existing.deliveryLabel,
+      }),
     });
 
     sendSuccess(res, { deleted: true });
@@ -345,8 +433,9 @@ router.delete("/delivery-access/whitelist/:id", async (req, res) => {
 router.get("/delivery-access/requests", async (req, res) => {
   try {
     const statusFilter = req.query["status"] as string | undefined;
-    const conditions = [];
-    if (statusFilter) conditions.push(eq(deliveryAccessRequestsTable.status, statusFilter));
+    const conditions: any[] = [];
+    if (statusFilter)
+      conditions.push(eq(deliveryAccessRequestsTable.status, statusFilter));
 
     const rows = await db
       .select({
@@ -363,8 +452,14 @@ router.get("/delivery-access/requests", async (req, res) => {
         storeName: vendorProfilesTable.storeName,
       })
       .from(deliveryAccessRequestsTable)
-      .leftJoin(usersTable, eq(deliveryAccessRequestsTable.vendorId, usersTable.id))
-      .leftJoin(vendorProfilesTable, eq(deliveryAccessRequestsTable.vendorId, vendorProfilesTable.userId))
+      .leftJoin(
+        usersTable,
+        eq(deliveryAccessRequestsTable.vendorId, usersTable.id),
+      )
+      .leftJoin(
+        vendorProfilesTable,
+        eq(deliveryAccessRequestsTable.vendorId, vendorProfilesTable.userId),
+      )
       .where(conditions.length > 0 ? and(...conditions) : undefined)
       .orderBy(desc(deliveryAccessRequestsTable.requestedAt));
 
@@ -384,7 +479,11 @@ router.patch("/delivery-access/requests/:id", async (req, res) => {
       return;
     }
 
-    const [request] = await db.select().from(deliveryAccessRequestsTable).where(eq(deliveryAccessRequestsTable.id, id!)).limit(1);
+    const [request] = await db
+      .select()
+      .from(deliveryAccessRequestsTable)
+      .where(eq(deliveryAccessRequestsTable.id, id!))
+      .limit(1);
     if (!request) {
       sendNotFound(res, "Request not found");
       return;
@@ -393,12 +492,15 @@ router.patch("/delivery-access/requests/:id", async (req, res) => {
     const adminReq = req as AdminRequest;
     const now = new Date();
 
-    await db.update(deliveryAccessRequestsTable).set({
-      status,
-      resolvedAt: now,
-      resolvedBy: adminReq.adminId ?? adminReq.adminName ?? "admin",
-      notes: notes || request.notes,
-    }).where(eq(deliveryAccessRequestsTable.id, id!));
+    await db
+      .update(deliveryAccessRequestsTable)
+      .set({
+        status,
+        resolvedAt: now,
+        resolvedBy: adminReq.adminId ?? adminReq.adminName ?? "admin",
+        notes: notes || request.notes,
+      })
+      .where(eq(deliveryAccessRequestsTable.id, id!));
 
     if (status === "approved") {
       const whitelistId = generateId();
@@ -418,9 +520,12 @@ router.patch("/delivery-access/requests/:id", async (req, res) => {
         eq(deliveryWhitelistTable.status, "active"),
       ];
       if (request.serviceType !== "all") {
-        matchConditions.push(eq(deliveryWhitelistTable.serviceType, request.serviceType));
+        matchConditions.push(
+          eq(deliveryWhitelistTable.serviceType, request.serviceType),
+        );
       }
-      await db.update(deliveryWhitelistTable)
+      await db
+        .update(deliveryWhitelistTable)
         .set({ status: "revoked", updatedAt: now })
         .where(and(...matchConditions));
       invalidateDeliveryAccessCache();
@@ -430,14 +535,25 @@ router.patch("/delivery-access/requests/:id", async (req, res) => {
       await db.insert(notificationsTable).values({
         id: generateId(),
         userId: request.vendorId,
-        title: status === "approved" ? "Delivery Access Approved" : "Delivery Access Request Rejected",
-        body: status === "approved"
-          ? `Your delivery access request for ${request.serviceType} has been approved.`
-          : `Your delivery access request for ${request.serviceType} has been rejected.${notes ? ` Reason: ${notes}` : ""}`,
+        title:
+          status === "approved"
+            ? "Delivery Access Approved"
+            : "Delivery Access Request Rejected",
+        body:
+          status === "approved"
+            ? `Your delivery access request for ${request.serviceType} has been approved.`
+            : `Your delivery access request for ${request.serviceType} has been rejected.${notes ? ` Reason: ${notes}` : ""}`,
         type: "system",
       });
     } catch (err) {
-      logger.warn({ vendorId: request.vendorId, status, err: err instanceof Error ? err.message : String(err) }, "[admin:delivery-access] Failed to send delivery access notification");
+      logger.warn(
+        {
+          vendorId: request.vendorId,
+          status,
+          err: err instanceof Error ? err.message : String(err),
+        },
+        "[admin:delivery-access] Failed to send delivery access notification",
+      );
     }
 
     await addAuditLog({
@@ -457,7 +573,10 @@ router.patch("/delivery-access/requests/:id", async (req, res) => {
 
 router.get("/delivery-access/audit", async (req, res) => {
   try {
-    const limit = Math.min(100, Math.max(1, parseInt(String(req.query["limit"] || "50"), 10)));
+    const limit = Math.min(
+      100,
+      Math.max(1, parseInt(String(req.query["limit"] || "50"), 10)),
+    );
     const rows = await db
       .select()
       .from(systemAuditLogTable)
