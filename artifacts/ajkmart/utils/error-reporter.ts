@@ -14,6 +14,7 @@ async function sendReport(report: Record<string, unknown>): Promise<void> {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(report),
     });
+  // eslint-disable-next-line ajk-local/no-silent-catch -- error reporting must never throw (would cause infinite error loops)
   } catch {}
 }
 

@@ -53,6 +53,7 @@ export function usePwaInstall() {
       await deferredPrompt.prompt();
       const { outcome } = await deferredPrompt.userChoice;
       if (outcome === "accepted") setIsInstalled(true);
+    // eslint-disable-next-line ajk-local/no-silent-catch -- prompt unavailable (sandboxed iframe or event already consumed)
     } catch {
       // Prompt unavailable (sandboxed iframe or event already consumed) — ignore silently.
     }
@@ -62,6 +63,7 @@ export function usePwaInstall() {
 
   const dismiss = () => {
     setIsDismissed(true);
+    // eslint-disable-next-line ajk-local/no-silent-catch -- localStorage unavailable in private browsing; non-critical
     try { localStorage.setItem(DISMISSED_KEY, "1"); } catch {}
   };
 

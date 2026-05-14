@@ -117,10 +117,10 @@ export default function RegisterScreen() {
       try {
         const stored = await SS.getItemAsync("ajkmart_reg_token");
         if (stored) setAuthToken(stored);
-      } catch {}
-    }).catch(() => {});
+      } catch (e) { log.debug("[Register] Failed to read stored reg token:", e); }
+    }).catch((err) => { log.debug("[Register] Failed to import expo-secure-store on mount:", err); });
     return () => {
-      import("expo-secure-store").then(SS => SS.deleteItemAsync("ajkmart_reg_token")).catch(() => {});
+      import("expo-secure-store").then(SS => SS.deleteItemAsync("ajkmart_reg_token")).catch((err) => { log.debug("[Register] Failed to cleanup reg token on unmount:", err); });
     };
   }, []);
 
@@ -277,6 +277,7 @@ export default function RegisterScreen() {
           try {
             const SecureStore = await import("expo-secure-store");
             await SecureStore.setItemAsync("ajkmart_reg_token", sendOtpData.token);
+          // eslint-disable-next-line ajk-local/no-silent-catch -- SecureStore cache for reg token is best-effort; in-memory token still works
           } catch {}
         }
         setStep(2);
@@ -309,6 +310,7 @@ export default function RegisterScreen() {
         try {
           const SecureStore = await import("expo-secure-store");
           await SecureStore.setItemAsync("ajkmart_reg_token", data.token);
+        // eslint-disable-next-line ajk-local/no-silent-catch -- SecureStore cache for reg token is best-effort; in-memory token still works
         } catch {}
       }
       if (data.refreshToken) setAuthRefreshToken(data.refreshToken);
@@ -316,7 +318,8 @@ export default function RegisterScreen() {
 
       if (data.token && data.user?.name && data.user?.id) {
         await login({ ...data.user, walletBalance: data.user.walletBalance ?? 0, isActive: data.user.isActive ?? true, createdAt: data.user.createdAt ?? new Date().toISOString() }, data.token, data.refreshToken || undefined);
-        try { const SS = await import("expo-secure-store"); await SS.deleteItemAsync("ajkmart_reg_token"); } catch {}
+        // eslint-disable-next-line ajk-local/no-silent-catch -- reg token cleanup is best-effort; session is already established
+      try { const SS = await import("expo-secure-store"); await SS.deleteItemAsync("ajkmart_reg_token"); } catch {}
         router.replace("/(tabs)");
         return;
       }
@@ -361,6 +364,7 @@ export default function RegisterScreen() {
         try {
           const SecureStore = await import("expo-secure-store");
           activeToken = await SecureStore.getItemAsync("ajkmart_reg_token") || "";
+        // eslint-disable-next-line ajk-local/no-silent-catch -- reg token read failure falls through to the missing-token guard below
         } catch {}
       }
       if (!activeToken) {
@@ -400,6 +404,7 @@ export default function RegisterScreen() {
         try {
           const SecureStore = await import("expo-secure-store");
           await SecureStore.setItemAsync("ajkmart_reg_token", profileData.token);
+        // eslint-disable-next-line ajk-local/no-silent-catch -- SecureStore cache for reg token is best-effort; in-memory token still works
         } catch {}
       }
       if (profileData.refreshToken) setAuthRefreshToken(profileData.refreshToken);
@@ -418,6 +423,7 @@ export default function RegisterScreen() {
         try {
           const SecureStore = await import("expo-secure-store");
           finalToken = await SecureStore.getItemAsync("ajkmart_reg_token") || "";
+        // eslint-disable-next-line ajk-local/no-silent-catch -- reg token read failure is handled by the empty-token guard below
         } catch {}
       }
       if (finalToken && authUser) {
@@ -431,6 +437,7 @@ export default function RegisterScreen() {
         try {
           const SecureStore = await import("expo-secure-store");
           await SecureStore.deleteItemAsync("ajkmart_reg_token");
+        // eslint-disable-next-line ajk-local/no-silent-catch -- reg token cleanup is best-effort; login is already complete
         } catch {}
         router.replace("/(tabs)");
       } else {
@@ -448,7 +455,7 @@ export default function RegisterScreen() {
   const handleBack = () => {
     clearError();
     if (step <= 2) {
-      import("expo-secure-store").then(SS => SS.deleteItemAsync("ajkmart_reg_token")).catch(() => {});
+      import("expo-secure-store").then(SS => SS.deleteItemAsync("ajkmart_reg_token")).catch((err) => { log.debug("[Register] Failed to cleanup reg token on back:", err); });
       router.back();
     } else {
       setStep((step - 1) as RegStep);

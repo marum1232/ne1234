@@ -101,7 +101,9 @@ export function useRideStatus(rideId: string): RideStatusHookResult {
             stopPolling();
           }
         }
-      } catch {}
+      } catch (pollErr) {
+        console.warn("[useRideStatus] Poll failed:", pollErr);
+      }
     };
     poll();
     pollRef.current = setInterval(poll, pollInterval);
@@ -137,6 +139,7 @@ export function useRideStatus(rideId: string): RideStatusHookResult {
       try {
         const SS = await import("expo-secure-store");
         token = await SS.getItemAsync("ajkmart_token");
+      // eslint-disable-next-line ajk-local/no-silent-catch -- SecureStore unavailable (web/emulator); SSE connects without auth token
       } catch {}
       
       // Validate token before use

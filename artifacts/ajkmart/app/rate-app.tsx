@@ -54,6 +54,7 @@ function RateAppScreenInner() {
         await StoreReview.requestReview();
         return;
       }
+    // eslint-disable-next-line ajk-local/no-silent-catch -- StoreReview unavailable on this platform; falls through to URL open
     } catch {}
     const url = Platform.OS === "ios" ? APP_STORE_URL : PLAY_STORE_URL;
     const ok = await Linking.canOpenURL(url).catch(() => false);

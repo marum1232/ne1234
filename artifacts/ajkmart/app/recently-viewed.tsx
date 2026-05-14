@@ -70,6 +70,7 @@ function RecentlyViewedScreenInner() {
         text: "Clear",
         style: "destructive",
         onPress: async () => {
+          // eslint-disable-next-line ajk-local/no-silent-catch -- clearing history is non-critical; list is cleared in state regardless
           await AsyncStorage.removeItem(RECENTLY_VIEWED_KEY).catch(() => {});
           setItems([]);
         },

@@ -153,22 +153,22 @@ async function migrateLegacyInsecureTokens(): Promise<boolean> {
         REFRESH_TOKEN_KEY,
       ).catch(() => null);
       if (!existingToken && legacyToken) {
-        await SecureStore.setItemAsync(TOKEN_KEY, legacyToken).catch(() => {});
+        await SecureStore.setItemAsync(TOKEN_KEY, legacyToken).catch((e) => { log.debug("[auth] Migration: failed to store access token — will retry next launch:", e); });
       }
       if (!existingRefresh && legacyRefresh) {
         await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, legacyRefresh).catch(
-          () => {},
+          (e) => { log.debug("[auth] Migration: failed to store refresh token — will retry next launch:", e); },
         );
       }
       /* Remove the insecure copies */
       await AsyncStorage.multiRemove([
         LEGACY_TOKEN_KEY,
         LEGACY_REFRESH_KEY,
-      ]).catch(() => {});
+      ]).catch((err) => { log.debug("[AuthContext] Legacy token cleanup failed:", err); });
     }
 
     /* Mark migration as complete for this device */
-    await SecureStore.setItemAsync(MIGRATED_KEY, "1").catch(() => {});
+    await SecureStore.setItemAsync(MIGRATED_KEY, "1").catch((e) => { log.debug("[auth] Migration: failed to persist migration flag — will re-run on next launch:", e); });
     return hadLegacy;
   } catch (e) {
     log.warn("migrateSecureStore failed — skipping migration:", e);
@@ -394,7 +394,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const tok = tokenRef.current;
     const u = userRef.current;
     if (u && hasRole(u, "customer") && tok) {
-      clearCustomerLocation(u.id, tok).catch(() => {});
+      clearCustomerLocation(u.id, tok).catch((err) => { log.warn("[AuthContext] Failed to clear customer location on logout:", err); });
     }
 
     if (socketRef.current) {
@@ -554,7 +554,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                   setToken(data.token);
                   setAuthToken(data.token);
                   registerAuth(data.token, data.refreshToken ?? storedRefresh);
-                  syncToServer(data.token).catch(() => {});
+                  syncToServer(data.token).catch((err) => { log.warn("[AuthContext] syncToServer after token refresh failed:", err); });
                   setIsLoading(false);
                   return;
                 }
@@ -596,7 +596,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setToken(storedToken);
             setAuthToken(storedToken);
             registerAuth(storedToken, storedRefresh);
-            syncToServer(storedToken).catch(() => {});
+            syncToServer(storedToken).catch((err) => { log.warn("[AuthContext] syncToServer with stored token failed:", err); });
           }
         }
       } catch (e) {
@@ -647,10 +647,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setTwoFactorPending(null);
     setAuthToken(userToken);
     registerAuth(userToken, refreshToken ?? null);
-    syncToServer(userToken).catch(() => {});
+    syncToServer(userToken).catch((err) => { log.warn("[AuthContext] syncToServer after login failed:", err); });
     /* Capture customer location on login (foreground only) */
     if (hasRole(userData, "customer")) {
-      captureCustomerLocation(userData.id, userToken).catch(() => {});
+      captureCustomerLocation(userData.id, userToken).catch((err) => { log.warn("[AuthContext] captureCustomerLocation after login failed:", err); });
     }
   };
 
@@ -716,11 +716,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (refreshTok) {
           await secureSet(BIOMETRIC_TOKEN, refreshTok);
         }
-      } catch {}
+      } catch (e) { log.warn("[auth] Failed to store biometric token — biometric login may not work:", e); }
     } else if (!enabled) {
       try {
         await secureDelete(BIOMETRIC_TOKEN);
-      } catch {}
+      } catch (e) { log.debug("[auth] Failed to remove biometric token — SecureStore may already be empty:", e); }
     }
   };
 
@@ -839,7 +839,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               USER_KEY,
               JSON.stringify({ ...parsed, walletBalance: payload.balance }),
             );
-          } catch {}
+          } catch (e) { log.debug("[auth] wallet:update — failed to persist updated wallet balance to AsyncStorage:", e); }
         });
       }
     };

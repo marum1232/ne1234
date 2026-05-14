@@ -27,6 +27,7 @@ export function FontSizeProvider({ children }: { children: React.ReactNode }) {
   const [fontSizeLevel, setFontSizeLevelState] = useState<FontSizeLevel>("medium");
 
   useEffect(() => {
+    // eslint-disable-next-line ajk-local/no-silent-catch -- font size preference read failure is non-critical; falls back to default
     AsyncStorage.getItem(FONT_SIZE_KEY)
       .then((stored) => {
         if (stored === "small" || stored === "medium" || stored === "large") {
@@ -40,6 +41,7 @@ export function FontSizeProvider({ children }: { children: React.ReactNode }) {
     setFontSizeLevelState(level);
     try {
       await AsyncStorage.setItem(FONT_SIZE_KEY, level);
+    // eslint-disable-next-line ajk-local/no-silent-catch -- font size persistence failure is non-critical; in-memory state already updated
     } catch {}
   }, []);
 

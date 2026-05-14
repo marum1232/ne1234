@@ -63,6 +63,7 @@ export async function loadUrduFonts(): Promise<void> {
   if (_urduLoaded) return;
 
   if (_urduLoading) {
+    // eslint-disable-next-line ajk-local/no-silent-catch -- in-flight Urdu font load failure is non-critical; app continues with fallback fonts
     await _urduLoading.catch(() => {});
     return;
   }

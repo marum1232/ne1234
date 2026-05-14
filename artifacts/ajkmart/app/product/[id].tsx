@@ -1,3 +1,5 @@
+import { createLogger } from "@/utils/logger";
+const log = createLogger("[Product]");
 import { Ionicons } from "@expo/vector-icons";
 import { withErrorBoundary } from "@/utils/withErrorBoundary";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -485,7 +487,7 @@ function ProductDetailScreenInner() {
       await refetch();
       queryClient.invalidateQueries({ queryKey: ["reviews", id] });
       queryClient.invalidateQueries({ queryKey: ["related-products", id] });
-    } catch {}
+    } catch (e) { log.debug("[Product] Pull-to-refresh failed:", e); }
     setRefreshing(false);
   }, [refetch, id, queryClient]);
 
@@ -507,8 +509,8 @@ function ProductDetailScreenInner() {
 
   useEffect(() => {
     if (isLoggedIn && id) {
-      checkWishlist(id).then(setIsInWishlist).catch(() => {});
-      checkStockNotifySubscription(id).then(r => setIsSubscribed(r.subscribed)).catch(() => {});
+      checkWishlist(id).then(setIsInWishlist).catch((err) => { log.debug("[Product] Failed to load wishlist status:", err); });
+      checkStockNotifySubscription(id).then(r => setIsSubscribed(r.subscribed)).catch((err) => { log.debug("[Product] Failed to load stock notify status:", err); });
     }
   }, [isLoggedIn, id]);
 
@@ -542,6 +544,7 @@ function ProductDetailScreenInner() {
   useFocusEffect(
     React.useCallback(() => {
       if (!product) return;
+      // eslint-disable-next-line ajk-local/no-silent-catch -- recent items tracking is non-critical; view history is decorative
       addRecentItem({
         id: product.id,
         name: product.name,
@@ -584,6 +587,7 @@ function ProductDetailScreenInner() {
     const message = `Check out ${product.name} for Rs. ${product.price} on ${product.vendorName ? product.vendorName + " via " : ""}AJKMart!\n\n${deepLink}`;
     try {
       await Share.share({ title: product.name, message, url: deepLink });
+    // eslint-disable-next-line ajk-local/no-silent-catch -- Share.share() throws on user cancel; silence is intentional
     } catch {}
   }, [product]);
 
@@ -625,6 +629,7 @@ function ProductDetailScreenInner() {
 
   useEffect(() => {
     if (id) {
+      // eslint-disable-next-line ajk-local/no-silent-catch -- analytics tracking is non-critical; product page still works without it
       trackInteraction({ productId: id, type: "view" }).catch(() => {});
     }
   }, [id]);

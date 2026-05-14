@@ -144,7 +144,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
         description: 'Click "Stay logged in" to continue without interruption.',
         duration: 55_000,
         action: (
-          <ToastAction altText="Stay logged in" onClick={() => { refreshFn().catch(() => {}); }}>
+          <ToastAction altText="Stay logged in" onClick={() => { refreshFn().catch((err) => { log.warn("[adminAuth] Session refresh failed:", err); }); }}>
             Stay logged in
           </ToastAction>
         ),
@@ -377,6 +377,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
       if (state.accessToken) {
         // Try to notify backend of logout
         const csrfToken = readCsrfFromCookie() || ''; // Fallback if cookie is cleared or malformed
+        // eslint-disable-next-line ajk-local/no-silent-catch -- logout notification to server is best-effort; local auth state is cleared regardless
         await fetch('/api/admin/auth/logout', {
           method: 'POST',
           credentials: 'include',
@@ -418,7 +419,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
       });
 
       if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
+        const error = await response.json().catch((parseErr) => { log.debug("[adminAuth] Failed to parse error response:", parseErr); return {}; });
         throw new Error(error.error || 'Failed to change password');
       }
 
@@ -479,7 +480,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
       });
 
       if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
+        const error = await response.json().catch((parseErr) => { log.debug("[adminAuth] Failed to parse error response:", parseErr); return {}; });
         throw new Error(error.error || 'Failed to update profile');
       }
 
@@ -566,6 +567,7 @@ export function readCsrfFromCookie(): string {
         }
       }
     }
+  // eslint-disable-next-line ajk-local/no-silent-catch -- cookie parse failure is expected for malformed cookies; falls through to empty string
   } catch {
     /* ignore - fall through to empty string */
   }

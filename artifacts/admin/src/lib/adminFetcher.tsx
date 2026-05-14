@@ -198,7 +198,7 @@ export async function fetchAdmin(
   try {
     const res = await _adminScopedFetcher(endpoint, { ...options, signal });
     if (!res.ok) {
-      const errorData = await res.json().catch(() => ({}));
+      const errorData = await res.json().catch((parseErr) => { log.debug("[adminFetcher] Failed to parse error response:", parseErr); return {}; });
       throw new AdminFetchError(errorData.error || `HTTP ${res.status}`, res.status);
     }
     return res.json();
@@ -214,7 +214,7 @@ export async function fetchAdmin(
       err instanceof FetchTimeoutError ||
       reason instanceof TimeoutError;
     if (isTimeout) {
-      handleTimeoutError(new TimeoutError(), () => { fetchAdmin(endpoint, options).catch(() => {}); });
+      handleTimeoutError(new TimeoutError(), () => { fetchAdmin(endpoint, options).catch((retryErr) => { log.warn("[adminFetcher] timeout retry failed:", retryErr); }); });
       throw new TimeoutError();
     }
     throw err;
@@ -243,7 +243,7 @@ export async function fetchAdminAbsolute(
   try {
     const res = await _adminAbsoluteFetcher(path, { ...options, signal });
     if (!res.ok) {
-      const errorData = await res.json().catch(() => ({}));
+      const errorData = await res.json().catch((parseErr) => { log.debug("[adminFetcher] Failed to parse error response:", parseErr); return {}; });
       throw new AdminFetchError(errorData.error || `HTTP ${res.status}`, res.status);
     }
     return res.json();
@@ -257,7 +257,7 @@ export async function fetchAdminAbsolute(
       err instanceof FetchTimeoutError ||
       reason instanceof TimeoutError;
     if (isTimeout) {
-      handleTimeoutError(new TimeoutError(), () => { fetchAdminAbsolute(path, options).catch(() => {}); });
+      handleTimeoutError(new TimeoutError(), () => { fetchAdminAbsolute(path, options).catch((retryErr) => { log.warn("[adminFetcher] absolute timeout retry failed:", retryErr); }); });
       throw new TimeoutError();
     }
     throw err;
@@ -295,7 +295,7 @@ export async function fetchAdminAbsoluteResponse(
       err instanceof FetchTimeoutError ||
       reason instanceof TimeoutError;
     if (isTimeout) {
-      handleTimeoutError(new TimeoutError(), () => { fetchAdminAbsoluteResponse(path, options).catch(() => {}); });
+      handleTimeoutError(new TimeoutError(), () => { fetchAdminAbsoluteResponse(path, options).catch((retryErr) => { log.warn("[adminFetcher] response timeout retry failed:", retryErr); }); });
       throw new TimeoutError();
     }
     throw err;

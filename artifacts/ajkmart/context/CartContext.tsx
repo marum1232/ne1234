@@ -80,6 +80,7 @@ async function saveCartSnapshot(
       },
       body: JSON.stringify({ items }),
     });
+  // eslint-disable-next-line ajk-local/no-silent-catch -- cart snapshot sync failure is intentionally swallowed; local cart is source of truth
   } catch {
     /* silently swallowed — local cart is source of truth */
   }
@@ -106,6 +107,7 @@ async function clearCartSnapshot(token: string): Promise<void> {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
     });
+  // eslint-disable-next-line ajk-local/no-silent-catch -- clearing remote cart snapshot is non-critical; local cart already cleared
   } catch {
     /* silently swallowed */
   }

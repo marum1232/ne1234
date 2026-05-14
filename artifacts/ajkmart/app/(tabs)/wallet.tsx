@@ -1000,10 +1000,12 @@ function DepositModal({ onClose, onSuccess, onFrozen, token, minTopup, maxTopup 
             if (Array.isArray(parsed) && parsed.every(v => typeof v === "string")) {
               ids = parsed;
             } else {
+              // eslint-disable-next-line ajk-local/no-silent-catch -- removing corrupt submitted-tx cache is non-critical
               AsyncStorage.removeItem(SUBMITTED_TX_KEY).catch(() => {});
               ids = [];
             }
           } catch {
+            // eslint-disable-next-line ajk-local/no-silent-catch -- removing corrupt submitted-tx cache is non-critical
             AsyncStorage.removeItem(SUBMITTED_TX_KEY).catch(() => {});
             ids = [];
           }
@@ -1588,6 +1590,7 @@ function WalletScreenInner() {
       fetch(`${API}/wallet`, { headers: { Authorization: `Bearer ${token}` } })
         .then(async r => {
           if (r.status === 403) {
+            // eslint-disable-next-line ajk-local/no-silent-catch -- error body parse failure falls back to not setting frozen state
             const d = unwrapApiResponse<{ error?: string }>(await r.json().catch(() => ({})));
             if (d.error === "wallet_frozen") setWalletFrozen(true);
           } else {
@@ -1603,6 +1606,7 @@ function WalletScreenInner() {
       try {
         const r = await fetch(`${API}/wallet`, { headers: { Authorization: `Bearer ${token}` } });
         if (r.status === 403) {
+          // eslint-disable-next-line ajk-local/no-silent-catch -- error body parse failure falls back to not setting frozen state
           const d = unwrapApiResponse<{ error?: string }>(await r.json().catch(() => ({})));
           if (d.error === "wallet_frozen") { setWalletFrozen(true); return; }
         } else { setWalletFrozen(false); }

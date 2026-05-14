@@ -878,6 +878,7 @@ function ReviewModal({ target, userId, apiBase, token, language, onClose, onDone
       }
 
       if (!res.ok) {
+        // eslint-disable-next-line ajk-local/no-silent-catch -- error body parse failure falls back to generic review error message
         const body = await res.json().catch(() => ({})) as Record<string, unknown>;
         const errStr = String(body["error"] || "");
         const msgStr = String(body["message"] || "");

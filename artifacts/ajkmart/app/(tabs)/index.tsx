@@ -69,7 +69,7 @@ function RecentlyViewedSection() {
   React.useEffect(() => {
     getRecentItems()
       .then(loaded => setItems(loaded as RecentItem[]))
-      .catch(() => {});
+      .catch((err) => { log.debug("[Home] Failed to load recent items:", err); });
   }, []);
 
   if (items.length === 0) return null;
@@ -82,7 +82,7 @@ function RecentlyViewedSection() {
         </View>
         <TouchableOpacity activeOpacity={0.7}
           onPress={() => {
-            clearRecentItems().catch(() => {});
+            clearRecentItems().catch((err) => { log.warn("[Home] Failed to clear recent items:", err); });
             setItems([]);
           }}
           style={rv.clearBtn}
@@ -280,8 +280,10 @@ function WeatherWidget({ userLat, userLng, cityLabel }: { userLat?: number; user
               if (rev.length > 0) {
                 locName = [rev[0].city || rev[0].subregion, rev[0].region].filter(Boolean).join(", ") || locName;
               }
+            // eslint-disable-next-line ajk-local/no-silent-catch -- reverse geocode failure is non-critical; coordinates still used
             } catch {}
           }
+        // eslint-disable-next-line ajk-local/no-silent-catch -- location permission/unavailable failure is non-critical; falls back to saved city
         } catch {}
 
         if (lat == null || lng == null) {
@@ -290,6 +292,7 @@ function WeatherWidget({ userLat, userLng, cityLabel }: { userLat?: number; user
             try {
               const p = JSON.parse(saved);
               lat = p.lat; lng = p.lng; locName = p.name || locName;
+            // eslint-disable-next-line ajk-local/no-silent-catch -- malformed saved city JSON is ignored; falls back to user coordinates
             } catch {}
           }
         }
@@ -315,6 +318,7 @@ function WeatherWidget({ userLat, userLng, cityLabel }: { userLat?: number; user
               if (!cancelled) { setWeather(parsed); setLoading(false); }
               return;
             }
+          // eslint-disable-next-line ajk-local/no-silent-catch -- malformed weather cache JSON is ignored; fresh fetch proceeds
           } catch {}
         }
 
@@ -332,6 +336,7 @@ function WeatherWidget({ userLat, userLng, cityLabel }: { userLat?: number; user
           feelsLike: Math.round(cur.apparent_temperature ?? cur.temperature_2m),
           _ts: Date.now(),
         };
+        // eslint-disable-next-line ajk-local/no-silent-catch -- caching weather data is non-critical; stale/no cache is acceptable
         AsyncStorage.setItem(cacheKey, JSON.stringify(w)).catch(() => {});
         if (!cancelled) { setWeather(w); setLoading(false); }
       } catch {
@@ -525,6 +530,7 @@ export default function HomeScreen() {
           <TouchableOpacity activeOpacity={0.7}
             onPress={() => {
               setAnnounceDismissed(true);
+              // eslint-disable-next-line ajk-local/no-silent-catch -- persisting dismiss is non-critical; banner simply reappears on restart
               if (announceKey) AsyncStorage.setItem(announceKey, "1").catch(() => {});
             }}
             style={s.announceClose}

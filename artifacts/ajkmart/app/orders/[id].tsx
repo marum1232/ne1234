@@ -609,6 +609,7 @@ function OrderDetailScreenInner() {
             setReviewDone(true);
           }
         }
+      // eslint-disable-next-line ajk-local/no-silent-catch -- UI defaults to showing the review CTA if check fails; non-critical
       } catch {
         /* ignore — UI defaults to showing the CTA if check fails */
       } finally {
@@ -1701,7 +1702,8 @@ function OrderDetailScreenInner() {
                         if (res.ok) {
                           setReviewDone(true);
                         }
-                      } catch {
+                      } catch (reviewErr) {
+                        console.warn("[orders/[id]] Review submit failed:", reviewErr);
                       } finally {
                         setReviewSubmitting(false);
                       }

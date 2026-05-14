@@ -116,15 +116,18 @@ export default function SupportChatScreen() {
 
   useEffect(() => {
     if (!uid || uid === "anon") return;
+    // eslint-disable-next-line ajk-local/no-silent-catch -- cache read failure is non-critical; chat starts empty
     AsyncStorage.getItem(cacheKey(uid))
       .then((raw) => {
         if (raw) {
           try {
             setMessages(JSON.parse(raw));
+          // eslint-disable-next-line ajk-local/no-silent-catch -- malformed cache JSON is discarded; chat starts empty
           } catch {}
         }
       })
       .catch(() => {});
+    // eslint-disable-next-line ajk-local/no-silent-catch -- draft read failure is non-critical; input starts empty
     AsyncStorage.getItem(draftKey(uid))
       .then((v) => {
         if (v) setInput(v);
@@ -135,6 +138,7 @@ export default function SupportChatScreen() {
   const persistMessages = useCallback(
     (msgs: ChatMessage[]) => {
       if (!uid || uid === "anon") return;
+      // eslint-disable-next-line ajk-local/no-silent-catch -- chat cache write failure is non-critical; messages are shown in-memory
       AsyncStorage.setItem(cacheKey(uid), JSON.stringify(msgs)).catch(() => {});
     },
     [uid],
@@ -146,6 +150,7 @@ export default function SupportChatScreen() {
 
   useEffect(() => {
     if (!uid || uid === "anon") return;
+    // eslint-disable-next-line ajk-local/no-silent-catch -- draft persistence failure is non-critical; input is preserved in component state
     AsyncStorage.setItem(draftKey(uid), input).catch(() => {});
   }, [input, uid]);
 
@@ -221,6 +226,7 @@ export default function SupportChatScreen() {
       createdAt: new Date().toISOString(),
     };
     setInput("");
+    // eslint-disable-next-line ajk-local/no-silent-catch -- draft cleanup failure is non-critical; message is sent regardless
     AsyncStorage.removeItem(draftKey(uid)).catch(() => {});
     mergeMessages([optimisticMsg]);
     scrollToBottom();

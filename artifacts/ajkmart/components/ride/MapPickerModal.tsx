@@ -73,6 +73,7 @@ export function MapPickerModal({
           lng: payload.lng,
           address: payload.address ?? `${payload.lat.toFixed(5)}, ${payload.lng.toFixed(5)}`,
         });
+      // eslint-disable-next-line ajk-local/no-silent-catch -- malformed WebView message JSON is ignored safely
       } catch {
       }
     },

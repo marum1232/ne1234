@@ -316,6 +316,7 @@ export default function Products() {
           try {
             const parsed = JSON.parse(raw);
             if (Array.isArray(parsed)) { setPricingRules(parsed); return; }
+          // eslint-disable-next-line ajk-local/no-silent-catch -- malformed pricing rules JSON ignored; default rules are used
           } catch { /* ignore parse errors */ }
         }
         // Default seed rules when no saved value

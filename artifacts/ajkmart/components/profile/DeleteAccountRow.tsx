@@ -38,6 +38,7 @@ export function DeleteAccountRow({ token }: { token?: string }) {
         body: JSON.stringify({ confirmation: "DELETE" }),
       });
       if (!res.ok) {
+        // eslint-disable-next-line ajk-local/no-silent-catch -- error body parse failure falls back to generic message
         const data = await res.json().catch(() => ({}));
         throw new Error(data.message || data.error || "Could not delete account");
       }

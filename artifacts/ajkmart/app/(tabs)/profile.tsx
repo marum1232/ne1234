@@ -412,7 +412,7 @@ function ProfileScreenInner() {
         .then(r => r.json())
         .then(unwrapApiResponse)
         .then((d: { pinSetup?: boolean }) => { if (typeof d.pinSetup === "boolean") setPinSetup(d.pinSetup); })
-        .catch(() => {});
+        .catch((err) => { log.warn("[Profile] Failed to load wallet:", err); });
     }
   }, [token]);
 
@@ -425,7 +425,7 @@ function ProfileScreenInner() {
           const pts = d.available ?? d.totalEarned;
           if (typeof pts === "number") setLoyaltyPoints(pts);
         })
-        .catch(() => {});
+        .catch((err) => { log.warn("[Profile] Failed to load loyalty points:", err); });
     }
   }, [token]);
 
@@ -843,6 +843,7 @@ function ProfileScreenInner() {
                           message: `Join ${appName} using my referral code ${code} and we both get ${currencySymbol} ${bonus} bonus! Download the app now.`,
                           title: `Join ${appName}`,
                         });
+                      // eslint-disable-next-line ajk-local/no-silent-catch -- user cancelled share dialog; no action required
                       } catch (_e) { /* user cancelled share dialog */ }
                     }}
                     accessibilityRole="button"
@@ -1085,14 +1086,14 @@ function ProfileScreenInner() {
               <Row icon="shield-checkmark-outline"
                    label={T("privacyPolicy")}
                    sub={T("privacySubLabel")}
-                   onPress={() => Linking.openURL(platformCfg.privacyUrl).catch(() => {})}
+                   onPress={() => Linking.openURL(platformCfg.privacyUrl).catch((err) => console.debug("[Profile] Failed to open privacy URL:", err))}
                    iconColor={C.primary} iconBg={C.primarySoft} />
             )}
             {platformCfg.refundPolicyUrl && (
               <Row icon="return-down-back-outline"
                    label={T("refundPolicy")}
                    sub={T("refundSubLabel")}
-                   onPress={() => Linking.openURL(platformCfg.refundPolicyUrl).catch(() => {})}
+                   onPress={() => Linking.openURL(platformCfg.refundPolicyUrl).catch((err) => console.debug("[Profile] Failed to open refund URL:", err))}
                    iconColor={C.success} iconBg={C.successSoft} />
             )}
             <Row icon="help-circle-outline"
@@ -1110,6 +1111,7 @@ function ProfileScreenInner() {
                        await StoreReview.requestReview();
                        return;
                      }
+                   // eslint-disable-next-line ajk-local/no-silent-catch -- StoreReview unavailable on this platform; falls through to in-app form
                    } catch (_e) { /* StoreReview unavailable — fall through to in-app form */ }
                    router.push("/rate-app");
                  }}
@@ -1118,7 +1120,7 @@ function ProfileScreenInner() {
               <Row icon="information-circle-outline"
                    label={T("aboutUsLabel")}
                    sub={`${platformCfg.appName} ${T("aboutSubLabel")}`}
-                   onPress={() => Linking.openURL(platformCfg.aboutUrl).catch(() => {})}
+                   onPress={() => Linking.openURL(platformCfg.aboutUrl).catch((err) => console.debug("[Profile] Failed to open about URL:", err))}
                    iconColor={C.parcel} iconBg={C.parcelLight} />
             )}
           </Accordion>

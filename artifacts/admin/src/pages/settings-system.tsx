@@ -159,6 +159,7 @@ export function SystemSection({
 
   const handleDismissUndo = async (id: string) => {
     try { await apiFetch(`/snapshots/${id}`, { method: "DELETE" }); } catch (err) {
+      console.warn("[settings-system] Failed to delete undo snapshot:", err);
     }
     setPendingUndos(prev => prev.filter(u => u.id !== id));
     toast({ title: "Action confirmed permanent", description: "Undo snapshot discarded." });
@@ -206,6 +207,7 @@ export function SystemSection({
       const data = await apiFetch("/demo-backups");
       setDemoBackups(data.data ?? data);
     } catch (err) {
+      console.warn("[settings-system] Failed to load demo backups:", err);
     }
     setDemoBackupsLoading(false);
   }, []);

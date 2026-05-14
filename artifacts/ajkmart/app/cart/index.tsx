@@ -1354,6 +1354,7 @@ function CartScreenInner() {
     });
     if (res.status === 404) return;
     if (!res.ok) {
+      // eslint-disable-next-line ajk-local/no-silent-catch -- error body parse failure falls back to status-code message
       const data = await res.json().catch(() => ({}));
       throw new Error(data.error || `Cancel failed with status ${res.status}`);
     }

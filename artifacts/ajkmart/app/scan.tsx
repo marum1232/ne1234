@@ -84,7 +84,8 @@ function ScanScreenInner() {
           return;
         }
       }
-    } catch {
+    } catch (err) {
+      console.warn("[scan] Barcode resolve failed:", err);
     } finally {
       setResolving(false);
     }

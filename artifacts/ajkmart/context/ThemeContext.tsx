@@ -24,6 +24,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [isDark, setIsDark] = useState(false);
 
   useEffect(() => {
+    // eslint-disable-next-line ajk-local/no-silent-catch -- reading theme preference is non-critical; defaults to light mode
     AsyncStorage.getItem(DARK_MODE_KEY)
       .then((stored) => {
         if (stored === "true") setIsDark(true);
@@ -35,12 +36,14 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     setIsDark(enabled);
     try {
       await AsyncStorage.setItem(DARK_MODE_KEY, enabled ? "true" : "false");
+    // eslint-disable-next-line ajk-local/no-silent-catch -- persisting dark mode preference is non-critical
     } catch {}
   }, []);
 
   const toggleDarkMode = useCallback(async () => {
     setIsDark((prev) => {
       const next = !prev;
+      // eslint-disable-next-line ajk-local/no-silent-catch -- persisting toggled theme is non-critical
       AsyncStorage.setItem(DARK_MODE_KEY, next ? "true" : "false").catch(() => {});
       return next;
     });

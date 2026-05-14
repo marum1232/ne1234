@@ -52,6 +52,7 @@ export default function ResetPassword() {
     (async () => {
       try {
         const res = await fetch(`/api/admin/auth/reset-password/validate?token=${encodeURIComponent(token)}`);
+        // eslint-disable-next-line ajk-local/no-silent-catch -- validation body parse failure falls back to network error state
         const data = await res.json().catch(() => ({})) as { valid?: boolean; reason?: string; expiresAt?: string; adminName?: string };
         if (cancelled) return;
         if (res.ok && data.valid) {
@@ -80,6 +81,7 @@ export default function ResetPassword() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token, newPassword: password }),
       });
+      // eslint-disable-next-line ajk-local/no-silent-catch -- error body parse failure falls back to generic message
       const data = await res.json().catch(() => ({}));
       if (!res.ok) { setError(data?.error || "We couldn't reset your password. Please try again."); return; }
       setSuccess(true);

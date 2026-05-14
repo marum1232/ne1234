@@ -171,6 +171,7 @@ function ParcelScreenInner() {
           try {
             d = JSON.parse(raw);
           } catch {
+            // eslint-disable-next-line ajk-local/no-silent-catch -- clearing corrupt parcel draft is non-critical
             AsyncStorage.removeItem(PARCEL_DRAFT_KEY).catch(() => {});
             d = null;
           }

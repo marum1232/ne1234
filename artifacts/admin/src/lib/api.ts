@@ -115,7 +115,8 @@ export const uploadAdminImage = async (file: File): Promise<string> => {
     }
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
+      // eslint-disable-next-line ajk-local/no-silent-catch -- error body parse failure falls back to status-code message
+    const errorData = await response.json().catch(() => ({}));
       throw new Error(errorData.error || `Upload failed with status ${response.status}`);
     }
 
@@ -341,6 +342,7 @@ function getCsrfFromCookie(): string {
         }
       }
     }
+  // eslint-disable-next-line ajk-local/no-silent-catch -- cookie parsing failure returns empty string safely
   } catch {
     /* ignore */
   }

@@ -1,4 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { createLogger } from "@/utils/logger";
+const log = createLogger("[Layout]");
 import { AuthGuard } from "@/app/_handlers/AuthGuard";
 import { SuspendedScreen } from "@/app/_handlers/SuspendedScreen";
 import { MaintenanceScreen } from "@/app/_handlers/MaintenanceScreen";
@@ -234,7 +236,7 @@ function RootLayoutNav() {
     const doInit = () => {
       deferredInitDone.current = true;
       if (integ.sentry && integ.sentryDsn) {
-        initSentry(integ.sentryDsn, integ.sentryEnvironment, integ.sentrySampleRate).catch(() => {});
+        initSentry(integ.sentryDsn, integ.sentryEnvironment, integ.sentrySampleRate).catch((err) => { log.warn("[layout] Sentry init failed:", err); });
       }
       if (integ.analytics && integ.analyticsTrackingId) {
         initAnalytics(integ.analyticsPlatform, integ.analyticsTrackingId, integ.analyticsDebug ?? false);
@@ -250,7 +252,7 @@ function RootLayoutNav() {
     const timer = setTimeout(() => {
       setSentryUser(String(user.id));
       identifyUser(String(user.id));
-      registerPush(token).catch(() => {});
+      registerPush(token).catch((err) => { log.warn("[layout] Push registration failed:", err); });
     }, 2000);
     return () => clearTimeout(timer);
   }, [user?.id, token]);
@@ -279,7 +281,7 @@ function RootLayoutNav() {
           setShowTerms(true);
         }
       })
-      .catch(() => {});
+      .catch((err) => { log.debug("[layout] Compliance status fetch failed:", err); });
   }, [user?.id, config.compliance?.termsVersion, forceUpdate]);
 
   useEffect(() => {
@@ -291,7 +293,7 @@ function RootLayoutNav() {
           setTimeout(() => setShowWhatsNew(true), 1500);
         }
       })
-      .catch(() => {});
+      .catch((err) => { log.debug("[layout] WhatsNew check failed:", err); });
   }, [user?.id, installedVersion, config.releaseNotes?.length, forceUpdate]);
 
   if (isSuspended) return <SuspendedScreen />;
@@ -341,7 +343,7 @@ function RootLayoutNav() {
         releaseNotes={config.releaseNotes ?? []}
         appVersion={installedVersion}
         onDismiss={() => {
-          AsyncStorage.setItem(WHATS_NEW_KEY, installedVersion).catch(() => {});
+          AsyncStorage.setItem(WHATS_NEW_KEY, installedVersion).catch((err) => { log.debug("[layout] Failed to save WhatsNew version:", err); });
           setShowWhatsNew(false);
         }}
       />
@@ -413,6 +415,7 @@ export default function RootLayout() {
       if (!cancelled) {
         cancelled = true;
         setReady(true);
+        // eslint-disable-next-line ajk-local/no-silent-catch -- splash hide failure is cosmetic; app still loads normally
         SplashScreen.hideAsync().catch(() => {});
       }
     };
@@ -422,14 +425,17 @@ export default function RootLayout() {
     const loadAllFonts = async () => {
       try {
         const timeout = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+        // eslint-disable-next-line ajk-local/no-silent-catch -- font loading failure is cosmetic; app renders with system fonts
         await Promise.race([
           loadCoreFonts(),
           timeout(Platform.OS === "web" ? 2000 : 6000),
         ]).catch(() => {});
         const savedLang = await AsyncStorage.getItem("@ajkmart_language").catch(() => null);
         if (savedLang === "ur" || savedLang === "en_ur") {
-          loadUrduFonts().catch(() => {});
+          // eslint-disable-next-line ajk-local/no-silent-catch -- Urdu font loading is cosmetic; app renders with system fonts
+        loadUrduFonts().catch(() => {});
         }
+      // eslint-disable-next-line ajk-local/no-silent-catch -- font loading failure is intentionally swallowed; app renders with system fonts
       } catch {
         // Silently continue — the app renders with system fonts as fallback.
       }

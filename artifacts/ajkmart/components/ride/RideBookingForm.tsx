@@ -633,6 +633,7 @@ export function RideBookingForm({ onBooked, prefillPickup, prefillDrop, prefillT
           dropObj: dropObj ?? null,
           rideType,
         }));
+      // eslint-disable-next-line ajk-local/no-silent-catch -- saving ride details before auth redirect is best-effort
       } catch {}
       requireAuth(() => {}, { message: "Sign in to book a ride", returnTo: "/ride" });
       return;
@@ -1406,6 +1407,7 @@ export function RideBookingForm({ onBooked, prefillPickup, prefillDrop, prefillT
                   if (data?.lat && data?.lng) {
                     setInlineMapResult({ lat: data.lat, lng: data.lng, address: data.address ?? `${data.lat.toFixed(5)}, ${data.lng.toFixed(5)}` });
                   }
+                // eslint-disable-next-line ajk-local/no-silent-catch -- malformed WebView postMessage JSON is safely ignored
                 } catch {}
               }}
             />

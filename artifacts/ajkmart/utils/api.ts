@@ -34,6 +34,7 @@ export async function apiRequest<T = Record<string, unknown>>(
     },
   });
   if (!res.ok) {
+    // eslint-disable-next-line ajk-local/no-silent-catch -- error body parse failure falls back to status-code message
     const d = (await res.json().catch(() => ({}))) as Record<string, unknown>;
     throw new Error(String(d["error"] ?? `Request failed (${res.status})`));
   }

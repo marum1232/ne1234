@@ -730,6 +730,7 @@ export function PlatformConfigProvider({ children }: { children: React.ReactNode
       }
     } catch (err) {
       if (_cached) {
+        // eslint-disable-next-line ajk-local/no-silent-catch -- dynamic logger import failure is non-critical; warning already in err handler above
         import("@/utils/logger").then(({ createLogger }) => {
           const log = createLogger("[PlatformConfig]");
           log.warn("Fetch failed — using cached config:", err instanceof Error ? err.message : String(err));

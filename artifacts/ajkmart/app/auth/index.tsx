@@ -212,6 +212,7 @@ export default function AuthScreen() {
         router.replace(returnTo as RelativePathString);
         return;
       }
+    // eslint-disable-next-line ajk-local/no-silent-catch -- failure reading stored return-to URL; falls back to home tab safely
     } catch {}
     router.replace("/(tabs)");
   };
@@ -620,6 +621,7 @@ export default function AuthScreen() {
             headers: { "Content-Type": "application/json", Authorization: `Bearer ${res.token}` },
             body: JSON.stringify({ deviceFingerprint: fingerprint }),
           });
+        // eslint-disable-next-line ajk-local/no-silent-catch -- trust-device is optional; 2FA login completes regardless
         } catch {}
       }
       await completeTwoFactorLogin(res.user as AppUser, res.token, res.refreshToken);

@@ -169,9 +169,11 @@ function UniversalSearchScreenInner() {
       if (raw) {
         try {
           setSearchHistory(JSON.parse(raw));
+        // eslint-disable-next-line ajk-local/no-silent-catch -- malformed history JSON is discarded; search starts with empty history
         } catch {}
       }
     });
+    // eslint-disable-next-line ajk-local/no-silent-catch -- trending search failure is non-critical; search works without suggestions
     getTrendingSearches({ limit: trendingSearchLimit })
       .then((terms) => {
         if (terms.length > 0) setTrendingTerms(terms);

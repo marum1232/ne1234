@@ -107,6 +107,7 @@ export function StockNotificationBell() {
       // persists across page refreshes, not just items since last read.
       const alertCount = list.filter(n => n.isLow || n.isOutOfStock).length;
       setUnreadCount(alertCount);
+    // eslint-disable-next-line ajk-local/no-silent-catch -- stock notification fetch failure is non-critical; badge simply stays empty
     } catch {
       /* silent — badge just won't show */
     } finally {
@@ -208,6 +209,7 @@ export function StockNotificationBell() {
         const now = Date.now();
         setLastRead(now);
         setUnreadCount(0);
+        // eslint-disable-next-line ajk-local/no-silent-catch -- persisting bell read timestamp is non-critical
         try { localStorage.setItem("ajkmart_stock_bell_read", String(now)); } catch {}
       }
       return !o;

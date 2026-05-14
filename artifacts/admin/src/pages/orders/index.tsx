@@ -62,6 +62,10 @@ export default function Orders() {
 
   const debouncedSearch = useDebouncedValue(search, 300);
 
+  useEffect(() => {
+    setPage(1);
+  }, [statusFilter, typeFilter, debouncedSearch, dateFrom, dateTo]);
+
   const serverFilters = useMemo(() => ({
     status: statusFilter,
     type: typeFilter,

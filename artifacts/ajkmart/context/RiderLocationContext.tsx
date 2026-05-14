@@ -424,6 +424,7 @@ export function RiderLocationProvider({ children }: { children: React.ReactNode 
   /* Stop tracking on logout */
   useEffect(() => {
     if (!isRider && isOnline) {
+      // eslint-disable-next-line ajk-local/no-silent-catch -- goOffline failure on logout is non-critical; location updates stop with the effect
       goOffline().catch(() => {});
     }
   }, [isRider, isOnline, goOffline]);

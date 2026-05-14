@@ -24,6 +24,7 @@ export function GpsStampCard({ order }: { order: any }) {
         }
       })
       .catch((err) => {
+        console.debug("[GpsStampCard] Nominatim reverse geocode failed:", err);
       });
     return () => { cancelled = true; };
   }, [cLat, cLng]);

@@ -171,6 +171,7 @@ export function RideTracker({
   }, [rideId, token, isSocketActive]);
 
   useEffect(() => {
+    // eslint-disable-next-line ajk-local/no-silent-catch -- reading rating cache is non-critical; rating form will simply show again
     AsyncStorage.getItem(`rated_ride_${rideId}`).then(val => { if (val === "1") setRatingDone(true); }).catch(() => {});
   }, [rideId]);
 
@@ -289,6 +290,7 @@ export function RideTracker({
           return;
         }
         setNoDriversConfirmed(true);
+      // eslint-disable-next-line ajk-local/no-silent-catch -- dispatch status check failure is non-critical; UI stays in current state
       } catch {
       }
     })();
@@ -536,6 +538,7 @@ export function RideTracker({
                   try {
                     await rateRide(rideId, { stars: rating, comment: ratingComment || undefined });
                     setRatingDone(true);
+                    // eslint-disable-next-line ajk-local/no-silent-catch -- caching ride rating state is non-critical
                     AsyncStorage.setItem(`rated_ride_${rideId}`, "1").catch(() => {});
                   } catch { showToast(tl("couldNotSubmitRating"), "error"); }
                 }} disabled={rating === 0} style={{ opacity: rating === 0 ? 0.45 : 1 }}>

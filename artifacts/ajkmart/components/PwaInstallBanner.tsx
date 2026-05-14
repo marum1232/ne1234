@@ -24,6 +24,7 @@ export function PwaInstallBanner() {
       (window.navigator as any).standalone === true;
     if (isStandalone) return;
 
+    // eslint-disable-next-line ajk-local/no-silent-catch -- PWA install prompt is a progressive enhancement; failure on non-PWA contexts is acceptable
     AsyncStorage.getItem(DISMISSED_KEY).then((v) => {
       if (v === "1") return;
 
@@ -71,6 +72,7 @@ export function PwaInstallBanner() {
 
   const dismiss = () => {
     setVisible(false);
+    // eslint-disable-next-line ajk-local/no-silent-catch -- dismiss preference write failure is non-critical; banner may reappear on next session
     AsyncStorage.setItem(DISMISSED_KEY, "1").catch(() => {});
   };
 

@@ -411,6 +411,7 @@ function PharmacyScreenInner() {
       body: JSON.stringify({ file: `data:image/jpeg;base64,${base64}`, mimeType: "image/jpeg", refId }),
     });
     if (!res.ok) {
+      // eslint-disable-next-line ajk-local/no-silent-catch -- error body parse failure falls back to status-code message (logged below)
       const err = await res.json().catch(() => ({}));
       log.warn("prescription upload failed:", res.status, err);
       throw new Error(`Upload failed: ${res.status}`);

@@ -21,6 +21,7 @@ export default function ForgotPassword() {
         body: JSON.stringify({ email: email.trim().toLowerCase() }),
       });
       if (!response.ok && response.status !== 200) {
+        // eslint-disable-next-line ajk-local/no-silent-catch -- error body parse failure falls back to generic success message
         const data = await response.json().catch(() => ({}));
         if (response.status === 400 && data?.error) {
           setError(String(data.error));

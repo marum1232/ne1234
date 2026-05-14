@@ -6,6 +6,8 @@ import { ActivityFeed } from "@/components/ui/ActivityFeed";
 import { Link } from "wouter";
 import { useStats, useRevenueTrend, useLeaderboard, useRides, useRiders, useAdminReassignRide, useBroadcast, usePlatformSettings, useApiHealth } from "@/hooks/use-admin";
 import { useActivityFeed } from "@/hooks/useActivityFeed";
+import { createLogger } from "@/lib/logger";
+const log = createLogger("[dashboard]");
 import { formatCurrency, formatDate } from "@/lib/format";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -360,7 +362,7 @@ export default function Dashboard() {
       .then((d: { pendingProducts?: number }) => {
         if (typeof d.pendingProducts === "number") setPendingProductsCount(d.pendingProducts);
       })
-      .catch(() => {});
+      .catch((err) => { log.warn("[dashboard] Failed to load pending products count:", err); });
   }, []);
 
   const { data: ridesData } = useRides();

@@ -89,6 +89,7 @@ export function KycModal({ visible, onClose }: { visible: boolean; onClose: () =
       if (b(0) === 0xff && b(1) === 0xd8) return "image/jpeg";
       if (b(0) === 0x47 && b(1) === 0x49 && b(2) === 0x46) return "image/gif";
       if (b(0) === 0x52 && b(1) === 0x49 && b(2) === 0x46 && b(3) === 0x46) return "image/webp";
+    // eslint-disable-next-line ajk-local/no-silent-catch -- MIME detection from Base64 magic bytes is best-effort; falls back to image/jpeg
     } catch {}
     return null;
   };
@@ -155,6 +156,7 @@ export function KycModal({ visible, onClose }: { visible: boolean; onClose: () =
           selfiePhoto: selfieB64,
         }),
       });
+      // eslint-disable-next-line ajk-local/no-silent-catch -- error body parse failure falls back to generic message
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         setError(extractApiError(data, "Submission failed. Please try again."));

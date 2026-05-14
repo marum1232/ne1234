@@ -312,6 +312,7 @@ export default function SosAlerts() {
       setActiveCount(typeof data.activeCount === "number" ? data.activeCount : 0);
       setPage(p);
     } catch (err) {
+      console.warn("[sos-alerts] Failed to load alerts:", err);
     }
     setLastUpdatedAt(Date.now());
     setLoading(false);
@@ -396,6 +397,7 @@ export default function SosAlerts() {
     setAcknowledging(id);
     try {
       await adminFetch(`/sos/alerts/${id}/acknowledge`, { method: "PATCH", body: "{}" });
+    // eslint-disable-next-line ajk-local/no-silent-catch -- socket will update UI state regardless of HTTP call outcome
     } catch { /* socket will update UI anyway */ }
     setAcknowledging(null);
   };

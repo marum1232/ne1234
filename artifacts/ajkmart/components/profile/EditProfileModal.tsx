@@ -79,6 +79,7 @@ export function EditProfileModal({ visible, onClose }: { visible: boolean; onClo
         }),
       });
       if (!avatarRes.ok) {
+        // eslint-disable-next-line ajk-local/no-silent-catch -- error body parse failure falls back to generic message
         const errBody = await avatarRes.json().catch(() => ({}));
         throw new Error(extractApiError(errBody, "Avatar upload failed"));
       }
@@ -142,6 +143,7 @@ export function EditProfileModal({ visible, onClose }: { visible: boolean; onClo
         body: JSON.stringify({ name: name.trim(), email: email.trim(), cnic: cnic.trim(), city: city.trim() }),
       });
       if (!res.ok) {
+        // eslint-disable-next-line ajk-local/no-silent-catch -- error body parse failure falls back to generic message
         const errData = await res.json().catch(() => ({}));
         throw new Error(errData.message || errData.error || "Update failed");
       }

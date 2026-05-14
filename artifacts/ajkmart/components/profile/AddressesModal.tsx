@@ -63,6 +63,7 @@ export function AddressesModal({ visible, userId, token, onClose }: { visible: b
     try {
       const res = await fetch(`${API}/addresses`, { method: "POST", headers: { "Content-Type": "application/json", ...authHdrs }, body: JSON.stringify({ label, address: addr.trim(), city, icon: opt.icon, isDefault: list.length === 0 }) });
       if (!res.ok) {
+        // eslint-disable-next-line ajk-local/no-silent-catch -- error body parse failure falls back to generic message
         const errBody = await res.json().catch(() => ({}));
         throw new Error(extractApiError(errBody, "Could not save address"));
       }
@@ -103,6 +104,7 @@ export function AddressesModal({ visible, userId, token, onClose }: { visible: b
         body: JSON.stringify({ label: editLabel, address: editAddr.trim(), city: editCity, icon: opt?.icon }),
       });
       if (!r.ok) {
+        // eslint-disable-next-line ajk-local/no-silent-catch -- error body parse failure falls back to generic message
         const errBody = await r.json().catch(() => ({}));
         throw new Error(extractApiError(errBody, "Could not update address"));
       }
@@ -119,6 +121,7 @@ export function AddressesModal({ visible, userId, token, onClose }: { visible: b
     try {
       const r = await fetch(`${API}/addresses/${id}/set-default`, { method: "PATCH", headers: { "Content-Type": "application/json", ...authHdrs } });
       if (!r.ok) {
+        // eslint-disable-next-line ajk-local/no-silent-catch -- error body parse failure falls back to generic message
         const errBody = await r.json().catch(() => ({}));
         throw new Error(extractApiError(errBody, "Could not set default"));
       }

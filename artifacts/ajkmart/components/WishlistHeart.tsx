@@ -54,9 +54,11 @@ export function WishlistHeart({
   useEffect(() => {
     if (!isLoggedIn || !isCustomer || pendingFiredRef.current) return;
     const key = `${PENDING_KEY_PREFIX}${productId}`;
+    // eslint-disable-next-line ajk-local/no-silent-catch -- storage read failure is non-critical; pending wishlist sync skipped
     AsyncStorage.getItem(key).then(async (val) => {
       if (val !== "1") return;
       pendingFiredRef.current = true;
+      // eslint-disable-next-line ajk-local/no-silent-catch -- removal failure is non-critical; item will be retried next login
       await AsyncStorage.removeItem(key).catch(() => {
         // no-op: removal failure is non-critical
       });
@@ -77,6 +79,7 @@ export function WishlistHeart({
   const toggle = useCallback(async () => {
     if (!isLoggedIn) {
       const key = `${PENDING_KEY_PREFIX}${productId}`;
+      // eslint-disable-next-line ajk-local/no-silent-catch -- storing pending wishlist item is non-critical; offline sync will be skipped
       await AsyncStorage.setItem(key, "1").catch(() => {
         // no-op: storing pending wishlist item failed
       });

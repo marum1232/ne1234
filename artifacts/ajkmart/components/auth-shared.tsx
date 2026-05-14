@@ -155,6 +155,7 @@ export function AuthButton({
     try {
       const Haptics = await import("expo-haptics");
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    // eslint-disable-next-line ajk-local/no-silent-catch -- haptics unavailable on this device/platform; non-critical
     } catch {}
   }, []);
 

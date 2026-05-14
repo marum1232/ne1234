@@ -32,6 +32,7 @@ export async function hasSeenOnboarding(): Promise<boolean> {
 export async function markOnboardingSeen(): Promise<void> {
   try {
     await AsyncStorage.setItem(ONBOARDING_SEEN_KEY, "1");
+  // eslint-disable-next-line ajk-local/no-silent-catch -- marking onboarding seen is non-critical; onboarding will just show again
   } catch {}
 }
 

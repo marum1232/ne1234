@@ -65,6 +65,7 @@ export async function unregisterPush(): Promise<void> {
     const reg = await navigator.serviceWorker.getRegistration("/sw.js");
     const sub = await reg?.pushManager.getSubscription();
     await sub?.unsubscribe();
+  // eslint-disable-next-line ajk-local/no-silent-catch -- push unsubscribe failure is non-critical; subscription expires naturally
   } catch {
     /* ignore */
   }

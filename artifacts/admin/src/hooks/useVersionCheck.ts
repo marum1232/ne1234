@@ -18,6 +18,7 @@ function hardReload(): void {
   try {
     sessionStorage.clear();
     localStorage.removeItem(STORAGE_KEY);
+  // eslint-disable-next-line ajk-local/no-silent-catch -- storage unavailable in private browsing; reload proceeds regardless
   } catch {}
   window.location.reload();
 }

@@ -225,6 +225,7 @@ export function ServiceSection({ services, isGuest }: {
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
 
   useEffect(() => {
+    // eslint-disable-next-line ajk-local/no-silent-catch -- preference not yet saved; defaults to grid
     AsyncStorage.getItem(SVC_VIEW_KEY).then((v) => {
       if (v === "list" || v === "grid") setViewMode(v);
     }).catch(() => {
@@ -236,6 +237,7 @@ export function ServiceSection({ services, isGuest }: {
     setViewMode(mode);
     try {
       await AsyncStorage.setItem(SVC_VIEW_KEY, mode);
+    // eslint-disable-next-line ajk-local/no-silent-catch -- persisting view preference is non-critical
     } catch {
       // no-op: non-critical preference
     }

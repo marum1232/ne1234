@@ -65,7 +65,9 @@ export default function ChatListScreen() {
       setConversations(convs);
       setRequests(reqs.filter((r: any) => r.status === "pending"));
       setAjkId(me.ajkId);
-    } catch {}
+    } catch (err) {
+      console.warn("[chat/index] Failed to load conversations:", err);
+    }
     setLoading(false);
   }, [apiFetch]);
 
@@ -83,7 +85,9 @@ export default function ChatListScreen() {
     try {
       await apiFetch(`/requests/${id}/reject`, { method: "PATCH" });
       load();
-    } catch {}
+    } catch (err) {
+      console.warn("[chat/index] Failed to reject request:", err);
+    }
   };
 
   const copyAjkId = async () => {

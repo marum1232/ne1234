@@ -276,6 +276,7 @@ export default function OtpControl() {
       const winMin   = get("security_otp_window_min", "10");
       setRlPhone(perPhone); setRlIp(perIp); setRlWindow(winMin);
     } catch (err) {
+      console.warn("[otp-control] Failed to load rate-limit settings:", err);
     }
   }, []);
 

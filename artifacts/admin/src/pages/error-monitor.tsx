@@ -702,6 +702,7 @@ export default function ErrorMonitor() {
     const now = new Date().toISOString();
     setViewedErrorTimestamps(prev => {
       const next = { ...prev, [id]: now };
+      // eslint-disable-next-line ajk-local/no-silent-catch -- localStorage unavailable in private browsing; viewed state is in-memory only
       try { localStorage.setItem("ajkmart_viewed_errors_ts", JSON.stringify(next)); } catch { /* storage unavailable */ }
       return next;
     });
@@ -2009,6 +2010,7 @@ export default function ErrorMonitor() {
                       ta.select();
                       document.execCommand("copy");
                       document.body.removeChild(ta);
+                    // eslint-disable-next-line ajk-local/no-silent-catch -- clipboard copy failure is non-critical; user can copy manually
                     } catch (clipErr) {
                     }
                   }
@@ -2055,6 +2057,7 @@ export default function ErrorMonitor() {
                         ta.select();
                         document.execCommand("copy");
                         document.body.removeChild(ta);
+                      // eslint-disable-next-line ajk-local/no-silent-catch -- clipboard copy failure is non-critical; user can copy manually
                       } catch (clipErr) {
                       }
                     }

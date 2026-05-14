@@ -60,7 +60,10 @@ export default function Login() {
     try {
       await login(username, password, totp, tempToken);
       toast({ title: "Welcome back", description: "Successfully logged into admin panel." });
-    } catch (_) {}
+    } catch (mfaErr: unknown) {
+      const msg = mfaErr instanceof Error ? mfaErr.message : "Invalid TOTP code. Please try again.";
+      toast({ title: "Authentication failed", description: msg, variant: "destructive" });
+    }
   };
 
   const handleBackToCredentials = () => {

@@ -249,6 +249,7 @@ export function NegotiationScreen({
             if (data && typeof data === "object") {
               setRide((prev) => prev ? { ...prev, ...data } : prev);
             }
+          // eslint-disable-next-line ajk-local/no-silent-catch -- heartbeat JSON parse failure is non-critical; next poll will retry
           } catch {}
         }
         else consecutiveFailsRef.current++;
@@ -322,6 +323,7 @@ export function NegotiationScreen({
         headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
       });
       if (!res.ok) {
+        // eslint-disable-next-line ajk-local/no-silent-catch -- error body parse failure falls back to generic info message
         const data = await res.json().catch(() => ({}));
         showToast(data?.error || "Could not reject bid. It will expire automatically.", "info");
       }

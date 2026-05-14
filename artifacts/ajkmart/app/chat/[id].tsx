@@ -117,7 +117,7 @@ export default function ChatDetailScreen() {
 
   const endCall = useCallback(() => {
     if (callId) {
-      apiFetch(`/calls/${callId}/end`, { method: "POST", body: JSON.stringify({ duration: callTimer }) }).catch(() => {});
+      apiFetch(`/calls/${callId}/end`, { method: "POST", body: JSON.stringify({ duration: callTimer }) }).catch((err) => { log.warn("[Chat] Failed to end call:", err); });
       if (otherId) socketRef.current?.emit("comm:call:end", { callId, targetUserId: otherId });
     }
     if (timerRef.current) clearInterval(timerRef.current);
@@ -142,6 +142,7 @@ export default function ChatDetailScreen() {
       if (Platform.OS === "web") {
         const audio = new Audio();
         audio.srcObject = e.streams[0];
+        // eslint-disable-next-line ajk-local/no-silent-catch -- browser autoplay policy may block audio; silently ignored
         audio.play().catch(() => {});
       }
     };
