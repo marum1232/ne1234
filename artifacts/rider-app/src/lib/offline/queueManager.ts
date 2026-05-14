@@ -259,7 +259,7 @@ export async function syncQueue(): Promise<void> {
         await pushDeadLetter(action, new PermanentQueueError(
           `Exceeded max retries (${MAX_RETRIES}) without a permanent error classification`,
         ));
-        await removeAction(action.id).catch(() => {});
+        await removeAction(action.id).catch((err) => { console.warn("[queueManager] removeAction failed after dead-letter push:", err); });
         continue;
       }
       try {
@@ -272,13 +272,13 @@ export async function syncQueue(): Promise<void> {
           /* Permanent server-side rejection (e.g. 4xx): move to dead-letter
              immediately and continue draining subsequent actions. */
           await pushDeadLetter(action, err);
-          await removeAction(action.id).catch(() => {});
+          await removeAction(action.id).catch((removeErr) => { console.warn("[queueManager] removeAction failed after permanent error:", removeErr); });
           continue;
         }
         /* Transient failure (network unreachable, 5xx, 429): bump retry count
            and halt the drain. The ordering invariant requires that later actions
            (e.g. update_ride) only run after the predecessor succeeds. */
-        await bumpRetryCount(action).catch(() => {});
+        await bumpRetryCount(action).catch((err) => { console.warn("[queueManager] bumpRetryCount failed:", err); });
         break;
       }
     }

@@ -60,7 +60,7 @@ export default function WithdrawModal({
       );
       setTodayWithdrawn(todayWithdrawals.reduce((s, it) => s + Number(it.amount), 0));
       setTodayWithdrawCount(todayWithdrawals.length);
-    }).catch(() => {});
+    }).catch((err) => { log.warn("Failed to load today's withdrawal totals:", err); });
   }, []);
 
   const [amount, setAmount]         = useState("");

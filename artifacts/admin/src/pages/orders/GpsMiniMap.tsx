@@ -24,6 +24,7 @@ export function GpsMiniMap({ cLat, cLng, dLat, dLng }: { cLat: number; cLng: num
         map.setView([cLat, cLng], 14);
       }
     }).catch((err) => {
+      // eslint-disable-next-line no-console
       console.debug("[GpsMiniMap] Leaflet load failed:", err);
     });
   }, [cLat, cLng, dLat, dLng]);

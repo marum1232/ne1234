@@ -30,6 +30,7 @@ export function executeLogoutSequence(
   apiClient.clearTokens();
   clearAppState();
   if (refreshTok) {
-    apiClient.logout(refreshTok).catch(() => {});
+    /* Token is already cleared locally — server revocation is fire-and-forget */
+    apiClient.logout(refreshTok).catch((err) => { console.warn("[logoutSequence] server token revocation failed (local session already cleared):", err); });
   }
 }

@@ -91,8 +91,8 @@ if (Capacitor.isNativePlatform()) {
       if (validated && Object.keys(validated).length > 0) {
         _pendingTapData = validated as Record<string, string>;
       }
-    }).catch(() => {});
-  }).catch(() => {});
+    }).catch((err) => { log.warn("pushNotificationActionPerformed listener registration failed:", err); });
+  }).catch((err) => { log.warn("registrationError listener registration failed:", err); });
 }
 
 export async function registerPush(

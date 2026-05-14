@@ -883,14 +883,14 @@ export default function LiveRidersMap() {
     if (!ov) return c;
     return { ...c, lat: ov.lat, lng: ov.lng, updatedAt: ov.updatedAt };
   });
-  const mergedCustomerIds = new Set(mergedCustomers.map(c => c.userId));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const customers: CustomerLoc[] = useMemo(() => [
-    ...mergedCustomers,
-    ...Object.entries(customerOverrides).filter(([uid]) => !mergedCustomerIds.has(uid)).map(([uid, ov]) => ({ userId: uid, lat: ov.lat, lng: ov.lng, updatedAt: ov.updatedAt })),
-  ], [mergedCustomers, customerOverrides, mergedCustomerIds]);
+  const customers: CustomerLoc[] = useMemo(() => {
+    const mergedCustomerIds = new Set(mergedCustomers.map(c => c.userId));
+    return [
+      ...mergedCustomers,
+      ...Object.entries(customerOverrides).filter(([uid]) => !mergedCustomerIds.has(uid)).map(([uid, ov]) => ({ userId: uid, lat: ov.lat, lng: ov.lng, updatedAt: ov.updatedAt })),
+    ];
+  }, [mergedCustomers, customerOverrides]);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   const vendors: VendorLoc[] = useMemo(() => vendorData?.vendors ?? [], [vendorData?.vendors]);
 
   const onlineCount = riders.filter(r => getRiderStatus(r) === "online").length;

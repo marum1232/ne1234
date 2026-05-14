@@ -312,6 +312,7 @@ export default function SosAlerts() {
       setActiveCount(typeof data.activeCount === "number" ? data.activeCount : 0);
       setPage(p);
     } catch (err) {
+      // eslint-disable-next-line no-console
       console.warn("[sos-alerts] Failed to load alerts:", err);
     }
     setLastUpdatedAt(Date.now());

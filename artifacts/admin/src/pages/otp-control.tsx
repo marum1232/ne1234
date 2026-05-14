@@ -214,11 +214,9 @@ export default function OtpControl() {
   /* ── OTP Rate Limiting card ── */
   const { data: settingsData } = usePlatformSettings();
   const updateSettings = useUpdatePlatformSettings();
-  const rawSettings: Array<{ key: string; value: string }> = settingsData?.settings ?? [];
   const getSetting = useCallback((key: string, fallback: string) =>
-    rawSettings.find((s: { key: string; value: string }) => s.key === key)?.value ?? fallback,
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  [rawSettings]);
+    (settingsData?.settings ?? []).find((s: { key: string; value: string }) => s.key === key)?.value ?? fallback,
+  [settingsData?.settings]);
   const [rlPhone, setRlPhone] = useState("");
   const [rlIp, setRlIp]       = useState("");
   const [rlWindow, setRlWindow] = useState("");
@@ -276,6 +274,7 @@ export default function OtpControl() {
       const winMin   = get("security_otp_window_min", "10");
       setRlPhone(perPhone); setRlIp(perIp); setRlWindow(winMin);
     } catch (err) {
+      // eslint-disable-next-line no-console
       console.warn("[otp-control] Failed to load rate-limit settings:", err);
     }
   }, []);

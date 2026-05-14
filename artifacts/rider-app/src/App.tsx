@@ -170,7 +170,7 @@ function AppRoutes() {
           break;
       }
     });
-    syncQueue().catch(() => {});
+    syncQueue().catch((err) => { log.warn("Offline queue sync failed on mount:", err); });
   }, []);
 
   useEffect(() => { initErrorReporter(); }, []);
@@ -243,8 +243,8 @@ function AppRoutes() {
         PushNotifications.getDeliveredNotifications().then(({ notifications }) => {
           const first = notifications[0];
           if (first?.data) routeByData(first.data as Record<string, string>);
-        }).catch(() => {});
-      }).catch(() => {});
+        }).catch((err) => { log.warn("getDeliveredNotifications failed:", err); });
+      }).catch((err) => { log.warn("PushNotifications import failed:", err); });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
@@ -283,7 +283,7 @@ function AppRoutes() {
     if (Capacitor.isNativePlatform()) {
       registerPush(onForeground, onNotificationTap).then(cleanup => {
         if (cleanup) fcmCleanupRef.current = cleanup;
-      }).catch(() => {});
+      }).catch((err) => { log.warn("Push registration failed (native):", err); });
       return () => {
         fcmCleanupRef.current?.remove();
         if (fcmDismissTimer.current) clearTimeout(fcmDismissTimer.current);
@@ -293,13 +293,13 @@ function AppRoutes() {
     if (!Notification.requestPermission) return undefined;
     if (sessionStorage.getItem(NOTIF_ASKED_KEY)) return undefined;
     if (Notification.permission !== "default") {
-      if (Notification.permission === "granted") registerPush().catch(() => {});
+      if (Notification.permission === "granted") registerPush().catch((err) => { log.warn("Push registration failed (already granted):", err); });
       return undefined;
     }
     sessionStorage.setItem(NOTIF_ASKED_KEY, "1");
     Notification.requestPermission().then(perm => {
-      if (perm === "granted") registerPush().catch(() => {});
-    }).catch(() => {});
+      if (perm === "granted") registerPush().catch((err) => { log.warn("Push registration failed after permission grant:", err); });
+    }).catch((err) => { log.warn("Notification.requestPermission() failed:", err); });
     return undefined;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
