@@ -8,46 +8,75 @@ interface ValidationTarget {
   params?: ZodSchema;
 }
 
-const formatZodErrors = (err: ZodError): string => {
-  return err.errors
-    .map((e) => {
-      const path = e.path.length > 0 ? `${e.path.join(".")}: ` : "";
-      return `${path}${e.message}`;
-    })
-    .join("; ");
-};
+interface ValidationErrorDetail {
+  field: string;
+  message: string;
+}
 
-const VALIDATION_ERROR_UR = "توثیق کی خرابی۔ اپنا ان پٹ چیک کریں۔";
+const formatZodDetails = (err: ZodError): ValidationErrorDetail[] =>
+  err.errors.map((e) => ({
+    field: e.path.length > 0 ? e.path.join(".") : "_root",
+    message: e.message,
+  }));
 
 export function validate(schema: ValidationTarget) {
   return (req: Request, res: Response, next: NextFunction) => {
-    try {
-      if (schema.body) {
-        req.body = schema.body.parse(req.body);
-      }
-      if (schema.query) {
-        const parsed = schema.query.parse(req.query) as Record<string, unknown>;
-        Object.keys(req.query).forEach(k => { if (!(k in parsed)) delete (req.query as Record<string, unknown>)[k]; });
-        Object.assign(req.query, parsed);
-      }
-      if (schema.params) {
-        req.params = schema.params.parse(req.params);
-      }
-      next();
-    } catch (err) {
-      if (err instanceof ZodError) {
-        const details = formatZodErrors(err);
-        logger.warn({ validationErrors: err.errors, url: req.url, method: req.method }, "Request validation failed");
+    if (schema.body) {
+      const result = schema.body.safeParse(req.body);
+      if (!result.success) {
+        logger.warn(
+          { validationErrors: result.error.errors, url: req.url, method: req.method },
+          "Request body validation failed"
+        );
         res.status(400).json({
           success: false,
-          error: details,
-          message: VALIDATION_ERROR_UR,
-          code: "VALIDATION",
+          error: "Validation Failed",
+          details: formatZodDetails(result.error),
         });
         return;
       }
-      next(err);
+      req.body = result.data;
     }
+
+    if (schema.query) {
+      const result = schema.query.safeParse(req.query);
+      if (!result.success) {
+        logger.warn(
+          { validationErrors: result.error.errors, url: req.url, method: req.method },
+          "Request query validation failed"
+        );
+        res.status(400).json({
+          success: false,
+          error: "Validation Failed",
+          details: formatZodDetails(result.error),
+        });
+        return;
+      }
+      const parsed = result.data as Record<string, unknown>;
+      Object.keys(req.query).forEach((k) => {
+        if (!(k in parsed)) delete (req.query as Record<string, unknown>)[k];
+      });
+      Object.assign(req.query, parsed);
+    }
+
+    if (schema.params) {
+      const result = schema.params.safeParse(req.params);
+      if (!result.success) {
+        logger.warn(
+          { validationErrors: result.error.errors, url: req.url, method: req.method },
+          "Request params validation failed"
+        );
+        res.status(400).json({
+          success: false,
+          error: "Validation Failed",
+          details: formatZodDetails(result.error),
+        });
+        return;
+      }
+      req.params = result.data as Record<string, string>;
+    }
+
+    next();
   };
 }
 
