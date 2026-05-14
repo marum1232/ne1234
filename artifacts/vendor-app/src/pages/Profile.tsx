@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
+import { Moon, Sun } from "lucide-react";
+import { useTheme } from "../lib/useTheme";
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "../lib/auth";
@@ -40,6 +42,7 @@ export default function Profile() {
   const [showLangPicker, setShowLangPicker] = useState(false);
 
   const { language, setLanguage, loading: langLoading } = useLanguage();
+  const { isDark, toggleDark } = useTheme();
   const T = (key: TranslationKey) => tDual(key, language);
 
   // Personal info form state
@@ -382,6 +385,32 @@ export default function Profile() {
                   ))}
                 </div>
               )}
+            </div>
+
+            <div className={CARD}>
+              <div className="px-4 py-3.5 border-b border-gray-100">
+                <p className="font-bold text-gray-800 text-sm">🎨 Display</p>
+              </div>
+              <div className="px-4 py-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${isDark ? "bg-indigo-100" : "bg-gray-100"}`}>
+                      {isDark ? <Moon size={16} className="text-indigo-500"/> : <Sun size={16} className="text-gray-500"/>}
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-gray-800">Dark Mode</p>
+                      <p className="text-xs text-gray-400">{isDark ? "Dark theme active" : "Light theme active"}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={toggleDark}
+                    className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${isDark ? "bg-orange-500" : "bg-gray-300"}`}
+                    aria-label="Toggle dark mode"
+                  >
+                    <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${isDark ? "translate-x-5" : "translate-x-0.5"}`}/>
+                  </button>
+                </div>
+              </div>
             </div>
 
             <button onClick={logout} className="w-full h-12 border-2 border-red-200 text-red-500 font-bold rounded-2xl hover:bg-red-50 transition-colors text-sm">

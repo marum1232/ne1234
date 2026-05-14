@@ -16,6 +16,8 @@ import {
   ChevronDown,
   Star,
   StarOff,
+  Moon,
+  Sun,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
@@ -27,6 +29,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useLanguage } from "@/lib/useLanguage";
 import { useAdminAuth } from "@/lib/adminAuthContext";
 import { safeLocalGet, safeLocalSet } from "@/lib/safeStorage";
+import { useTheme } from "@/lib/useTheme";
 import { tDual, type TranslationKey, LANGUAGE_OPTIONS } from "@workspace/i18n";
 import { io, type Socket } from "socket.io-client";
 import { adminFetch } from "@/lib/adminFetcher";
@@ -50,6 +53,7 @@ import { StockNotificationBell } from "@/components/StockNotificationBell";
 export function AdminLayout({ children }: { children: React.ReactNode }) {
   const [location, setLocation] = useLocation();
   const { state, logout } = useAdminAuth();
+  const { isDark, toggleDark } = useTheme();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(() => safeLocalGet("ajkmart_sidebar_collapsed") === "true");
   const [cmdOpen, setCmdOpen] = useState(false);
@@ -1005,6 +1009,15 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                     <p className="text-sm font-semibold text-slate-700">{state.user?.name || "Administrator"}</p>
                     <p className="text-xs text-slate-400">{state.user?.email || "admin@ajkmart.pk"}</p>
                   </div>
+                  <button
+                    onClick={toggleDark}
+                    className="w-full text-left px-4 py-2.5 text-sm flex items-center gap-2 text-slate-600 transition-colors"
+                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "rgba(0,0,0,0.04)"}
+                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}
+                  >
+                    {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                    {isDark ? "Light Mode" : "Dark Mode"}
+                  </button>
                   <button
                     onClick={handleLogout}
                     className="w-full text-left px-4 py-2.5 text-sm flex items-center gap-2 text-red-500 transition-colors"

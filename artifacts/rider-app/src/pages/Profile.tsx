@@ -9,13 +9,14 @@ import {
   CreditCard, Phone, Mail, Facebook, Instagram, MessageCircle,
   FileText, Lock, HelpCircle, Info, LogOut, RefreshCcw,
   ChevronRight, ChevronDown, ChevronUp, Ban,
-  Languages, Settings,
+  Languages, Settings, Moon, Sun,
 } from "lucide-react";
 import { SafeImage } from "../components/ui/SafeImage";
 import { useAuth } from "../lib/auth";
 import { api } from "../lib/api";
 import { usePlatformConfig } from "../lib/useConfig";
 import { useLanguage } from "../lib/useLanguage";
+import { useTheme } from "../lib/useTheme";
 import { tDual, type TranslationKey } from "@workspace/i18n";
 
 const fc = (n: string | number | null | undefined, currencySymbol = "Rs.") => _sharedFcP(n != null ? String(n) : (n as null | undefined), currencySymbol);
@@ -143,6 +144,7 @@ export default function Profile() {
   });
 
   const { language, setLanguage } = useLanguage();
+  const { isDark, toggleDark } = useTheme();
   const T = (key: TranslationKey) => tDual(key, language);
 
   const [name, setName]             = useState(user?.name || "");
@@ -967,6 +969,25 @@ export default function Profile() {
                   </button>
                 ))}
               </div>
+            </div>
+
+            <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-50">
+              <div className="flex items-center gap-3">
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${isDark ? "bg-indigo-100" : "bg-gray-100"}`}>
+                  {isDark ? <Moon size={17} className="text-indigo-500"/> : <Sun size={17} className="text-gray-500"/>}
+                </div>
+                <div>
+                  <span className="text-sm font-semibold text-gray-800 block">Dark Mode</span>
+                  <span className="text-[10px] text-gray-400">{isDark ? "Dark theme active" : "Light theme active"}</span>
+                </div>
+              </div>
+              <button
+                onClick={toggleDark}
+                className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${isDark ? "bg-indigo-500" : "bg-gray-300"}`}
+                aria-label="Toggle dark mode"
+              >
+                <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${isDark ? "translate-x-5" : "translate-x-0.5"}`}/>
+              </button>
             </div>
 
             <Link href="/settings/security"
