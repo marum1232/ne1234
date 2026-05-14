@@ -51,7 +51,7 @@ outputType = "console"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "ADMIN_DEV_PORT=3000 BASE_PATH=/admin/ pnpm exec vite --config artifacts/admin/vite.config.ts --host 0.0.0.0"
+args = "ADMIN_DEV_PORT=3000 BASE_PATH=/admin/ pnpm --filter @workspace/admin run dev"
 waitForPort = 3000
 
 [[workflows.workflow]]
@@ -63,7 +63,7 @@ outputType = "console"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "VENDOR_DEV_PORT=3001 pnpm exec vite --config artifacts/vendor-app/vite.config.ts --host 0.0.0.0"
+args = "VENDOR_DEV_PORT=3001 pnpm --filter @workspace/vendor-app run dev"
 waitForPort = 3001
 
 [[workflows.workflow]]
@@ -75,7 +75,7 @@ outputType = "console"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "RIDER_DEV_PORT=3002 pnpm exec vite --config artifacts/rider-app/vite.config.ts --host 0.0.0.0"
+args = "RIDER_DEV_PORT=3002 pnpm --filter @workspace/rider-app run dev"
 waitForPort = 3002
 
 [[workflows.workflow]]
@@ -112,14 +112,6 @@ externalPort = 3001
 [[ports]]
 localPort = 3002
 externalPort = 3002
-
-[[ports]]
-localPort = 3003
-externalPort = 4200
-
-[[ports]]
-localPort = 3004
-externalPort = 5173
 
 [[ports]]
 localPort = 3005
