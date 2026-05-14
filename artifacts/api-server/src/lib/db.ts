@@ -48,11 +48,39 @@ if (isDevMock) {
 
   pool = new Pool({
     ...buildPgPoolConfig(databaseUrl),
-    max: parseInt(process.env.DB_POOL_MAX ?? "10"),
-    idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 5000,
+    max: parseInt(process.env.DB_POOL_MAX ?? "25"),
+    min: 5,
+    idleTimeoutMillis: 10000,
+    connectionTimeoutMillis: 30000,
+    query_timeout: 60000,
   });
   db = drizzle(pool, { schema });
+
+  const telemetryInterval = setInterval(() => {
+    if (pool) {
+      logger.info("[db:pool]", {
+        totalConnections: pool.totalCount,
+        idleConnections: pool.idleCount,
+        waitingRequests: pool.waitingCount,
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }, 5 * 60 * 1000);
+  telemetryInterval.unref();
+
+  const shutdownPool = async (signal: string) => {
+    if (!pool) return;
+    logger.info(`[db:pool] ${signal} received — draining pool connections`);
+    try {
+      await pool.end();
+      logger.info("[db:pool] Pool connections drained successfully");
+    } catch (err) {
+      logger.error({ err }, "[db:pool] Error draining pool connections");
+    }
+  };
+
+  process.on("SIGTERM", () => { shutdownPool("SIGTERM"); });
+  process.on("SIGINT",  () => { shutdownPool("SIGINT"); });
 }
 
 export { db, pool };
