@@ -594,7 +594,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const restoreCart = (snapshot: CartItem[]) => {
     resetAckState();
-    save([...snapshot]);
+    save(snapshot.map((item) => ({ ...item, price: Number(item.price) })));
   };
 
   const dismissAck = useCallback(() => {
