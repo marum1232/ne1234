@@ -53,15 +53,15 @@ export function MagicLinkHandler() {
             router.replace("/(tabs)");
           }
         }
-      } catch (err: any) {
-        log.warn("MagicLinkHandler error:", err.message || err);
+      } catch (err: unknown) {
+        log.warn("MagicLinkHandler error:", err instanceof Error ? err.message : String(err));
       }
     };
 
     const sub = Linking.addEventListener("url", (event) => handleUrl(event.url));
     Linking.getInitialURL()
       .then((url) => { if (url) handleUrl(url); })
-      .catch(() => {});
+      .catch((e: unknown) => { log.warn("MagicLinkHandler: getInitialURL failed", e); });
     return () => sub.remove();
   }, []);
 

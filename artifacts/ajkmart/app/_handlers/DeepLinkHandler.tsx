@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import * as Linking from "expo-linking";
-import { router } from "expo-router";
+import { router, type Href } from "expo-router";
 import { log } from "./_shared";
 
 export function DeepLinkHandler() {
@@ -13,9 +13,7 @@ export function DeepLinkHandler() {
 
         if (path === "magic-link" || path === "auth") return;
 
-        const params = Object.fromEntries(
-          Array.from(((parsed.searchParams as any).entries?.() || []) as any[]),
-        );
+        const params = Object.fromEntries(Array.from(parsed.searchParams.entries()));
 
         const routeMap: Record<string, string> = {
           product: "/product/{id}",
@@ -38,11 +36,10 @@ export function DeepLinkHandler() {
           pathSegmentId = rawPath.split("/")[0] || undefined;
         }
 
-        type RouterHref = Parameters<typeof router.push>[0];
         const pushNotFound = () => {
           setTimeout(() => {
             try {
-              router.push("/+not-found" as RouterHref);
+              router.push("/+not-found" as Href);
             } catch (e) { log.warn("DeepLinkHandler: router.push /+not-found failed", e); }
           }, 500);
         };
@@ -80,7 +77,7 @@ export function DeepLinkHandler() {
 
         setTimeout(() => {
           try {
-            router.push(targetPath as any);
+            router.push(targetPath as Href);
           } catch {
             log.warn("DeepLink: Could not navigate to:", targetPath);
           }
@@ -91,7 +88,7 @@ export function DeepLinkHandler() {
     const sub = Linking.addEventListener("url", (event) => handleDeepLink(event.url));
     Linking.getInitialURL()
       .then((url) => { if (url) handleDeepLink(url); })
-      .catch(() => {});
+      .catch((e: unknown) => { log.warn("DeepLinkHandler: getInitialURL failed", e); });
     return () => sub.remove();
   }, []);
 

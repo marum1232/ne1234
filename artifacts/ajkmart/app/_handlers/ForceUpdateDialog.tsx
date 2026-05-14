@@ -3,7 +3,7 @@ import { Modal, View, Text, TouchableOpacity } from "react-native";
 import * as Linking from "expo-linking";
 
 export function ForceUpdateDialog({ visible, storeUrl }: { visible: boolean; storeUrl: string }) {
-  const openStore = () => { if (storeUrl) Linking.openURL(storeUrl).catch(() => {}); };
+  const openStore = () => { if (storeUrl) Linking.openURL(storeUrl).catch((_e) => { /* intentional: no fallback if OS cannot open the store URL */ }); };
   return (
     <Modal visible={visible} transparent animationType="fade" statusBarTranslucent>
       <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.7)", alignItems: "center", justifyContent: "center", padding: 24 }}>

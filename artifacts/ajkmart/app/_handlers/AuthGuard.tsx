@@ -43,8 +43,8 @@ export function AuthGuard() {
     const inOnboarding = segments[0] === "onboarding";
 
     const isPublicRoute = inAuthGroup || inTabsGroup || inRootIndex || isBrowsable || inOnboarding;
-    const onWrongAppScreen =
-      (segments as any)[0] === "auth" && (segments as any)[1] === "wrong-app";
+    const segs = segments as string[];
+    const onWrongAppScreen = segs[0] === "auth" && segs[1] === "wrong-app";
 
     if (!user && !isPublicRoute) {
       hasSeenOnboarding()

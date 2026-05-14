@@ -35,8 +35,8 @@ export function ImpersonationHandler() {
           await login(userData, impersonateToken);
           router.replace("/(tabs)");
         }
-      } catch (err: any) {
-        log.warn("ImpersonationHandler Error:", err?.message || err);
+      } catch (err: unknown) {
+        log.warn("ImpersonationHandler Error:", err instanceof Error ? err.message : String(err));
       }
     };
 

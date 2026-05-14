@@ -34,8 +34,6 @@ import { CartSwitchModal } from "@/components/CartSwitchModal";
 import { SkeletonBlock } from "@/components/ui/SkeletonBlock";
 
 
-const C = Colors.light;
-
 interface Product {
   id: string;
   name: string;
