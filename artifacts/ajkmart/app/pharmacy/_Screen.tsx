@@ -298,7 +298,7 @@ function PharmacyScreenInner() {
           name: p.name,
           brand: p.vendorName ?? "Various",
           category: p.category,
-          price: p.price,
+          price: parseFloat(String(p.price)),
           unit: p.unit ?? p.description ?? "1 unit",
           emoji: "💊",
           requires_prescription: !!p.requires_prescription,

@@ -60,6 +60,25 @@ interface MartProduct {
   rating?: number | null;
 }
 
+function toMartProduct(p: { id: string; name: string; price: string | number; image?: string | null; unit?: string; originalPrice?: number | string; discountPercent?: number; dealStock?: number | null; soldCount?: number; vendorId?: string; categoryId?: string; inStock?: boolean; description?: string; rating?: number | null; [key: string]: unknown }): MartProduct {
+  return {
+    id: p.id,
+    name: p.name,
+    price: typeof p.price === "string" ? parseFloat(p.price) : p.price,
+    image: p.image,
+    unit: p.unit,
+    originalPrice: p.originalPrice,
+    discountPercent: p.discountPercent,
+    dealStock: p.dealStock,
+    soldCount: p.soldCount,
+    vendorId: p.vendorId,
+    categoryId: p.categoryId,
+    inStock: p.inStock,
+    description: p.description,
+    rating: p.rating,
+  };
+}
+
 function MartRecentlyViewed() {
   const [items, setItems] = React.useState<RecentItem[]>([]);
   React.useEffect(() => {
@@ -586,7 +605,7 @@ function MartScreenInner() {
               </View>
             ) : (
               <View style={styles.productsGrid}>
-                {allProducts.map(p => <ProductCard key={p.id} product={p as unknown as MartProduct} />)}
+                {allProducts.map(p => <ProductCard key={p.id} product={toMartProduct(p as unknown as Parameters<typeof toMartProduct>[0])} />)}
               </View>
             )}
           </>

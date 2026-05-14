@@ -652,7 +652,7 @@ function ProductDetailScreenInner() {
     if (!product) return;
     const type = productType === "food" ? "food" : productType === "pharmacy" ? "pharmacy" : "mart";
     const selectedVariantObj = variants?.find((v: any) => v.id === selectedVariant) ?? null;
-    const variantPrice = selectedVariantObj ? selectedVariantObj.price : product.price;
+    const variantPrice = Number(selectedVariantObj ? selectedVariantObj.price : product.price);
     const variantLabel = selectedVariantObj ? ` (${selectedVariantObj.label})` : "";
     addItem({
       productId: product.id,

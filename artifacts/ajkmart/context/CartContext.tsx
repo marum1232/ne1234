@@ -497,8 +497,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const MAX_ITEM_QTY = 99;
 
   const addItem = (item: CartItem) => {
+    const safeItem: CartItem = { ...item, price: Number(item.price) };
     save((prev) => {
-      const existing = prev.find((i) => i.productId === item.productId);
+      const existing = prev.find((i) => i.productId === safeItem.productId);
       if (existing) {
         if (existing.quantity >= MAX_ITEM_QTY) {
           setTimeout(
@@ -512,7 +513,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           return prev;
         }
         return prev.map((i) =>
-          i.productId === item.productId
+          i.productId === safeItem.productId
             ? { ...i, quantity: Math.min(i.quantity + 1, MAX_ITEM_QTY) }
             : i,
         );
@@ -534,21 +535,21 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         return prev;
       }
 
-      if (currentType && currentType !== item.type && prev.length > 0) {
+      if (currentType && currentType !== safeItem.type && prev.length > 0) {
         const nameFor = (t: string) =>
           t === "mart" ? "Mart" : t === "food" ? "Food" : "Pharmacy";
         setTimeout(
           () =>
             Alert.alert(
               "Mixed Cart",
-              `Your cart has items from ${nameFor(currentType)}. Adding ${nameFor(item.type)} items will clear your cart. Continue?`,
+              `Your cart has items from ${nameFor(currentType)}. Adding ${nameFor(safeItem.type)} items will clear your cart. Continue?`,
               [
                 { text: "Cancel", style: "cancel" },
                 {
                   text: "Yes, Clear & Add",
                   style: "destructive",
                   onPress: () => {
-                    save([item]);
+                    save([safeItem]);
                   },
                 },
               ],
@@ -558,7 +559,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         return prev;
       }
 
-      return [...prev, item];
+      return [...prev, safeItem];
     });
   };
 
@@ -588,7 +589,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const clearCartAndAdd = (item: CartItem) => {
     resetAckState();
-    save([item]);
+    save([{ ...item, price: Number(item.price) }]);
   };
 
   const restoreCart = (snapshot: CartItem[]) => {
