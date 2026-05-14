@@ -668,7 +668,9 @@ router.post("/conversations/:id/messages", async (req: any, res) => {
       io.to(`user:${req.user.userId}`).emit("comm:message:sent", { id: msgId, conversationId: id });
     }
 
-    emitDashboardUpdate().catch(() => {});
+    emitDashboardUpdate().catch((err: unknown) => {
+      logger.warn({ err: err instanceof Error ? err.message : String(err) }, "[comm] emitDashboardUpdate after message send failed");
+    });
     res.status(201).json({ data: message });
   } catch (e) {
     logger.error({ err: e }, "[comm] Failed to send message");
@@ -910,7 +912,9 @@ router.post("/calls/initiate", async (req: any, res) => {
       });
     }
 
-    emitDashboardUpdate().catch(() => {});
+    emitDashboardUpdate().catch((err: unknown) => {
+      logger.warn({ err: err instanceof Error ? err.message : String(err) }, "[comm] emitDashboardUpdate after call initiation failed");
+    });
     res.json({ data: { callId, iceServers: getIceServersFromSettings(settings), trickleIce: settings["comm_trickle_ice_enabled"] !== "off" } });
   } catch (e) {
     logger.error({ err: e }, "[comm] Failed to initiate call");

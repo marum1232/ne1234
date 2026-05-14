@@ -419,7 +419,12 @@ router.patch("/pharmacy-orders/:id/status", wrapAsync(async (req, res) => {
     await db.transaction(async (tx) => {
       await tx.update(usersTable).set({ walletBalance: sql`wallet_balance + ${refundAmt}`, updatedAt: new Date() }).where(eq(usersTable.id, order.userId));
       await tx.insert(walletTransactionsTable).values({ id: generateId(), userId: order.userId, type: "credit", amount: refundAmt.toFixed(2), description: `Refund — Pharmacy Order #${order.id.slice(-6).toUpperCase()} cancelled` });
-    }).catch(() => {});
+    }).catch((err: unknown) => {
+      logger.error(
+        { err: err instanceof Error ? err.message : String(err), orderId: order.id, userId: order.userId, refundAmt },
+        "[orders] CRITICAL: pharmacy wallet refund transaction failed — customer not refunded",
+      );
+    });
     const pharmRefundLang = await getUserLanguage(order.userId);
     await sendUserNotification(order.userId, t("notifPharmacyRefund", pharmRefundLang), t("notifPharmacyRefundBody", pharmRefundLang).replace("{amount}", refundAmt.toFixed(0)), "pharmacy", "wallet-outline");
   }
@@ -487,7 +492,12 @@ router.patch("/parcel-bookings/:id/status", wrapAsync(async (req, res) => {
     await db.transaction(async (tx) => {
       await tx.update(usersTable).set({ walletBalance: sql`wallet_balance + ${refundAmt}`, updatedAt: new Date() }).where(eq(usersTable.id, booking.userId));
       await tx.insert(walletTransactionsTable).values({ id: generateId(), userId: booking.userId, type: "credit", amount: refundAmt.toFixed(2), description: `Refund — Parcel Booking #${booking.id.slice(-6).toUpperCase()} cancelled` });
-    }).catch(() => {});
+    }).catch((err: unknown) => {
+      logger.error(
+        { err: err instanceof Error ? err.message : String(err), bookingId: booking.id, userId: booking.userId, refundAmt },
+        "[orders] CRITICAL: parcel wallet refund transaction failed — customer not refunded",
+      );
+    });
     const parcelRefundLang = await getUserLanguage(booking.userId);
     await sendUserNotification(booking.userId, t("notifParcelRefund", parcelRefundLang), t("notifParcelRefundBody", parcelRefundLang).replace("{amount}", refundAmt.toFixed(0)), "parcel", "wallet-outline");
   }
@@ -731,7 +741,12 @@ router.post("/vendors/invite", requirePermission("vendors.edit"), validateBody(v
         `An admin has invited ${name ? `"${name}"` : "you"} to register as a vendor on AJKMart. Open the app to complete your vendor registration.`,
         "system",
         "storefront-outline",
-      ).catch(() => {});
+      ).catch((err: unknown) => {
+        logger.warn(
+          { err: err instanceof Error ? err.message : String(err), userId: existingUser.id },
+          "[orders] vendor invitation push notification failed",
+        );
+      });
       await db.insert(notificationsTable).values({
         id: generateId(),
         userId: existingUser.id,
@@ -739,7 +754,12 @@ router.post("/vendors/invite", requirePermission("vendors.edit"), validateBody(v
         body: `You have been invited to become a vendor${name ? ` (${name})` : ""} on AJKMart.`,
         type: "system",
         icon: "storefront-outline",
-      }).catch(() => {});
+      }).catch((err: unknown) => {
+        logger.warn(
+          { err: err instanceof Error ? err.message : String(err), userId: existingUser.id },
+          "[orders] vendor invitation notification insert failed",
+        );
+      });
       channel = "push";
     } else if (email) {
       const { sendEmail } = await import("../../services/email.js");

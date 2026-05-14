@@ -322,7 +322,7 @@ export function initSocketIO(httpServer: HttpServer): SocketIOServer {
           if (sess2?.userId) {
             isAuthorizedForConversationRoom(convId, sess2.userId).then(ok => {
               if (ok) socket.join(room);
-            }).catch(() => {});
+            }).catch((e: Error) => logger.warn({ socketId: socket.id, room, err: e.message }, "[socketio] conversation room auth check failed"));
           }
         } else if (room.startsWith("van:")) {
           const vanBearer = getTokenFromHandshake(headers, auth);
@@ -333,7 +333,7 @@ export function initSocketIO(httpServer: HttpServer): SocketIOServer {
                 socket.join(room);
                 logger.debug({ socketId: socket.id, room }, "Socket joined van room");
               }
-            }).catch(() => {});
+            }).catch((e: Error) => logger.warn({ socketId: socket.id, room, err: e.message }, "[socketio] van room auth check failed"));
           }
         }
       }
@@ -487,7 +487,7 @@ export function initSocketIO(httpServer: HttpServer): SocketIOServer {
         if (cachedSession?.userId) {
           isAuthorizedForConversationRoom(convId, cachedSession.userId).then(ok => {
             if (ok) socket.join(room);
-          }).catch(() => {});
+          }).catch((e: Error) => logger.warn({ socketId: socket.id, room, err: e.message }, "[socketio] conversation room join auth check failed"));
         }
       }
     });

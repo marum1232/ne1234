@@ -378,7 +378,12 @@ router.post("/prescription", customerAuth, async (req, res) => {
       const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
       db.insert(pharmacyPrescriptionRefsTable)
         .values({ refId, userId, photoUrl: url, expiresAt })
-        .catch(() => {});
+        .catch((err: unknown) => {
+          logger.warn(
+            { err: err instanceof Error ? err.message : String(err), refId, userId },
+            "[uploads] prescription ref insert failed (non-critical)",
+          );
+        });
     }
 
     sendCreated(res, { url, refId });
@@ -459,7 +464,12 @@ router.post(
         sendValidationError(res, "Could not verify video duration. Please try a different file or format.");
         return;
       } finally {
-        unlink(tmpPath).catch(() => {});
+        unlink(tmpPath).catch((err: unknown) => {
+        logger.warn(
+          { err: err instanceof Error ? err.message : String(err), tmpPath },
+          "[uploads] temp video file cleanup failed",
+        );
+      });
       }
 
       const url = await saveVideoBuffer(buffer, "video", mimetype);

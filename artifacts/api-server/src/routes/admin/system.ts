@@ -2124,7 +2124,12 @@ router.post("/jobs/rating-suspension", async (req, res) => {
           body: `Your account has been automatically suspended due to a low average rating of ${avg_.toFixed(1)} stars. Please contact support for assistance.`,
           type: "system",
           icon: "alert-circle-outline",
-        }).catch(() => {});
+        }).catch((err: unknown) => {
+          logger.warn(
+            { err: err instanceof Error ? err.message : String(err), riderId: rider.id },
+            "[system] auto-suspension notification insert (rider) failed",
+          );
+        });
 
         suspendedRiders++;
       }
@@ -2171,7 +2176,12 @@ router.post("/jobs/rating-suspension", async (req, res) => {
           body: `Your store has been automatically suspended due to a low average rating of ${avg_.toFixed(1)} stars. Please contact support for assistance.`,
           type: "system",
           icon: "alert-circle-outline",
-        }).catch(() => {});
+        }).catch((err: unknown) => {
+          logger.warn(
+            { err: err instanceof Error ? err.message : String(err), vendorId: vendor.id },
+            "[system] auto-suspension notification insert (vendor) failed",
+          );
+        });
 
         suspendedVendors++;
       }

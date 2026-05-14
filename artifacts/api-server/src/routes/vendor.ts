@@ -357,7 +357,12 @@ router.patch("/orders/:id/status", async (req, res) => {
           reason: "order_confirmed",
           orderId,
           source: `confirm:${orderId}`,
-        }).catch(() => {});
+        }).catch((err: unknown) => {
+          logger.warn(
+            { err: err instanceof Error ? err.message : String(err), productId: prod.id, orderId },
+            "[vendor] stock log insert failed (non-critical)",
+          );
+        });
       }
     } catch (e: unknown) {
       const err = e as Error;

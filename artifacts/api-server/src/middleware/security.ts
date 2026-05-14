@@ -37,7 +37,14 @@ export async function getCachedSettings(): Promise<Record<string, string>> {
 }
 
 /* Non-blocking warm-up at startup */
-setImmediate(() => { getCachedSettings().catch(() => {}); });
+setImmediate(() => {
+  getCachedSettings().catch((err: unknown) => {
+    logger.warn(
+      { err: err instanceof Error ? err.message : String(err) },
+      "[security] startup settings cache warm-up failed",
+    );
+  });
+});
 
 /* ══════════════════════════════════════════════════════════════
    JWT CONFIGURATION — fail-fast if secret is absent or too short
@@ -159,8 +166,20 @@ async function refreshTorExitNodes(): Promise<void> {
 
 /* Non-blocking background refresh — runs after startup, never delays boot */
 setImmediate(() => {
-  refreshTorExitNodes().catch(() => {});
-  setInterval(() => { refreshTorExitNodes().catch(() => {}); }, TOR_LIST_TTL_MS);
+  refreshTorExitNodes().catch((err: unknown) => {
+    logger.warn(
+      { err: err instanceof Error ? err.message : String(err) },
+      "[security] initial TOR exit-node refresh failed",
+    );
+  });
+  setInterval(() => {
+    refreshTorExitNodes().catch((err: unknown) => {
+      logger.warn(
+        { err: err instanceof Error ? err.message : String(err) },
+        "[security] scheduled TOR exit-node refresh failed",
+      );
+    });
+  }, TOR_LIST_TTL_MS);
 });
 
 async function isTorExitNode(ip: string): Promise<boolean> {
@@ -168,7 +187,12 @@ async function isTorExitNode(ip: string): Promise<boolean> {
      fallback set is already active — no need to await a live refresh here. */
   if (torListFetchedAt > 0 && Date.now() - torListFetchedAt > TOR_LIST_TTL_MS) {
     /* List is stale — trigger a background refresh; use the existing set for now */
-    refreshTorExitNodes().catch(() => {});
+    refreshTorExitNodes().catch((err: unknown) => {
+      logger.warn(
+        { err: err instanceof Error ? err.message : String(err) },
+        "[security] stale TOR exit-node background refresh failed",
+      );
+    });
   }
   return torExitNodes.has(ip);
 }
@@ -434,7 +458,12 @@ export function addSecurityEvent(event: Omit<SecurityEvent, "timestamp">) {
         })
       )
     )
-  ).catch(() => {});
+  ).catch((err: unknown) => {
+    logger.warn(
+      { err: err instanceof Error ? err.message : String(err), eventType: entry.type },
+      "[security] Dynamic import chain for security event DB persist failed",
+    );
+  });
 }
 
 /* ══════════════════════════════════════════════════════════════

@@ -1266,8 +1266,12 @@ router.patch("/orders/:id/status", async (req, res) => {
   }
 
   if (status === "delivered") {
-    emitWebhookEvent("order_delivered", { orderId: updated.id, riderId, userId: updated.userId, total: safeNum(updated.total).toFixed(2) }).catch(() => {});
-    emitWebhookEvent("payment_received", { orderId: updated.id, userId: updated.userId, amount: safeNum(updated.total).toFixed(2), method: updated.paymentMethod ?? "unknown" }).catch(() => {});
+    emitWebhookEvent("order_delivered", { orderId: updated.id, riderId, userId: updated.userId, total: safeNum(updated.total).toFixed(2) }).catch((err: unknown) => {
+      logger.warn({ err: err instanceof Error ? err.message : String(err), orderId: updated.id }, "[rider] webhook order_delivered failed");
+    });
+    emitWebhookEvent("payment_received", { orderId: updated.id, userId: updated.userId, amount: safeNum(updated.total).toFixed(2), method: updated.paymentMethod ?? "unknown" }).catch((err: unknown) => {
+      logger.warn({ err: err instanceof Error ? err.message : String(err), orderId: updated.id }, "[rider] webhook payment_received failed");
+    });
   }
 
   const orderStatusBody = { ...updated, total: safeNum(updated.total) };
@@ -1475,7 +1479,9 @@ router.post("/rides/:id/verify-otp", otpLimiter, async (req, res) => {
   }
   if (ride.otpVerified) {
     /* Clear the DB attempt row on success */
-    db.delete(otpAttemptsTable).where(eq(otpAttemptsTable.key, rideId)).catch(() => { /* non-critical */ });
+    db.delete(otpAttemptsTable).where(eq(otpAttemptsTable.key, rideId)).catch((err: unknown) => {
+      logger.debug({ err: err instanceof Error ? err.message : String(err), rideId }, "[rider] OTP attempts cleanup (already-verified) failed — non-critical");
+    });
     sendSuccess(res, undefined, "OTP already verified"); return;
   }
   if (!ride.tripOtp) {
@@ -1502,7 +1508,9 @@ router.post("/rides/:id/verify-otp", otpLimiter, async (req, res) => {
     if (newCount >= MAX_OTP_ATTEMPTS) {
       /* Invalidate the current OTP so the customer must request a fresh one */
       await db.update(ridesTable).set({ tripOtp: null, updatedAt: new Date() }).where(eq(ridesTable.id, rideId)).catch((e: Error) => { logger.error({ rideId, err: e.message }, "[rider] tripOtp invalidation DB update failed"); });
-      db.delete(otpAttemptsTable).where(eq(otpAttemptsTable.key, rideId)).catch(() => { /* non-critical */ });
+      db.delete(otpAttemptsTable).where(eq(otpAttemptsTable.key, rideId)).catch((err: unknown) => {
+        logger.debug({ err: err instanceof Error ? err.message : String(err), rideId }, "[rider] OTP attempts cleanup (max-exceeded) failed — non-critical");
+      });
       sendErrorWithData(res, "Too many incorrect OTP attempts. The current OTP has been invalidated. Please ask the customer to refresh their app to receive a new OTP.", { code: "OTP_INVALIDATED" }, 400);
       return;
     }
@@ -1512,7 +1520,9 @@ router.post("/rides/:id/verify-otp", otpLimiter, async (req, res) => {
   }
 
   /* Success — clear attempt row and mark verified */
-  db.delete(otpAttemptsTable).where(eq(otpAttemptsTable.key, rideId)).catch(() => { /* non-critical */ });
+  db.delete(otpAttemptsTable).where(eq(otpAttemptsTable.key, rideId)).catch((err: unknown) => {
+    logger.debug({ err: err instanceof Error ? err.message : String(err), rideId }, "[rider] OTP attempts cleanup (success) failed — non-critical");
+  });
   await db.update(ridesTable).set({ otpVerified: true, updatedAt: new Date() }).where(eq(ridesTable.id, rideId));
   emitRideDispatchUpdate({ rideId, action: "otp-verified", status: ride.status });
   emitRideUpdate(rideId);
@@ -1680,7 +1690,9 @@ router.patch("/rides/:id/status", rideStatusLimiter, async (req, res) => {
       tag: "ride-completed-rider",
       data: { rideId: ride.id },
     }).catch((e: Error) => { logger.warn({ rideId: ride.id, riderId, err: e.message }, "[rider] trip-completed push to rider failed"); });
-    emitWebhookEvent("ride_completed", { rideId: ride.id, riderId, userId: ride.userId, fare: safeNum(ride.fare).toFixed(2) }).catch(() => {});
+    emitWebhookEvent("ride_completed", { rideId: ride.id, riderId, userId: ride.userId, fare: safeNum(ride.fare).toFixed(2) }).catch((err: unknown) => {
+      logger.warn({ err: err instanceof Error ? err.message : String(err), rideId: ride.id }, "[rider] webhook ride_completed failed");
+    });
   } else {
     const now = new Date();
     const timestampFields =

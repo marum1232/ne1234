@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
+import { logger } from "../lib/logger.js";
 import {
   schoolRoutesTable, schoolSubscriptionsTable,
   notificationsTable, usersTable, walletTransactionsTable,
@@ -124,7 +125,12 @@ router.post("/subscribe", customerAuth, async (req, res) => {
       id: generateId(), userId, type: "debit",
       amount: monthlyAmt.toFixed(2),
       description: `School Shift — ${route.schoolName} (1st month)`,
-    }).catch(() => {});
+    }).catch((err: unknown) => {
+      logger.warn(
+        { err: err instanceof Error ? err.message : String(err), userId, routeId },
+        "[school] wallet transaction insert failed (non-critical)",
+      );
+    });
   }
 
   /* Resolve start date — default to today, or validate requested date (must be ≥ today) */
@@ -175,7 +181,12 @@ router.post("/subscribe", customerAuth, async (req, res) => {
       .replace("{route}", `${route.fromArea} → ${route.toAddress}`)
       .replace("{amount}", monthlyAmt.toFixed(0)),
     type: "ride", icon: "bus-outline",
-  }).catch(() => {});
+  }).catch((err: unknown) => {
+    logger.warn(
+      { err: err instanceof Error ? err.message : String(err), userId },
+      "[school] subscription notification insert failed (non-critical)",
+    );
+  });
 
   res.status(201).json({ ...sub, monthlyAmount: safeNum(sub!.monthlyAmount), route: formatRoute(route) });
   } catch {

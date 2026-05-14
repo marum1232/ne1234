@@ -233,7 +233,12 @@ router.patch("/products/:id/approve", async (req, res) => {
             type: "system",
             icon: "checkmark-circle-outline",
           })
-          .catch(() => {});
+          .catch((err: unknown) => {
+            logger.warn(
+              { err: err instanceof Error ? err.message : String(err), userId: vendor.id },
+              "[content] product-approved notification insert failed",
+            );
+          });
       }
     }
     /* Back-in-stock: notify subscribers when previously out-of-stock product is approved */
@@ -309,7 +314,12 @@ router.patch("/products/:id/reject", async (req, res) => {
             type: "system",
             icon: "close-circle-outline",
           })
-          .catch(() => {});
+          .catch((err: unknown) => {
+            logger.warn(
+              { err: err instanceof Error ? err.message : String(err), userId: vendor.id },
+              "[content] product-rejected notification insert failed",
+            );
+          });
       }
     }
     getIO()?.to("admin-fleet").emit("product:rejected", { id: product.id });
@@ -889,7 +899,12 @@ router.post("/broadcast", async (req, res) => {
           type,
           icon,
         })
-        .catch(() => {});
+        .catch((err: unknown) => {
+          logger.warn(
+            { err: err instanceof Error ? err.message : String(err), userId: user.id },
+            "[content] broadcast notification insert failed (non-critical)",
+          );
+        });
       sent++;
     }
     /* Persist broadcast in history table so the admin panel can show it */
@@ -909,8 +924,11 @@ router.post("/broadcast", async (req, res) => {
       )
     `,
         )
-        .catch(() => {
-          /* table may not exist yet */
+        .catch((err: unknown) => {
+          logger.debug(
+            { err: err instanceof Error ? err.message : String(err) },
+            "[content] broadcast history insert failed — table may not exist yet",
+          );
         });
     } catch {
       /* non-fatal */

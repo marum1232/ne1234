@@ -67,7 +67,12 @@ export async function verifyTokenFamily(req: Request, res: Response, next: NextF
         userId: payload.userId,
         ip,
         metadata: { tokenFamilyId, url: req.url },
-      }).catch(() => {});
+      }).catch((err: unknown) => {
+        logger.warn(
+          { err: err instanceof Error ? err.message : String(err), userId: payload.userId },
+          "[auth] writeAuthAuditLog for revoked_family_access_attempt failed",
+        );
+      });
 
       res.status(401).json({ error: "Account compromised. Please login again." });
       return;

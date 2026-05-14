@@ -286,7 +286,12 @@ router.get("/search", async (req, res) => {
   } catch { /* ignore invalid/missing tokens */ }
   // Normalize query to lowercase for consistent aggregation (e.g. "Milk" == "milk")
   const normalizedQuery = trimmed.toLowerCase().replace(/\s+/g, " ");
-  db.insert(searchLogsTable).values({ query: normalizedQuery, resultCount: total, userId: searchUserId }).catch(() => {});
+  db.insert(searchLogsTable).values({ query: normalizedQuery, resultCount: total, userId: searchUserId }).catch((err: unknown) => {
+    logger.warn(
+      { err: err instanceof Error ? err.message : String(err), query: normalizedQuery },
+      "[products] search log insert failed",
+    );
+  });
 
   const slimSearch = parsed.data.slim === "true";
 

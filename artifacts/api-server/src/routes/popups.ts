@@ -1,5 +1,6 @@
 import { Router, type IRouter, type Request } from "express";
 import { db } from "@workspace/db";
+import { logger } from "../lib/logger.js";
 import {
   popupCampaignsTable,
   popupImpressionsTable,
@@ -203,7 +204,12 @@ router.post("/impression", async (req, res) => {
     userId,
     action,
     sessionId: sessionId || null,
-  }).catch(() => {});
+  }).catch((err: unknown) => {
+    logger.warn(
+      { err: err instanceof Error ? err.message : String(err), popupId, userId, action },
+      "[popups] impression insert failed (non-critical)",
+    );
+  });
 
   sendSuccess(res, { success: true });
   } catch {

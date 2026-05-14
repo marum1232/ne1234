@@ -83,7 +83,12 @@ async function decrementStock(
           reason: "order",
           orderId,
           source: `order:${orderId}`,
-        }).catch(() => {});
+        }).catch((err: unknown) => {
+          logger.warn(
+            { err: err instanceof Error ? err.message : String(err), productId: item.productId, orderId },
+            "[orders] stock history insert failed (non-critical)",
+          );
+        });
       }
     }
   }

@@ -102,13 +102,18 @@ router.post("/admin/sentry-webhook", async (req, res) => {
       .from(sentryKnownIssuesTable)
       .where(eq(sentryKnownIssuesTable.fingerprint, fingerprint))
       .limit(1)
-      .catch(() => [] as { fingerprint: string }[]);
+      .catch((err: unknown) => {
+        logger.warn({ err: err instanceof Error ? err.message : String(err), fingerprint }, "[sentry-webhook] known-issues lookup failed");
+        return [] as { fingerprint: string }[];
+      });
 
     if (existing) {
       await db.update(sentryKnownIssuesTable)
         .set({ lastSeenAt: new Date() })
         .where(eq(sentryKnownIssuesTable.fingerprint, fingerprint))
-        .catch(() => {});
+        .catch((err: unknown) => {
+          logger.warn({ err: err instanceof Error ? err.message : String(err), fingerprint }, "[sentry-webhook] lastSeenAt update (known issue) failed");
+        });
       sendSuccess(res, { ack: true, known: true });
       return;
     }
@@ -127,7 +132,9 @@ router.post("/admin/sentry-webhook", async (req, res) => {
       await db.update(sentryKnownIssuesTable)
         .set({ lastSeenAt: new Date() })
         .where(eq(sentryKnownIssuesTable.fingerprint, fingerprint))
-        .catch(() => {});
+        .catch((err: unknown) => {
+          logger.warn({ err: err instanceof Error ? err.message : String(err), fingerprint }, "[sentry-webhook] lastSeenAt update (conflict race) failed");
+        });
       sendSuccess(res, { ack: true, known: true });
       return;
     }

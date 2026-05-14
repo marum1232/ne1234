@@ -372,7 +372,12 @@ router.patch(
         return;
       }
       if (isBanned || isActive === false) {
-        revokeAllUserSessions(req.params["id"]!).catch(() => {});
+        revokeAllUserSessions(req.params["id"]!).catch((err: unknown) => {
+          logger.warn(
+            { err: err instanceof Error ? err.message : String(err), userId: req.params["id"] },
+            "[wallets] revokeAllUserSessions (vendor ban) failed — sessions may persist",
+          );
+        });
         if (isBanned) {
           await sendUserNotification(
             req.params["id"]!,
@@ -637,7 +642,12 @@ router.patch("/riders/:id/status", async (req, res) => {
       return;
     }
     if (isBanned || isActive === false) {
-      revokeAllUserSessions(req.params["id"]!).catch(() => {});
+      revokeAllUserSessions(req.params["id"]!).catch((err: unknown) => {
+        logger.warn(
+          { err: err instanceof Error ? err.message : String(err), userId: req.params["id"] },
+          "[wallets] revokeAllUserSessions (rider ban) failed — sessions may persist",
+        );
+      });
       if (isBanned) {
         await sendUserNotification(
           req.params["id"]!,
@@ -1031,7 +1041,12 @@ router.patch("/withdrawal-requests/:id/approve", async (req, res) => {
         type: "wallet",
         icon: "checkmark-circle-outline",
       })
-      .catch(() => {});
+      .catch((err: unknown) => {
+        logger.warn(
+          { err: err instanceof Error ? err.message : String(err), txId },
+          "[wallets] withdrawal-approved notification insert failed",
+        );
+      });
     const wdIo = getIO();
     if (wdIo)
       wdIo
@@ -1130,7 +1145,12 @@ router.patch("/withdrawal-requests/:id/reject", async (req, res) => {
         type: "wallet",
         icon: "close-circle-outline",
       })
-      .catch(() => {});
+      .catch((err: unknown) => {
+        logger.warn(
+          { err: err instanceof Error ? err.message : String(err), txId },
+          "[wallets] withdrawal-rejected notification insert failed",
+        );
+      });
     const wdRejIo = getIO();
     if (wdRejIo)
       wdRejIo
@@ -1187,7 +1207,12 @@ router.patch("/withdrawal-requests/batch-approve", async (req, res) => {
           type: "wallet",
           icon: "checkmark-circle-outline",
         })
-        .catch(() => {});
+        .catch((err: unknown) => {
+          logger.warn(
+            { err: err instanceof Error ? err.message : String(err), txId },
+            "[wallets] batch-approve notification insert failed",
+          );
+        });
       results.push(txId);
     }
     sendSuccess(res, { approved: results });
@@ -1247,7 +1272,12 @@ router.patch("/withdrawal-requests/batch-reject", async (req, res) => {
           type: "wallet",
           icon: "close-circle-outline",
         })
-        .catch(() => {});
+        .catch((err: unknown) => {
+          logger.warn(
+            { err: err instanceof Error ? err.message : String(err), txId },
+            "[wallets] batch-reject notification insert failed",
+          );
+        });
       results.push(txId);
     }
     sendSuccess(res, { rejected: results });
@@ -1957,7 +1987,12 @@ router.post("/riders/:id/override-suspension", async (req, res) => {
         type: "system",
         icon: "shield-checkmark-outline",
       })
-      .catch(() => {});
+      .catch((err: unknown) => {
+        logger.warn(
+          { err: err instanceof Error ? err.message : String(err), userId },
+          "[wallets] rider override-suspension notification insert failed",
+        );
+      });
 
     sendSuccess(res, { user: stripUser(updated!) });
   } catch {
@@ -2009,7 +2044,12 @@ router.post(
           type: "system",
           icon: "shield-checkmark-outline",
         })
-        .catch(() => {});
+        .catch((err: unknown) => {
+          logger.warn(
+            { err: err instanceof Error ? err.message : String(err), userId },
+            "[wallets] vendor override-suspension notification insert failed",
+          );
+        });
 
       sendSuccess(res, { user: stripUser(updated!) });
     } catch {

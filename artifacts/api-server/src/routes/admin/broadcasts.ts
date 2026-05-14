@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { sendSuccess, sendError, sendNotFound, sendValidationError } from "../../lib/response.js";
 import { addAuditEntry, getClientIp, generateId, type AdminRequest } from "../admin-shared.js";
+import { logger } from "../../lib/logger.js";
 
 const router = Router();
 
@@ -25,16 +26,25 @@ async function ensureBroadcastsTable(): Promise<void> {
     `);
     await db.execute(sql`
       ALTER TABLE broadcasts ADD COLUMN IF NOT EXISTS delivered_count INTEGER NOT NULL DEFAULT 0
-    `).catch(() => {});
+    `).catch((err: unknown) => {
+      logger.debug({ err: err instanceof Error ? err.message : String(err) }, "[broadcasts] delivered_count column add skipped (may already exist)");
+    });
     await db.execute(sql`
       ALTER TABLE broadcasts ADD COLUMN IF NOT EXISTS failed_count INTEGER NOT NULL DEFAULT 0
-    `).catch(() => {});
+    `).catch((err: unknown) => {
+      logger.debug({ err: err instanceof Error ? err.message : String(err) }, "[broadcasts] failed_count column add skipped (may already exist)");
+    });
   } catch {
     /* table may already exist in another form */
   }
 }
 
-ensureBroadcastsTable().catch(() => {});
+ensureBroadcastsTable().catch((err: unknown) => {
+  logger.warn(
+    { err: err instanceof Error ? err.message : String(err) },
+    "[broadcasts] ensureBroadcastsTable failed at startup",
+  );
+});
 
 /* ─────────────────────────────────────────────────────────
    GET /api/admin/broadcasts

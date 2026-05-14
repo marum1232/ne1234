@@ -946,7 +946,12 @@ router.patch("/admin/:id", adminAuth, async (req, res) => {
           body: notifBody,
           tag: "kyc-update",
           data: { type: "kyc_status", status },
-        }).catch(() => {});
+        }).catch((err: unknown) => {
+          logger.warn(
+            { err: err instanceof Error ? err.message : String(err), userId: record.userId, status },
+            "[kyc] review-status push notification failed",
+          );
+        });
 
         void logAdminAudit(`kyc_review_${status}`, {
           adminId,

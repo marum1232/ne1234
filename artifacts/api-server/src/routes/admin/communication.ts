@@ -301,7 +301,12 @@ router.patch("/communication/flags/:id/resolve", async (req: any, res) => {
       resolvedAt: new Date(),
       reviewedByAdminId: adminId,
     }).where(eq(communicationFlagsTable.id, id));
-    emitDashboardUpdate().catch(() => {});
+    emitDashboardUpdate().catch((err: unknown) => {
+      logger.warn(
+        { err: err instanceof Error ? err.message : String(err) },
+        "[communication] emitDashboardUpdate after flag resolve failed",
+      );
+    });
     res.json({ data: { status: "resolved" } });
   } catch (e) {
     res.status(500).json({ error: "Failed to resolve flag" });

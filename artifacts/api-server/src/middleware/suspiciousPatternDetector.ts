@@ -165,9 +165,18 @@ export function suspiciousPatternDetector(req: Request, _res: Response, next: Ne
         severity: "high",
       });
       logger.warn({ ip, count, threshold }, "[pattern-detector] Suspicious pattern detected");
-      firePatternAlert(ip, count, threshold, settings).catch(() => {});
+      firePatternAlert(ip, count, threshold, settings).catch((err: unknown) => {
+        logger.warn(
+          { ip, err: err instanceof Error ? err.message : String(err) },
+          "[pattern-detector] firePatternAlert failed",
+        );
+      });
     }
-  }).catch(() => {
+  }).catch((err: unknown) => {
+    logger.warn(
+      { ip, err: err instanceof Error ? err.message : String(err) },
+      "[pattern-detector] Redis counter chain failed — falling back to in-memory counter",
+    );
     /* Non-fatal: fall back to in-memory counter if the whole async chain fails */
     const count = fallbackIncrCounter(ip);
     getCachedSettings().then(settings => {
@@ -176,9 +185,19 @@ export function suspiciousPatternDetector(req: Request, _res: Response, next: Ne
         const details = `IP ${ip} exceeded sensitive endpoint threshold: ${count} req/min (threshold: ${threshold})`;
         addSecurityEvent({ type: "suspicious_pattern", ip, details, severity: "high" });
         logger.warn({ ip, count, threshold }, "[pattern-detector] Suspicious pattern detected (fallback)");
-        firePatternAlert(ip, count, threshold, settings).catch(() => {});
+        firePatternAlert(ip, count, threshold, settings).catch((err2: unknown) => {
+          logger.warn(
+            { ip, err: err2 instanceof Error ? err2.message : String(err2) },
+            "[pattern-detector] firePatternAlert (fallback) failed",
+          );
+        });
       }
-    }).catch(() => {});
+    }).catch((err2: unknown) => {
+      logger.warn(
+        { ip, err: err2 instanceof Error ? err2.message : String(err2) },
+        "[pattern-detector] getCachedSettings in fallback path failed",
+      );
+    });
   });
 
   next();

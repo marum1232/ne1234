@@ -14,6 +14,7 @@ import { isInServiceZone } from "../lib/geofence.js";
 import { sendSuccess, sendCreated, sendError, sendNotFound, sendForbidden, sendValidationError } from "../lib/response.js";
 import { z } from "zod";
 import { publicLimiter } from "../middleware/rate-limit.js";
+import { logger } from "../lib/logger.js";
 
 const stripHtml = (s: string) => s.replace(/<[^>]*>/g, "").trim();
 
@@ -297,7 +298,12 @@ router.post("/", customerAuth, async (req, res) => {
         title: t("notifParcelBookingConfirmed" as TranslationKey, pLang1),
         body: t("notifParcelBookingConfirmedBody" as TranslationKey, pLang1).replace("{type}", parcelType).replace("{amount}", totalFare.toFixed(0)).replace("{receiver}", receiverName).replace("{eta}", estimatedTime),
         type: "parcel", icon: "cube-outline", link: `/(tabs)/orders`,
-      }).catch(() => {});
+      }).catch((err: unknown) => {
+        logger.warn(
+          { err: err instanceof Error ? err.message : String(err), userId },
+          "[parcel] booking-confirmed notification insert (wallet payment) failed",
+        );
+      });
 
       sendCreated(res, { ...mapBooking(booking), gstAmount });
     } catch (e: unknown) {
@@ -322,7 +328,12 @@ router.post("/", customerAuth, async (req, res) => {
     title: t("notifParcelBookingConfirmed" as TranslationKey, pLang2),
     body: t("notifParcelBookingConfirmedBody" as TranslationKey, pLang2).replace("{type}", parcelType).replace("{amount}", totalFare.toFixed(0)).replace("{receiver}", receiverName).replace("{eta}", estimatedTime),
     type: "parcel", icon: "cube-outline", link: `/(tabs)/orders`,
-  }).catch(() => {});
+  }).catch((err: unknown) => {
+    logger.warn(
+      { err: err instanceof Error ? err.message : String(err), userId },
+      "[parcel] booking-confirmed notification insert (cash payment) failed",
+    );
+  });
 
   sendCreated(res, { ...mapBooking(booking!), gstAmount });
 });
@@ -399,7 +410,12 @@ router.patch("/:id/cancel", customerAuth, verifyOwnership("parcel_booking"), asy
       title: t("notifParcelRefund" as TranslationKey, pRefLang),
       body: t("notifParcelRefundBody" as TranslationKey, pRefLang).replace("{amount}", refund.toFixed(0)),
       type: "parcel", icon: "wallet-outline",
-    }).catch(() => {});
+    }).catch((err: unknown) => {
+      logger.warn(
+        { err: err instanceof Error ? err.message : String(err), userId },
+        "[parcel] cancellation-refund notification insert failed",
+      );
+    });
     refundAmount = refund;
     sendSuccess(res, { ...mapBooking(cancelledBooking), refundAmount });
     return;

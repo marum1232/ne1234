@@ -67,7 +67,12 @@ export function auditLoggingMiddleware(req: Request, res: Response, next: NextFu
         result: 'failure',
         reason: `HTTP ${statusCode}`,
         metadata: { method: req.method, path: req.path },
-      }).catch(() => {});
+      }).catch((err: unknown) => {
+        logger.warn(
+          { err: err instanceof Error ? err.message : String(err), adminId, path: req.path },
+          '[admin-audit] logAdminAudit failed — audit event lost',
+        );
+      });
     }
 
     return originalSend.call(this, data);

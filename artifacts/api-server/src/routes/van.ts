@@ -704,20 +704,26 @@ router.post("/bookings", customerAuth, paymentLimiter, async (req, res) => {
         icon: "bus-outline",
         link: `/van/bookings`,
       })
-      .catch(() => {});
+      .catch((err: unknown) => {
+        logger.warn({ err: err instanceof Error ? err.message : String(err), userId }, "[van] booking-confirmed notification insert failed");
+      });
 
     sendPushToUser(userId, {
       title: "Van Booking Confirmed",
       body: `${seatNumbers.length} seat(s) on ${route.name} for ${travelDate}. Rs ${totalFare.toFixed(0)}.`,
       data: { type: "van_booking_confirmed", bookingId: booking.id },
-    }).catch(() => {});
+    }).catch((err: unknown) => {
+      logger.warn({ err: err instanceof Error ? err.message : String(err), userId, bookingId: booking.id }, "[van] booking-confirmed push to passenger failed");
+    });
 
     if (schedule.driverId) {
       sendPushToUser(schedule.driverId, {
         title: "New Van Passenger",
         body: `${seatNumbers.length} seat(s) booked on ${route.name} for ${travelDate}. Seats: ${seatNumbers.join(", ")}.`,
         data: { type: "van_new_passenger", scheduleId, travelDate },
-      }).catch(() => {});
+      }).catch((err: unknown) => {
+        logger.warn({ err: err instanceof Error ? err.message : String(err), driverId: schedule.driverId, scheduleId }, "[van] new-passenger push to driver failed");
+      });
     }
 
     sendCreated(res, {
@@ -887,7 +893,9 @@ router.patch("/bookings/:id/cancel", customerAuth, async (req, res) => {
       title: "Van Booking Cancelled",
       body: `Your van booking has been cancelled.${refundAmount > 0 ? ` Refund of Rs ${refundAmount.toFixed(0)} (${vs.refundType}) has been processed.` : ""}`,
       data: { type: "van_refund" },
-    }).catch(() => {});
+    }).catch((err: unknown) => {
+      logger.warn({ err: err instanceof Error ? err.message : String(err), userId }, "[van] booking-cancelled push failed");
+    });
 
     sendSuccess(res, {
       message: "Booking cancelled successfully.",
@@ -1084,7 +1092,9 @@ router.patch("/driver/bookings/:id/board", vanDriverAuth, async (req, res) => {
       title: "You're Boarded!",
       body: "You have been marked as boarded on the van. Enjoy your ride!",
       data: { type: "van_boarded" },
-    }).catch(() => {});
+    }).catch((err: unknown) => {
+      logger.warn({ err: err instanceof Error ? err.message : String(err), userId: booking.userId, bookingId }, "[van] boarded push failed");
+    });
 
     emitVanTripUpdate(booking.scheduleId, booking.travelDate, {
       event: "passenger_boarded",
@@ -1147,13 +1157,17 @@ router.post(
             title: "Van Departed!",
             body: "Your van has started the trip. Track it live in the app.",
             data: { type: "van_trip_started", scheduleId, date },
-          }).catch(() => {});
+          }).catch((err: unknown) => {
+            logger.warn({ err: err instanceof Error ? err.message : String(err), userId: b.userId, scheduleId }, "[van] trip-started push to boarded passenger failed");
+          });
         } else {
           sendPushToUser(b.userId, {
             title: "Departure Reminder",
             body: "Your van is departing now! Please board immediately or track the van live.",
             data: { type: "van_departure_reminder", scheduleId, date },
-          }).catch(() => {});
+          }).catch((err: unknown) => {
+            logger.warn({ err: err instanceof Error ? err.message : String(err), userId: b.userId, scheduleId }, "[van] departure-reminder push failed");
+          });
         }
       }
 
@@ -1304,7 +1318,9 @@ router.patch(
           title: "Trip Completed",
           body: "Your van trip has been completed. Thank you for riding with us!",
           data: { type: "van_completed" },
-        }).catch(() => {});
+        }).catch((err: unknown) => {
+          logger.warn({ err: err instanceof Error ? err.message : String(err), userId: b.userId, scheduleId }, "[van] trip-completed push failed");
+        });
       }
 
       emitVanTripUpdate(scheduleId, date, { event: "trip_completed" });
@@ -2231,7 +2247,9 @@ export async function sendVanDepartureReminders() {
             scheduleId: sched.id,
             date: todayStr,
           },
-        }).catch(() => {});
+        }).catch((err: unknown) => {
+          logger.warn({ err: err instanceof Error ? err.message : String(err), userId: b.userId, scheduleId: sched.id }, "[van] 1h-departure-reminder push failed");
+        });
       }
 
       logger.info(

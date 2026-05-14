@@ -432,7 +432,12 @@ router.patch("/users/:id", requirePermission("users.edit"), async (req, res) => 
       if (!user) { sendNotFound(res, "User not found"); return; }
       /* Revoke sessions on role or status change so user re-authenticates with new role */
       if (role !== undefined || isActive === false) {
-        revokeAllUserSessions(userId).catch(() => {});
+        revokeAllUserSessions(userId).catch((err: unknown) => {
+          logger.warn(
+            { err: err instanceof Error ? err.message : String(err), userId },
+            "[admin/users] revokeAllUserSessions on role/status change failed — sessions may persist",
+          );
+        });
       }
       // Upsert a blank profile row when role changes to vendor or rider so the
       // admin UI immediately shows a profile section without requiring the user
@@ -769,7 +774,12 @@ router.patch("/users/:id/security", requirePermission("users.ban"), async (req, 
 
     /* Revoke all sessions if ban, unban (actual transition), deactivation, or role change occurred */
     if (body.isBanned || (alreadyBanned && body.isBanned === false) || body.isActive === false || body.roles !== undefined || body.role !== undefined) {
-      revokeAllUserSessions(id!).catch(() => {});
+      revokeAllUserSessions(id!).catch((err: unknown) => {
+        logger.warn(
+          { err: err instanceof Error ? err.message : String(err), userId: id },
+          "[admin/users] revokeAllUserSessions on ban/deactivate/role-change failed — sessions may persist",
+        );
+      });
     }
     /* Send push notification only when user is being newly banned and notify flag is set */
     if (willBeBanned && !alreadyBanned && body.notify) {
@@ -851,7 +861,12 @@ router.patch("/users/:id/identity", requirePermission("users.edit"), async (req,
   const [user] = await db.update(usersTable).set(updates).where(eq(usersTable.id, userId)).returning();
   if (!user) { sendNotFound(res, "User not found"); return; }
 
-  revokeAllUserSessions(userId).catch(() => {});
+  revokeAllUserSessions(userId).catch((err: unknown) => {
+    logger.warn(
+      { err: err instanceof Error ? err.message : String(err), userId },
+      "[admin/users] revokeAllUserSessions on identity update failed — sessions may persist",
+    );
+  });
 
   sendSuccess(res, { ...stripUser(user), roles: (user.roles ?? "customer").split(",").map((r: string) => r.trim()).filter(Boolean), walletBalance: parseFloat(String(user.walletBalance)) });
   } catch (err: unknown) {
@@ -962,7 +977,12 @@ router.post("/users/:id/force-password-reset", requirePermission("users.edit"), 
       body: "For your account security, you are required to change your password on next login.",
       type: "security",
       icon: "lock-closed-outline",
-    }).catch(() => {});
+    }).catch((err: unknown) => {
+      logger.warn(
+        { err: err instanceof Error ? err.message : String(err), userId },
+        "[admin/users] force-password-reset notification insert failed",
+      );
+    });
 
     const adminReq = req as AdminRequest;
     addAuditEntry({
@@ -1136,7 +1156,12 @@ router.patch("/users/:id/request-correction", requirePermission("users.approve")
       title: t("notifDocumentCorrection", docLang),
       body: note || t("notifDocumentCorrectionBody", docLang).replace("{field}", field || "document"),
       type: "system", icon: "document-outline",
-    }).catch(() => {});
+    }).catch((err: unknown) => {
+      logger.warn(
+        { err: err instanceof Error ? err.message : String(err), userId: user.id },
+        "[admin/users] document-correction notification insert failed",
+      );
+    });
     sendSuccess(res, { success: true, user: { ...stripUser(user), roles: (user.roles ?? "customer").split(",").map((r: string) => r.trim()).filter(Boolean) } });
   } catch (err: unknown) {
     logger.error({ err }, "[admin/users] request-correction failed");
@@ -1175,7 +1200,12 @@ router.patch("/users/:id/waive-debt", requirePermission("users.edit"), async (re
           title: t("notifDebtWaived", debtLang),
           body: t("notifDebtWaivedBody", debtLang).replace("{amount}", debt.toFixed(0)),
           type: "system", icon: "checkmark-circle-outline",
-        }).catch(() => {});
+        }).catch((err: unknown) => {
+          logger.warn(
+            { err: err instanceof Error ? err.message : String(err), userId },
+            "[admin/users] debt-waived notification insert failed",
+          );
+        });
       }
     );
     sendSuccess(res, { success: true, waived: debt });
