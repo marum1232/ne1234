@@ -300,11 +300,16 @@ router.get("/", async (req, res) => {
           const on = fallback === "on";
           return { customer: on, rider: on, vendor: on };
         }
+        // Plain "on"/"off" string — not a JSON object, treat uniformly
+        if (val === "on" || val === "off") {
+          const on = val === "on";
+          return { customer: on, rider: on, vendor: on };
+        }
         try {
           const parsed = JSON.parse(val) as Record<string, string>;
           return { customer: parsed.customer === "on", rider: parsed.rider === "on", vendor: parsed.vendor === "on" };
         } catch (err) {
-          logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+          logger.debug({ error: err instanceof Error ? err.message : String(err) }, '[platform-config] parseAuthToggle fallback');
           return val === "on";
         }
       }
