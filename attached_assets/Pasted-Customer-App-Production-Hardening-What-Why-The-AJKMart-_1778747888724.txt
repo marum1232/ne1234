@@ -1,0 +1,132 @@
+Customer App Production Hardening
+What & Why
+The AJKMart customer app (Expo/React Native) has a number of issues that generate browser console warnings on every startup, introduce memory leaks, break dark mode, cause unnecessary API traffic, and use unstable/deprecated APIs — all of which must be resolved before a live production release. This task fixes every confirmed bug and code-quality issue found during a full scan of artifacts/ajkmart/.
+
+Done looks like
+Browser console shows zero shadow* deprecation warnings on startup
+Browser console shows zero expo-notifications web warnings on startup
+Dark mode works correctly on every screen (no hardcoded Colors.light bypassing the theme)
+No module-level window.* calls on native (all guarded by Platform.OS)
+No static Dimensions.get() calls at module scope — all use useWindowDimensions() hook so they respond to orientation changes and resizes
+All setInterval / setTimeout calls inside useEffect have a matching cleanup
+Skeleton and Toast animations use react-native-reanimated instead of the legacy Animated API
+Silent catch {} blocks replaced with at minimum a log.warn call
+TypeScript any usage reduced to zero or near-zero (explicit types or documented escape hatches)
+app.json expo-router origin is dynamic (not hardcoded to https://replit.com/)
+unstable-native-tabs import replaced with the stable tab API
+PopupEngine polling interval is sensibly throttled (e.g. minimum 30 s, respects background/foreground state)
+_layout.tsx refactored — handler components extracted into their own files
+Sentry CDN URL uses integrity-pinned latest version (or is replaced with the npm package loaded conditionally)
+All 15+ files with static Dimensions.get use useWindowDimensions instead
+pnpm run typecheck passes with 0 errors on the ajkmart package
+Out of scope
+New feature screens or UI redesign
+Changes to the API server, admin, rider, or vendor apps
+EAS native build configuration (ios/android specific)
+Adding new tests
+Steps
+Fix deprecated shadow style props — In all 15+ files that use shadowColor, shadowOffset, shadowOpacity, shadowRadius without a Platform.select guard, wrap them in Platform.select({ web: { boxShadow: '...' }, default: { shadowColor, ... } }). Files include: app/my-reviews.tsx, app/orders/[id].tsx, app/pharmacy/store/[id].tsx, app/recently-viewed.tsx, app/van/tracking.tsx, app/van/seats.tsx, app/van/bookings.tsx, app/wishlist.tsx, components/ErrorFallback.tsx, components/ride/RideBookingForm.tsx, components/ride/RideTracker.tsx, components/ui/SmartRefresh.tsx, constants/colors.ts (shadow helper), context/ToastContext.tsx.
+
+Fix expo-notifications web warning — In app/_layout.tsx, wrap the Notifications.useLastNotificationResponse() listener (and any other expo-notifications subscription calls) with Platform.OS !== 'web' guards so they are never registered in the browser.
+
+Fix module-level window calls on native — In app/van/tracking.tsx the bare window.addEventListener('message', handleMsg) is at module scope with no platform guard. Move it inside a useEffect that only runs on web (if (Platform.OS !== 'web') return). Audit components/CancelModal.tsx, components/PwaInstallBanner.tsx, components/ride/MapPickerModal.web.tsx for similar raw window.* at call sites not already guarded.
+
+Replace static Dimensions.get() with useWindowDimensions() — Remove all module-level const W = Dimensions.get("window").width / const { width } = Dimensions.get("window") constants from: app/(tabs)/index.tsx, app/categories/index.tsx, app/food/restaurant/[id].tsx, app/mart/_Screen.tsx, app/mart/store/[id].tsx, app/offers.tsx, app/onboarding.tsx, app/pharmacy/_Screen.tsx, app/pharmacy/stores.tsx, app/product/[id].tsx, app/recently-viewed.tsx, app/restaurants/index.tsx, app/vendor/[id].tsx, app/weather.tsx. Replace each with a const { width } = useWindowDimensions() call inside the component.
+
+Fix memory leaks — uncleared timers — Audit every setInterval and recursive setTimeout inside useEffect in app/(tabs)/orders.tsx, app/(tabs)/profile.tsx, app/(tabs)/wallet.tsx, app/auth/index.tsx, app/auth/register.tsx, app/auth/forgot-password.tsx, app/cart/index.tsx. Ensure each one returns a cleanup that calls clearInterval / clearTimeout. Confirm the existing cleanup in _layout.tsx timer refs is complete.
+
+Migrate legacy Animated API to Reanimated — Replace the React Native Animated import with react-native-reanimated equivalents in: components/WishlistHeart.tsx, components/ride/Skeletons.tsx, components/ui/AnimatedPressable.tsx, components/ui/SkeletonBlock.tsx, context/ToastContext.tsx. Use useSharedValue, useAnimatedStyle, withTiming, withSpring, Animated.View (from reanimated) as appropriate.
+
+Fix PopupEngine over-polling — In components/PopupEngine.tsx, fetchPopups is triggered multiple times without a visible throttle. Add a minimum interval of 30 seconds between fetches and pause polling when the app is backgrounded (use AppState listener). Also add a staleTime-equivalent guard using a useRef timestamp check.
+
+Replace silent empty catch blocks with logging — Find all ~20+ catch {} blocks that swallow errors silently (confirmed in app/(tabs)/index.tsx, app/(tabs)/profile.tsx, app/_layout.tsx, app/auth/index.tsx, app/auth/register.tsx, app/chat/index.tsx, etc.) and replace with catch (e) { log.warn(..., e) } using the file's existing log instance, or log.warn from @workspace/logger. Keep intentional no-ops (e.g. router navigation fallbacks) with a brief comment.
+
+Fix dark mode consistency — Identify every screen that imports Colors.light directly and hardcodes light-mode colors. Replace with useTheme() from @/context/ThemeContext so dark mode works correctly. Focus on the screens that do NOT already use useTheme: service screens (app/food/_Screen.tsx, app/mart/_Screen.tsx, app/pharmacy/_Screen.tsx, app/parcel/_Screen.tsx, app/ride/index.tsx), and any remaining tab screens not yet using the theme hook.
+
+Replace unstable tab import — In app/(tabs)/_layout.tsx, the NativeTabs, Icon, Label imports come from expo-router/unstable-native-tabs. Verify if a stable export path exists in the installed expo-router@6.x version; if not, replace the NativeTabLayout function with a standard Expo Router <Tabs> configuration to remove the unstable dependency.
+
+Fix app.json hardcoded Replit origin — In app.json, the expo-router plugin config sets "origin": "https://replit.com/". This must be configurable for production. Replace with an environment-variable-driven approach via APP_ORIGIN or derive it dynamically. If expo-router requires a static value in app.json, document the required change for production builds and add a comment.
+
+Improve TypeScript safety — Systematically replace the 64+ as any / : any usages with proper types. Prioritize: API response shapes in auth flows, navigation params, Socket.IO event payloads. For cases where any cannot be avoided (third-party shape), add an // eslint-disable-next-line @typescript-eslint/no-explicit-any comment with a brief justification.
+
+Extract layout sub-components from _layout.tsx — _layout.tsx is 1737 lines. Extract the following self-contained components into their own files: MagicLinkHandler → app/_handlers/MagicLinkHandler.tsx, DeepLinkHandler → app/_handlers/DeepLinkHandler.tsx, ImpersonationHandler → app/_handlers/ImpersonationHandler.tsx, ForceUpdateDialog → app/_components/ForceUpdateDialog.tsx, SuspendedScreen → app/_components/SuspendedScreen.tsx, MaintenanceScreen → app/_components/MaintenanceScreen.tsx. Keep the root export thin — just provider setup and the Stack navigator.
+
+Fix Sentry CDN pinning — In utils/sentry.ts, the Sentry browser bundle is loaded from https://browser.sentry-cdn.com/8.0.0/bundle.min.js (hardcoded v8.0.0). Update to current stable (e.g. 8.x latest), add integrity SRI hash for security, or switch to dynamically loading the SDK via a version variable driven by an env var (EXPO_PUBLIC_SENTRY_SDK_VERSION).
+
+Fix staleTime gaps in React Query — Several queries have no staleTime (defaults to 0 = always-stale = refetch on every mount). Add sensible stale times to queries that are missing them, especially for rarely-changing data like product listings, categories, vendor details, and offer banners (suggest 2–5 min). Confirm PlatformConfigContext.tsx CACHE_MS (30s) is respected by its query.
+
+Fix SSE race condition in useRideStatus — In hooks/useRideStatus.ts, the connectSse while-loop does not check controller.signal.aborted between iterations, meaning multiple fetch streams can remain active simultaneously during fast reconnects. Add if (controller.signal.aborted) break at the top of the loop and ensure a single shared AbortController is cancelled before starting a new connection. Also add a guard so startPolling does not create an interval if one already exists.
+
+Fix PopupEngine unmount protection — In components/PopupEngine.tsx, fetchPopups calls setQueue after an await fetch(...) with no "still mounted" check. If the user navigates away during the fetch, a state update on an unmounted component occurs. Add an isMounted ref pattern (or AbortController) to cancel in-flight fetches on unmount. Also clear autoDismissTimer on every manual dismissal, not just on unmount.
+
+Memoize useTypography return value — In hooks/useTypography.ts, the hook returns a computed object on every render. Since this hook is used across many components, wrap the returned scaled / style objects in useMemo keyed on fontSizeScale (from FontSizeContext) to prevent cascading re-renders.
+
+Centralize API base URL in RideTracker — In components/ride/RideTracker.tsx, a local rideApiBase is constructed from process.env.EXPO_PUBLIC_DOMAIN directly instead of using the shared API_BASE constant from utils/api.ts. Replace it with the centralized import so all API URL logic is in one place and rotating environments only requires one change.
+
+Add accessibilityLabel to interactive elements — Interactive elements in components/ride/RideTracker.tsx, components/ride/RideBookingForm.tsx, and components/home/ that lack accessibilityLabel props are invisible to screen readers. Add descriptive accessibilityLabel and accessibilityHint props to all TouchableOpacity and Pressable elements that only contain icons or images (no visible text).
+
+Run typecheck and fix remaining errors — After all changes, run pnpm --filter @workspace/ajkmart run typecheck and resolve all TypeScript errors. Confirm the output is zero errors.
+
+Relevant files
+artifacts/ajkmart/app/_layout.tsx
+artifacts/ajkmart/app/index.tsx
+artifacts/ajkmart/app/(tabs)/_layout.tsx
+artifacts/ajkmart/app/(tabs)/index.tsx
+artifacts/ajkmart/app/(tabs)/orders.tsx
+artifacts/ajkmart/app/(tabs)/profile.tsx
+artifacts/ajkmart/app/(tabs)/wallet.tsx
+artifacts/ajkmart/app/auth/index.tsx
+artifacts/ajkmart/app/auth/register.tsx
+artifacts/ajkmart/app/auth/forgot-password.tsx
+artifacts/ajkmart/app/cart/index.tsx
+artifacts/ajkmart/app/my-reviews.tsx
+artifacts/ajkmart/app/recently-viewed.tsx
+artifacts/ajkmart/app/wishlist.tsx
+artifacts/ajkmart/app/offers.tsx
+artifacts/ajkmart/app/onboarding.tsx
+artifacts/ajkmart/app/weather.tsx
+artifacts/ajkmart/app/orders/[id].tsx
+artifacts/ajkmart/app/product/[id].tsx
+artifacts/ajkmart/app/vendor/[id].tsx
+artifacts/ajkmart/app/categories/index.tsx
+artifacts/ajkmart/app/restaurants/index.tsx
+artifacts/ajkmart/app/food/_Screen.tsx
+artifacts/ajkmart/app/food/restaurant/[id].tsx
+artifacts/ajkmart/app/mart/_Screen.tsx
+artifacts/ajkmart/app/mart/store/[id].tsx
+artifacts/ajkmart/app/pharmacy/_Screen.tsx
+artifacts/ajkmart/app/pharmacy/stores.tsx
+artifacts/ajkmart/app/pharmacy/store/[id].tsx
+artifacts/ajkmart/app/parcel/_Screen.tsx
+artifacts/ajkmart/app/van/tracking.tsx
+artifacts/ajkmart/app/van/seats.tsx
+artifacts/ajkmart/app/van/bookings.tsx
+artifacts/ajkmart/app/chat/index.tsx
+artifacts/ajkmart/components/PopupEngine.tsx
+artifacts/ajkmart/components/ErrorFallback.tsx
+artifacts/ajkmart/components/CancelModal.tsx
+artifacts/ajkmart/components/PwaInstallBanner.tsx
+artifacts/ajkmart/components/WishlistHeart.tsx
+artifacts/ajkmart/components/ride/RideBookingForm.tsx
+artifacts/ajkmart/components/ride/RideTracker.tsx
+artifacts/ajkmart/components/ride/Skeletons.tsx
+artifacts/ajkmart/components/ride/MapPickerModal.web.tsx
+artifacts/ajkmart/components/ui/AnimatedPressable.tsx
+artifacts/ajkmart/components/ui/SkeletonBlock.tsx
+artifacts/ajkmart/components/ui/SmartRefresh.tsx
+artifacts/ajkmart/context/AuthContext.tsx
+artifacts/ajkmart/context/PlatformConfigContext.tsx
+artifacts/ajkmart/context/ToastContext.tsx
+artifacts/ajkmart/context/ThemeContext.tsx
+artifacts/ajkmart/constants/colors.ts
+artifacts/ajkmart/constants/typography.ts
+artifacts/ajkmart/utils/push.ts
+artifacts/ajkmart/utils/sentry.ts
+artifacts/ajkmart/utils/analytics.ts
+artifacts/ajkmart/app.json
+artifacts/ajkmart/metro.config.js
+artifacts/ajkmart/tsconfig.json
+Dependencies
+
+Fix all typecheck, lint & build errors across monorepo
+Open task
