@@ -1,6 +1,7 @@
 // https://docs.expo.dev/guides/using-eslint/
 const { defineConfig } = require("eslint/config");
 const expoConfig = require("eslint-config-expo/flat");
+const { rules: localRules } = require("../../eslint-rules/no-silent-catch.cjs");
 
 module.exports = defineConfig([
   expoConfig,
@@ -18,6 +19,9 @@ module.exports = defineConfig([
     ],
   },
   {
+    plugins: {
+      "ajk-local": { rules: localRules },
+    },
     rules: {
       // All console.* calls are banned — use @workspace/logger instead.
       // error-reporter.ts carries /* eslint-disable no-console */ because it
@@ -35,6 +39,10 @@ module.exports = defineConfig([
       // in the customer app". Re-enable once violations are resolved.
       "@typescript-eslint/no-unused-vars": "off",
       "react-hooks/exhaustive-deps": "off",
+
+      // Disallow silent .catch(() => {}) / .catch(() => ({})) / empty catch blocks.
+      // Always log errors so failures are observable. See eslint-rules/no-silent-catch.cjs.
+      "ajk-local/no-silent-catch": "error",
     },
   },
   {

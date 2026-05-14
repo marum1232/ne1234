@@ -1,5 +1,9 @@
 import tseslint from "typescript-eslint";
 import reactHooks from "eslint-plugin-react-hooks";
+import { createRequire } from "module";
+
+const require = createRequire(import.meta.url);
+const { rules: localRules } = require("../../eslint-rules/no-silent-catch.cjs");
 
 export default tseslint.config(
   {
@@ -10,6 +14,7 @@ export default tseslint.config(
     plugins: {
       "@typescript-eslint": tseslint.plugin,
       "react-hooks": reactHooks,
+      "ajk-local": { rules: localRules },
     },
     languageOptions: {
       parser: tseslint.parser,
@@ -25,6 +30,10 @@ export default tseslint.config(
 
       "react-hooks/exhaustive-deps": "warn",
       "react-hooks/rules-of-hooks": "error",
+
+      // Disallow silent .catch(() => {}) / .catch(() => ({})) / empty catch blocks.
+      // Always log errors so failures are observable. See eslint-rules/no-silent-catch.cjs.
+      "ajk-local/no-silent-catch": "error",
     },
   },
   {

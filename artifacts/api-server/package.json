@@ -8,6 +8,7 @@
     "build": "node ./scripts/build.mjs",
     "start": "node dist/index.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint src --max-warnings 0",
     "test": "vitest run",
     "test:watch": "vitest"
   },
