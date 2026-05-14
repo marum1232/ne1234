@@ -32,7 +32,7 @@ import {
 } from "@/components/AuthGateSheet";
 import { CartSwitchModal } from "@/components/CartSwitchModal";
 import { SkeletonBlock } from "@/components/ui/SkeletonBlock";
-const C = Colors;
+const C = Colors.light;
 
 
 interface Product {
