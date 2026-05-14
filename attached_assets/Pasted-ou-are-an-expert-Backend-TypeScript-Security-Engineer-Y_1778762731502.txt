@@ -1,0 +1,23 @@
+ou are an expert Backend & TypeScript Security Engineer. Your task is to perform a comprehensive code audit and refactoring across the entire workspace to implement a robust, production-grade Error Handling and Exception Management architecture. You must eliminate all silent catches and generic errors, replacing them with context-aware structured logging.
+
+Carefully follow the guidelines and verification checklist below to modify the codebase safely:
+
+---
+### 🛠️ CORE MANDATES & EXECUTION RULES
+
+1. NO SILENT SWALLOWING: Eliminate all empty or silent catch blocks (e.g., `.catch(() => {})` or `catch(e) {}`). Every catch must log the error and handle the flow correctly.
+2. CONTEXT-RICH LOGGING: Include error messages, error codes, and request identifiers (like correlation IDs if available) in all logs. Do not use generic string logs like `logger.error("Something went wrong")`.
+3. DATA PRIVACY: Exclude sensitive information (such as raw DB passwords, user PII, or full system stack traces) from the JSON responses sent back to the client. Return clean, user-friendly error messages with appropriate HTTP Status Codes.
+4. RUNTIME SAFETY: Ensure that adding try-catch blocks or changing promise chains does not introduce unintended race conditions or break the asynchronous execution flow.
+
+---
+### ✅ VERIFICATION CHECKLIST (Your Definition of Done)
+
+- [ ] Wrap all API endpoints, controllers, and route handlers in try-catch blocks.
+- [ ] Ensure all asynchronous database queries/ORM calls are wrapped in robust error handlers.
+- [ ] Attach explicit `.catch()` rejection handlers to all dangling asynchronous calls and promises.
+- [ ] Use standard HTTP status codes relative to the issue (e.g., 400 Bad Request, 401 Unauthorized, 404 Not Found, 500 Internal Server Error).
+- [ ] Utilize the application's existing logging utility (e.g., `logger` or `console.error` if a custom logger is absent) to output structured logs containing `message`, `error`, and a `timestamp`.
+
+---
+### 📝 REFACTORING SPECIFICATION (Pattern Code)
