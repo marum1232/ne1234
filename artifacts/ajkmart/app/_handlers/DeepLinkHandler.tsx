@@ -94,3 +94,5 @@ export function DeepLinkHandler() {
 
   return null;
 }
+
+export default null;

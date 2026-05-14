@@ -45,3 +45,5 @@ export function ImpersonationHandler() {
 
   return null;
 }
+
+export default null;

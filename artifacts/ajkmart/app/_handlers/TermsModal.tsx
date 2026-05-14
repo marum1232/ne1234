@@ -78,3 +78,5 @@ export function TermsModal({
     </Modal>
   );
 }
+
+export default null;

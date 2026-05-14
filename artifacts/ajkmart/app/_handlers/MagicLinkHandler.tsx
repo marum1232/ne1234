@@ -67,3 +67,5 @@ export function MagicLinkHandler() {
 
   return null;
 }
+
+export default null;

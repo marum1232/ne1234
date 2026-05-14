@@ -44,3 +44,5 @@ function PushNotificationHandlerNative() {
 export function PushNotificationHandler() {
   return <PushNotificationHandlerNative />;
 }
+
+export default null;

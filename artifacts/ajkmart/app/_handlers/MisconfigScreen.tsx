@@ -14,3 +14,5 @@ export function MisconfigScreen() {
     </View>
   );
 }
+
+export default null;

@@ -79,3 +79,5 @@ export function MaintenanceScreen() {
     </View>
   );
 }
+
+export default null;

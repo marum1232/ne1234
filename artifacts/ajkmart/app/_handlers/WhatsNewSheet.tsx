@@ -59,3 +59,5 @@ export function WhatsNewSheet({
     </Modal>
   );
 }
+
+export default null;

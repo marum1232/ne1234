@@ -29,3 +29,5 @@ export function ForceUpdateDialog({ visible, storeUrl }: { visible: boolean; sto
     </Modal>
   );
 }
+
+export default null;

@@ -69,3 +69,5 @@ export function AuthGuard() {
 
   return null;
 }
+
+export default null;

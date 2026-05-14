@@ -144,8 +144,9 @@ export async function checkMigrationGuard(): Promise<MigrationGuardReport> {
       if (isSchemaNotExist) {
         drizzleSchemaFresh = true;
         logger.info(
-          "[migration-guard] drizzle schema not yet created — database is fresh, no migrations applied yet. " +
-          "Run `pnpm --filter @workspace/db run migrate` to initialise."
+          "[migration-guard] drizzle.__drizzle_migrations schema not found — " +
+          "migrations may have been applied via the custom runner only. " +
+          "Run `pnpm --filter @workspace/db run migrate` to populate drizzle-kit tracking table."
         );
       } else {
         logger.warn({ err }, "[migration-guard] Could not read drizzle.__drizzle_migrations");

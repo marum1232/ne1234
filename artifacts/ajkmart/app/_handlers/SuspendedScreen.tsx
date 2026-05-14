@@ -31,3 +31,5 @@ export function SuspendedScreen() {
     </View>
   );
 }
+
+export default null;
