@@ -1,0 +1,30 @@
+Validate Orders, Cart, Payments & Wallet Routes
+What & Why
+These four routes handle financial transactions and order state mutations — among the most critical paths in the app. Unvalidated payloads here can lead to negative amounts, invalid state transitions, and injection into financial records.
+
+Done looks like
+orders.ts: POST /orders uses CreateOrderSchema (items array, deliveryAddress, paymentMethod enum). Order status update endpoints validate status as a strict enum and note with a max length.
+cart.ts: Add/update cart endpoints validate productId (positive int), quantity (int 1–99), and optional variantId.
+payments.ts: The raw destructure at line 479 (orderId, gateway, transactionId) and line 491 (orderId, txnRef, status, gateway, notes) are replaced with validateBody() calls. gateway is validated as an enum (jazzcash | easypaisa | bank_transfer | wallet). transactionId is capped at 100 chars.
+wallet.ts: The unguarded topup endpoint at line 301 (userId, amount, method) gains schema validation. amount must be a positive number with a max cap (configurable, defaulting to 500,000 PKR). method is a strict enum. Existing depositSchema, sendSchema, and withdrawSchema are reviewed and tightened if any fields lack length constraints.
+All endpoints return { success: false, error: "Validation Failed", details: [...] } on bad input.
+pnpm typecheck passes.
+Out of scope
+Admin wallet management routes (covered in the Admin task).
+Payment gateway SDK integration changes.
+Steps
+Harden orders.ts — Apply CreateOrderSchema to the create endpoint. Apply a StatusUpdateSchema (status enum + optional note max 500) to status change endpoints.
+Harden cart.ts — Apply CartItemSchema to add/update endpoints. Validate the cart item array has between 1 and 50 items.
+Harden payments.ts — Replace raw destructures with validateBody() using a PaymentVerifySchema and PaymentForceSchema. Add enum constraint on gateway.
+Audit and tighten wallet.ts — Add validateBody() to the unguarded topup endpoint. Review existing inline schemas for missing max() constraints and patch them.
+Run typecheck — Execute pnpm typecheck and resolve errors.
+Relevant files
+artifacts/api-server/src/routes/orders.ts
+artifacts/api-server/src/routes/cart.ts
+artifacts/api-server/src/routes/payments.ts
+artifacts/api-server/src/routes/wallet.ts
+artifacts/api-server/src/lib/validation/schemas.ts
+artifacts/api-server/src/middleware/validate.ts
+Dependencies
+
+Validation Middleware & Schema Foundation

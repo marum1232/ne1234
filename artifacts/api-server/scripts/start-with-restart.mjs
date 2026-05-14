@@ -12,7 +12,7 @@
 
 import { spawn } from "child_process";
 import { fileURLToPath } from "url";
-import { readFileSync, existsSync } from "fs";
+import { readFileSync, existsSync, readdirSync } from "fs";
 import path from "path";
 
 // Load root .env before spawning tsx so secrets (JWT_SECRET, etc.) are available
@@ -38,6 +38,40 @@ const RESTART_DELAY_MS = (Number.isFinite(_rawDelay) && _rawDelay >= 0 ? _rawDel
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PKG_ROOT = path.resolve(__dirname, "..");
+const WORKSPACE_ROOT = path.resolve(PKG_ROOT, "../..");
+
+/**
+ * Find the tsx binary dynamically — checks in order:
+ * 1. Root node_modules/.bin/tsx   (hoisted by pnpm shamefully-hoist=true)
+ * 2. Any tsx@* version in pnpm store (version-agnostic glob)
+ * 3. Falls back to "tsx" on PATH
+ */
+function findTsx() {
+  // 1. Hoisted binary (fastest, most reliable)
+  const hoisted = path.resolve(WORKSPACE_ROOT, "node_modules/.bin/tsx");
+  if (existsSync(hoisted)) return { cmd: hoisted, args: [] };
+
+  // 2. Walk the pnpm store for any tsx version — no hardcoded version needed
+  const pnpmStore = path.resolve(WORKSPACE_ROOT, "node_modules/.pnpm");
+  if (existsSync(pnpmStore)) {
+    try {
+      const entries = readdirSync(pnpmStore);
+      for (const entry of entries) {
+        if (!entry.startsWith("tsx@")) continue;
+        const cli = path.resolve(pnpmStore, entry, "node_modules/tsx/dist/cli.mjs");
+        if (existsSync(cli)) {
+          return { cmd: "node", args: [cli] };
+        }
+      }
+    } catch {
+      // readdirSync failed — fall through to PATH
+    }
+  }
+
+  // 3. Last resort: hope tsx is on PATH
+  console.warn("[restart-wrapper] tsx not found in node_modules — falling back to PATH. Run pnpm install if server fails to start.");
+  return { cmd: "tsx", args: [] };
+}
 
 let child = null;
 let terminated = false;
@@ -47,20 +81,11 @@ function startServer() {
 
   console.log("[restart-wrapper] Starting API server\u2026");
 
-  // Use local tsx binary from the package's node_modules to avoid PATH issues
-  const tsxBin = path.resolve(PKG_ROOT, "node_modules", ".bin", "tsx");
-  // Fallback: walk up to workspace root's pnpm store
-  const tsxPnpm = path.resolve(PKG_ROOT, "../../node_modules/.pnpm/tsx@4.21.0/node_modules/tsx/dist/cli.mjs");
-  const tsxCmd = existsSync(tsxBin) ? tsxBin : (existsSync(tsxPnpm) ? "node" : "tsx");
-  const tsxArgs = existsSync(tsxBin)
-    ? ["--enable-source-maps", "./src/index.ts"]
-    : existsSync(tsxPnpm)
-      ? [tsxPnpm, "--enable-source-maps", "./src/index.ts"]
-      : ["--enable-source-maps", "./src/index.ts"];
+  const { cmd: tsxCmd, args: tsxPrefixArgs } = findTsx();
 
   child = spawn(
     tsxCmd,
-    tsxArgs,
+    [...tsxPrefixArgs, "--enable-source-maps", "./src/index.ts"],
     {
       stdio: "inherit",
       cwd: PKG_ROOT,

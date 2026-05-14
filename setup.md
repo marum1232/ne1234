@@ -1,22 +1,65 @@
 # AJKMart — Setup Guide
 
-One-command setup that works on **Replit**, **GitHub Codespaces**, **Ubuntu/Debian VPS**, and **local Mac/Linux**.
+**Single source of truth for all environments.**
 
 ---
 
-## Quick Start (any environment)
+## Replit (Recommended)
 
-```bash
-# 1. Clone
-git clone https://github.com/your-org/ajkmart.git
-cd ajkmart
+### Fresh GitHub Import → Replit
 
-# 2. Run the universal setup script (installs Node 20, pnpm, and all deps)
-bash scripts/setup.sh
+1. **Import:** New Repl → Import from GitHub → paste repo URL
+2. **Secrets:** Open the padlock icon (Secrets panel) → add `DATABASE_URL`
+3. **Run:** Press ▶ — all 4 services start automatically
 
-# 3. Set required secrets (see section below), then start:
-PORT=5000 pnpm --filter @workspace/api-server run dev
+That's it. Everything else is pre-configured in `.replit`.
+
+### Why it works automatically on every import
+
+| What | Where it's configured | Effect |
+|---|---|---|
+| All 4 workflows | `.replit → [[workflows.workflow]]` | Start automatically on ▶ |
+| Self-install on first boot | Each `package.json` dev script checks for `node_modules/.pnpm` | `pnpm install` runs if missing |
+| Vite binary (permanent fix) | `artifacts/admin`, `artifacts/vendor-app`, `artifacts/rider-app` `package.json` | Uses `../../node_modules/.bin/vite` directly — no `pnpm exec` race condition |
+| tsx binary (version-agnostic) | `artifacts/api-server/scripts/start-with-restart.mjs` | Dynamically finds tsx in pnpm store — no hardcoded version |
+| Dev JWT secrets | `.replit → [userenv.development]` | All JWT keys pre-set — no Secrets panel needed for auth in dev |
+| Post-merge auto-setup | `.replit → [postMerge] → scripts/post-merge.sh` | Runs after every task-agent merge — verifies binaries + env |
+
+### Ports
+
+| Service | URL | Local Port |
+|---|---|---|
+| API Server | `https://<repl>.replit.dev` (port 80) | 5000 |
+| Admin Panel | `https://<repl>.replit.dev:3000/admin/` | 3000 |
+| Vendor App | `https://<repl>.replit.dev:3001/vendor/` | 3001 |
+| Rider App | `https://<repl>.replit.dev:3002/rider/` | 3002 |
+
+### Required Secrets (add in Replit Secrets panel before pressing Run)
+
+| Secret | Required | Description |
+|---|---|---|
+| `DATABASE_URL` | **YES — must add** | PostgreSQL connection string |
+| `GEMINI_API_KEY` | optional | AI moderation & content features |
+| `TWILIO_ACCOUNT_SID` + `TWILIO_AUTH_TOKEN` + `TWILIO_FROM_NUMBER` | optional | SMS OTP |
+| `SENDGRID_API_KEY` | optional | Email delivery |
+| `FIREBASE_PROJECT_ID` + `FIREBASE_CLIENT_EMAIL` + `FIREBASE_PRIVATE_KEY` | optional | Push notifications |
+| `GOOGLE_MAPS_API_KEY` | optional | Maps |
+| `VAPID_PUBLIC_KEY` + `VAPID_PRIVATE_KEY` + `VAPID_CONTACT_EMAIL` | optional | Web push notifications |
+| `REDIS_URL` | optional | JWT blacklisting on logout + rate limiting |
+| `STORAGE_BUCKET_URL` + `STORAGE_ACCESS_KEY` + `STORAGE_SECRET_KEY` | optional (required in production) | S3-compatible file uploads |
+
+> **All JWT signing keys are pre-set** in `.replit` `[userenv.development]` as strong dev placeholders.  
+> Replace them with fresh random values before any production deployment.  
+> Generate: `node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"`
+
+### Default Admin Login
+
 ```
+Username: superadmin
+Password: Admin@123
+```
+
+Change the password immediately via the security prompt shown after first login.
 
 ---
 
@@ -24,82 +67,56 @@ PORT=5000 pnpm --filter @workspace/api-server run dev
 
 Open the repo on GitHub → click **Code → Codespaces → Create codespace**.
 
-The `.devcontainer/devcontainer.json` handles everything automatically:
-- Installs Node.js 20 and pnpm 10
-- Runs `bash scripts/setup.sh`
-- Forwards ports 5000, 3000, 3001, 3002, 20716
+`.devcontainer/devcontainer.json` handles:
+- Node.js 20 + pnpm 10 installation
+- `bash scripts/setup.sh` (installs all workspace deps)
+- Port forwarding: 5000, 3000, 3001, 3002, 20716
 
-Set your secrets in **Codespaces → Manage secrets** before creating the codespace.
+Set secrets in **Codespaces → Manage secrets** before creating the codespace, then start manually:
 
----
-
-## Replit
-
-1. Import the repo from GitHub (New Repl → Import from GitHub).
-2. Add required secrets in the **Secrets** panel (padlock icon in sidebar).
-3. Press **Run** — the workflows start automatically.
-
-The `.replit` file is committed in the repo, so all workflows are pre-configured.
+```bash
+pnpm --filter @workspace/api-server run dev    # API server (port 5000)
+pnpm --filter @workspace/admin run dev         # Admin panel (port 3000)
+pnpm --filter @workspace/vendor-app run dev    # Vendor app (port 3001)
+pnpm --filter @workspace/rider-app run dev     # Rider app (port 3002)
+```
 
 ---
 
 ## Ubuntu / Debian VPS
 
 ```bash
-# Clone and run setup
 git clone https://github.com/your-org/ajkmart.git
 cd ajkmart
-bash scripts/setup.sh
+bash scripts/setup.sh     # installs Node 20, pnpm, all deps
 
-# Copy and fill the environment file
 cp .env.example .env
-nano .env   # fill in DATABASE_URL and JWT secrets
+nano .env                 # fill DATABASE_URL + all JWT secrets
 
-# Start in production mode
 pnpm build
 NODE_ENV=production pnpm start
 ```
 
-For process management use `pm2` with the included `ecosystem.config.cjs`.
+Use `pm2` with the included `ecosystem.config.cjs` for process management:
 
----
-
-## Required Environment Variables
-
-> On **Replit**: add these in the Secrets panel (padlock icon).
-> On **VPS / Codespace**: copy `.env.example` to `.env` and fill in the values.
-
-| Variable | Required | Description |
-|---|---|---|
-| `DATABASE_URL` | **Yes** | PostgreSQL connection string |
-| `JWT_SECRET` | **Yes** | JWT signing key (min 64 chars) |
-| `ADMIN_JWT_SECRET` | **Yes** | Admin JWT signing key |
-| `ADMIN_ACCESS_TOKEN_SECRET` | **Yes** | Admin access token key |
-| `ADMIN_REFRESH_TOKEN_SECRET` | **Yes** | Admin refresh token key |
-| `ADMIN_CSRF_SECRET` | **Yes** | Admin CSRF key |
-| `VENDOR_JWT_SECRET` | **Yes** | Vendor JWT key |
-| `RIDER_JWT_SECRET` | **Yes** | Rider JWT key |
-| `ENCRYPTION_MASTER_KEY` | **Yes** | PII encryption key (min 16 chars) |
-| `GEMINI_API_KEY` | Optional | AI features |
-| `TWILIO_*` | Optional | SMS OTP |
-| `SENDGRID_API_KEY` | Optional | Email |
-| `FIREBASE_*` | Optional | Push notifications |
-| `REDIS_URL` | Optional | Rate limiting (required in production) |
-| `STORAGE_BUCKET_URL` | Optional | S3-compatible file storage |
-
-Generate secure JWT secrets:
 ```bash
-node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
+pm2 start ecosystem.config.cjs
+pm2 save
+pm2 startup
 ```
 
 ---
 
-## Why binaries always work (tsx, vite, expo)
+## Local Development (Mac / Linux)
 
-The `.npmrc` file includes `public-hoist-pattern[]` entries that force pnpm to
-link key CLI tools (`tsx`, `vite`, `expo`, `tsc`, `drizzle-kit`) into the root
-`node_modules/.bin/`. This means they are always in PATH after `pnpm install`,
-regardless of which workspace package owns them — no manual PATH setup needed.
+```bash
+git clone https://github.com/your-org/ajkmart.git
+cd ajkmart
+bash scripts/setup.sh
+
+export DATABASE_URL="postgresql://user:pass@localhost/ajkmart"
+pnpm --filter @workspace/api-server run dev
+```
 
 ---
 
@@ -114,36 +131,97 @@ ajkmart/
 │   ├── rider-app/      # React + Vite rider PWA (port 3002)
 │   └── ajkmart/        # Expo customer super-app (port 20716)
 ├── lib/                # Shared workspace libraries
-├── scripts/            # Build, setup, and utility scripts
-├── .devcontainer/      # GitHub Codespaces config
-├── .github/workflows/  # GitHub Actions CI
+│   ├── db/             # Drizzle ORM schema + migrations
+│   ├── api-client-react/  # TanStack Query API hooks
+│   ├── api-zod/        # Zod API contracts
+│   ├── i18n/           # Trilingual string catalogue
+│   ├── auth-utils/     # JWT helpers
+│   └── ...             # phone-utils, service-constants, etc.
+├── scripts/
+│   ├── post-merge.sh   # Auto-runs after merges (verifies binaries + env)
+│   └── setup.sh        # Universal first-time setup (VPS / Codespaces)
+├── .replit             # Replit workflows, ports, env vars — all pre-configured
 ├── .npmrc              # pnpm hoisting config (do not remove)
 └── pnpm-workspace.yaml # Workspace package declarations
 ```
 
 ---
 
-## Starting Individual Apps
+## All Environment Variables
 
-```bash
-# API Server (required by all frontends)
-PORT=5000 pnpm --filter @workspace/api-server run dev
+| Category | Variable | Required | Notes |
+|---|---|---|---|
+| **Database** | `DATABASE_URL` | **YES** | PostgreSQL connection string |
+| **JWT / Auth** | `JWT_SECRET` | yes | Min 64 chars |
+| | `ADMIN_JWT_SECRET` | yes | |
+| | `ADMIN_ACCESS_TOKEN_SECRET` | yes | |
+| | `ADMIN_REFRESH_TOKEN_SECRET` | yes | |
+| | `ADMIN_REFRESH_SECRET` | yes | |
+| | `ADMIN_SECRET` | yes | |
+| | `ADMIN_CSRF_SECRET` | yes | |
+| | `VENDOR_JWT_SECRET` | yes | |
+| | `RIDER_JWT_SECRET` | yes | |
+| | `ERROR_REPORT_HMAC_SECRET` | yes | |
+| | `ENCRYPTION_MASTER_KEY` | yes | Min 16 chars |
+| | `JWT_ISSUER` | yes | e.g. `ajkmart-dev` |
+| **Admin Seed** | `ADMIN_SEED_USERNAME` | yes | |
+| | `ADMIN_SEED_PASSWORD` | yes | |
+| | `ADMIN_SEED_EMAIL` | yes | |
+| | `ADMIN_SEED_NAME` | yes | |
+| **Ports / URLs** | `PORT` | yes | Default `5000` |
+| | `APP_BASE_URL` | yes | e.g. `https://yourdomain.com` |
+| | `ADMIN_BASE_URL` | yes | |
+| | `ALLOWED_ORIGINS` | yes | Comma-separated CORS origins |
+| | `ALLOWED_DOMAINS` | yes | Socket.IO CORS in prod |
+| **Firebase** | `FIREBASE_PROJECT_ID` | optional | |
+| | `FIREBASE_CLIENT_EMAIL` | optional | |
+| | `FIREBASE_PRIVATE_KEY` | optional | |
+| **Twilio / SMS** | `TWILIO_ACCOUNT_SID` | optional | |
+| | `TWILIO_AUTH_TOKEN` | optional | |
+| | `TWILIO_FROM_NUMBER` | optional | |
+| **Email** | `SENDGRID_API_KEY` | optional | |
+| | `SMTP_HOST` | optional | |
+| **AI** | `GEMINI_API_KEY` | optional | |
+| **Maps** | `GOOGLE_MAPS_API_KEY` | optional | |
+| | `OSRM_API_URL` | optional | |
+| **Push** | `VAPID_PUBLIC_KEY` | optional | |
+| | `VAPID_PRIVATE_KEY` | optional | |
+| | `VAPID_CONTACT_EMAIL` | optional | |
+| **Storage** | `STORAGE_BUCKET_URL` | optional (prod: YES) | |
+| | `STORAGE_ACCESS_KEY` | optional (prod: YES) | |
+| | `STORAGE_SECRET_KEY` | optional (prod: YES) | |
+| | `STORAGE_BUCKET_NAME` | optional | Auto-extracted from URL |
+| | `STORAGE_ENDPOINT` | optional | |
+| | `STORAGE_REGION` | optional | Default `us-east-1` |
+| **Infrastructure** | `REDIS_URL` | optional | JWT blacklisting |
+| | `SENTRY_DSN` | optional | |
+| | `SENTRY_WEBHOOK_SECRET` | optional | |
+| **Runtime** | `NODE_ENV` | yes | `development` / `production` |
+| | `LOG_LEVEL` | optional | `debug`, `info`, `warn` |
+| | `DB_POOL_MAX` | optional | Default `10` |
+| **Vite / Expo** | `VITE_API_PROXY_TARGET` | yes (dev) | `http://127.0.0.1:5000` |
+| | `EXPO_PUBLIC_DOMAIN` | optional | |
 
-# Admin Panel
-PORT=3000 BASE_PATH=/admin/ pnpm --filter @workspace/admin run dev
+---
 
-# Vendor App
-PORT=3001 pnpm --filter @workspace/vendor-app run dev
+## Troubleshooting
 
-# Rider App
-PORT=3002 pnpm --filter @workspace/rider-app run dev
+### "vite not found" on fresh import
+**Fixed permanently.** All frontend `package.json` dev scripts use `../../node_modules/.bin/vite` directly instead of `pnpm exec vite`. This is committed to the repo and will never need manual fixing again.
 
-# Customer App (Expo Web)
-PORT=20716 pnpm --filter @workspace/ajkmart run dev:web
+### "tsx not found" or tsx version errors
+**Fixed permanently.** `start-with-restart.mjs` dynamically discovers tsx from the pnpm store without any hardcoded version number. It will work regardless of what tsx version is installed.
 
-# Type-check everything
-pnpm typecheck
+### API server won't start
+1. Check `DATABASE_URL` is set in Replit Secrets (padlock icon)
+2. Check workflow logs for the specific error message
+3. Health check: `curl http://localhost:5000/api/health` → should return `{"status":"ok","db":"ok",...}`
 
-# Production build
-pnpm build
-```
+### Admin panel shows blank / 404
+Ensure the Admin Panel workflow is running (port 3000). Admin is served at `/admin/`.
+
+### Database schema errors after a merge ("column does not exist")
+Drizzle migrations run automatically on every API server start. Restart the "Start application" workflow to trigger them.
+
+### Multiple workflows crashing on pnpm install at the same time
+The `post-merge.sh` and each workflow's dev script use `flock` to serialize concurrent installs — only one runs at a time, others wait. This is handled automatically.
