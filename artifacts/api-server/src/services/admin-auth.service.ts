@@ -18,6 +18,7 @@ import { createCsrfCookie, verifyCsrfToken } from '../utils/admin-csrf.js';
 import { hashToken, verifyTokenHash } from '../utils/admin-hash.js';
 import { verifyTotpToken } from './totp.js';
 import { resolveAdminPermissions } from './permissions.service.js';
+import { logger } from '../lib/logger.js';
 
 /**
  * Admin login service
@@ -210,7 +211,8 @@ export async function refreshAdminSession(
     // Verify refresh token hash matches
     try {
       verifyTokenHash(refreshToken, session.refreshTokenHash);
-    } catch {
+    } catch (err) {
+      logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
       return { success: false, error: 'Invalid refresh token' };
     }
 

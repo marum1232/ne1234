@@ -95,7 +95,7 @@ async function buildRideSSEPayload(rideId: string): Promise<Record<string, unkno
     try {
       const computed = await calcFare(parseFloat(String(ride.distance)), ride.type);
       fareBreakdown = { baseFare: computed.baseFare, gstAmount: computed.gstAmount };
-    } catch {}
+    } catch (err) { /* intentional: non-fatal guard */ void err; }
   }
 
   return { ...formatRide(ride as Record<string, unknown>), riderName, riderPhone, bids: formattedBids, riderLat, riderLng, riderLocAge, riderAvgRating, fareBreakdown };
@@ -160,7 +160,7 @@ router.get("/:id/stream", customerAuth, async (req, res) => {
   if (cleaned) return;
   unsubscribeFn  = onRideUpdate(rideId, () => { pushUpdate().catch((e: Error) => logger.warn({ rideId, err: e.message }, "[rides/stream] pushUpdate failed")); });
   heartbeatTimer = setInterval(() => {
-    try { res.write(": heartbeat\n\n"); } catch {}
+    try { res.write(": heartbeat\n\n"); } catch (err) { /* intentional: non-fatal guard */ void err; }
   }, SSE_HEARTBEAT_MS);
 });
 
@@ -252,7 +252,7 @@ router.get("/:id", customerAuth, verifyOwnership("ride"), async (req, res) => {
     try {
       const computed = await calcFare(parseFloat(String(ride.distance)), ride.type);
       fareBreakdown = { baseFare: computed.baseFare, gstAmount: computed.gstAmount };
-    } catch {}
+    } catch (err) { /* intentional: non-fatal guard */ void err; }
   }
 
   sendSuccess(res, { ...formatRide(ride), riderName, riderPhone, bids: formattedBids, riderLat, riderLng, riderLocAge, riderAvgRating, fareBreakdown });
@@ -303,7 +303,8 @@ router.get("/:id/track", customerAuth, async (req, res) => {
         try {
           const distKm = calcDistance(riderLat, riderLng, destinationLat, destinationLng);
           etaMinutes = Math.max(1, Math.round((distKm / avgSpeedKmh) * 60));
-        } catch {
+        } catch (err) {
+          logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
           etaMinutes = null;
         }
       }

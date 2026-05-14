@@ -30,6 +30,7 @@ import { invalidateSettingsCache } from "../middleware/security.js";
 import { adminAuth } from "./admin.js";
 import { DEFAULT_PLATFORM_SETTINGS } from "./admin-shared.js";
 import { sendSuccess, sendError, sendNotFound } from "../lib/response.js";
+import { logger } from '../lib/logger.js';
 
 const DEMO_WALLET_BALANCE = "1000";
 const UNDO_WINDOW_MS      = 30 * 60 * 1000; // 30 minutes
@@ -64,7 +65,7 @@ router.use(adminAuth);
 
 /* ── Auto-purge expired snapshots on every request ── */
 router.use(async (_req, _res, next) => {
-  try { await db.delete(systemSnapshotsTable).where(lt(systemSnapshotsTable.expiresAt, new Date())); } catch {}
+  try { await db.delete(systemSnapshotsTable).where(lt(systemSnapshotsTable.expiresAt, new Date())); } catch (err) { /* intentional: non-fatal guard */ void err; }
   next();
 });
 
@@ -987,7 +988,8 @@ router.post("/undo/:id", async (req, res) => {
   let tables: Record<string, any[]>;
   try {
     tables = JSON.parse(snapshot.tablesJson);
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), code: "SNAPSHOT_PARSE_FAILED", timestamp: new Date().toISOString() }, "[system] Snapshot JSON parse failed — data may be corrupted");
     res.status(500).json({ error: "Snapshot data is corrupted." });
     return;
   }
@@ -1104,7 +1106,8 @@ router.post("/demo-backups/:id/restore", async (req, res) => {
   let tables: Record<string, any[]>;
   try {
     tables = JSON.parse(row[0].tablesJson) as Record<string, any[]>;
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), code: "DEMO_BACKUP_PARSE_FAILED", timestamp: new Date().toISOString() }, "[system] Demo backup JSON parse failed — data corrupted");
     sendError(res, "Demo backup data is corrupted and cannot be parsed", 500);
     return;
   }

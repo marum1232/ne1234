@@ -69,7 +69,8 @@ router.get("/balance", customerAuth, async (req, res) => {
       createdAt: t.createdAt.toISOString(),
     })),
   });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -186,7 +187,8 @@ router.post("/redeem", customerAuth, redeemLimiter, async (req, res) => {
     logger.error({ err, userId, orderId }, "[loyalty/redeem] transaction failed");
     sendError(res, "Failed to redeem loyalty points. Please try again.", 500);
   }
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });

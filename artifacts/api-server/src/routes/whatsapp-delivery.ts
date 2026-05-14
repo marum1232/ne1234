@@ -49,7 +49,8 @@ router.get("/status", async (_req, res) => {
     logger.error({ err }, "[whatsapp-delivery] stats error");
     sendSuccess(res, { stats: [] });
   }
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -79,7 +80,8 @@ router.get("/messages", async (req, res) => {
     logger.error({ err }, "[whatsapp-delivery] messages error");
     sendSuccess(res, { messages: [], total: 0, page, limit });
   }
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -92,10 +94,12 @@ router.get("/health", async (_req, res) => {
   try {
     await pool.query("SELECT 1");
     sendSuccess(res, { healthy: true });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     sendSuccess(res, { healthy: false, reason: "db_error" });
   }
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -154,7 +158,8 @@ router.get("/delivery-log", async (req, res) => {
     logger.error({ err }, "[whatsapp-delivery] delivery-log error");
     sendSuccess(res, { messages: [], total: 0, page, limit });
   }
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -182,7 +187,8 @@ router.get("/delivery-log/stats", async (_req, res) => {
     logger.error({ err }, "[whatsapp-delivery] delivery-log stats error");
     sendSuccess(res, { stats: [], total: 0 });
   }
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -227,7 +233,8 @@ router.post("/delivery-log/retry", async (req, res) => {
     logger.error({ err }, "[whatsapp-delivery] retry error");
     sendError(res, "Failed to retry message", 500);
   }
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });

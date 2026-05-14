@@ -61,7 +61,8 @@ export async function isValidCanonicalPhone(phone: string): Promise<boolean> {
     const s = await getCachedSettings();
     const pattern = s["regional_phone_format"] ?? "^0?3\\d{9}$";
     return new RegExp(pattern).test(phone);
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     return /^3\d{9}$/.test(phone);
   }
 }
@@ -359,7 +360,7 @@ export async function issueTokensForUser(user: any, ip: string, method: string, 
         if (!currentTermsVersion) return false;
         const userAccepted = user.acceptedTermsVersion ?? null;
         return userAccepted !== currentTermsVersion;
-      } catch { return false; }
+      } catch (err) { logger.debug({ error: err instanceof Error ? err.message : String(err) }, "[fn] error with fallback return"); return false; }
     })(),
   };
 }
@@ -370,7 +371,8 @@ export function isDeviceTrusted(user: any, deviceFingerprint: string, trustedDay
     const devices: Array<{ fp: string; expiresAt: number }> = JSON.parse(user.trustedDevices);
     const now = Date.now();
     return devices.some(d => d.fp === deviceFingerprint && d.expiresAt > now);
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     return false;
   }
 }

@@ -16,6 +16,7 @@ import {
 } from "./admin-shared.js";
 import { sendSuccess, sendError, sendCreated } from "../lib/response.js";
 import { validateBody } from "../middleware/validate.js";
+import { logger } from '../lib/logger.js';
 
 /**
  * /legal/* — admin surface for the GDPR / consent pipeline.
@@ -259,7 +260,8 @@ router.post(
           (err as Error).message ?? "Failed to create terms version",
         );
       }
-    } catch {
+    } catch (err) {
+      logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
       res.status(500).json({ success: false, error: "Internal server error" });
     }
   },
@@ -359,7 +361,8 @@ router.get("/consent-log", async (req, res) => {
     } catch (err) {
       sendError(res, (err as Error).message ?? "Failed to load consent log");
     }
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });

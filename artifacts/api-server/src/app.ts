@@ -500,7 +500,8 @@ export function createServer() {
           res.setHeader("Cache-Control", "no-store");
           res.setHeader("Clear-Site-Data", '"cache", "storage"');
           res.send(content);
-        } catch {
+        } catch (err) {
+          logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
           res.status(404).send("/* sw.js not found */");
         }
       });

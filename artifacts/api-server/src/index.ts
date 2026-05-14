@@ -256,8 +256,8 @@ function tryKillPort(p: number): boolean {
     execSync(`fuser -k ${p}/tcp`, { stdio: "ignore" });
     logger.info(`[port:kill] Freed port ${p} using fuser`);
     return true;
-  } catch {
-    logger.debug(`[port:kill] fuser: no process on port ${p}`);
+  } catch (err) {
+    logger.debug({ error: err instanceof Error ? err.message : String(err) }, `[port:kill] fuser: no process on port ${p}`);
     return false;
   }
 }
@@ -347,8 +347,8 @@ async function main() {
   /* ── PID file — written so rotate-secrets can find this process ────────────
      Stored at /tmp/ajkmart-api.pid; cleaned up on any exit signal.          */
   const PID_FILE = '/tmp/ajkmart-api.pid';
-  try { writeFileSync(PID_FILE, String(process.pid)); } catch { /* non-fatal */ }
-  process.on('exit', () => { try { unlinkSync(PID_FILE); } catch { /* ignore */ } });
+  try { writeFileSync(PID_FILE, String(process.pid)); } catch (err) { logger.debug({ error: err instanceof Error ? err.message : String(err) }, `[route] intentional: non-fatal guard`); }
+  process.on('exit', () => { try { unlinkSync(PID_FILE); } catch (err) { logger.debug({ error: err instanceof Error ? err.message : String(err) }, `[route] intentional: ignore parse/parse error`); } });
 
   /* ── activeServer ref — updated once the bind succeeds so shutdown handlers
      always call close() on the real HTTP server.                              */

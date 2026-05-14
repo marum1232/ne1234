@@ -6,12 +6,13 @@ import { eq, and, asc, ilike, SQL, inArray, desc } from "drizzle-orm";
 import { generateId } from "../lib/id.js";
 import { adminAuth } from "./admin.js";
 import { sendSuccess, sendCreated, sendNotFound, sendValidationError } from "../lib/response.js";
+import { logger } from '../lib/logger.js';
 
 const router: IRouter = Router();
 
 function safeParseAttributes(raw: string | null | undefined): unknown {
   if (!raw) return null;
-  try { return JSON.parse(raw); } catch { return null; }
+  try { return JSON.parse(raw); } catch (err) { logger.debug({ error: err instanceof Error ? err.message : String(err) }, "[fn] error with fallback return"); return null; }
 }
 
 router.get("/product/:productId", async (req, res) => {
@@ -35,7 +36,8 @@ router.get("/product/:productId", async (req, res) => {
       })),
       total: variants.length,
     });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ error: "Server error" });
   }
 });
@@ -58,7 +60,8 @@ router.get("/product/:productId/all", adminAuth, async (req, res) => {
       })),
       total: variants.length,
     });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ error: "Server error" });
   }
 });
@@ -97,7 +100,8 @@ router.post("/", adminAuth, async (req, res) => {
       originalPrice: variant!.originalPrice ? parseFloat(variant!.originalPrice) : undefined,
       attributes: safeParseAttributes(variant!.attributes),
     });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ error: "Server error" });
   }
 });
@@ -147,7 +151,8 @@ router.patch("/:id", adminAuth, async (req, res) => {
       originalPrice: updated.originalPrice ? parseFloat(updated.originalPrice) : undefined,
       attributes: safeParseAttributes(updated.attributes),
     });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ error: "Server error" });
   }
 });
@@ -161,7 +166,8 @@ router.delete("/:id", adminAuth, async (req, res) => {
       return;
     }
     res.json({ success: true, id: variantId });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ error: "Server error" });
   }
 });

@@ -336,7 +336,7 @@ router.post("/", customerAuth, async (req, res) => {
           const unlistedRx = (items as PharmacyItem[]).some((it) => it.requires_prescription || it.requiresPrescription);
           hasRxItem = unlistedRx;
         }
-      } catch { /* non-fatal: fall back to client flag on DB error */ }
+      } catch (err) { logger.debug({ error: err instanceof Error ? err.message : String(err) }, `[route] non-fatal: fall back to client flag on DB error`); }
     }
     if (!hasRxItem) {
       hasRxItem = (items as PharmacyItem[]).some((it) => it.requires_prescription || it.requiresPrescription);

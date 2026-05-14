@@ -58,7 +58,8 @@ router.get("/", async (req, res) => {
     logger.error({ err }, "[experiments] list error");
     sendSuccess(res, { experiments: [], total: 0, page: 1, limit: 50 });
   }
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -138,7 +139,8 @@ router.post("/assign", async (req, res) => {
     logger.error({ err }, "[experiments] assign error");
     sendSuccess(res, { assignment: null, isNew: false });
   }
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });

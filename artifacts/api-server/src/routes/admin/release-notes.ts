@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { generateId } from "../../lib/id.js";
 import { sendSuccess, sendError, sendNotFound, sendValidationError, sendCreated } from "../../lib/response.js";
+import { logger } from '../../lib/logger.js';
 
 const router = Router();
 
@@ -19,7 +20,7 @@ router.get("/release-notes", async (_req, res) => {
         id:          r.id,
         version:     r.version,
         releaseDate: r.release_date,
-        notes:       (() => { try { return JSON.parse(r.notes as string); } catch { return [r.notes]; } })(),
+        notes:       (() => { try { return JSON.parse(r.notes as string); } catch (err) { logger.debug({ error: err instanceof Error ? err.message : String(err) }, "[fn] error with fallback"); return [r.notes]; } })(),
         sortOrder:   r.sort_order,
         createdAt:   r.created_at,
       })),
@@ -57,7 +58,8 @@ router.post("/release-notes", async (req, res) => {
   } catch (e) {
     sendError(res, "Failed to create release note");
   }
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -97,7 +99,8 @@ router.patch("/release-notes/:id", async (req, res) => {
   } catch (e) {
     sendError(res, "Failed to update release note");
   }
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -112,7 +115,8 @@ router.delete("/release-notes/:id", async (req, res) => {
   } catch (e) {
     sendError(res, "Failed to delete release note");
   }
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -163,7 +167,8 @@ router.get("/consent-log", async (req, res) => {
   } catch (e) {
     sendError(res, "Failed to fetch consent log");
   }
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });

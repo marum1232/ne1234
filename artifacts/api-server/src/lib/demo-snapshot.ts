@@ -9,7 +9,8 @@ export async function isDemoMode(): Promise<boolean> {
       .where(eq(platformSettingsTable.key, "demo_mode_enabled"))
       .limit(1);
     return setting.length > 0 ? setting[0].value === "true" : false;
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     return false;
   }
 }

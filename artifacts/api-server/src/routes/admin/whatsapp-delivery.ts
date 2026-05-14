@@ -4,6 +4,7 @@ import { whatsappDeliveryLogsTable } from "@workspace/db/schema";
 import { and, desc, eq, gte, ilike, lte, sql } from "drizzle-orm";
 import { addAuditEntry, getClientIp, type AdminRequest } from "../admin-shared.js";
 import { sendSuccess, sendNotFound, sendValidationError, sendError } from "../../lib/response.js";
+import { logger } from '../../lib/logger.js';
 
 const router = Router();
 
@@ -61,7 +62,8 @@ router.get("/delivery-log", async (req, res) => {
   } catch (err: any) {
     sendError(res, "Failed to fetch WhatsApp delivery log", 500, err?.message);
   }
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -100,7 +102,8 @@ router.post("/delivery-log/retry", async (req, res) => {
   });
 
   sendSuccess(res, { success: true });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });

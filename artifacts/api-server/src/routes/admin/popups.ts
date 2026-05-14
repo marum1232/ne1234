@@ -118,7 +118,8 @@ Respond ONLY with a valid JSON object (no markdown, no extra text):
         .replace(/```\n?/g, "")
         .trim();
       popupData = JSON.parse(cleaned) as Record<string, unknown>;
-    } catch {
+    } catch (err) {
+      logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
       popupData = generateFallbackPopup(goal, tone);
     }
 
@@ -151,7 +152,8 @@ Respond ONLY with a valid JSON object (no markdown, no extra text):
     const fallback = generateFallbackPopup(goal, tone);
     sendSuccess(res, { ...fallback, source: "template_fallback" });
   }
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });

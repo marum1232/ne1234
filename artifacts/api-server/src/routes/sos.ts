@@ -10,6 +10,7 @@ import { t } from "@workspace/i18n";
 import { getUserLanguage } from "../lib/getUserLanguage.js";
 import { emitSosNew, emitSosAcknowledged, emitSosResolved } from "../lib/socketio.js";
 import { sendSuccess, sendError, sendNotFound } from "../lib/response.js";
+import { logger } from '../lib/logger.js';
 
 const router: IRouter = Router();
 
@@ -62,10 +63,11 @@ router.post("/", customerAuth, async (req, res) => {
       resolvedAt: null, resolvedBy: null, resolvedByName: null, resolutionNotes: null,
       createdAt: now.toISOString(),
     });
-  } catch { /* non-critical */ }
+  } catch (err) { logger.debug({ error: err instanceof Error ? err.message : String(err) }, "[route] non-critical error suppressed"); }
 
   sendSuccess(res, { alertId }, "SOS alert sent. Help is on the way.");
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -161,7 +163,8 @@ router.get("/alerts", adminAuth, async (req, res) => {
     hasMore:     offset + alerts.length < totalRows,
     activeCount: allSos.length,
   });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -191,9 +194,10 @@ router.patch("/alerts/:id/acknowledge", adminAuth, async (req, res) => {
   const [updated] = await db.select().from(notificationsTable).where(eq(notificationsTable.id, alertId)).limit(1);
   const fullPayload = serializeAlert(updated);
 
-  try { emitSosAcknowledged(fullPayload); } catch { /* non-critical */ }
+  try { emitSosAcknowledged(fullPayload); } catch (err) { logger.debug({ error: err instanceof Error ? err.message : String(err) }, "[route] non-critical error suppressed"); }
   sendSuccess(res, { alert: fullPayload });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -221,9 +225,10 @@ router.patch("/alerts/:id/resolve", adminAuth, async (req, res) => {
   const [updated] = await db.select().from(notificationsTable).where(eq(notificationsTable.id, alertId)).limit(1);
   const fullPayload = serializeAlert(updated);
 
-  try { emitSosResolved(fullPayload); } catch { /* non-critical */ }
+  try { emitSosResolved(fullPayload); } catch (err) { logger.debug({ error: err instanceof Error ? err.message : String(err) }, "[route] non-critical error suppressed"); }
   sendSuccess(res, { alert: fullPayload });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });

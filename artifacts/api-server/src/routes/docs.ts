@@ -33,7 +33,8 @@ function loadSpec(): Record<string, unknown> {
       const parsed = yamlParse(raw) as Record<string, unknown>;
       logger.info(`[docs] Loaded OpenAPI spec from ${candidate}`);
       return parsed;
-    } catch {
+    } catch (err) {
+      logger.debug({ error: err instanceof Error ? err.message : String(err) }, "[docs] OpenAPI candidate not found — trying next");
       // try next candidate
     }
   }

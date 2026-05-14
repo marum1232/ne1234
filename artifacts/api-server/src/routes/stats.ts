@@ -7,6 +7,7 @@ import {
 import { count, eq, gte, and, sum, sql, isNull } from "drizzle-orm";
 import { sendSuccess, sendInternalError } from "../lib/response.js";
 import { adminAuth } from "./admin-shared.js";
+import { logger } from '../lib/logger.js';
 import {
   getP95Ms, getMemoryPct, getDiskPct, getSampleCount,
 } from "../lib/metrics/responseTime.js";
@@ -23,7 +24,8 @@ router.get("/public", async (_req, res) => {
       productCount: products?.c ?? 0,
       restaurantCount: vendors?.c ?? 0,
     });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     sendInternalError(res, "Failed to fetch stats");
   }
 });
@@ -99,7 +101,8 @@ router.get("/", adminAuth, async (_req, res) => {
         active: Number(activeVendorsRow[0]?.c ?? 0),
       },
     });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     sendInternalError(res, "Failed to fetch stats");
   }
 });

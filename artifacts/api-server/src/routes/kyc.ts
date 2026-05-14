@@ -187,7 +187,8 @@ router.get("/status", customerAuth, async (req, res) => {
         reviewedAt: record.reviewedAt?.toISOString() ?? null,
       },
     });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -441,7 +442,8 @@ router.post(
           .status(500)
           .json({ error: "Failed to submit KYC. Please try again." });
       }
-    } catch {
+    } catch (err) {
+      logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
       res.status(500).json({ success: false, error: "Internal server error" });
     }
   },
@@ -707,7 +709,8 @@ router.post("/submit-base64", customerAuth, async (req, res) => {
         .status(500)
         .json({ error: "Failed to submit KYC. Please try again." });
     }
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -781,7 +784,8 @@ router.get("/admin/list", adminAuth, async (req, res) => {
       .offset(offset);
 
     res.json({ records });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -850,7 +854,8 @@ router.get("/admin/:id", adminAuth, async (req, res) => {
       user: user ?? null,
       riderProfile,
     });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -970,7 +975,8 @@ router.patch("/admin/:id", adminAuth, async (req, res) => {
       logger.error({ err }, "KYC review error");
       res.status(500).json({ error: "Failed to update KYC status" });
     }
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });

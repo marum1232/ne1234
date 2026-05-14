@@ -13,6 +13,7 @@
  */
 
 import crypto from "crypto";
+import { logger } from '../logger.js';
 
 const ALGORITHM = "aes-256-gcm";
 const IV_LEN    = 12;  // 96-bit IV — GCM recommended
@@ -89,7 +90,8 @@ export function isEncryptionAvailable(): boolean {
   try {
     deriveKey();
     return true;
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     return false;
   }
 }

@@ -23,6 +23,7 @@ import {
   isSupportedGateway, SUPPORTED_GATEWAYS,
 } from "../lib/payment-providers.js";
 import { paymentLimiter } from "../middleware/rate-limit.js";
+import { logger } from '../lib/logger.js';
 
 const router: IRouter = Router();
 
@@ -197,7 +198,8 @@ router.get("/methods", async (req, res) => {
     receiptRequired:   (s["payment_receipt_required"]              ?? "off") === "on",
     verifyWindowHours: parseInt(s["payment_verify_window_hours"]   ?? "24"),
   });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -254,7 +256,8 @@ router.get("/test-connection/:gateway", adminAuth, async (req, res) => {
   }
 
   sendValidationError(res, "Unknown gateway. Use: jazzcash, easypaisa");
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -460,7 +463,8 @@ router.post("/initiate", customerAuth, idempotency("payment:initiate"), async (r
   }
 
   sendValidationError(res, "Unsupported gateway. Use: jazzcash, easypaisa");
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -476,7 +480,8 @@ router.post("/verify-manual", adminAuth, async (req, res) => {
   if (!orderId) { sendValidationError(res, "orderId required"); return; }
   await confirmOrder(orderId);
   sendSuccess(res, { orderId, gateway, transactionId }, "Manual payment verified — order confirmed ✅");
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -525,7 +530,8 @@ router.post("/reconcile", adminAuth, async (req, res) => {
     txnRef: order.txnRef,
     notes: notes ?? null,
   }, "Payment reconciled successfully");
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });

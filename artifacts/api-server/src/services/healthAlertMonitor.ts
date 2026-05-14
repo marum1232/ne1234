@@ -41,7 +41,8 @@ async function runHealthChecks(): Promise<HealthIssue[]> {
   let dbOk = true;
   try {
     await db.execute(sql`SELECT 1`);
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     dbOk = false;
   }
   if (!dbOk) {
@@ -59,7 +60,8 @@ async function runHealthChecks(): Promise<HealthIssue[]> {
     try {
       const parsed = JSON.parse(rawPatterns);
       if (!Array.isArray(parsed)) valid = false;
-    } catch {
+    } catch (err) {
+      logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
       valid = false;
     }
     if (!valid) {
@@ -99,8 +101,8 @@ async function runHealthChecks(): Promise<HealthIssue[]> {
           message: `GPS degraded: ${stale} of ${liveTotal} live riders have not pinged in the last 5 minutes`,
         });
       }
-    } catch {
-      /* Non-fatal — GPS table query failure shouldn't stop other checks */
+    } catch (err) {
+      logger.debug({ error: err instanceof Error ? err.message : String(err) }, `[fn] Non-fatal — GPS table query failure shouldn't stop other checks`);
     }
   }
 
@@ -156,8 +158,8 @@ async function checkPerformanceMetrics(s: Record<string, string>): Promise<Healt
         message: `DB query latency is ${dbMs}ms — exceeds threshold of ${thresholdDbMs}ms`,
       });
     }
-  } catch {
-    /* DB connectivity failures are already caught in the main health check */
+  } catch (err) {
+    logger.debug({ error: err instanceof Error ? err.message : String(err) }, `[fn] DB connectivity failures are already caught in the main health check`);
   }
 
   /* ── Memory usage ── */

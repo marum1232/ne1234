@@ -4,6 +4,7 @@ import { weatherConfigTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
 import { addAuditEntry, getClientIp, type AdminRequest } from "../admin-shared.js";
 import { sendSuccess, sendError, sendValidationError } from "../../lib/response.js";
+import { logger } from '../../lib/logger.js';
 
 const router = Router();
 
@@ -82,7 +83,8 @@ router.post("/test", async (req, res) => {
       latencyMs,
       message: `Open-Meteo OK — ${city} is currently ${temp}°C (${latencyMs}ms)`,
     });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     sendError(res, "Weather provider test failed", 500);
   }
 });

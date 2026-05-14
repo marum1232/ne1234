@@ -9,6 +9,7 @@ import { eq, desc } from "drizzle-orm";
 import { generateId } from "../../lib/id.js";
 import { adminAuth } from "../admin-shared.js";
 import { sendSuccess, sendError, sendNotFound } from "../../lib/response.js";
+import { logger } from '../../lib/logger.js';
 
 const router = Router();
 router.use(adminAuth);
@@ -21,7 +22,8 @@ router.get("/", async (_req, res) => {
     .from(whitelistUsersTable)
     .orderBy(desc(whitelistUsersTable.createdAt));
   res.json({ entries: rows });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -59,7 +61,8 @@ router.post("/", async (req, res) => {
     }
     throw err;
   }
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -81,7 +84,8 @@ router.patch("/:id", async (req, res) => {
 
   const [updated] = await db.update(whitelistUsersTable).set(updates).where(eq(whitelistUsersTable.id, id!)).returning();
   sendSuccess(res, { entry: updated });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -91,7 +95,8 @@ router.delete("/:id", async (req, res) => {
   try {
   await db.delete(whitelistUsersTable).where(eq(whitelistUsersTable.id, req.params.id!));
   sendSuccess(res, { deleted: true });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });

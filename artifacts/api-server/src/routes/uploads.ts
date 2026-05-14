@@ -133,7 +133,8 @@ async function maybeCompressImage(buffer: Buffer, mimeType: string): Promise<Buf
       pipeline = pipeline.jpeg({ quality, mozjpeg: true });
     }
     return await pipeline.toBuffer();
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     return buffer;
   }
 }
@@ -460,7 +461,8 @@ router.post(
           sendValidationError(res, `Video must be ${limits.maxVideoDuration} seconds or less. Your video is ${Math.ceil(duration)}s.`);
           return;
         }
-      } catch {
+      } catch (err) {
+        logger.warn({ error: err instanceof Error ? err.message : String(err), code: "VIDEO_DURATION_CHECK_FAILED", timestamp: new Date().toISOString() }, "[uploads] ffprobe video duration check failed");
         sendValidationError(res, "Could not verify video duration. Please try a different file or format.");
         return;
       } finally {

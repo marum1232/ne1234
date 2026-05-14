@@ -1,3 +1,4 @@
+import { logger } from '../logger.js';
 /**
  * Cursor-based pagination utility.
  *
@@ -32,7 +33,8 @@ export function decodeCursor(cursor: string | undefined | null): string | null {
   try {
     const decoded = Buffer.from(cursor, "base64url").toString("utf-8");
     return decoded || null;
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     return null;
   }
 }

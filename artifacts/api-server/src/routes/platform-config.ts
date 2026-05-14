@@ -7,6 +7,7 @@ import { eq, asc, and, desc, sql } from "drizzle-orm";
 import crypto from "crypto";
 import { customerAuth, getClientIp } from "../middleware/security.js";
 import { generateId } from "../lib/id.js";
+import { logger } from '../lib/logger.js';
 
 const router: IRouter = Router();
 
@@ -98,7 +99,7 @@ router.get("/", async (req, res) => {
       const defaultLang = s["default_language"] ?? "en";
       let enabledLangs: string[];
       try { enabledLangs = JSON.parse(s["enabled_languages"] ?? "[]") as string[]; }
-      catch { enabledLangs = ["en"]; }
+      catch (err) { logger.debug({ error: err instanceof Error ? err.message : String(err) }, '[fn] parse fallback'); enabledLangs = ["en"]; }
       if (!enabledLangs.length) enabledLangs = ["en"];
       return { defaultLanguage: defaultLang, enabledLanguages: enabledLangs };
     })(),
@@ -302,7 +303,8 @@ router.get("/", async (req, res) => {
         try {
           const parsed = JSON.parse(val) as Record<string, string>;
           return { customer: parsed.customer === "on", rider: parsed.rider === "on", vendor: parsed.vendor === "on" };
-        } catch {
+        } catch (err) {
+          logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
           return val === "on";
         }
       }
@@ -352,7 +354,7 @@ router.get("/", async (req, res) => {
       peakHours:             s["van_peak_hours"]                         ?? "07:00-09:00,17:00-19:00",
       weekendSurchargePct:   parseFloat(s["van_weekend_surcharge_pct"]   ?? "0"),
       holidaySurchargePct:   parseFloat(s["van_holiday_surcharge_pct"]   ?? "0"),
-      holidayDates:          (() => { try { return JSON.parse(s["van_holiday_dates"] ?? "[]"); } catch { return []; } })(),
+      holidayDates:          (() => { try { return JSON.parse(s["van_holiday_dates"] ?? "[]"); } catch (err) { logger.debug({ error: err instanceof Error ? err.message : String(err) }, "[fn] error with fallback return"); return []; } })(),
     },
     dispatch: {
       broadcastTimeoutSec:       parseInt(s["dispatch_broadcast_timeout_sec"] ?? "90", 10),
@@ -389,7 +391,8 @@ router.get("/", async (req, res) => {
       try {
         const slides = JSON.parse(s["onboarding_slides"] ?? "[]");
         return { slides: Array.isArray(slides) ? slides : [] };
-      } catch {
+      } catch (err) {
+        logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
         return { slides: [] };
       }
     })(),
@@ -398,7 +401,8 @@ router.get("/", async (req, res) => {
         const raw = s["support_hours_schedule"] ?? "";
         if (raw) return JSON.parse(raw);
         return null;
-      } catch {
+      } catch (err) {
+        logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
         return null;
       }
     })(),
@@ -473,10 +477,10 @@ router.get("/", async (req, res) => {
           id:          r.id,
           version:     r.version,
           releaseDate: r.release_date,
-          notes:       (() => { try { return JSON.parse(r.notes as string); } catch { return [r.notes]; } })(),
+          notes:       (() => { try { return JSON.parse(r.notes as string); } catch (err) { logger.debug({ error: err instanceof Error ? err.message : String(err) }, "[fn] error with fallback"); return [r.notes]; } })(),
           sortOrder:   r.sort_order,
         }));
-      } catch { return []; }
+      } catch (err) { logger.debug({ error: err instanceof Error ? err.message : String(err) }, "[fn] error with fallback return"); return []; }
     })(),
     experiments: await (async () => {
       const userId = (req.query["userId"] as string) || "";
@@ -497,12 +501,12 @@ router.get("/", async (req, res) => {
             .limit(1);
           if (!existing) {
             const id = crypto.randomBytes(10).toString("hex");
-            try { await db.insert(abAssignmentsTable).values({ id, experimentId: exp.id, userId, variant }); } catch {}
+            try { await db.insert(abAssignmentsTable).values({ id, experimentId: exp.id, userId, variant }); } catch (err) { /* intentional: non-fatal guard */ void err; }
           }
           assignments.push({ experimentId: exp.id, experimentName: exp.name, variant: existing?.variant ?? variant });
         }
         return assignments;
-      } catch { return []; }
+      } catch (err) { logger.debug({ error: err instanceof Error ? err.message : String(err) }, "[fn] error with fallback return"); return []; }
     })(),
     demoData,
   });
@@ -558,8 +562,7 @@ router.get("/experiments", async (req, res) => {
             userId,
             variant,
           });
-        } catch {
-        }
+        } catch (err) { /* intentional: non-fatal guard */ void err; }
       }
 
       assignments.push({
@@ -570,7 +573,8 @@ router.get("/experiments", async (req, res) => {
     }
 
     sendSuccess(res, { experiments: assignments });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     sendSuccess(res, { experiments: [] });
   }
 });
@@ -592,7 +596,8 @@ router.post("/experiments/convert", async (req, res) => {
       .where(eq(abAssignmentsTable.id, assignment.id));
 
     sendSuccess(res, { converted: true, variant: assignment.variant });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     sendSuccess(res, { converted: false });
   }
 });
@@ -625,7 +630,8 @@ router.get("/faqs", async (_req, res) => {
       : FALLBACK_FAQS.map(f => ({ id: f.id, category: f.category, question: f.question, answer: f.answer }));
 
     sendSuccess(res, { faqs });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     sendSuccess(res, { faqs: FALLBACK_FAQS.map(f => ({ id: f.id, category: f.category, question: f.question, answer: f.answer })) });
   }
 });
@@ -665,7 +671,8 @@ router.get("/compliance-status", customerAuth, async (req, res) => {
     const rows = await db.execute(sql`SELECT accepted_terms_version FROM users WHERE id = ${userId}`);
     const user = (rows.rows as Array<Record<string, unknown>>)?.[0] ?? (Array.isArray(rows) ? (rows as Array<Record<string, unknown>>)[0] : null);
     sendSuccess(res, { acceptedTermsVersion: user?.accepted_terms_version ?? null });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     sendSuccess(res, { acceptedTermsVersion: null });
   }
 });

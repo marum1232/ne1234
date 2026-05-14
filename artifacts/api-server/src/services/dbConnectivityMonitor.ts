@@ -32,7 +32,8 @@ function dbHost(): string {
     const url = process.env.DATABASE_URL ?? "";
     const host = new URL(url).hostname;
     return host || "unknown-host";
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     return "unknown-host";
   }
 }
@@ -47,7 +48,8 @@ async function pingDb(): Promise<{ ok: boolean; latencyMs: number }> {
       ),
     ]);
     return { ok: true, latencyMs: Date.now() - t0 };
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     return { ok: false, latencyMs: Date.now() - t0 };
   }
 }

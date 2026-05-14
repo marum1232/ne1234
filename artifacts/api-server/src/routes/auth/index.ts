@@ -161,7 +161,8 @@ function tryEncrypt(value: string | null | undefined): string | null {
   try {
     if (!isEncryptionAvailable()) return null;
     return encrypt(value);
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     return null;
   }
 }
@@ -171,8 +172,8 @@ function decryptPii(encrypted: string | null | undefined, plaintext: string | nu
   if (encrypted) {
     try {
       if (isEncryptionAvailable()) return decrypt(encrypted);
-    } catch {
-      /* fall through to plaintext on decryption failure */
+    } catch (err) {
+      logger.debug({ error: err instanceof Error ? err.message : String(err) }, `[fn] fall through to plaintext on decryption failure`);
     }
   }
   return plaintext ?? null;
@@ -500,7 +501,8 @@ router.post("/check-identifier", checkIdentifierLimiter, sharedValidateBody(chec
     isLocked:  false,
     otpChannels,
   });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -569,7 +571,8 @@ router.post("/send-merge-otp", otpLimiter, async (req, res) => {
   }
 
   writeAuthAuditLog("merge_otp_sent", { ip, userId: auth.userId, userAgent: req.headers["user-agent"] ?? undefined, metadata: { identifier } });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -637,7 +640,8 @@ router.post("/merge-account", async (req, res) => {
     writeAuthAuditLog("account_merge_email", { ip, userId: auth.userId, userAgent: req.headers["user-agent"] ?? undefined, metadata: { email } });
     sendSuccess(res, { success: true, message: "Email linked successfully", linked: "email" });
   }
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -957,7 +961,8 @@ router.post("/send-otp", otpLimiter, verifyCaptcha, sharedValidateBody(sendOtpSc
   };
 
   sendSuccess(res, response);
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -1429,7 +1434,8 @@ router.post("/verify-otp", otpLimiter, verifyCaptcha, sharedValidateBody(verifyO
       createdAt:     u.createdAt.toISOString(),
     },
   });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -1527,7 +1533,7 @@ router.post("/vendor-register", async (req, res) => {
         INSERT INTO consent_log (id, user_id, consent_type, consent_version, ip_address, created_at)
         VALUES (${generateId()}, ${user.id}, 'terms_acceptance', ${String(acceptedTermsVersion)}, ${ip}, NOW())
       `);
-    } catch {}
+    } catch (err) { /* intentional: non-fatal guard */ void err; }
   }
 
   await db.insert(notificationsTable).values({
@@ -1580,7 +1586,8 @@ router.post("/vendor-register", async (req, res) => {
       ? "Your vendor account is approved! You can now log in."
       : "Your application has been submitted. Admin will review and approve your account.",
   });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -1615,10 +1622,12 @@ router.post("/validate-token", async (req, res) => {
 
     const expiresAt = payload.exp ? new Date(payload.exp * 1000).toISOString() : null;
     sendSuccess(res, { valid: true, expiresAt, userId: user.id, role: user.roles });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     sendUnauthorized(res, "Token validation failed");
   }
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -1830,7 +1839,8 @@ router.post("/logout", async (req, res) => {
   clearVendorRefreshCookie(res);
 
   sendSuccess(res, undefined, "Logged out successfully");
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -1877,7 +1887,8 @@ router.post("/check-available", async (req, res) => {
   }
 
   sendSuccess(res, result);
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -1986,7 +1997,8 @@ router.post("/send-email-otp", otpLimiter, verifyCaptcha, async (req, res) => {
     channel: emailResult.sent ? "email" : "console",
     ...(isDev && emailConsoleFallback ? { otp, devMode: true } : {}),
   });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -2149,7 +2161,8 @@ router.post("/verify-email-otp", otpLimiter, verifyCaptcha, async (req, res) => 
     pendingApproval: false,
     user: { id: user.id, phone: decryptPii(user.encryptedPhone, user.phone), name: user.name, email: decryptPii(user.encryptedEmail, user.email), username: user.username, role: user.roles, roles: user.roles ?? "customer", avatar: user.avatar, walletBalance: parseFloat(user.walletBalance ?? "0"), emailVerified: true, phoneVerified: user.phoneVerified ?? false },
   });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -2450,7 +2463,8 @@ router.post("/login/verify-otp", otpLimiter, async (req, res) => {
     sessionDays: getRefreshTokenTtlDays(),
     user: { id: user.id, phone: decryptPii(user.encryptedPhone, user.phone), name: user.name, email: decryptPii(user.encryptedEmail, user.email), username: user.username, role: user.roles, roles: user.roles, walletBalance: parseFloat(user.walletBalance ?? "0") },
   });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -2570,7 +2584,7 @@ router.post("/complete-profile", async (req, res) => {
       if (currentTermsVer && !user.acceptedTermsVersion) {
         updates.acceptedTermsVersion = currentTermsVer;
       }
-    } catch {}
+    } catch (err) { /* intentional: non-fatal guard */ void err; }
   }
 
   if (Object.keys(updates).length === 1) {
@@ -2586,7 +2600,7 @@ router.post("/complete-profile", async (req, res) => {
         INSERT INTO consent_log (id, user_id, consent_type, consent_version, ip_address, created_at)
         VALUES (${generateId()}, ${userId}, 'terms_acceptance', ${updates.acceptedTermsVersion as string}, ${ip}, NOW())
       `);
-    } catch {}
+    } catch (err) { /* intentional: non-fatal guard */ void err; }
   }
 
   const accessToken = signAccessToken(updated!.id, updated!.phone ?? "", updated!.roles ?? "customer", updated!.roles ?? "customer", updated!.tokenVersion ?? 0);
@@ -2618,7 +2632,8 @@ router.post("/complete-profile", async (req, res) => {
     refreshToken: refreshRaw,
     user: { id: updated!.id, phone: updated!.phone, name: updated!.name, email: updated!.email, username: updated!.username, role: updated!.roles, roles: updated!.roles, avatar: updated!.avatar, cnic: updated!.cnic, city: updated!.city, area: updated!.area, address: updated!.address, latitude: updated!.latitude, longitude: updated!.longitude, kycStatus: updated!.kycStatus, accountLevel: updated!.accountLevel, totpEnabled: updated!.totpEnabled ?? false, emailVerified: updated!.emailVerified, phoneVerified: updated!.phoneVerified, walletBalance: parseFloat(updated!.walletBalance ?? "0"), isActive: updated!.isActive, createdAt: updated!.createdAt.toISOString() },
   });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -2670,7 +2685,8 @@ router.post("/set-password", async (req, res) => {
   }).where(eq(usersTable.id, userId));
   writeAuthAuditLog("password_changed", { userId, ip: getClientIp(req), userAgent: req.headers["user-agent"] ?? undefined });
   sendSuccess(res, { success: true, message: "Password set ho gaya", requirePasswordChange: false });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -2992,7 +3008,8 @@ router.post("/register", verifyCaptcha, sharedValidateBody(registerSchema), asyn
     otpRequired: true,
     channel: smsResult.sent ? smsResult.provider : "console",
   }, undefined, 201);
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -3106,7 +3123,8 @@ router.post("/forgot-password", verifyCaptcha, sharedValidateBody(forgotPassword
   sendSuccess(res, {
     message: "If an account exists, a reset code has been sent.",
   });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -3176,7 +3194,8 @@ router.post("/verify-reset-otp", otpLimiter, verifyCaptcha, async (req, res) => 
 
   writeAuthAuditLog("verify_reset_otp", { userId: user.id, ip, userAgent: req.headers["user-agent"] ?? undefined });
   sendSuccess(res, { valid: true });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -3316,7 +3335,8 @@ router.post("/reset-password", verifyCaptcha, async (req, res) => {
   writeAuthAuditLog("password_reset", { userId: user.id, ip, userAgent: req.headers["user-agent"] ?? undefined });
 
   sendSuccess(res, undefined, "Password has been reset successfully. Please login with your new password.");
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -3450,7 +3470,8 @@ router.post("/email-register", verifyCaptcha, async (req, res) => {
   }, emailResult.sent
     ? "Registration successful. Please check your email to verify your account."
     : "Registration successful. Please check your email to verify your account. (Email delivery pending — contact support if not received.)");
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -3511,7 +3532,8 @@ router.get("/verify-email", async (req, res) => {
   writeAuthAuditLog("email_verified", { userId: user.id, ip });
 
   sendSuccess(res, undefined, "Email verified successfully. You can now log in.");
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -3618,7 +3640,7 @@ async function issueTokensForUser(user: any, ip: string, method: string, userAge
         if (!currentTermsVersion) return false;
         const userAccepted = user.acceptedTermsVersion ?? null;
         return userAccepted !== currentTermsVersion;
-      } catch { return false; }
+      } catch (err) { logger.debug({ error: err instanceof Error ? err.message : String(err) }, "[fn] error with fallback return"); return false; }
     })(),
   };
 }
@@ -3632,7 +3654,8 @@ function isDeviceTrusted(user: any, deviceFingerprint: string, trustedDays: numb
     const devices: Array<{ fp: string; expiresAt: number }> = JSON.parse(user.trustedDevices);
     const now = Date.now();
     return devices.some(d => d.fp === deviceFingerprint && d.expiresAt > now);
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     return false;
   }
 }
@@ -3659,7 +3682,8 @@ router.post("/social/google", async (req, res) => {
     const resp = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(idToken)}`, { signal: AbortSignal.timeout(10_000) });
     if (!resp.ok) throw new Error("Invalid token");
     googlePayload = await resp.json();
-  } catch {
+  } catch (err) {
+    logger.warn({ error: err instanceof Error ? err.message : String(err), code: "GOOGLE_TOKEN_INVALID", timestamp: new Date().toISOString() }, "[auth] Google token verification failed");
     addSecurityEvent({ type: "social_google_invalid_token", ip, details: "Invalid Google ID token", severity: "medium" });
     sendUnauthorized(res, "Invalid Google token"); return;
   }
@@ -3739,7 +3763,8 @@ router.post("/social/google", async (req, res) => {
   addAuditEntry({ action: "social_google_login", ip, details: `Google login: ${email ?? googleId}`, result: "success" });
   const result = await issueTokensForUser(user!, ip, "social_google", req.headers["user-agent"] as string, req, res);
   sendSuccess(res, { ...result, isNewUser, needsProfileCompletion: isNewUser || !user!.cnic || !user!.name });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -3766,7 +3791,8 @@ router.post("/social/facebook", async (req, res) => {
     const resp = await fetch(`https://graph.facebook.com/me?fields=id,name,email,picture&access_token=${encodeURIComponent(fbToken)}`, { signal: AbortSignal.timeout(10_000) });
     if (!resp.ok) throw new Error("Invalid token");
     fbPayload = await resp.json();
-  } catch {
+  } catch (err) {
+    logger.warn({ error: err instanceof Error ? err.message : String(err), code: "FACEBOOK_TOKEN_INVALID", timestamp: new Date().toISOString() }, "[auth] Facebook token verification failed");
     addSecurityEvent({ type: "social_facebook_invalid_token", ip, details: "Invalid Facebook access token", severity: "medium" });
     sendUnauthorized(res, "Invalid Facebook token"); return;
   }
@@ -3846,7 +3872,8 @@ router.post("/social/facebook", async (req, res) => {
   addAuditEntry({ action: "social_facebook_login", ip, details: `Facebook login: ${email ?? facebookId}`, result: "success" });
   const result = await issueTokensForUser(user!, ip, "social_facebook", req.headers["user-agent"] as string, req, res);
   sendSuccess(res, { ...result, isNewUser, needsProfileCompletion: isNewUser || !user!.cnic || !user!.name });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -3885,7 +3912,8 @@ router.get("/2fa/setup", async (req, res) => {
   try { qrDataUrl = await generateQRCodeDataURL(secret, label); } catch (err) { logger.error("[2fa/setup] QR code generation failed:", err); }
 
   sendSuccess(res, { secret, uri, qrDataUrl });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -3954,7 +3982,8 @@ router.post("/2fa/verify-setup", async (req, res) => {
   addAuditEntry({ action: "2fa_enabled", ip, details: `2FA enabled for user ${auth.userId}`, result: "success" });
 
   sendSuccess(res, { success: true, backupCodes, message: "2FA activated. Save your backup codes securely — they cannot be shown again." });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -4033,7 +4062,8 @@ router.post("/totp/enable", async (req, res) => {
   addAuditEntry({ action: "2fa_enabled", ip, details: `2FA enabled for user ${auth.userId} via /auth/totp/enable`, result: "success" });
 
   sendSuccess(res, { success: true, backupCodes, message: "2FA activated. Save your backup codes securely — they cannot be shown again." });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -4073,7 +4103,8 @@ router.post("/2fa/verify", async (req, res) => {
   const originalMethod = challengePayload.authMethod ?? "phone_otp";
   const result = await issueTokensForUser(user, ip, originalMethod, req.headers["user-agent"] as string, req, res);
   sendSuccess(res, result);
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -4115,7 +4146,8 @@ router.post("/2fa/disable", async (req, res) => {
   addAuditEntry({ action: "2fa_disabled", ip, details: `2FA disabled by user ${auth.userId}`, result: "success" });
 
   sendSuccess(res, undefined, "Two-factor authentication has been disabled");
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -4176,7 +4208,7 @@ async function consumeRecoveryCode(
       return { error: "All recovery codes have been used. Please contact an administrator to regain access.", status: 400 };
     }
     let legacyStoredCodes: string[] = [];
-    try { legacyStoredCodes = JSON.parse(user.backupCodes); if (!Array.isArray(legacyStoredCodes)) legacyStoredCodes = []; } catch { legacyStoredCodes = []; }
+    try { legacyStoredCodes = JSON.parse(user.backupCodes); if (!Array.isArray(legacyStoredCodes)) legacyStoredCodes = []; } catch (err) { logger.debug({ error: err instanceof Error ? err.message : String(err) }, '[fn] parse fallback'); legacyStoredCodes = []; }
     if (legacyStoredCodes.length === 0) {
       addSecurityEvent({ type: "2fa_recovery_no_codes", ip, userId: user.id, details: `All legacy recovery codes exhausted via ${sourcePath}`, severity: "high" });
       return { error: "All recovery codes have been used. Please contact an administrator to regain access.", status: 400 };
@@ -4234,7 +4266,8 @@ router.post("/2fa/recovery", async (req, res) => {
   const recoveryOrigMethod = challengePayload.authMethod ?? "phone_otp";
   const result = await issueTokensForUser(user, ip, recoveryOrigMethod, req.headers["user-agent"] as string, req, res);
   sendSuccess(res, { ...result, codesRemaining: outcome.codesRemaining });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -4279,7 +4312,8 @@ router.post("/totp/recover", async (req, res) => {
   const recoveryOrigMethod = challengePayload.authMethod ?? "phone_otp";
   const result = await issueTokensForUser(user, ip, recoveryOrigMethod, req.headers["user-agent"] as string, req, res);
   sendSuccess(res, { ...result, codesRemaining: outcome.codesRemaining });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -4312,7 +4346,7 @@ router.post("/2fa/trust-device", async (req, res) => {
   if (!user.totpEnabled) { sendError(res, "2FA is not enabled", 400); return; }
 
   let devices: Array<{ fp: string; expiresAt: number }> = [];
-  try { if (user.trustedDevices) devices = JSON.parse(user.trustedDevices); } catch {}
+  try { if (user.trustedDevices) devices = JSON.parse(user.trustedDevices); } catch (err) { /* intentional: non-fatal guard */ void err; }
 
   const now = Date.now();
   devices = devices.filter(d => d.expiresAt > now && d.fp !== deviceFingerprint);
@@ -4326,7 +4360,8 @@ router.post("/2fa/trust-device", async (req, res) => {
   writeAuthAuditLog("device_trusted", { userId: auth.userId, ip, userAgent: req.headers["user-agent"] as string });
 
   sendSuccess(res, { success: true, message: `Device trusted for ${trustedDays} days`, trustedDevices: devices.length });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -4402,7 +4437,8 @@ router.post("/magic-link/send", async (req, res) => {
     message: "If an account exists with this email, a magic link has been sent.",
     ...(isDevTokenLog ? { token: rawToken } : {}),
   });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -4468,7 +4504,8 @@ router.post("/magic-link/verify", async (req, res) => {
   addAuditEntry({ action: "magic_link_login", ip, details: `Magic link login: ${user.email ?? matchedRow.userId}`, result: "success" });
   const result = await issueTokensForUser(user, ip, "magic_link", req.headers["user-agent"] as string, req, res);
   sendSuccess(res, result);
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -4524,7 +4561,8 @@ router.post("/change-phone/request", async (req, res) => {
   writeAuthAuditLog("phone_change_requested", { userId: auth.userId, ip, userAgent: req.headers["user-agent"] as string, metadata: { newPhone: phone } });
 
   sendSuccess(res, undefined, "OTP sent to new phone number");
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -4575,7 +4613,8 @@ router.post("/change-phone/confirm", async (req, res) => {
   writeAuthAuditLog("phone_changed", { userId: auth.userId, ip, userAgent: req.headers["user-agent"] as string, metadata: { newPhone: phone } });
 
   sendSuccess(res, { success: true, message: "Phone number updated successfully", phone });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -4607,7 +4646,8 @@ router.get("/login-history", async (req, res) => {
       createdAt: h.createdAt.toISOString(),
     })),
   });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -4639,7 +4679,8 @@ router.get("/sessions", async (req, res) => {
       createdAt: s.createdAt.toISOString(),
     })),
   });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -4677,7 +4718,8 @@ router.delete("/sessions/:id", async (req, res) => {
 
   writeAuthAuditLog("session_revoked", { userId: auth.userId, ip: getClientIp(req), metadata: { sessionId: id } });
   sendSuccess(res, undefined, "Session revoked");
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -4705,7 +4747,8 @@ router.delete("/sessions", async (req, res) => {
 
   writeAuthAuditLog("all_sessions_revoked", { userId: auth.userId, ip: getClientIp(req) });
   sendSuccess(res, undefined, "All sessions revoked");
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -4757,7 +4800,8 @@ router.post("/link-google", async (req, res) => {
   } catch (err: any) {
     sendErrorWithData(res, "Invalid Google token", { detail: err.message }, 400);
   }
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -4809,7 +4853,8 @@ router.post("/link-facebook", async (req, res) => {
   } catch (err: any) {
     sendErrorWithData(res, "Failed to link Facebook account", { detail: err.message }, 400);
   }
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -4906,7 +4951,8 @@ router.post("/firebase-verify", async (req, res) => {
 
   const { passwordHash: _ph, otpCode: _otp, otpExpiry: _exp, emailOtpCode: _eotp, emailOtpExpiry: _eexp, totpSecret: _ts, backupCodes: _bc, ...safeUser } = user;
   sendSuccess(res, { ...tokenData, user: safeUser });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });

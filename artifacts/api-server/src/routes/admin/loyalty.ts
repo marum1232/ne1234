@@ -9,6 +9,7 @@ import {
   sendUserNotification,
 } from "../admin-shared.js";
 import { sendSuccess, sendCreated, sendError, sendNotFound, sendValidationError } from "../../lib/response.js";
+import { logger } from '../../lib/logger.js';
 
 const router = Router();
 
@@ -214,7 +215,8 @@ function assertRecord(value: unknown, field: string): Record<string, unknown> {
         throw new Error();
       }
       return parsed as Record<string, unknown>;
-    } catch {
+    } catch (err) {
+      logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
       throw new Error(`${field} must be a valid JSON object`);
     }
   }

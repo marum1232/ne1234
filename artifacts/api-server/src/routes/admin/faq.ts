@@ -4,6 +4,7 @@ import { faqsTable } from "@workspace/db/schema";
 import { eq, asc } from "drizzle-orm";
 import { generateId } from "../../lib/id.js";
 import { sendSuccess, sendCreated, sendError, sendNotFound } from "../../lib/response.js";
+import { logger } from '../../lib/logger.js';
 
 const router = Router();
 
@@ -21,7 +22,8 @@ router.get("/", async (_req, res) => {
       })),
       total: faqs.length,
     });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     return sendError(res, "Failed to fetch FAQs", 500);
   }
 });
@@ -46,10 +48,12 @@ router.post("/", async (req, res) => {
       updatedAt: new Date(),
     }).returning();
     return sendCreated(res, { faq });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     return sendError(res, "Failed to create FAQ", 500);
   }
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -70,10 +74,12 @@ router.patch("/:id", async (req, res) => {
     const [faq] = await db.update(faqsTable).set(updates).where(eq(faqsTable.id, id)).returning();
     if (!faq) return sendNotFound(res, "FAQ not found");
     return sendSuccess(res, { faq });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     return sendError(res, "Failed to update FAQ", 500);
   }
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -85,10 +91,12 @@ router.delete("/:id", async (req, res) => {
     const [deleted] = await db.delete(faqsTable).where(eq(faqsTable.id, id)).returning();
     if (!deleted) return sendNotFound(res, "FAQ not found");
     return sendSuccess(res, { ok: true });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     return sendError(res, "Failed to delete FAQ", 500);
   }
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });

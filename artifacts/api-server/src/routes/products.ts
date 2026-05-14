@@ -101,7 +101,8 @@ router.get("/flash-deals", async (req, res) => {
     logger.error("[products GET /flash-deals] DB error:", e);
     sendInternalError(res);
   }
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -176,7 +177,8 @@ router.get("/trending-searches", async (req, res) => {
   }
 
   sendSuccess(res, { searches });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -283,7 +285,7 @@ router.get("/search", async (req, res) => {
       const payload = jwt.verify(token, JWT_SECRET, { algorithms: ["HS256"] }) as jwt.JwtPayload;
       if (payload?.sub) searchUserId = payload.sub;
     }
-  } catch { /* ignore invalid/missing tokens */ }
+  } catch (err) { logger.debug({ error: err instanceof Error ? err.message : String(err) }, `[route] ignore invalid/missing tokens`); }
   // Normalize query to lowercase for consistent aggregation (e.g. "Milk" == "milk")
   const normalizedQuery = trimmed.toLowerCase().replace(/\s+/g, " ");
   db.insert(searchLogsTable).values({ query: normalizedQuery, resultCount: total, userId: searchUserId }).catch((err: unknown) => {
@@ -302,7 +304,8 @@ router.get("/search", async (req, res) => {
     perPage,
     totalPages: Math.ceil(total / perPage),
   });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });

@@ -623,7 +623,7 @@ type DisputeRecord = { id: string; type: string; note: string; status: string; c
 async function loadJson<T>(key: string): Promise<T[]> {
   const row = await db.select({ value: platformSettingsTable.value }).from(platformSettingsTable).where(eq(platformSettingsTable.key, key)).limit(1).then(r => r[0]);
   if (!row) return [];
-  try { return JSON.parse(row.value) as T[]; } catch { return []; }
+  try { return JSON.parse(row.value) as T[]; } catch (err) { logger.debug({ error: err instanceof Error ? err.message : String(err) }, "[fn] error with fallback return"); return []; }
 }
 
 async function saveJson<T>(key: string, data: T[]): Promise<void> {

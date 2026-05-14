@@ -384,7 +384,8 @@ router.post("/products", devSeedAuth, async (req, res) => {
     seeded: { mart: seededMart, food: seededFood, banners: seededBanners, deals: seededDeals, paymentSettings: seededPayments },
     message: `Seeded: ${seededMart} mart, ${seededFood} food, ${seededBanners} banners, ${seededDeals} deals, ${seededPayments} payment settings`,
   });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -1127,7 +1128,8 @@ router.post("/full", devSeedAuth, async (req, res) => {
     logger.error("[seed:full]", err);
     res.status(500).json({ success: false, error: String(err) });
   }
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });

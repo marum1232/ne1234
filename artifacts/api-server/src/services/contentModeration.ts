@@ -174,7 +174,7 @@ export function moderateContent(text: string, config: ModerationConfig = {}): Mo
         if (found.length > 0) {
           customHits.push({ pattern: cp.pattern, severity: cp.severity, matches: found.slice(0, 50) });
         }
-      } catch {}
+      } catch (err) { /* intentional: non-fatal guard */ void err; }
     }
   }
 

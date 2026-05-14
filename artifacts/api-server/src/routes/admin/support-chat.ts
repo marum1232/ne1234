@@ -6,6 +6,7 @@ import { generateId } from "../../lib/id.js";
 import { sendSuccess, sendCreated, sendError } from "../../lib/response.js";
 import { getIO } from "../../lib/socketio.js";
 import type { AdminRequest } from "../admin-shared.js";
+import { logger } from '../../lib/logger.js';
 
 const router = Router();
 
@@ -61,10 +62,12 @@ router.get("/conversations/:userId", async (req, res) => {
         createdAt: m.createdAt instanceof Date ? m.createdAt.toISOString() : m.createdAt,
       })),
     });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     return sendError(res, "Failed to fetch messages", 500);
   }
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -99,10 +102,12 @@ router.post("/conversations/:userId/reply", async (req, res) => {
       return sendCreated(res, { message: payload });
     }
     return sendError(res, "Failed to save reply", 500);
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     return sendError(res, "Failed to send reply", 500);
   }
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -117,10 +122,12 @@ router.patch("/conversations/:userId/resolve", async (req, res) => {
       .set({ isResolved: resolved !== false })
       .where(eq(supportMessagesTable.userId, userId));
     return sendSuccess(res, { ok: true });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     return sendError(res, "Failed to update status", 500);
   }
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });

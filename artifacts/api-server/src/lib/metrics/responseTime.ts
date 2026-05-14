@@ -1,5 +1,6 @@
 import { statfsSync } from "fs";
 import os from "os";
+import { logger } from '../logger.js';
 
 /* ══════════════════════════════════════════════════════════════════════════
    responseTime.ts
@@ -91,7 +92,8 @@ export function getDiskPct(mountPath = "/"): number | null {
     const used = s.blocks - s.bfree;
     if (s.blocks === 0) return null;
     return Math.round((used / s.blocks) * 100);
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     return null;
   }
 }
@@ -101,7 +103,8 @@ export function getDiskFreeGb(mountPath = "/"): number | null {
   try {
     const s = statfsSync(mountPath);
     return Math.round((s.bavail * s.bsize) / (1024 * 1024 * 1024) * 10) / 10;
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     return null;
   }
 }

@@ -203,7 +203,8 @@ export function idempotency(prefix: string) {
 function safeParseJson(s: string): Record<string, unknown> | null {
   try {
     return JSON.parse(s) as Record<string, unknown>;
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     return null;
   }
 }

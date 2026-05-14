@@ -1,5 +1,6 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes, randomInt, scryptSync, timingSafeEqual } from "crypto";
 import bcrypt from "bcryptjs";
+import { logger } from '../lib/logger.js';
 
 const SALT_LENGTH = 16;
 const KEY_LENGTH  = 64;
@@ -18,7 +19,8 @@ export function verifyPassword(password: string, stored: string): boolean {
     const storedBuf = Buffer.from(hash, "hex");
     if (derived.length !== storedBuf.length) return false;
     return timingSafeEqual(derived, storedBuf);
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     return false;
   }
 }
@@ -105,7 +107,8 @@ export function decryptTotpSecret(encryptedSecret: string): string {
     const decipher = createDecipheriv(TOTP_ALGO, key, iv);
     decipher.setAuthTag(tag);
     return Buffer.concat([decipher.update(encrypted), decipher.final()]).toString("utf8");
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     return encryptedSecret;
   }
 }
@@ -158,7 +161,8 @@ export function verifyTotpCode(secret: string, code: string): boolean {
       }
     }
     return false;
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     return false;
   }
 }

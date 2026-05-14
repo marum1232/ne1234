@@ -52,7 +52,8 @@ router.post("/admin/sentry-webhook", async (req, res) => {
       .createHmac("sha256", secret)
       .update(bodyStr)
       .digest("hex");
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), code: "HMAC_COMPUTATION_FAILED", timestamp: new Date().toISOString() }, "[sentry-webhook] HMAC computation failed");
     sendError(res, "HMAC computation failed", 500);
     return;
   }
@@ -62,7 +63,8 @@ router.post("/admin/sentry-webhook", async (req, res) => {
   try {
     sigBuf = Buffer.from(signature, "hex");
     expBuf = Buffer.from(expected, "hex");
-  } catch {
+  } catch (err) {
+    logger.warn({ error: err instanceof Error ? err.message : String(err), code: "INVALID_SIGNATURE_FORMAT", timestamp: new Date().toISOString() }, "[sentry-webhook] Invalid signature format");
     sendError(res, "Invalid signature format", 400);
     return;
   }
@@ -186,7 +188,8 @@ router.post("/admin/sentry-webhook", async (req, res) => {
     logger.error({ err: err.message }, "[sentry-webhook] DB operation failed");
     sendError(res, "Internal error", 500);
   }
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });

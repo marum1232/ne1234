@@ -134,7 +134,8 @@ router.get("/", validateQuery(listQuerySchema), async (req, res) => {
   }));
 
   sendSuccess(res, { categories });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -164,7 +165,8 @@ router.post("/", adminAuth, validateBody(createCategorySchema), async (req, res)
   }).returning();
 
   sendCreated(res, category);
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -193,7 +195,8 @@ router.patch("/:id", adminAuth, async (req, res) => {
   }
 
   sendSuccess(res, updated);
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -218,7 +221,8 @@ router.delete("/:id", adminAuth, async (req, res) => {
   }
 
   sendSuccess(res, null);
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -244,7 +248,8 @@ router.post("/reorder", adminAuth, validateBody(reorderSchema), async (req, res)
   }
 
   sendSuccess(res, null);
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });

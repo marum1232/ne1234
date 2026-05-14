@@ -11,7 +11,7 @@ export async function getPlatformDefaultLanguage(): Promise<Language> {
     const s = await getPlatformSettings();
     const lang = s["default_language"] as Language | undefined;
     if (lang && VALID_LANGUAGES.includes(lang)) return lang;
-  } catch {}
+  } catch (err) { /* intentional: non-fatal guard */ void err; }
   return "en";
 }
 
@@ -26,7 +26,7 @@ export async function getUserLanguage(userId: string): Promise<Language> {
     if (settings?.language && VALID_LANGUAGES.includes(settings.language as Language)) {
       return settings.language as Language;
     }
-  } catch {}
+  } catch (err) { /* intentional: non-fatal guard */ void err; }
 
   return getPlatformDefaultLanguage();
 }

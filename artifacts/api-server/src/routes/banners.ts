@@ -55,7 +55,8 @@ router.get("/", async (req, res) => {
     logger.error("[banners GET /] DB error:", e);
     sendInternalError(res);
   }
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });

@@ -207,7 +207,8 @@ router.post("/campaigns", adminAuth, async (req, res) => {
     logger.error({ err }, "[loyalty-full] campaigns create error");
     sendError(res, "Failed to create loyalty campaign", 500);
   }
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -251,7 +252,8 @@ router.put("/campaigns/:id", adminAuth, async (req, res) => {
     logger.error({ err }, "[loyalty-full] campaigns update error");
     sendError(res, "Failed to update loyalty campaign", 500);
   }
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -318,7 +320,8 @@ router.post("/rewards", adminAuth, async (req, res) => {
     logger.error({ err }, "[loyalty-full] rewards create error");
     sendError(res, "Failed to create loyalty reward", 500);
   }
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -362,7 +365,8 @@ router.put("/rewards/:id", adminAuth, async (req, res) => {
     logger.error({ err }, "[loyalty-full] rewards update error");
     sendError(res, "Failed to update loyalty reward", 500);
   }
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });

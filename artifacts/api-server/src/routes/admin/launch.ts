@@ -283,7 +283,7 @@ router.get("/vendor-plans", async (_req, res) => {
   sendSuccess(res, {
     plans: plans.map(p => ({
       ...p,
-      features: (() => { try { return JSON.parse(p.featuresJson) as string[]; } catch { return [] as string[]; } })(),
+      features: (() => { try { return JSON.parse(p.featuresJson) as string[]; } catch (err) { logger.debug({ error: err instanceof Error ? err.message : String(err) }, "[fn] error with fallback"); return [] as string[]; } })(),
       createdAt: p.createdAt.toISOString(),
       updatedAt: p.updatedAt.toISOString(),
     })),
@@ -630,8 +630,8 @@ router.post("/mode", async (req, res) => {
            and surfaced via GET /api/admin/launch/demo-data — no DB write needed for them
            since they are static seeded payloads served from memory. */
         restoredFromBackup = true;
-      } catch {
-        /* malformed backup — proceed without restore */
+      } catch (err) {
+        logger.debug({ error: err instanceof Error ? err.message : String(err) }, `[fn] malformed backup — proceed without restore`);
       }
     }
   }

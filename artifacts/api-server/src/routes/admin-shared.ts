@@ -284,7 +284,8 @@ export function verifyAdminJwt(token: string): AdminPayload | null {
       name:        payload.name ?? "Admin",
       permissions: payload.perms ?? [],
     };
-  } catch {
+  } catch (err) {
+    pinoLogger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[admin-shared] unhandled error');
     return null;
   }
 }
@@ -294,7 +295,8 @@ export async function getAdminSecret(): Promise<string | null> {
   try {
     const settings = await _getCachedSettings();
     return settings["admin_master_secret"] || envSecret || null;
-  } catch {
+  } catch (err) {
+    pinoLogger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[admin-shared] unhandled error');
     return envSecret || null;
   }
 }
@@ -412,7 +414,8 @@ export async function verifyTotpToken(token: string, secret: string): Promise<bo
   try {
     const { verifyTotpToken: totpVerify } = await import("../services/totp.js");
     return totpVerify(token, secret);
-  } catch {
+  } catch (err) {
+    pinoLogger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[admin-shared] unhandled error');
     return false;
   }
 }
@@ -455,7 +458,8 @@ export async function getUserLanguage(_userId: string): Promise<string> {
 export function t(key: TranslationKey, lang: string): string {
   try {
     return i18nT(key as I18nTranslationKey, (lang || "en") as Language);
-  } catch {
+  } catch (err) {
+    pinoLogger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[admin-shared] unhandled error');
     return key;
   }
 }
@@ -516,7 +520,8 @@ export async function revokeAllUserSessions(userId: string): Promise<void> {
   try {
     const { revokeAllUserRefreshTokens } = await import("../middleware/security.js");
     await revokeAllUserRefreshTokens(userId);
-  } catch {
+  } catch (err) {
+    pinoLogger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[admin-shared] unhandled error');
     pinoLogger.warn({ userId }, "[admin-shared] revokeAllUserSessions failed");
   }
 }

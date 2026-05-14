@@ -47,10 +47,12 @@ router.get("/messages", requireRole("customer"), async (req, res) => {
         createdAt: m.createdAt instanceof Date ? m.createdAt.toISOString() : m.createdAt,
       })),
     });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     return sendSuccess(res, { messages: [] });
   }
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -102,7 +104,8 @@ router.post("/messages", requireRole("customer"), validateBody(messageSchema), a
     logger.error("support-chat insert failed", err);
     return sendError(res, "Failed to save message", 500);
   }
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });

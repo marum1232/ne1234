@@ -13,6 +13,7 @@ import {
 import { sendSuccess, sendError } from "../../lib/response.js";
 import { validateBody } from "../../middleware/validate.js";
 import { requirePermission } from "../../middleware/require-permission.js";
+import { logger } from '../../lib/logger.js';
 
 /**
  * /api/admin/inventory-settings
@@ -164,7 +165,8 @@ router.put("/inventory-settings", requirePermission("vendors.edit"), validateBod
   } catch (err) {
     sendError(res, (err as Error).message ?? "Failed to save inventory settings");
   }
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });

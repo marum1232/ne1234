@@ -39,7 +39,8 @@ router.get("/routes", async (_req, res) => {
       .where(eq(schoolRoutesTable.isActive, true))
       .orderBy(asc(schoolRoutesTable.sortOrder), asc(schoolRoutesTable.schoolName));
     res.json({ routes: routes.map(formatRoute) });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ error: "Server error" });
   }
 });
@@ -53,7 +54,8 @@ router.get("/routes/:id", async (req, res) => {
       .where(eq(schoolRoutesTable.id, String(req.params["id"]))).limit(1);
     if (!route) { res.status(404).json({ error: "Route not found" }); return; }
     res.json(formatRoute(route));
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ error: "Server error" });
   }
 });
@@ -189,7 +191,8 @@ router.post("/subscribe", customerAuth, async (req, res) => {
   });
 
   res.status(201).json({ ...sub, monthlyAmount: safeNum(sub!.monthlyAmount), route: formatRoute(route) });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ error: "Server error" });
   }
 });
@@ -220,7 +223,8 @@ router.get("/my-subscriptions", customerAuth, async (req, res) => {
     }));
 
     res.json({ subscriptions: enriched });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ error: "Server error" });
   }
 });
@@ -256,7 +260,8 @@ router.patch("/subscriptions/:id/cancel", customerAuth, async (req, res) => {
       .where(eq(schoolRoutesTable.id, sub.routeId));
 
     res.json({ ...updated, monthlyAmount: safeNum(updated!.monthlyAmount) });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ error: "Server error" });
   }
 });
@@ -375,7 +380,8 @@ async function handleAdminSubscriptionCancel(
     });
     sendSuccess(res, { subscriptionId: subId, status: "cancelled", proRatedRefund, daysRemaining, reason },
       proRatedRefund > 0 ? `Subscription cancelled. Rs. ${proRatedRefund.toFixed(0)} refunded to wallet.` : "Subscription cancelled.");
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     sendError(res, "Failed to cancel subscription. Please try again.", 500);
   }
 }

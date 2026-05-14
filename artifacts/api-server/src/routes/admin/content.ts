@@ -157,7 +157,8 @@ router.get("/products", async (req, res) => {
       hasMore: page.hasMore,
       isDemo: false,
     });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -184,7 +185,8 @@ router.get("/products/pending", async (_req, res) => {
       })),
       total: products.length,
     });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -269,7 +271,8 @@ router.patch("/products/:id/approve", async (req, res) => {
     }
     getIO()?.to("admin-fleet").emit("product:approved", { id: product.id });
     sendSuccess(res, { ...product, price: parseFloat(product.price) });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -324,7 +327,8 @@ router.patch("/products/:id/reject", async (req, res) => {
     }
     getIO()?.to("admin-fleet").emit("product:rejected", { id: product.id });
     sendSuccess(res, { ...product, price: parseFloat(product.price) });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -390,7 +394,8 @@ router.get("/products/:id/stock-history", async (req, res) => {
       productId,
       productName: product.name,
     });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -481,7 +486,8 @@ router.post("/products", async (req, res) => {
       return;
     }
     sendCreated(res, { ...product, price: parseFloat(product.price) });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -573,7 +579,8 @@ router.post("/products/bulk-refill-reminder", adminAuth, async (req, res) => {
       failed: failedVendorIds.length,
       failedVendorIds,
     });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -617,7 +624,8 @@ router.patch("/products/bulk", async (req, res) => {
       updated: updated.length,
       ids: updated.map((r) => r.id),
     });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -736,7 +744,8 @@ router.patch("/products/:id", async (req, res) => {
     }
 
     sendSuccess(res, { ...product, price: parseFloat(product.price) });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -758,7 +767,8 @@ router.delete("/products/:id", async (req, res) => {
       return;
     }
     sendSuccess(res, { success: true });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -844,7 +854,8 @@ router.get("/broadcast/recipients/count", async (req, res) => {
       count: row?.c ?? 0,
       targetRoles: roles.length > 0 ? roles : ["all"],
     });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -930,8 +941,8 @@ router.post("/broadcast", async (req, res) => {
             "[content] broadcast history insert failed — table may not exist yet",
           );
         });
-    } catch {
-      /* non-fatal */
+    } catch (err) {
+      logger.debug({ error: err instanceof Error ? err.message : String(err) }, `[fn] non-fatal`);
     }
 
     sendSuccess(res, {
@@ -939,7 +950,8 @@ router.post("/broadcast", async (req, res) => {
       sent,
       targetRoles: roles.length > 0 ? roles : ["all"],
     });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -973,7 +985,8 @@ router.get("/categories/tree", async (req, res) => {
     }));
 
     sendSuccess(res, { categories: tree });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -1017,7 +1030,8 @@ router.post("/categories", async (req, res) => {
       .returning();
 
     sendCreated(res, category);
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -1046,7 +1060,8 @@ router.patch("/categories/:id", async (req, res) => {
     }
 
     sendSuccess(res, updated);
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -1071,7 +1086,8 @@ router.delete("/categories/:id", async (req, res) => {
     }
 
     sendSuccess(res, { success: true });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -1094,7 +1110,8 @@ router.post("/categories/reorder", async (req, res) => {
     }
 
     sendSuccess(res, { success: true });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -1127,7 +1144,8 @@ router.get("/banners", async (req, res) => {
     if (placement) mapped = mapped.filter((b) => b.placement === placement);
     if (status) mapped = mapped.filter((b) => b.status === status);
     sendSuccess(res, { banners: mapped, total: mapped.length });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -1160,7 +1178,8 @@ router.post("/banners", async (req, res) => {
       })
       .returning();
     sendCreated(res, banner);
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -1181,7 +1200,8 @@ router.patch("/banners/reorder", async (req, res) => {
         .where(eq(bannersTable.id, item.id));
     }
     sendSuccess(res, { success: true });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -1243,7 +1263,8 @@ router.delete("/banners/:id", async (req, res) => {
       return;
     }
     sendSuccess(res, { success: true, id: bannerId });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -1288,7 +1309,8 @@ router.get("/flash-deals", async (_req, res) => {
                 : "live",
       })),
     });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -1316,7 +1338,8 @@ router.post("/flash-deals", async (req, res) => {
       })
       .returning();
     sendCreated(res, deal);
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -1350,7 +1373,8 @@ router.patch("/flash-deals/:id", async (req, res) => {
       return;
     }
     sendSuccess(res, deal);
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -1361,7 +1385,8 @@ router.delete("/flash-deals/:id", async (req, res) => {
       .delete(flashDealsTable)
       .where(eq(flashDealsTable.id, req.params["id"]!));
     sendSuccess(res, { success: true });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -1396,7 +1421,8 @@ router.get("/promo-codes", async (_req, res) => {
               : "active",
       })),
     });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -1435,7 +1461,8 @@ router.post("/promo-codes", async (req, res) => {
       }
       throw e;
     }
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -1475,7 +1502,8 @@ router.patch("/promo-codes/:id", async (req, res) => {
       return;
     }
     sendSuccess(res, code);
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -1486,7 +1514,8 @@ router.delete("/promo-codes/:id", async (req, res) => {
       .delete(promoCodesTable)
       .where(eq(promoCodesTable.id, req.params["id"]!));
     sendSuccess(res, { success: true });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -1534,7 +1563,8 @@ router.get("/stock-notifications", adminAuth, async (req, res) => {
       logger.error({ err: err.message }, "[stock-notifications] fetch failed");
       sendError(res, "Failed to fetch stock notifications", 500);
     }
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });

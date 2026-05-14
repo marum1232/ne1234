@@ -1,3 +1,4 @@
+import { logger } from './logger.js';
 /**
  * runtime-config.ts
  *
@@ -44,7 +45,8 @@ export async function seedRuntimeConfigFromDb(): Promise<void> {
     if (rows[0]?.value) {
       _adminSecret = rows[0].value;
     }
-  } catch {
+  } catch (err) {
     // Non-fatal — env var fallback is already in place
+    logger.debug({ error: err instanceof Error ? err.message : String(err) }, "[runtime-config] Admin secret DB load failed — using env var fallback");
   }
 }

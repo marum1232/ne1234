@@ -109,7 +109,7 @@ async function acquireWalletIdempotency(
       .limit(1);
 
     if (!fresh || fresh.responseData === "{}") return { acquired: false, action: "in_flight" };
-    const parsedFresh = (() => { try { return JSON.parse(fresh.responseData); } catch { return null; } })();
+    const parsedFresh = (() => { try { return JSON.parse(fresh.responseData); } catch (err) { logger.debug({ error: err instanceof Error ? err.message : String(err) }, "[fn] error with fallback return"); return null; } })();
     if (parsedFresh) {
       const { _sc, ...body } = parsedFresh as { _sc?: number; [k: string]: unknown };
       return { acquired: false, action: "replay", statusCode: _sc ?? 200, body };
@@ -122,7 +122,7 @@ async function acquireWalletIdempotency(
     return { acquired: false, action: "in_flight" };
   }
 
-  const parsed = (() => { try { return JSON.parse(existing.responseData); } catch { return null; } })();
+  const parsed = (() => { try { return JSON.parse(existing.responseData); } catch (err) { logger.debug({ error: err instanceof Error ? err.message : String(err) }, "[fn] error with fallback return"); return null; } })();
   if (parsed) {
     const { _sc, ...body } = parsed as { _sc?: number; [k: string]: unknown };
     return { acquired: false, action: "replay", statusCode: _sc ?? 200, body };
@@ -284,7 +284,8 @@ router.get("/", customerAuth, async (req, res) => {
     logger.error("[wallet GET /] DB error:", e);
     sendError(res, "Something went wrong, please try again.", 500);
   }
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -369,7 +370,8 @@ router.post("/topup", adminAuth, async (req, res) => {
       sendError(res, "Something went wrong, please try again.", 500);
     }
   }
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -464,7 +466,8 @@ router.post("/deposit", customerAuth, async (req, res) => {
     logger.error("[wallet /deposit] Unexpected error:", e);
     sendError(res, "Something went wrong, please try again.", 500);
   }
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -621,7 +624,8 @@ router.post("/send", customerAuth, async (req, res) => {
     logger.error("[wallet /send] Unexpected error:", e);
     sendError(res, "Something went wrong, please try again.", 500);
   }
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -736,7 +740,8 @@ router.post("/withdraw", customerAuth, async (req, res) => {
     logger.error("[wallet /withdraw] Unexpected error:", e);
     sendError(res, "Something went wrong, please try again.", 500);
   }
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });

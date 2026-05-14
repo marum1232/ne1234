@@ -176,7 +176,8 @@ router.get("/active", async (req, res) => {
     })),
     total: eligible.length,
   });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ error: "Server error" });
   }
 });
@@ -212,7 +213,8 @@ router.post("/impression", async (req, res) => {
   });
 
   sendSuccess(res, { success: true });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ error: "Server error" });
   }
 });
@@ -287,7 +289,8 @@ Ensure the colors match the tone (e.g., urgent=red tones, luxury=gold/silver, fr
     let popupContent: AIPopupContent;
     try {
       popupContent = JSON.parse(rawResponse);
-    } catch {
+    } catch (err) {
+      logger.debug({ error: err instanceof Error ? err.message : String(err) }, "[popups] AI JSON parse failed — trying regex extraction");
       // Fallback: extract JSON from potential markdown blocks
       const jsonMatch = rawResponse.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {

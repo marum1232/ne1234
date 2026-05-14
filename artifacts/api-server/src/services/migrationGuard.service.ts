@@ -46,7 +46,8 @@ function readJournal(drizzleDir: string): JournalEntry[] {
   try {
     const parsed = JSON.parse(fs.readFileSync(journalPath, "utf8"));
     return parsed.entries ?? [];
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     return [];
   }
 }
@@ -160,8 +161,9 @@ export async function checkMigrationGuard(): Promise<MigrationGuardReport> {
       );
       allCustomRunnerFiles = rows.map((r) => r.filename);
       customRunnerFiles = new Set(allCustomRunnerFiles);
-    } catch {
+    } catch (err) {
       // Table may not exist in early boot — not a problem
+      logger.debug({ error: err instanceof Error ? err.message : String(err) }, "[migrationGuard] _drizzle_migrations table not found — early boot, skipping");
     }
 
     // ── Check each journal entry against both trackers ────────────────────

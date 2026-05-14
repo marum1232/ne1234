@@ -85,7 +85,8 @@ function timingSafeEqualHex(a: string, b: string): boolean {
   if (a.length !== b.length) return false;
   try {
     return crypto.timingSafeEqual(Buffer.from(a, "hex"), Buffer.from(b, "hex"));
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     return false;
   }
 }
@@ -238,8 +239,8 @@ router.post("/", errorReportIngestGuard, validateBody(createErrorReportSchema), 
           .limit(1);
         resolvedExisting = resolvedRow;
       }
-    } catch {
-      /* Columns may not exist yet on first startup — safe to skip dedup */
+    } catch (err) {
+      logger.debug({ error: err instanceof Error ? err.message : String(err) }, `[fn] Columns may not exist yet on first startup — safe to skip dedup`);
     }
 
     // Case 1: active duplicate — just increment count
@@ -249,7 +250,7 @@ router.post("/", errorReportIngestGuard, validateBody(createErrorReportSchema), 
         await db.update(errorReportsTable)
           .set({ occurrenceCount: newCount, updatedAt: new Date() })
           .where(eq(errorReportsTable.id, activeExisting.id));
-      } catch {}
+      } catch (err) { /* intentional: non-fatal guard */ void err; }
       return sendSuccess(res, {
         ...activeExisting,
         occurrenceCount: newCount,
@@ -276,7 +277,7 @@ router.post("/", errorReportIngestGuard, validateBody(createErrorReportSchema), 
             updatedAt: now,
           })
           .where(eq(errorReportsTable.id, resolvedExisting.id));
-      } catch {}
+      } catch (err) { /* intentional: non-fatal guard */ void err; }
       return sendSuccess(res, {
         ...resolvedExisting,
         status: "new",
@@ -1067,11 +1068,12 @@ export async function getAutoResolveSettings() {
     if (row) {
       try {
         return { ...DEFAULT_AUTO_RESOLVE_SETTINGS, ...JSON.parse(row.value) };
-      } catch {
+      } catch (err) {
+        logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
         return { ...DEFAULT_AUTO_RESOLVE_SETTINGS };
       }
     }
-  } catch {}
+  } catch (err) { /* intentional: non-fatal guard */ void err; }
   return { ...DEFAULT_AUTO_RESOLVE_SETTINGS };
 }
 
@@ -1876,7 +1878,7 @@ export async function ensureErrorResolutionTables() {
       EXCEPTION WHEN duplicate_object THEN NULL;
       END $$
     `);
-  } catch {}
+  } catch (err) { /* intentional: non-fatal guard */ void err; }
   try {
     await db.execute(sql`ALTER TABLE error_reports ADD COLUMN IF NOT EXISTS resolution_method resolution_method`);
     await db.execute(sql`ALTER TABLE error_reports ADD COLUMN IF NOT EXISTS resolution_notes TEXT`);
@@ -1885,7 +1887,7 @@ export async function ensureErrorResolutionTables() {
     await db.execute(sql`ALTER TABLE error_reports ADD COLUMN IF NOT EXISTS error_hash TEXT`);
     await db.execute(sql`ALTER TABLE error_reports ADD COLUMN IF NOT EXISTS occurrence_count INTEGER NOT NULL DEFAULT 1`);
     await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_error_reports_hash ON error_reports (error_hash, status, timestamp)`);
-  } catch {}
+  } catch (err) { /* intentional: non-fatal guard */ void err; }
   try {
     await db.execute(sql`
       CREATE TABLE IF NOT EXISTS error_resolution_backups (
@@ -1898,7 +1900,7 @@ export async function ensureErrorResolutionTables() {
         expires_at TIMESTAMP NOT NULL
       )
     `);
-  } catch {}
+  } catch (err) { /* intentional: non-fatal guard */ void err; }
   try {
     await db.execute(sql`
       CREATE TABLE IF NOT EXISTS auto_resolve_log (
@@ -1909,7 +1911,7 @@ export async function ensureErrorResolutionTables() {
         created_at TIMESTAMP DEFAULT NOW() NOT NULL
       )
     `);
-  } catch {}
+  } catch (err) { /* intentional: non-fatal guard */ void err; }
   try {
     await db.execute(sql`
       CREATE TABLE IF NOT EXISTS file_scan_results (
@@ -1921,7 +1923,7 @@ export async function ensureErrorResolutionTables() {
         triggered_by TEXT NOT NULL DEFAULT 'manual'
       )
     `);
-  } catch {}
+  } catch (err) { /* intentional: non-fatal guard */ void err; }
   _resolutionMigrated = true;
 }
 

@@ -383,7 +383,8 @@ router.get("/communication/roles/ai-status", async (_req, res) => {
   try {
   const available = !!(process.env["GEMINI_API_KEY"]);
   res.json({ data: { available, provider: available ? "gemini" : null } });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });

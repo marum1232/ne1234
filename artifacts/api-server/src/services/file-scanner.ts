@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import { logger } from '../lib/logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -132,7 +133,8 @@ function walkDir(dir: string, results: string[]): void {
   let entries: fs.Dirent[];
   try {
     entries = fs.readdirSync(dir, { withFileTypes: true });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     return;
   }
   for (const entry of entries) {
@@ -151,7 +153,8 @@ function scanFile(filePath: string, relPath: string): FileScanFinding[] {
   let content: string;
   try {
     content = fs.readFileSync(filePath, "utf8");
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     return findings;
   }
   const lines = content.split("\n");
@@ -169,8 +172,8 @@ function scanFile(filePath: string, relPath: string): FileScanFinding[] {
             snippet: line.trim().slice(0, 200),
           });
         }
-      } catch {
-        /* rule error — skip */
+      } catch (err) {
+        logger.debug({ error: err instanceof Error ? err.message : String(err) }, `[fn] rule error — skip`);
       }
     }
   }

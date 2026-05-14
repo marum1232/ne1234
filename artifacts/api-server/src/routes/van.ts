@@ -55,7 +55,8 @@ async function getVanSettings() {
     holidayDates: (() => {
       try {
         return JSON.parse(s["van_holiday_dates"] ?? "[]") as string[];
-      } catch {
+      } catch (err) {
+        logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
         return [] as string[];
       }
     })(),

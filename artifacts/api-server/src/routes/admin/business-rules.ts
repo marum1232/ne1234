@@ -5,6 +5,7 @@ import { businessRulesTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
 import { generateId, addAuditEntry, getClientIp, type AdminRequest } from "../admin-shared.js";
 import { sendSuccess, sendCreated, sendNotFound, sendValidationError } from "../../lib/response.js";
+import { logger } from '../../lib/logger.js';
 
 const router = Router();
 
@@ -16,7 +17,8 @@ function parseJsonField(value: unknown): unknown {
   if (typeof value === "string") {
     try {
       return JSON.parse(value);
-    } catch {
+    } catch (err) {
+      logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
       return value;
     }
   }
@@ -61,7 +63,8 @@ router.get("/", async (req, res) => {
   try {
   const rules = await db.select().from(businessRulesTable).orderBy(businessRulesTable.priority);
   sendSuccess(res, { rules });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -110,7 +113,8 @@ router.post("/", async (req, res) => {
   });
 
   sendCreated(res, { rule: created });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -160,7 +164,8 @@ router.put("/:id", async (req, res) => {
   });
 
   sendSuccess(res, { rule: updated });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -185,7 +190,8 @@ router.delete("/:id", async (req, res) => {
   });
 
   sendSuccess(res, { success: true });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -202,7 +208,8 @@ router.post("/validate", async (req, res) => {
   };
   const errors = validateBusinessRule(payload);
   sendSuccess(res, { valid: errors.length === 0, errors });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });

@@ -127,7 +127,8 @@ router.get("/transactions", async (req, res) => {
       nextCursor: page.nextCursor,
       hasMore: page.hasMore,
     });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -188,7 +189,8 @@ router.get("/transactions-enriched", async (req, res) => {
       nextCursor: page.nextCursor,
       hasMore: page.hasMore,
     });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -318,7 +320,8 @@ router.get("/vendors", requirePermission("vendors.view"), async (_req, res) => {
       }),
       total: vendors.length,
     });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -397,7 +400,8 @@ router.patch(
         ...user,
         walletBalance: parseFloat(String(user.walletBalance ?? "0")),
       });
-    } catch {
+    } catch (err) {
+      logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
       res.status(500).json({ success: false, error: "Internal server error" });
     }
   },
@@ -461,7 +465,8 @@ router.post(
         const message = error instanceof Error ? error.message : String(error);
         sendError(res, message, 400);
       }
-    } catch {
+    } catch (err) {
+      logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
       res.status(500).json({ success: false, error: "Internal server error" });
     }
   },
@@ -520,7 +525,8 @@ router.post(
         const message = error instanceof Error ? error.message : String(error);
         sendError(res, message, 400);
       }
-    } catch {
+    } catch (err) {
+      logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
       res.status(500).json({ success: false, error: "Internal server error" });
     }
   },
@@ -616,7 +622,8 @@ router.get("/riders", async (_req, res) => {
       })),
       total: riders.length,
     });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -667,7 +674,8 @@ router.patch("/riders/:id/status", async (req, res) => {
       ...user,
       walletBalance: parseFloat(String(user.walletBalance ?? "0")),
     });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -754,7 +762,8 @@ router.post("/riders/:id/payout", async (req, res) => {
       newBalance: newBal,
       rider: { ...updated, walletBalance: newBal },
     });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -839,7 +848,8 @@ router.post("/riders/:id/bonus", async (req, res) => {
       newBalance: newBal,
       rider: { ...updated, walletBalance: newBal },
     });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -859,7 +869,8 @@ router.get("/riders/:id/penalties", async (req, res) => {
         amount: parseFloat(String(p.amount)),
       })),
     });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -874,7 +885,8 @@ router.get("/riders/:id/ratings", async (req, res) => {
       .orderBy(desc(rideRatingsTable.createdAt))
       .limit(100);
     sendSuccess(res, { ratings });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -899,7 +911,8 @@ router.post("/riders/:id/restrict", async (req, res) => {
       "alert-circle-outline",
     );
     sendSuccess(res, { isRestricted: true });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -924,7 +937,8 @@ router.post("/riders/:id/unrestrict", async (req, res) => {
       "checkmark-circle-outline",
     );
     sendSuccess(res, { isRestricted: false });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -978,7 +992,8 @@ router.get("/withdrawal-requests", async (req, res) => {
       ? enriched.filter((w) => w.status === statusFilter)
       : enriched;
     sendSuccess(res, { withdrawals: filtered });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -1061,7 +1076,8 @@ router.patch("/withdrawal-requests/:id/approve", async (req, res) => {
           amount: amt,
         });
     sendSuccess(res, { txId, status: "paid", refNo: refNo || "manual" });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -1171,7 +1187,8 @@ router.patch("/withdrawal-requests/:id/reject", async (req, res) => {
       reason: rejReason,
       refunded: amt,
     });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -1220,7 +1237,8 @@ router.patch("/withdrawal-requests/batch-approve", async (req, res) => {
       results.push(txId);
     }
     sendSuccess(res, { approved: results });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -1285,7 +1303,8 @@ router.patch("/withdrawal-requests/batch-reject", async (req, res) => {
       results.push(txId);
     }
     sendSuccess(res, { rejected: results });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -1338,7 +1357,8 @@ router.get("/deposit-requests", async (req, res) => {
       ? enriched.filter((d) => d.status === statusFilter)
       : enriched;
     sendSuccess(res, { deposits: filtered });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -1483,7 +1503,8 @@ router.patch("/deposit-requests/:id/approve", async (req, res) => {
           amount: amt,
         });
     sendSuccess(res, { txId, status: "approved", credited: amt });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -1556,7 +1577,8 @@ router.patch("/deposit-requests/:id/reject", async (req, res) => {
       })
       .catch((e: unknown) => logger.warn({ message: "[wallets] deposit rejection notif failed", error: e instanceof Error ? e.message : String(e), code: "WALLET_NOTIF_DEPOSIT_REJECTION_FAILED", correlationId: null, timestamp: new Date().toISOString() }, "[wallets] deposit rejection notif failed"));
     sendSuccess(res, { txId, status: "rejected", reason: rejReason });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -1697,7 +1719,8 @@ router.post("/deposit-requests/bulk-approve", async (req, res) => {
     }
 
     sendSuccess(res, { approved: preChecked.length });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -1813,7 +1836,8 @@ router.post("/deposit-requests/bulk-reject", async (req, res) => {
     }
 
     sendSuccess(res, { rejected: preChecked.length });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -1905,7 +1929,8 @@ router.post("/riders/:id/credit", async (req, res) => {
       amount: amt,
       newBalance: parseFloat(updated?.walletBalance ?? "0"),
     });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -1944,7 +1969,8 @@ router.patch(
         result: "success",
       });
       sendSuccess(res, { commissionPct });
-    } catch {
+    } catch (err) {
+      logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
       res.status(500).json({ success: false, error: "Internal server error" });
     }
   },
@@ -1999,7 +2025,8 @@ router.post("/riders/:id/override-suspension", async (req, res) => {
       });
 
     sendSuccess(res, { user: stripUser(updated!) });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -2056,7 +2083,8 @@ router.post(
         });
 
       sendSuccess(res, { user: stripUser(updated!) });
-    } catch {
+    } catch (err) {
+      logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
       res.status(500).json({ success: false, error: "Internal server error" });
     }
   },

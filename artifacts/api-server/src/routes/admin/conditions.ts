@@ -117,8 +117,8 @@ async function notifyAdminConditionApplied(params: ConditionNotifyParams): Promi
       .limit(1);
     userName  = u?.name  ?? null;
     userPhone = u?.phone ?? null;
-  } catch {
-    /* ignore — display name falls back to userId */
+  } catch (err) {
+    logger.debug({ error: err instanceof Error ? err.message : String(err) }, `[fn] ignore — display name falls back to userId`);
   }
 
   const displayName = userName || userPhone || params.userId;
@@ -411,7 +411,8 @@ router.post("/conditions", async (req, res) => {
     res.status(500).json({ success: false, error: "An internal error occurred" });
     return;
   }
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" }); return;
   }
 });
@@ -496,7 +497,8 @@ router.patch("/conditions/:id", async (req, res) => {
     logger.error("[admin/conditions] update error:", error);
     return res.status(500).json({ success: false, error: "An internal error occurred" });
   }
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" }); return;
   }
 });
@@ -546,7 +548,8 @@ router.post("/conditions/bulk", async (req, res) => {
     logger.error("[admin/conditions] bulk action error:", error);
     return res.status(500).json({ success: false, error: "An internal error occurred" });
   }
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" }); return;
   }
 });
@@ -594,7 +597,8 @@ router.post("/condition-rules", async (req, res) => {
     logger.error("[admin/condition-rules] create error:", error);
     return res.status(500).json({ success: false, error: "An internal error occurred" });
   }
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" }); return;
   }
 });
@@ -622,7 +626,8 @@ router.patch("/condition-rules/:id", async (req, res) => {
     logger.error("[admin/condition-rules] patch error:", error);
     return res.status(500).json({ success: false, error: "An internal error occurred" });
   }
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" }); return;
   }
 });

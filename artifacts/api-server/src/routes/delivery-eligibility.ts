@@ -22,7 +22,7 @@ router.get("/", customerAuth, async (req, res) => {
           .where(eq(productsTable.id, productId))
           .limit(1);
         vendorId = prod?.vendorId ?? undefined;
-      } catch {}
+      } catch (err) { /* intentional: non-fatal guard */ void err; }
     }
 
     if (vendorId) {

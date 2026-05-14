@@ -38,7 +38,8 @@ export async function getWhitelistBypass(identifier: string): Promise<string | n
       )
       .limit(1);
     return rows[0]?.bypassCode ?? null;
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     return null;
   }
 }

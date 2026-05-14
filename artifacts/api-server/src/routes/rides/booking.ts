@@ -47,13 +47,14 @@ router.get("/services", async (_req, res) => {
       sortOrder:       s.sortOrder,
     })),
   });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
 
 router.get("/stops", async (_req, res) => {
-  try { await ensureDefaultLocations(); } catch {}
+  try { await ensureDefaultLocations(); } catch (err) { /* intentional: non-fatal guard */ void err; }
   const locs = await db.select().from(popularLocationsTable)
     .where(eq(popularLocationsTable.isActive, true))
     .orderBy(asc(popularLocationsTable.sortOrder));
@@ -104,7 +105,8 @@ router.post("/estimate", estimateLimiter, async (req, res) => {
     }
     sendErrorWithData(res, e instanceof RideApiError ? (e as Error).message : "An internal error occurred", { code }, status);
   }
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -292,7 +294,7 @@ router.post("/", customerAuth, bookRideLimiter, async (req, res) => {
         ))
         .limit(1);
       if (existing) {
-        const cached = (() => { try { return JSON.parse(existing.responseData); } catch { return null; } })();
+        const cached = (() => { try { return JSON.parse(existing.responseData); } catch (err) { logger.debug({ error: err instanceof Error ? err.message : String(err) }, "[fn] error with fallback return"); return null; } })();
         if (cached && cached.id) { sendSuccess(res, cached); return; }
       }
       sendError(res, "Your previous ride request is still being processed. Please wait a moment.", 409);
@@ -553,7 +555,8 @@ router.post("/", customerAuth, bookRideLimiter, async (req, res) => {
       await releaseIdempotencyLock();
     }
   }
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -706,7 +709,8 @@ router.patch("/:id/cancel", customerAuth, cancelRideLimiter, requireRideState(["
     cancelFeeAsDebt,
     cancelReason,
   });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -740,7 +744,8 @@ router.patch("/:id/bids/:bidId/reject", customerAuth, async (req, res) => {
 
   emitRideUpdate(rideId);
   sendSuccess(res, { bidId, status: "rejected" });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -901,7 +906,8 @@ router.patch("/:id/accept-bid", customerAuth, async (req, res) => {
   emitRideDispatchUpdate({ rideId: rideUpdate!.id, action: "accepted", status: "accepted" });
   emitRideUpdate(rideUpdate!.id);
   sendSuccess(res, { ...formatRide(rideUpdate!), agreedFare, tripOtp: otp });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -971,7 +977,8 @@ router.patch("/:id/customer-counter", bargainLimiter, customerAuth, requireRideS
 
   emitRideUpdate(rideId);
   sendSuccess(res, formatRide(updated!));
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -994,7 +1001,7 @@ router.get("/", customerAuth, async (req, res) => {
       try {
         const computed = await calcFare(parseFloat(String(r.distance)), r.type);
         fareBreakdown = { baseFare: computed.baseFare, gstAmount: computed.gstAmount };
-      } catch {}
+      } catch (err) { /* intentional: non-fatal guard */ void err; }
     }
     return { ...base, fareBreakdown };
   }));
@@ -1004,7 +1011,8 @@ router.get("/", customerAuth, async (req, res) => {
     rides: result,
     total: result.length,
   });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -1023,7 +1031,8 @@ router.get("/payment-methods", async (_req, res) => {
     { key: "easypaisa", label: "EasyPaisa",  enabled: rideAllowed("easypaisa_allowed_rides", "ride_payment_easypaisa", "off") && (s["easypaisa_enabled"] ?? "off") === "on" },
   ];
   sendSuccess(res, { methods: methods.filter(m => m.enabled) });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -1038,7 +1047,8 @@ router.get("/pool/:groupId", customerAuth, async (req, res) => {
     stops: ridesTable.stops, createdAt: ridesTable.createdAt,
   }).from(ridesTable).where(eq(ridesTable.poolGroupId, groupId)).orderBy(ridesTable.createdAt);
   sendSuccess(res, { groupId, rides, passengerCount: rides.length });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });

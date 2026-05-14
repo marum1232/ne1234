@@ -120,7 +120,8 @@ export async function analyzeSentiment(text: string): Promise<"positive" | "nega
       return sentiment;
     }
     return "neutral";
-  } catch {
+  } catch (err) {
+    logger.debug({ error: err instanceof Error ? err.message : String(err) }, "[communicationAI] AI sentiment analysis failed — using keyword fallback");
     const lower = text.toLowerCase();
     if (lower.includes("bad") || lower.includes("terrible") || lower.includes("poor")) return "negative";
     if (lower.includes("good") || lower.includes("great") || lower.includes("excellent")) return "positive";

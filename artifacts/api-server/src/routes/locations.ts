@@ -154,7 +154,7 @@ async function processLocationUpdate(opts: {
               userId, reason, autoOffline: true, sentAt: now.toISOString(),
             });
           }
-        } catch {}
+        } catch (err) { /* intentional: non-fatal guard */ void err; }
       }
 
       return { skip: true, spoofed: true, autoOffline };
@@ -213,7 +213,7 @@ async function processLocationUpdate(opts: {
                   sentAt: now.toISOString(),
                 });
               }
-            } catch {}
+            } catch (err) { /* intentional: non-fatal guard */ void err; }
           }
 
           return { skip: true, spoofed: true, autoOffline };
@@ -316,7 +316,7 @@ async function processLocationUpdate(opts: {
               ))
               .limit(1);
             histRideId = activeRide?.id ?? null;
-          } catch {}
+          } catch (err) { /* intentional: non-fatal guard */ void err; }
 
           if (!histRideId) {
             try {
@@ -332,7 +332,7 @@ async function processLocationUpdate(opts: {
                 ))
                 .limit(1);
               histOrderId = activeOrder?.id ?? null;
-            } catch {}
+            } catch (err) { /* intentional: non-fatal guard */ void err; }
           }
 
           await db.insert(locationHistoryTable).values({
@@ -384,7 +384,7 @@ async function broadcastRiderLocation(userId: string, lat: number, lon: number, 
       .where(eq(riderProfilesTable.userId, userId))
       .limit(1);
     vehicleType = riderProfile?.vehicleType ?? null;
-  } catch {}
+  } catch (err) { /* intentional: non-fatal guard */ void err; }
 
   /* Find active ride (for currentTripId) */
   try {
@@ -404,7 +404,7 @@ async function broadcastRiderLocation(userId: string, lat: number, lon: number, 
       .limit(1);
     serverRideId = activeRide?.id ?? null;
     currentTripId = serverRideId;
-  } catch {}
+  } catch (err) { /* intentional: non-fatal guard */ void err; }
 
   /* Find active order if no ride trip */
   try {
@@ -418,7 +418,7 @@ async function broadcastRiderLocation(userId: string, lat: number, lon: number, 
     serverVendorId = activeOrder?.vendorId ?? null;
     serverOrderId = activeOrder?.id ?? null;
     if (!currentTripId && serverOrderId) currentTripId = serverOrderId;
-  } catch {}
+  } catch (err) { /* intentional: non-fatal guard */ void err; }
 
   emitRiderLocation({
     userId,
@@ -531,7 +531,8 @@ router.post("/update", gpsAntiSpoofMiddleware, async (req, res) => {
   }
 
   res.json({ success: true, updatedAt });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -628,7 +629,8 @@ router.post("/batch", async (req, res) => {
   }
 
   res.json({ success: true, processed, skipped, updatedAt: lastUpdatedAt });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });

@@ -83,7 +83,7 @@ function isAuthorizedForAdminFleet(
     try {
       const payload = verifyAccessToken(token);
       if (payload && (payload.role === "super" || payload.role === "manager" || payload.role === "support" || payload.role === "admin")) return true;
-    } catch { /* not a valid v2 admin token */ }
+    } catch (err) { logger.debug({ error: err instanceof Error ? err.message : String(err) }, `[route] not a valid v2 admin token`); }
   }
   const bearer = extractBearerToken(headers["authorization"]);
   if (bearer) {
@@ -92,7 +92,7 @@ function isAuthorizedForAdminFleet(
     try {
       const v2 = verifyAccessToken(bearer);
       if (v2 && (v2.role === "super" || v2.role === "manager" || v2.role === "support")) return true;
-    } catch { /* not a v2 token */ }
+    } catch (err) { logger.debug({ error: err instanceof Error ? err.message : String(err) }, `[route] not a v2 token`); }
   }
   return false;
 }
@@ -145,8 +145,8 @@ async function isAuthorizedForOrderRoom(
       .where(eq(pharmacyOrdersTable.id, orderId))
       .limit(1);
     if (pharmacy && (pharmacy.userId === userId || pharmacy.riderId === userId)) return true;
-  } catch {
-    /* DB failure → deny */
+  } catch (err) {
+    logger.debug({ error: err instanceof Error ? err.message : String(err) }, `[fn] DB failure → deny`);
   }
 
   return false;
@@ -190,8 +190,8 @@ async function isAuthorizedForRideRoom(
       .limit(1);
 
     if (order) return true;
-  } catch {
-    /* DB failure → deny */
+  } catch (err) {
+    logger.debug({ error: err instanceof Error ? err.message : String(err) }, `[fn] DB failure → deny`);
   }
 
   return false;
@@ -222,7 +222,8 @@ async function isAuthorizedForVanRoom(room: string, userId: string): Promise<boo
       ))
       .limit(1);
     return !!bookingMatch;
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     return false;
   }
 }
@@ -236,7 +237,8 @@ async function isAuthorizedForConversationRoom(convId: string, userId: string): 
       .limit(1);
     if (!conv) return false;
     return conv.p1 === userId || conv.p2 === userId;
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     return false;
   }
 }
@@ -518,7 +520,7 @@ export function initSocketIO(httpServer: HttpServer): SocketIOServer {
       try {
         const [call] = await db.select().from(callLogsTable).where(and(eq(callLogsTable.id, payload.callId), or(eq(callLogsTable.callerId, cachedSession.userId), eq(callLogsTable.calleeId, cachedSession.userId)))).limit(1);
         if (!call) return;
-      } catch { return; }
+      } catch (err) { logger.debug({ error: err instanceof Error ? err.message : String(err) }, "[fn] early return on error"); return; }
       _io!.to(`user:${payload.targetUserId}`).emit("comm:call:offer", { callId: payload.callId, sdp: payload.sdp, callerId: cachedSession.userId });
     });
 
@@ -527,7 +529,7 @@ export function initSocketIO(httpServer: HttpServer): SocketIOServer {
       try {
         const [call] = await db.select().from(callLogsTable).where(and(eq(callLogsTable.id, payload.callId), or(eq(callLogsTable.callerId, cachedSession.userId), eq(callLogsTable.calleeId, cachedSession.userId)))).limit(1);
         if (!call) return;
-      } catch { return; }
+      } catch (err) { logger.debug({ error: err instanceof Error ? err.message : String(err) }, "[fn] early return on error"); return; }
       _io!.to(`user:${payload.targetUserId}`).emit("comm:call:answer", { callId: payload.callId, sdp: payload.sdp });
     });
 
@@ -536,7 +538,7 @@ export function initSocketIO(httpServer: HttpServer): SocketIOServer {
       try {
         const [call] = await db.select().from(callLogsTable).where(and(eq(callLogsTable.id, payload.callId), or(eq(callLogsTable.callerId, cachedSession.userId), eq(callLogsTable.calleeId, cachedSession.userId)))).limit(1);
         if (!call) return;
-      } catch { return; }
+      } catch (err) { logger.debug({ error: err instanceof Error ? err.message : String(err) }, "[fn] early return on error"); return; }
       _io!.to(`user:${payload.targetUserId}`).emit("comm:call:ice-candidate", { callId: payload.callId, candidate: payload.candidate });
     });
 

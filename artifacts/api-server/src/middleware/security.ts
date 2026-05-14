@@ -372,7 +372,8 @@ export async function getActiveLockouts(): Promise<Array<{ key: string; attempts
           minutesLeft,
         };
       });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     return [];
   }
 }
@@ -488,8 +489,8 @@ export async function writeAuthAuditLog(
       userAgent: opts.userAgent ?? null,
       metadata:  opts.metadata ? JSON.stringify(opts.metadata) : null,
     });
-  } catch {
-    /* Non-fatal — never let audit log writes crash the main flow */
+  } catch (err) {
+    logger.debug({ error: err instanceof Error ? err.message : String(err) }, `[fn] Non-fatal — never let audit log writes crash the main flow`);
   }
 }
 
@@ -558,7 +559,8 @@ export async function isJtiBlacklisted(jti: string): Promise<boolean> {
     if (!redisClient) return false;
     const result = await redisClient.exists(`jwt:bl:${jti}`);
     return result === 1;
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     return false;
   }
 }
@@ -605,7 +607,8 @@ export async function isTokenIssuedBeforeRevocation(userId: string, iatSec: numb
     const val = await redisClient.get(`revoke:user:${userId}`);
     if (!val) return false;
     return iatSec * 1000 < parseInt(val, 10);
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     return false;
   }
 }
@@ -638,7 +641,8 @@ export function verify2faChallengeToken(token: string): TwoFaChallengePayload | 
       roles: payload["roles"] as string ?? "customer",
       authMethod: (payload["authMethod"] as string) || undefined,
     };
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     return null;
   }
 }
@@ -676,7 +680,8 @@ export function verifyUserJwt(token: string): JwtUserPayload | null {
       exp:          typeof payload.exp === "number" ? payload.exp : undefined,
       iat:          typeof payload.iat === "number" ? payload.iat : undefined,
     };
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     return null;
   }
 }
@@ -729,7 +734,8 @@ export async function isRefreshTokenValid(tokenHash: string): Promise<typeof ref
     if (!row) return null;
     if (row.expiresAt < new Date()) return null;
     return row;
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     return null;
   }
 }
@@ -778,7 +784,8 @@ export async function checkLockout(
       return { locked: true, minutesLeft };
     }
     return { locked: false, minutesLeft: 0 };
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     return { locked: false, minutesLeft: 0 };
   }
 }
@@ -892,7 +899,8 @@ export async function checkAvailableRateLimit(
       return { limited: true, minutesLeft };
     }
     return { limited: false, minutesLeft: 0 };
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     return { limited: false, minutesLeft: 0 };
   }
 }
@@ -926,7 +934,8 @@ export function detectGPSSpoof(
 
     const speedKmh = distanceKm / elapsedHours;
     return { spoofed: speedKmh > maxSpeedKmh, speedKmh };
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     return { spoofed: false, speedKmh: 0 };
   }
 }
@@ -1050,8 +1059,8 @@ export function requireFeatureEnabled(featureKey: string, disabledMessage?: stri
         });
         return;
       }
-    } catch {
-      /* On error, allow through — don't block requests on settings lookup failure */
+    } catch (err) {
+      logger.debug({ error: err instanceof Error ? err.message : String(err) }, `[fn] On error, allow through — don't block requests on settings lookup failure`);
     }
     next();
   };
@@ -1115,8 +1124,8 @@ export function requireRole(
           res.status(403).json({ error: "Vendor account not approved" });
           return;
         }
-      } catch {
-        /* on DB error, allow through */
+      } catch (err) {
+        logger.debug({ error: err instanceof Error ? err.message : String(err) }, `[fn] on DB error, allow through`);
       }
     }
 
@@ -1152,8 +1161,8 @@ export async function verifyCaptcha(req: Request, _res: Response, next: NextFunc
       /* Log failure but don't block — captcha is advisory in this implementation */
       logger.warn({ url: req.url }, "[captcha] Verification failed — allowing through");
     }
-  } catch {
-    /* Network error — allow through */
+  } catch (err) {
+    logger.debug({ error: err instanceof Error ? err.message : String(err) }, `[fn] Network error — allow through`);
   }
   next();
 }

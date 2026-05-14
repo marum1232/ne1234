@@ -31,7 +31,8 @@ router.post("/track", customerAuth, async (req, res) => {
     weight: weightMap[type] ?? 1,
   });
   res.json({ success: true });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -115,7 +116,8 @@ router.get("/for-you", customerAuth, async (req, res) => {
   }
 
   res.json({ recommendations, total: recommendations.length });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -196,7 +198,8 @@ router.get("/trending", async (req, res) => {
     logger.error("[recommendations GET /trending] DB error:", e);
     sendInternalError(res);
   }
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -244,7 +247,8 @@ router.get("/similar/:productId", async (req, res) => {
   }).sort((a, b) => b.similarityScore - a.similarityScore);
 
   res.json({ products: scored, total: scored.length, baseProduct: { id: product.id, name: product.name, category: product.category } });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -307,7 +311,8 @@ router.get("/frequently-bought", customerAuth, async (req, res) => {
   })).sort((a, b) => b.purchaseCount - a.purchaseCount);
 
   res.json({ products: result, total: result.length });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });

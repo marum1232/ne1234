@@ -7,6 +7,7 @@ import { getLastDriftReport, checkSchemaDrift } from "../services/schemaDrift.se
 import { redisClient } from "../lib/redis.js";
 import { getP95Ms, getMemoryPct, getDiskPct } from "../lib/metrics/responseTime.js";
 import { getVpnCircuitBreakerStatus } from "../middleware/security.js";
+import { logger } from '../lib/logger.js';
 
 const router = Router();
 
@@ -30,7 +31,8 @@ router.get("/", async (_req, res) => {
           ),
         ]);
         dbStatus = "ok";
-      } catch {
+      } catch (err) {
+        logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
         dbStatus = "error";
       }
     })(),
@@ -47,7 +49,8 @@ router.get("/", async (_req, res) => {
           ),
         ]);
         redisStatus = "ok";
-      } catch {
+      } catch (err) {
+        logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
         redisStatus = "error";
       }
     })(),
@@ -67,7 +70,8 @@ router.get("/", async (_req, res) => {
       const t0 = Date.now();
       await db.select({ c: count() }).from(platformSettingsTable);
       dbQueryMs = Date.now() - t0;
-    } catch {
+    } catch (err) {
+      logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
       dbQueryMs = null;
     }
   }
@@ -85,7 +89,7 @@ router.get("/", async (_req, res) => {
         .where(eq(platformSettingsTable.key, "app_version"))
         .limit(1);
       if (row?.value) appVersion = row.value;
-    } catch { /* ignore — appVersion defaults to 1.0.0 */ }
+    } catch (err) { logger.debug({ error: err instanceof Error ? err.message : String(err) }, `[route] ignore — appVersion defaults to 1.0.0`); }
   }
 
   const vpnDetection = getVpnCircuitBreakerStatus();
@@ -104,7 +108,8 @@ router.get("/", async (_req, res) => {
     diskPct,
     vpnDetection: { status: vpnDetection.status },
   });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });

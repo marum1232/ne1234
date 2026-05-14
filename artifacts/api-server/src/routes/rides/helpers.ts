@@ -424,8 +424,8 @@ export async function getRoadDistanceKm(lat1: number, lng1: number, lat2: number
         };
       }
     }
-  } catch {
-    /* Network error — fall through to haversine */
+  } catch (err) {
+    logger.debug({ error: err instanceof Error ? err.message : String(err) }, `[fn] Network error — fall through to haversine`);
   }
 
   return haversineFallback;

@@ -24,7 +24,8 @@ router.get("/snapshot", customerAuth, async (req, res) => {
     logger.warn({ err: (err as Error).message, userId }, "[cart] failed to fetch snapshot");
     sendError(res, "Failed to fetch cart snapshot", 500);
   }
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -77,7 +78,8 @@ router.put("/snapshot", customerAuth, async (req, res) => {
     logger.warn({ err: (err as Error).message, userId }, "[cart] failed to save snapshot");
     sendError(res, "Failed to save cart snapshot", 500);
   }
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -96,7 +98,8 @@ router.delete("/snapshot", customerAuth, async (req, res) => {
     logger.warn({ err: (err as Error).message, userId }, "[cart] failed to clear snapshot");
     sendError(res, "Failed to clear cart snapshot", 500);
   }
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });

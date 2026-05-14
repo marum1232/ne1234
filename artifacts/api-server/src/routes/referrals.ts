@@ -66,7 +66,8 @@ router.get("/my-code", customerAuth, async (req, res) => {
     rewardAmount,
     usedCount: 0,
   });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -162,7 +163,8 @@ router.post("/apply", customerAuth, async (req, res) => {
     logger.error({ err, userId, code: upperCode }, "[referrals/apply] transaction failed");
     sendError(res, "Failed to apply referral code. Please try again.", 500);
   }
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });

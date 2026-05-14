@@ -7,6 +7,7 @@ import { generateId } from "../lib/id.js";
 import { sendSuccess, sendCreated, sendNotFound } from "../lib/response.js";
 import { validateBody } from "../middleware/validate.js";
 import { customerAuth } from "../middleware/security.js";
+import { logger } from '../lib/logger.js';
 
 const router: IRouter = Router();
 
@@ -50,7 +51,8 @@ router.post("/", validateBody(addToWishlistSchema), async (req, res) => {
   }).returning();
 
   sendCreated(res, { id: entry!.id });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -71,7 +73,8 @@ router.delete("/:productId", async (req, res) => {
   }
 
   sendSuccess(res, null);
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -130,7 +133,8 @@ router.get("/", async (req, res) => {
     .filter(Boolean);
 
   sendSuccess(res, { items: enriched, total: enriched.length });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -147,7 +151,8 @@ router.get("/check/:productId", async (req, res) => {
     .limit(1);
 
   sendSuccess(res, { inWishlist: existing.length > 0 });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });

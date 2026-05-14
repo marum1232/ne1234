@@ -29,7 +29,8 @@ function sanitizeRedisUrl(raw: string): string | null {
   const decoded = (() => {
     try {
       return decodeURIComponent(value).trim();
-    } catch {
+    } catch (err) {
+      logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
       return value;
     }
   })();
@@ -40,7 +41,8 @@ function sanitizeRedisUrl(raw: string): string | null {
     const parsed = new URL(normalized);
     if (!parsed.hostname) return null;
     return normalized;
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     return null;
   }
 }

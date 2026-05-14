@@ -92,7 +92,8 @@ router.get("/whatsapp/delivery-log", adminAuth, async (req, res) => {
     logger.error("[WhatsApp delivery log] Query error:", err.message);
     sendError(res, "Failed to fetch delivery log", 500);
   }
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -125,7 +126,8 @@ router.get("/whatsapp", async (req, res) => {
   }
 
   res.status(200).send(challenge);
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -163,7 +165,8 @@ router.post("/whatsapp", async (req, res) => {
     const a = Buffer.from(sigHeader);
     const b = Buffer.from(expected);
     valid = a.length === b.length && timingSafeEqual(a, b);
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     valid = false;
   }
 
@@ -217,7 +220,8 @@ router.post("/whatsapp", async (req, res) => {
       }
     }
   }
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -273,8 +277,8 @@ async function triggerFallback(phone: string, waMessageId: string, pool: Pool): 
   let settings: Record<string, string>;
   try {
     settings = await getCachedSettings();
-  } catch {
-    logger.warn("[WhatsApp fallback] Could not load platform settings");
+  } catch (err) {
+    logger.warn({ error: err instanceof Error ? err.message : String(err) }, "[WhatsApp fallback] Could not load platform settings");
     return;
   }
 

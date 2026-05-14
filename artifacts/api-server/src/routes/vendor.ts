@@ -55,7 +55,7 @@ function formatUser(user: any) {
     avatar: user.avatar,
     storeName: user.storeName, storeCategory: user.storeCategory,
     storeBanner: user.storeBanner, storeDescription: user.storeDescription,
-    storeHours: user.storeHours ? (typeof user.storeHours === "string" ? (() => { try { return JSON.parse(user.storeHours); } catch { return null; } })() : user.storeHours) : null,
+    storeHours: user.storeHours ? (typeof user.storeHours === "string" ? (() => { try { return JSON.parse(user.storeHours); } catch (err) { logger.debug({ error: err instanceof Error ? err.message : String(err) }, "[fn] error with fallback return"); return null; } })() : user.storeHours) : null,
     storeAnnouncement: user.storeAnnouncement,
     storeMinOrder: safeNum(user.storeMinOrder),
     storeDeliveryTime: user.storeDeliveryTime,
@@ -96,7 +96,8 @@ router.get("/me", async (req, res) => {
       totalRevenue: parseFloat((safeNum(totalRev[0]?.s) * vendorShare).toFixed(2)),
     },
   });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -118,7 +119,8 @@ router.patch("/profile", validateBody(patchProfileSchema), async (req, res) => {
   if (businessType     !== undefined) updates.businessType     = businessType;
   const [user] = await db.update(usersTable).set(updates).where(eq(usersTable.id, vendorId)).returning();
   sendSuccess(res, formatUser(user));
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -167,7 +169,8 @@ router.patch("/profile/quick-replies", validateBody(patchQuickRepliesSchema), as
       set: { quickReplies: serialized, updatedAt: new Date() },
     });
   sendSuccess(res, { quickReplies });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -177,7 +180,8 @@ router.get("/store", async (req, res) => {
   try {
   const user = req.vendorUser!;
   sendSuccess(res, formatUser(user));
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -197,7 +201,8 @@ router.patch("/store", validateBody(patchStoreSchema), async (req, res) => {
   if (body.storeLng !== undefined && body.storeLng !== null) updates.storeLng = String(body.storeLng);
   const [user] = await db.update(usersTable).set(updates).where(eq(usersTable.id, vendorId)).returning();
   sendSuccess(res, formatUser(user));
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -230,7 +235,8 @@ router.get("/stats", async (req, res) => {
     pending:  pending[0]?.c ?? 0,
     lowStock: lowStock[0]?.c ?? 0,
   });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -256,7 +262,8 @@ router.get("/orders", async (req, res) => {
     .orderBy(desc(ordersTable.createdAt))
     .limit(100);
   sendSuccess(res, { orders: orders.map(row => ({ ...row.order, total: safeNum(row.order.total), riderName: row.riderName ?? undefined, riderPhone: row.riderPhone ?? undefined })) });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -478,7 +485,8 @@ router.get("/promos", async (req, res) => {
     .where(eq(promoCodesTable.vendorId, vendorId))
     .orderBy(desc(promoCodesTable.createdAt));
   sendSuccess(res, { promos });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -508,7 +516,8 @@ router.post("/promos", async (req, res) => {
     isActive:       true,
   }).returning();
   sendCreated(res, { promo });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -535,7 +544,8 @@ router.patch("/promos/:id", async (req, res) => {
   const [promo] = await db.update(promoCodesTable).set(updates)
     .where(eq(promoCodesTable.id, existing.id)).returning();
   sendSuccess(res, { promo });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -554,7 +564,8 @@ router.patch("/promos/:id/toggle", async (req, res) => {
     .where(eq(promoCodesTable.id, existing.id))
     .returning();
   sendSuccess(res, { promo });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -570,7 +581,8 @@ router.delete("/promos/:id", async (req, res) => {
   if (!existing) { sendNotFound(res, "Promo not found"); return; }
   await db.delete(promoCodesTable).where(eq(promoCodesTable.id, existing.id));
   sendSuccess(res, { success: true });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });

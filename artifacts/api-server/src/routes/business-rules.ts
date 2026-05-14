@@ -109,7 +109,8 @@ router.post("/", async (req, res) => {
     logger.error({ err }, "[business-rules] create error");
     sendError(res, "Failed to create business rule", 500);
   }
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -159,7 +160,8 @@ router.put("/:id", async (req, res) => {
     logger.error({ err }, "[business-rules] update error");
     sendError(res, "Failed to update business rule", 500);
   }
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -266,7 +268,8 @@ router.post("/validate", async (req, res) => {
     logger.error({ err }, "[business-rules] validate error");
     sendError(res, "Failed to validate rule", 500);
   }
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -317,7 +320,8 @@ router.post("/evaluate", async (req, res) => {
     logger.error({ err }, "[business-rules] evaluate error");
     sendError(res, "Failed to evaluate rules", 500);
   }
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });

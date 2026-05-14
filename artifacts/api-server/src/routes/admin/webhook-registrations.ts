@@ -21,7 +21,8 @@ function isValidWebhookUrl(raw: string): boolean {
     if (/^172\.(1[6-9]|2\d|3[01])\./.test(host)) return false;
     if (host === "169.254.169.254" || host.endsWith(".internal") || host.endsWith(".local")) return false;
     return true;
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     return false;
   }
 }
@@ -33,7 +34,8 @@ router.get("/webhooks", async (_req, res) => {
     const webhooks = await db.select().from(webhookRegistrationsTable).orderBy(desc(webhookRegistrationsTable.createdAt));
     const sanitized = webhooks.map(({ secret, ...rest }) => rest);
     sendSuccess(res, { webhooks: sanitized });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     sendError(res, "Failed to load webhooks", 500);
   }
 });
@@ -68,7 +70,8 @@ router.post("/webhooks", async (req, res) => {
 
     addAuditEntry({ action: "webhook_create", ip: getClientIp(req), adminId: (req as AdminRequest).adminId, details: `Created webhook: ${url}`, result: "success" });
     sendSuccess(res, { webhook: created });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     sendError(res, "Failed to create webhook", 500);
   }
 });
@@ -83,7 +86,8 @@ router.patch("/webhooks/:id/toggle", async (req, res) => {
     await db.update(webhookRegistrationsTable).set({ isActive: newState, updatedAt: new Date() }).where(eq(webhookRegistrationsTable.id, id));
     addAuditEntry({ action: "webhook_toggle", ip: getClientIp(req), adminId: (req as AdminRequest).adminId, details: `${newState ? "Enabled" : "Disabled"} webhook: ${existing.url}`, result: "success" });
     sendSuccess(res, { success: true, isActive: newState });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     sendError(res, "Failed to toggle webhook", 500);
   }
 });
@@ -168,7 +172,8 @@ router.delete("/webhooks/:id", async (req, res) => {
     await db.delete(webhookRegistrationsTable).where(eq(webhookRegistrationsTable.id, id));
     addAuditEntry({ action: "webhook_delete", ip: getClientIp(req), adminId: (req as AdminRequest).adminId, details: `Deleted webhook: ${existing.url}`, result: "success" });
     sendSuccess(res, { success: true });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     sendError(res, "Failed to delete webhook", 500);
   }
 });
@@ -181,7 +186,8 @@ router.get("/webhooks/:id/logs", async (req, res) => {
       .orderBy(desc(webhookLogsTable.createdAt))
       .limit(50);
     sendSuccess(res, { logs });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     sendError(res, "Failed to load webhook logs", 500);
   }
 });

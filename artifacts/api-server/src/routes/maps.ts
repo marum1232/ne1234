@@ -37,7 +37,8 @@ async function getRevGeoCacheConfig(): Promise<{ ttlMs: number; maxSize: number 
     const ttlMin  = Math.max(1,  Math.min(1440, parseInt(s["geocode_cache_ttl_min"]  ?? "10",  10)));
     const maxSize = Math.max(10, Math.min(5000, parseInt(s["geocode_cache_max_size"] ?? "200", 10)));
     return { ttlMs: ttlMin * 60_000, maxSize };
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     return { ttlMs: REV_GEO_TTL_MS_DEFAULT, maxSize: REV_GEO_MAX_DEFAULT };
   }
 }
@@ -167,7 +168,7 @@ async function getFallbackPredictions(input: string) {
       lat:         parseFloat(String(l.lat)),
       lng:         parseFloat(String(l.lng)),
     }));
-  } catch { /* DB unavailable — use hardcoded only */ }
+  } catch (err) { logger.debug({ error: err instanceof Error ? err.message : String(err) }, `[route] DB unavailable — use hardcoded only`); }
 
   /* Merge: DB locations first (admin-curated), then hardcoded as backup */
   const dbIds = new Set(dbLocs.map(l => l.description.toLowerCase()));
@@ -220,7 +221,8 @@ router.get("/autocomplete", async (req, res) => {
       }));
       void trackMapUsage("locationiq", "autocomplete");
       res.json({ predictions, source: "locationiq" });
-    } catch {
+    } catch (err) {
+      logger.warn({ error: err instanceof Error ? err.message : String(err), code: "MAPS_AUTOCOMPLETE_FAILED", timestamp: new Date().toISOString() }, "[maps] LocationIQ autocomplete failed — using fallback predictions");
       const filtered = await getFallbackPredictions(input);
       res.status(503).json({ predictions: filtered, source: "fallback", approximate: true, warning: "Maps service temporarily unavailable. Results are limited to pre-defined AJK locations." });
     }
@@ -285,7 +287,7 @@ router.get("/geocode", async (req, res) => {
         });
         return;
       }
-    } catch { /* fall through */ }
+    } catch (err) { logger.debug({ error: err instanceof Error ? err.message : String(err) }, `[route] fall through`); }
   }
 
   const { key, enabled, geocoding, provider: configuredProvider, locationiqKey } = await getKey();
@@ -326,7 +328,7 @@ router.get("/geocode", async (req, res) => {
       try {
         const nom = await nominatimForwardGeocode(address);
         if (nom) { res.json({ ...nom, source: "nominatim" }); return; }
-      } catch { /* Nominatim unavailable */ }
+      } catch (err) { logger.debug({ error: err instanceof Error ? err.message : String(err) }, `[route] Nominatim unavailable`); }
     }
 
     res.status(503).json({ error: "Maps not configured and location not found in local list." });
@@ -346,15 +348,16 @@ router.get("/geocode", async (req, res) => {
         try {
           const nom = await nominatimForwardGeocode(address);
           if (nom) { void trackMapUsage("osm", "geocode"); res.json({ ...nom, source: "nominatim" }); return; }
-        } catch { /* Nominatim unavailable */ }
+        } catch (err) { logger.debug({ error: err instanceof Error ? err.message : String(err) }, `[route] Nominatim unavailable`); }
       }
       res.status(404).json({ error: "Location not found" });
-    } catch {
+    } catch (err) {
+      logger.warn({ error: err instanceof Error ? err.message : String(err), code: "MAPS_GEOCODE_FAILED", timestamp: new Date().toISOString() }, "[maps] Primary geocode failed — trying Nominatim fallback");
       if (address) {
         try {
           const nom = await nominatimForwardGeocode(address);
           if (nom) { void trackMapUsage("osm", "geocode"); res.json({ ...nom, source: "nominatim" }); return; }
-        } catch { /* Nominatim unavailable */ }
+        } catch (err) { logger.debug({ error: err instanceof Error ? err.message : String(err) }, `[route] Nominatim unavailable`); }
       }
       res.status(500).json({ error: "Maps geocode request failed" });
     }
@@ -372,7 +375,7 @@ router.get("/geocode", async (req, res) => {
         try {
           const nom = await nominatimForwardGeocode(address);
           if (nom) { res.json({ ...nom, source: "nominatim" }); return; }
-        } catch { /* Nominatim unavailable */ }
+        } catch (err) { logger.debug({ error: err instanceof Error ? err.message : String(err) }, `[route] Nominatim unavailable`); }
       }
       res.status(404).json({ error: "Location not found", googleStatus: data.status });
       return;
@@ -391,7 +394,7 @@ router.get("/geocode", async (req, res) => {
       try {
         const nom = await nominatimForwardGeocode(address);
         if (nom) { void trackMapUsage("osm", "geocode"); res.json({ ...nom, source: "nominatim" }); return; }
-      } catch { /* Nominatim unavailable */ }
+      } catch (err) { logger.debug({ error: err instanceof Error ? err.message : String(err) }, `[route] Nominatim unavailable`); }
     }
     res.status(500).json({ error: "Maps geocode request failed" });
   }
@@ -485,7 +488,7 @@ router.get("/reverse-geocode", async (req, res) => {
           res.json({ address, formattedAddress: nomData.display_name, source: "nominatim" }); return;
         }
       }
-    } catch { /* Nominatim unavailable */ }
+    } catch (err) { logger.debug({ error: err instanceof Error ? err.message : String(err) }, `[route] Nominatim unavailable`); }
 
     const address = ajkFallback();
     await revGeoCacheSet(lat, lng, address);
@@ -508,11 +511,12 @@ router.get("/reverse-geocode", async (req, res) => {
           void trackMapUsage("osm", "reverse-geocode");
           res.json({ address: nomAddr, source: "nominatim" }); return;
         }
-      } catch { /* Nominatim unavailable */ }
+      } catch (err) { logger.debug({ error: err instanceof Error ? err.message : String(err) }, `[route] Nominatim unavailable`); }
       const address = ajkFallback();
       await revGeoCacheSet(lat, lng, address);
       res.json({ address, source: "fallback" });
-    } catch {
+    } catch (err) {
+      logger.warn({ error: err instanceof Error ? err.message : String(err), code: "MAPS_LOCATIONIQ_REVERSE_FAILED", timestamp: new Date().toISOString() }, "[maps] LocationIQ reverse geocode failed — trying Nominatim fallback");
       try {
         const nomAddr = await nominatimReverseGeocode(lat, lng);
         if (nomAddr) {
@@ -520,7 +524,7 @@ router.get("/reverse-geocode", async (req, res) => {
           void trackMapUsage("osm", "reverse-geocode");
           res.json({ address: nomAddr, source: "nominatim" }); return;
         }
-      } catch { /* Nominatim also unavailable */ }
+      } catch (err) { logger.debug({ error: err instanceof Error ? err.message : String(err) }, `[route] Nominatim also unavailable`); }
       const address = ajkFallback();
       await revGeoCacheSet(lat, lng, address);
       res.json({ address, source: "fallback" });
@@ -541,7 +545,7 @@ router.get("/reverse-geocode", async (req, res) => {
           void trackMapUsage("osm", "reverse-geocode");
           res.json({ address: nomAddr, source: "nominatim" }); return;
         }
-      } catch { /* Nominatim unavailable */ }
+      } catch (err) { logger.debug({ error: err instanceof Error ? err.message : String(err) }, `[route] Nominatim unavailable`); }
       res.status(404).json({ error: "Address not found", googleStatus: data.status }); return;
     }
 
@@ -549,7 +553,8 @@ router.get("/reverse-geocode", async (req, res) => {
     await revGeoCacheSet(lat, lng, address);
     void trackMapUsage("google", "reverse-geocode");
     res.json({ address, formattedAddress: data.results[0].formatted_address, source: "google" });
-  } catch {
+  } catch (err) {
+    logger.warn({ error: err instanceof Error ? err.message : String(err), code: "MAPS_GOOGLE_REVERSE_GEOCODE_FAILED", timestamp: new Date().toISOString() }, "[maps] Google reverse geocode failed — trying Nominatim fallback");
     try {
       const nomAddr = await nominatimReverseGeocode(lat, lng);
       if (nomAddr) {
@@ -557,7 +562,7 @@ router.get("/reverse-geocode", async (req, res) => {
         void trackMapUsage("osm", "reverse-geocode");
         res.json({ address: nomAddr, source: "nominatim" }); return;
       }
-    } catch { /* Nominatim also unavailable */ }
+    } catch (err) { logger.debug({ error: err instanceof Error ? err.message : String(err) }, `[route] Nominatim also unavailable`); }
     res.status(500).json({ error: "Reverse geocode request failed" });
   }
 });
@@ -620,7 +625,8 @@ router.get("/directions", async (req, res) => {
         geojson:         route.geometry ?? null,
         source:          "osrm",
       });
-    } catch {
+    } catch (err) {
+      logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
       res.json(haversineFallback("fallback"));
     }
     return;
@@ -649,7 +655,8 @@ router.get("/directions", async (req, res) => {
         geojson:         route.geometry ?? null,
         source:          "mapbox",
       });
-    } catch {
+    } catch (err) {
+      logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
       res.json(haversineFallback("fallback"));
     }
     return;
@@ -681,7 +688,8 @@ router.get("/directions", async (req, res) => {
       polyline:        data.routes[0].overview_polyline?.points ?? null,
       source:          "google",
     });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.json(haversineFallback("fallback"));
   }
 });
@@ -964,7 +972,8 @@ router.get("/picker", (req, res) => {
       const r = await fetch(API_BASE + '/api/maps/reverse-geocode?lat=' + lat + '&lng=' + lng);
       const d = await r.json();
       currentAddress = d.address || d.formattedAddress || (lat.toFixed(5) + ', ' + lng.toFixed(5));
-    } catch {
+    } catch (err) {
+      logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
       currentAddress = lat.toFixed(5) + ', ' + lng.toFixed(5);
     }
     addrEl.textContent = currentAddress;
@@ -1029,7 +1038,7 @@ router.get("/picker", (req, res) => {
           + '</div>'
         ).join('');
         sugEl.style.display = 'block';
-      } catch { sugEl.style.display = 'none'; }
+      } catch (err) { logger.debug({ error: err instanceof Error ? err.message : String(err) }, "[fn] error with fallback"); sugEl.style.display = 'none'; }
     }, 300);
   });
 
@@ -1053,7 +1062,7 @@ router.get("/picker", (req, res) => {
         const r = await fetch(API_BASE + '/api/maps/geocode?place_id=' + encodeURIComponent(pid));
         const d = await r.json();
         lat = d.lat; lng = d.lng;
-      } catch { return; }
+      } catch (err) { logger.debug({ error: err instanceof Error ? err.message : String(err) }, "[fn] early return on error"); return; }
     }
     if (!lat || !lng) return;
     map.setView([lat, lng], 16);
@@ -1090,7 +1099,7 @@ export async function trackMapUsage(provider: string, endpointType: string): Pro
       ON CONFLICT (provider, endpoint_type, date)
       DO UPDATE SET count = map_api_usage_log.count + 1, updated_at = NOW()
     `);
-  } catch { /* silent — usage tracking must not break API */ }
+  } catch (err) { logger.debug({ error: err instanceof Error ? err.message : String(err) }, `[route] silent — usage tracking must not break API`); }
 }
 
 /* ══════════════════════════════════════════════════════════
@@ -1188,7 +1197,7 @@ async function handleMapsTest(req: import("express").Request, res: import("expre
   try {
     await db.update(platformSettingsTable).set({ value: now,                updatedAt: new Date() }).where(eq(platformSettingsTable.key, `map_last_tested_${provider}`));
     await db.update(platformSettingsTable).set({ value: ok ? "ok" : "fail", updatedAt: new Date() }).where(eq(platformSettingsTable.key, `map_test_status_${provider}`));
-  } catch { /* ignore persistence errors */ }
+  } catch (err) { logger.debug({ error: err instanceof Error ? err.message : String(err) }, `[route] ignore persistence errors`); }
 
   sendSuccess(res, { ok, latencyMs, provider, error, testedAt: now });
 }

@@ -671,7 +671,7 @@ export class UserService {
       let metadata: Record<string, unknown> = {};
       try {
         metadata = row.metadata ? JSON.parse(row.metadata) : {};
-      } catch {}
+      } catch (err) { /* intentional: non-fatal guard */ void err; }
       const metaResult = metadata?.result as string | null | undefined;
       const derivedResult =
         metaResult ?? (FAIL_EVENTS.has(row.event) ? "fail" : "success");

@@ -254,7 +254,8 @@ router.post('/auth/login', adminAuthLimiter, loginLimiter, async (req: Request, 
     logger.error('Login error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -359,7 +360,8 @@ router.post('/auth/2fa', adminAuthLimiter, verifyTotpLimiter, async (req: Reques
     logger.error('2FA verification error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -450,7 +452,8 @@ router.post('/auth/refresh', async (req: Request, res: Response) => {
         }
       : undefined,
   });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -487,7 +490,8 @@ router.get('/auth/me', authenticateAdmin, async (req: Request, res: Response) =>
     mustChangePassword: !!admin.mustChangePassword,
     usingDefaultCredentials: !!admin.defaultCredentials,
   });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -529,7 +533,8 @@ router.post(
     });
 
     res.json({ success: true, message: 'Logged out successfully' });
-    } catch {
+    } catch (err) {
+      logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
       res.status(500).json({ success: false, error: "Internal server error" });
     }
   }
@@ -637,7 +642,8 @@ router.post(
       // Still return the generic response — never expose internal failures.
       res.json(genericResponse); return;
     }
-    } catch {
+    } catch (err) {
+      logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
       res.status(500).json({ success: false, error: "Internal server error" });
     }
   },
@@ -696,7 +702,8 @@ router.get(
       expiresAt: verified.token.expiresAt.toISOString(),
       adminName: verified.admin.name,
     });
-    } catch {
+    } catch (err) {
+      logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
       res.status(500).json({ success: false, error: "Internal server error" });
     }
   },
@@ -774,7 +781,8 @@ router.post(
       success: true,
       message: 'Password updated. Please sign in with your new password.',
     });
-    } catch {
+    } catch (err) {
+      logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
       res.status(500).json({ success: false, error: "Internal server error" });
     }
   },
@@ -819,8 +827,8 @@ router.post(
       try {
         const payload = verifyRefreshToken(refreshTokenCookie);
         keepSessionId = payload.sessionId;
-      } catch {
-        /* refresh token invalid — proceed without keeping any session */
+      } catch (err) {
+        logger.debug({ error: err instanceof Error ? err.message : String(err) }, `[fn] refresh token invalid — proceed without keeping any session`);
       }
     }
 
@@ -881,7 +889,8 @@ router.post(
       },
       expiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
     });
-    } catch {
+    } catch (err) {
+      logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
       res.status(500).json({ success: false, error: "Internal server error" });
     }
   },
@@ -916,7 +925,8 @@ router.get(
       })),
       total: sessions.length,
     });
-    } catch {
+    } catch (err) {
+      logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
       res.status(500).json({ success: false, error: "Internal server error" });
     }
   }
@@ -950,7 +960,8 @@ router.delete(
     await logoutAdminSession(sessionId);
 
     res.json({ success: true, message: 'Session revoked' });
-    } catch {
+    } catch (err) {
+      logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
       res.status(500).json({ success: false, error: "Internal server error" });
     }
   }
@@ -1017,7 +1028,8 @@ router.post(
     });
 
     res.json({ success: true });
-    } catch {
+    } catch (err) {
+      logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
       res.status(500).json({ success: false, error: "Internal server error" });
     }
   }
@@ -1047,7 +1059,8 @@ router.delete(
     res.clearCookie('csrf_token', { path: '/' });
 
     res.json({ success: true, message: 'All sessions revoked' });
-    } catch {
+    } catch (err) {
+      logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
       res.status(500).json({ success: false, error: "Internal server error" });
     }
   }

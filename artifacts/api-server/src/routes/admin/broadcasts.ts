@@ -34,8 +34,8 @@ async function ensureBroadcastsTable(): Promise<void> {
     `).catch((err: unknown) => {
       logger.debug({ err: err instanceof Error ? err.message : String(err) }, "[broadcasts] failed_count column add skipped (may already exist)");
     });
-  } catch {
-    /* table may already exist in another form */
+  } catch (err) {
+    logger.debug({ error: err instanceof Error ? err.message : String(err) }, `[fn] table may already exist in another form`);
   }
 }
 
@@ -85,7 +85,8 @@ router.get("/broadcasts", async (req, res) => {
   } catch (err: any) {
     sendError(res, err?.message ?? "Failed to fetch broadcasts", 500);
   }
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -124,7 +125,8 @@ router.post("/broadcasts/record", async (req, res) => {
   } catch (err: any) {
     sendError(res, err?.message ?? "Failed to record broadcast", 500);
   }
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -165,7 +167,8 @@ router.patch("/broadcasts/:id/delivery-stats", async (req, res) => {
   } catch (err: any) {
     sendError(res, err?.message ?? "Failed to update delivery stats", 500);
   }
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });

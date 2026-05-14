@@ -159,6 +159,5 @@ export async function addAuditLog(opts: {
       id: generateId(),
       ...opts,
     });
-  } catch {
-  }
+  } catch (err) { /* intentional: non-fatal guard */ void err; }
 }

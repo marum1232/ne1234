@@ -171,7 +171,8 @@ async function canCommunicate(
         return { allowed: false, reason: `${action} is not permitted for this role pair` };
       }
     }
-  } catch {
+  } catch (err) {
+    logger.warn({ error: err instanceof Error ? err.message : String(err) }, "[communication] Role permission check failed — allowing by default");
     // If roles table fails, allow by default
   }
 
@@ -863,7 +864,8 @@ function getIceServersFromSettings(settings: Record<string, string>): IceServer[
     } else {
       stunList = stunRaw.split(",").map((s: string) => s.trim()).filter(Boolean);
     }
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     stunList = stunRaw.split(",").map((s: string) => s.trim()).filter(Boolean);
   }
 
@@ -1079,7 +1081,8 @@ router.post("/block", async (req: any, res: any) => {
     logger.error({ err: e }, "[comm] block failed");
     res.status(500).json({ error: "Failed to block user" });
   }
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
@@ -1107,7 +1110,8 @@ router.post("/report", async (req: any, res: any) => {
     logger.error({ err: e }, "[comm] report failed");
     res.status(500).json({ error: "Failed to report user" });
   }
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });

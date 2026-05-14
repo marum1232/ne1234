@@ -10,6 +10,7 @@ import { customerAuth } from "../middleware/security.js";
 import { adminAuth } from "./admin.js";
 import { t } from "@workspace/i18n";
 import { getUserLanguage } from "../lib/getUserLanguage.js";
+import { logger } from '../lib/logger.js';
 
 const router: IRouter = Router();
 
@@ -39,7 +40,8 @@ router.get("/", customerAuth, async (req, res) => {
       notifications: notifs.reverse().map(n => ({ ...n, createdAt: n.createdAt.toISOString() })),
       unreadCount,
     });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ error: "Server error" });
   }
 });
@@ -59,7 +61,8 @@ router.post("/", adminAuth, validateBody(createNotifSchema), async (req, res) =>
     const id = generateId();
     await db.insert(notificationsTable).values({ id, userId, title, body, type: type || "system", icon: icon || "notifications-outline", link: link || null, isRead: false });
     sendCreated(res, { id });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ error: "Server error" });
   }
 });
@@ -69,7 +72,8 @@ router.patch("/read-all", customerAuth, async (req, res) => {
     const userId = req.customerId!;
     await db.update(notificationsTable).set({ isRead: true }).where(and(eq(notificationsTable.userId, userId), eq(notificationsTable.isRead, false)));
     sendSuccess(res, null);
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ error: "Server error" });
   }
 });
@@ -82,7 +86,8 @@ router.patch("/:id/read", customerAuth, async (req, res) => {
     if (notif.userId !== userId) { sendForbidden(res, "Access denied", "رسائی سے انکار۔"); return; }
     await db.update(notificationsTable).set({ isRead: true }).where(eq(notificationsTable.id, String(req.params["id"])));
     sendSuccess(res, null);
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ error: "Server error" });
   }
 });
@@ -95,7 +100,8 @@ router.delete("/:id", customerAuth, async (req, res) => {
     if (notif.userId !== userId) { sendForbidden(res, "Access denied", "رسائی سے انکار۔"); return; }
     await db.delete(notificationsTable).where(eq(notificationsTable.id, String(req.params["id"])));
     sendSuccess(res, null);
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ error: "Server error" });
   }
 });

@@ -4,6 +4,7 @@ import { eq, desc, asc, and, gte, lte, count, sum, inArray, sql, isNull } from "
 import { generateId, customerAuth, requireRole } from "./helpers.js";
 import { sendSuccess, sendCreated, sendError, sendNotFound, sendValidationError } from "./helpers.js";
 import { nowIso, mapOffer, mapCampaign, computeOfferStatus } from "./helpers.js";
+import { logger } from '../../lib/logger.js';
 
 const router = Router();
 
@@ -69,7 +70,8 @@ router.get("/public", async (req, res) => {
       bundles:         groupedOffers.bundles.map(mapOffer),
     },
   });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ error: "Server error" });
   }
 });
@@ -123,7 +125,8 @@ router.get("/for-you", customerAuth, async (req: Request, res) => {
     offers: scored.slice(0, 10).map(o => mapOffer(o)),
     context: { isNewUser, topService, totalSpent },
   });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ error: "Server error" });
   }
 });
@@ -222,7 +225,8 @@ router.post("/auto-apply", customerAuth, async (req: Request, res) => {
         ? "Free delivery applied automatically"
         : "Offer applied",
   });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ error: "Server error" });
   }
 });
@@ -371,7 +375,8 @@ router.post("/validate", customerAuth, async (req: Request, res) => {
     offers: validatedOffers,
     errors,
   });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ error: "Server error" });
   }
 });
@@ -398,7 +403,8 @@ router.get("/vendor/campaigns", requireRole("vendor"), async (req: Request, res)
         participation: partMap[c.id] ?? null,
       })),
     });
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ error: "Server error" });
   }
 });
@@ -422,7 +428,8 @@ router.post("/vendor/campaigns/:id/participate", requireRole("vendor"), async (r
       notes: notes || null,
     }).returning();
     sendCreated(res, participation);
-  } catch {
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ error: "Server error" });
   }
 });
