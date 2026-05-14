@@ -1,0 +1,80 @@
+56s
+Run pnpm typecheck
+> workspace@0.0.0 typecheck /home/runner/work/ne1234/ne1234
+> pnpm run typecheck:libs && pnpm -r --filter "./artifacts/**" --filter "./scripts" --if-present run typecheck
+> workspace@0.0.0 typecheck:libs /home/runner/work/ne1234/ne1234
+> tsc --build
+Scope: 6 of 19 workspace projects
+artifacts/admin typecheck$ tsc -p tsconfig.json --noEmit
+artifacts/ajkmart typecheck$ tsc -p tsconfig.json --noEmit
+artifacts/api-server typecheck$ tsc -p tsconfig.json --noEmit
+artifacts/rider-app typecheck$ tsc -p tsconfig.json --noEmit
+artifacts/rider-app typecheck: Done
+artifacts/vendor-app typecheck$ tsc -p tsconfig.json --noEmit
+Error: artifacts/ajkmart typecheck: app/vendor/[id].tsx(167,58): error TS2304: Cannot find name 'C'.
+Error: artifacts/ajkmart typecheck: app/vendor/[id].tsx(211,26): error TS2304: Cannot find name 'C'.
+Error: artifacts/ajkmart typecheck: app/vendor/[id].tsx(221,63): error TS2304: Cannot find name 'C'.
+Error: artifacts/ajkmart typecheck: app/vendor/[id].tsx(223,55): error TS2304: Cannot find name 'C'.
+Error: artifacts/ajkmart typecheck: app/vendor/[id].tsx(587,42): error TS2304: Cannot find name 'C'.
+Error: artifacts/ajkmart typecheck: app/vendor/[id].tsx(594,22): error TS2304: Cannot find name 'C'.
+Error: artifacts/ajkmart typecheck: app/vendor/[id].tsx(596,24): error TS2304: Cannot find name 'C'.
+Error: artifacts/ajkmart typecheck: app/vendor/[id].tsx(605,22): error TS2304: Cannot find name 'C'.
+Error: artifacts/ajkmart typecheck: app/vendor/[id].tsx(607,71): error TS2304: Cannot find name 'C'.
+Error: artifacts/ajkmart typecheck: app/vendor/[id].tsx(612,24): error TS2304: Cannot find name 'C'.
+Error: artifacts/ajkmart typecheck: app/vendor/[id].tsx(620,61): error TS2304: Cannot find name 'C'.
+Error: artifacts/ajkmart typecheck: app/vendor/[id].tsx(637,64): error TS2304: Cannot find name 'C'.
+Error: artifacts/ajkmart typecheck: app/vendor/[id].tsx(641,12): error TS2304: Cannot find name 'C'.
+Error: artifacts/ajkmart typecheck: app/vendor/[id].tsx(650,22): error TS2304: Cannot find name 'C'.
+Error: artifacts/ajkmart typecheck: app/vendor/[id].tsx(655,18): error TS2304: Cannot find name 'C'.
+Error: artifacts/ajkmart typecheck: app/vendor/[id].tsx(660,12): error TS2304: Cannot find name 'C'.
+Error: artifacts/ajkmart typecheck: app/vendor/[id].tsx(666,22): error TS2304: Cannot find name 'C'.
+Error: artifacts/ajkmart typecheck: app/vendor/[id].tsx(675,12): error TS2304: Cannot find name 'C'.
+Error: artifacts/ajkmart typecheck: app/vendor/[id].tsx(685,22): error TS2304: Cannot find name 'C'.
+Error: artifacts/ajkmart typecheck: app/vendor/[id].tsx(690,18): error TS2304: Cannot find name 'C'.
+Error: artifacts/ajkmart typecheck: app/vendor/[id].tsx(697,12): error TS2304: Cannot find name 'C'.
+Error: artifacts/ajkmart typecheck: app/vendor/[id].tsx(705,22): error TS2304: Cannot find name 'C'.
+Error: artifacts/ajkmart typecheck: app/vendor/[id].tsx(707,18): error TS2304: Cannot find name 'C'.
+Error: artifacts/ajkmart typecheck: app/vendor/[id].tsx(709,37): error TS2304: Cannot find name 'C'.
+Error: artifacts/ajkmart typecheck: app/vendor/[id].tsx(709,61): error TS2304: Cannot find name 'C'.
+Error: artifacts/ajkmart typecheck: app/vendor/[id].tsx(710,63): error TS2304: Cannot find name 'C'.
+Error: artifacts/ajkmart typecheck: app/vendor/[id].tsx(715,22): error TS2304: Cannot find name 'C'.
+Error: artifacts/ajkmart typecheck: app/vendor/[id].tsx(719,18): error TS2304: Cannot find name 'C'.
+Error: artifacts/ajkmart typecheck: app/vendor/[id].tsx(726,22): error TS2304: Cannot find name 'C'.
+Error: artifacts/ajkmart typecheck: app/vendor/[id].tsx(734,22): error TS2304: Cannot find name 'C'.
+Error: artifacts/ajkmart typecheck: app/vendor/[id].tsx(751,12): error TS2304: Cannot find name 'C'.
+Error: artifacts/ajkmart typecheck: app/vendor/[id].tsx(758,12): error TS2304: Cannot find name 'C'.
+Error: artifacts/ajkmart typecheck: app/vendor/[id].tsx(766,63): error TS2304: Cannot find name 'C'.
+Error: artifacts/ajkmart typecheck: app/vendor/[id].tsx(770,12): error TS2304: Cannot find name 'C'.
+Error: artifacts/ajkmart typecheck: app/vendor/[id].tsx(777,22): error TS2304: Cannot find name 'C'.
+Error: artifacts/ajkmart typecheck: app/vendor/[id].tsx(786,22): error TS2304: Cannot find name 'C'.
+Error: artifacts/ajkmart typecheck: app/vendor/[id].tsx(793,12): error TS2304: Cannot find name 'C'.
+Error: artifacts/ajkmart typecheck: app/vendor/[id].tsx(807,12): error TS2304: Cannot find name 'C'.
+Error: artifacts/ajkmart typecheck: app/vendor/[id].tsx(810,67): error TS2304: Cannot find name 'C'.
+Error: artifacts/ajkmart typecheck: app/vendor/[id].tsx(815,22): error TS2304: Cannot find name 'C'.
+artifacts/ajkmart typecheck: Failed
+/home/runner/work/ne1234/ne1234/artifacts/ajkmart:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @workspace/ajkmart@0.0.0 typecheck: `tsc -p tsconfig.json --noEmit`
+Exit status 2
+scripts typecheck$ tsc -p tsconfig.json --noEmit
+ ELIFECYCLE  Command failed with exit code 2.
+Error: Process completed with exit code 2.
+0s
+0s
+Post job cleanup.
+Pruning is unnecessary.
+0s
+1s
+Post job cleanup.
+/usr/bin/git version
+git version 2.53.0
+Temporarily overriding HOME='/home/runner/work/_temp/da2c4d6a-8442-49ea-af88-e981d93b8c57' before making global git config changes
+Adding repository directory to the temporary git global config as a safe directory
+/usr/bin/git config --global --add safe.directory /home/runner/work/ne1234/ne1234
+/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+http.https://github.com/.extraheader
+/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url

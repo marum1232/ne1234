@@ -65,6 +65,8 @@ interface Vendor {
 }
 
 function ProductCard({ product }: { product: Product }) {
+  const { colors: C } = useTheme();
+  const styles = useMemo(() => makeStyles(C), [C]);
   const {
     addItem,
     cartType,
@@ -244,6 +246,7 @@ export default withErrorBoundary(VendorStoreScreenInner);
 
 function VendorStoreScreenInner() {
   const { colors: C } = useTheme();
+  const styles = useMemo(() => makeStyles(C), [C]);
   const { width: W } = useWindowDimensions();
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
@@ -584,7 +587,7 @@ function VendorStoreScreenInner() {
 const W = 375;
 const CARD_W = (W - 32 - 10) / 2;
 
-const styles = StyleSheet.create({
+function makeStyles(C: typeof Colors.light) { return StyleSheet.create({
   container: { flex: 1, backgroundColor: C.background },
   header: {
     flexDirection: "row",
@@ -819,4 +822,4 @@ const styles = StyleSheet.create({
     borderRadius: radii.xl,
   },
   retryTxt: { fontFamily: Font.semiBold, fontSize: 14, color: "#fff" },
-});
+}); }
