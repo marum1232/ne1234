@@ -26,6 +26,18 @@ author = "agent"
 task = "workflow.run"
 args = "Start application"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Admin Panel"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Vendor App"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Rider App"
+
 [[workflows.workflow]]
 name = "Start application"
 author = "agent"
@@ -38,21 +50,49 @@ waitForPort = 5000
 [workflows.workflow.metadata]
 outputType = "webview"
 
+[[workflows.workflow]]
+name = "Admin Panel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "pnpm --filter @workspace/admin run dev"
+waitForPort = 3000
+
+[workflows.workflow.metadata]
+outputType = "console"
+
+[[workflows.workflow]]
+name = "Vendor App"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "pnpm --filter @workspace/vendor-app run dev"
+waitForPort = 3001
+
+[workflows.workflow.metadata]
+outputType = "console"
+
+[[workflows.workflow]]
+name = "Rider App"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "pnpm --filter @workspace/rider-app run dev"
+waitForPort = 3002
+
+[workflows.workflow.metadata]
+outputType = "console"
+
 [[ports]]
 localPort = 3000
 externalPort = 3000
 
 [[ports]]
-localPort = 3001
-externalPort = 3001
-
-[[ports]]
 localPort = 3002
 externalPort = 3002
-
-[[ports]]
-localPort = 3003
-externalPort = 5173
 
 [[ports]]
 localPort = 3004
@@ -81,6 +121,10 @@ externalPort = 80
 [[ports]]
 localPort = 20717
 externalPort = 3003
+
+[[ports]]
+localPort = 3001
+externalPort = 3001
 
 # --- ENVIRONMENT CONFIG ---
 [agent]

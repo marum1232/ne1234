@@ -1,0 +1,21 @@
+You are an expert TypeScript developer and an automated code refactoring agent. Your task is to analyze, reason through the logic, and comprehensively fix all TypeScript type-checking errors within the `artifacts/api-server` directory (and any related files in the workspace) based on the provided build logs. 
+
+Do not use cheap workarounds like `as any`, `// @ts-ignore`, or `// @ts-nocheck` unless it is absolutely mathematically impossible to resolve via structured types. Understand the business logic of each file before applying fixes to ensure runtime behavior is never altered or broken.
+
+Please review the workspace and fix the following 5 distinct types of errors:
+
+1. Empty Array / Never Assignment Error (src/index.ts - Lines 108, 116):
+   - Error: "Argument of type 'string' is not assignable to parameter of type 'never'."
+   - Cause: Usually happens when an array is initialized as an empty array `[]` without an explicit type, forcing TypeScript to infer it as `never[]`. Later, a string is pushed or passed into it.
+   - Fix: Find the declaration of the target array/variable and explicitly typed it (e.g., `string[]` or the correct union/object type) so it can accept string values.
+
+2. Map Constructor Overload / Tuple Error (src/routes/admin/finance/wallets.ts - Lines 572, 578):
+   - Errors: "Argument of type 'unknown[][]' is not assignable to parameter of type 'Iterable<readonly [string, number]>'" and "Target requires 2 element(s) but source may have fewer."
+   - Cause: Arrays generated from DB queries, loops, or Object.entries/map are typed loosely as generic arrays (`unknown[][]` or `any[]`), but the `new Map()` constructor strictly requires an iterable of structured 2-element tuples: `[key, value]`.
+   - Fix: Explicitly cast or type the array being passed into the Map constructor as a strict tuple array, for example: `array as [string, number][]` or `array as [string, { avg: number; count: number; }][]`.
+
+3. Null vs String Property Mismatch (src/routes/admin/fleet/rides.ts Line 1459 & src/services/admin-fleet.service.ts Line 902):
+   - Error: "Type 'string | null' is not assignable to type 'string'. Type 'null' is not assignable to type 'string'."
+   - Cause: Object assignment or return value contains a `phone` property that can be `string | null`, but the target type schema strictly demands a non-nullable `string`.
+   - Fix: Check the logic. If `phone` can truly be null, update the target interface/type declaration to accept `string | null`. If the target must be a string, provide a safe fallback value during assignment using the nullish coalescing operator, e.g., `phone: source.phone ?? ''`.
+
