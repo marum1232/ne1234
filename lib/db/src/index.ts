@@ -27,14 +27,19 @@ const telemetryInterval = setInterval(() => {
 }, 5 * 60 * 1000);
 telemetryInterval.unref();
 
-const shutdownPool = async (signal: string) => {
-  log.info(`${signal} received — draining pool connections`);
-  try {
-    await pool.end();
-    log.info("Pool connections drained successfully");
-  } catch (err) {
-    log.error({ err }, "Error draining pool connections");
-  }
+let shutdownPromise: Promise<void> | null = null;
+const shutdownPool = (signal: string): Promise<void> => {
+  if (shutdownPromise) return shutdownPromise;
+  shutdownPromise = (async () => {
+    log.info(`${signal} received — draining pool connections`);
+    try {
+      await pool.end();
+      log.info("Pool connections drained successfully");
+    } catch (err) {
+      log.error({ err }, "Error draining pool connections");
+    }
+  })();
+  return shutdownPromise;
 };
 
 process.on("SIGTERM", () => { shutdownPool("SIGTERM"); });

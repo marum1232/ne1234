@@ -58,25 +58,30 @@ if (isDevMock) {
 
   const telemetryInterval = setInterval(() => {
     if (pool) {
-      logger.info("[db:pool]", {
+      logger.info({
         totalConnections: pool.totalCount,
         idleConnections: pool.idleCount,
         waitingRequests: pool.waitingCount,
         timestamp: new Date().toISOString(),
-      });
+      }, "[db:pool] pool metrics");
     }
   }, 5 * 60 * 1000);
   telemetryInterval.unref();
 
-  const shutdownPool = async (signal: string) => {
-    if (!pool) return;
-    logger.info(`[db:pool] ${signal} received — draining pool connections`);
-    try {
-      await pool.end();
-      logger.info("[db:pool] Pool connections drained successfully");
-    } catch (err) {
-      logger.error({ err }, "[db:pool] Error draining pool connections");
-    }
+  let shutdownPromise: Promise<void> | null = null;
+  const shutdownPool = (signal: string): Promise<void> => {
+    if (shutdownPromise) return shutdownPromise;
+    shutdownPromise = (async () => {
+      if (!pool) return;
+      logger.info(`[db:pool] ${signal} received — draining pool connections`);
+      try {
+        await pool.end();
+        logger.info("[db:pool] Pool connections drained successfully");
+      } catch (err) {
+        logger.error({ err }, "[db:pool] Error draining pool connections");
+      }
+    })();
+    return shutdownPromise;
   };
 
   process.on("SIGTERM", () => { shutdownPool("SIGTERM"); });
