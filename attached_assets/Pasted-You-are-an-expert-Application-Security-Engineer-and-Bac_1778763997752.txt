@@ -1,0 +1,22 @@
+You are an expert Application Security Engineer and Backend Validator. Your task is to audit and refactor the request handling layer across the application (specifically focusing on controllers and routes inside `artifacts/api-server/`) to implement strict Input Validation, Data Sanitization, and Payload Restrictions using runtime schema validation.
+
+Carefully implement the following security and validation principles safely without introducing breaking changes to the business logic:
+
+---
+### 🛠️ CORE SECURITY & VALIDATION MANDATES
+
+1. SCHEMA ENFORCEMENT: Never trust `req.body`, `req.query`, or `req.params` blindly. Every incoming request payload that mutates state or queries data must be validated against a explicit runtime schema using `zod` (or the project's existing validation library like Joi/Yup).
+2. STACK CRASH PREVENTION: Wrap schema parsing inside localized `try-catch` blocks or explicit middleware to intercept validation failures. Ensure that malformed or bad payloads fail early with an HTTP 400 (Bad Request) status code instead of reaching inner controllers and crashing the API process.
+3. INJECTION & XSS PROTECTION: Ensure all validation schemas enforce maximum data length constraints to prevent buffer attacks. Ensure parameters are strictly typed to enforce parameterization downstream (preventing SQL/NoSQL injection).
+4. MULTIPART PAYLOAD RESTRICTIONS: If an endpoint handles file uploads, intercept the request to explicitly restrict file size constraints (max 10-50MB depending on application configuration) and strictly enforce whitelist-only MIME-type validation.
+
+---
+### ✅ VERIFICATION CHECKLIST (Your Definition of Done)
+
+- [ ] Identify major entry points and endpoints inside `artifacts/api-server/src/routes/` and controllers.
+- [ ] Implement or upgrade existing code to use strict schemas defining data types, exact length limits (`min`/`max`), patterns, and strict enums.
+- [ ] Isolate validation errors and return structured JSON responses containing detailed field errors without dumping system stack traces.
+- [ ] Remove hardcoded environment constraints (such as explicit 'localhost' strings) from URL or payload validations to ensure stability across production deployments.
+- [ ] Run `pnpm typecheck` post-refactoring to guarantee that validated payloads map correctly to database types and service signatures.
+
+---
