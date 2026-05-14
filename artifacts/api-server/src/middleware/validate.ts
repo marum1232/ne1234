@@ -19,6 +19,8 @@ const formatZodDetails = (err: ZodError): ValidationErrorDetail[] =>
     message: e.message,
   }));
 
+const VALIDATION_ERROR_UR = "توثیق کی خرابی۔ اپنا ان پٹ چیک کریں۔";
+
 export function validate(schema: ValidationTarget) {
   return (req: Request, res: Response, next: NextFunction) => {
     if (schema.body) {
@@ -31,6 +33,8 @@ export function validate(schema: ValidationTarget) {
         res.status(400).json({
           success: false,
           error: "Validation Failed",
+          message: VALIDATION_ERROR_UR,
+          code: "VALIDATION",
           details: formatZodDetails(result.error),
         });
         return;
@@ -48,6 +52,8 @@ export function validate(schema: ValidationTarget) {
         res.status(400).json({
           success: false,
           error: "Validation Failed",
+          message: VALIDATION_ERROR_UR,
+          code: "VALIDATION",
           details: formatZodDetails(result.error),
         });
         return;
@@ -69,6 +75,8 @@ export function validate(schema: ValidationTarget) {
         res.status(400).json({
           success: false,
           error: "Validation Failed",
+          message: VALIDATION_ERROR_UR,
+          code: "VALIDATION",
           details: formatZodDetails(result.error),
         });
         return;
