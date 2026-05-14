@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import { useLanguage } from "../lib/useLanguage";
@@ -65,7 +65,13 @@ export default function Reviews() {
   });
 
   const [toast, setToast] = useState("");
-  const showToast = (m: string) => { setToast(m); setTimeout(() => setToast(""), 3000); };
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (toastTimerRef.current) clearTimeout(toastTimerRef.current); }, []);
+  const showToast = (m: string) => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    setToast(m);
+    toastTimerRef.current = setTimeout(() => setToast(""), 3000);
+  };
 
   const postM = useMutation({
     mutationFn: ({ reviewId, reply }: { reviewId: string, reply: string }) => api.postVendorReply(reviewId, reply),

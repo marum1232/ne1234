@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "../lib/api";
 import { PageHeader } from "../components/PageHeader";
@@ -25,7 +25,13 @@ export default function Promos() {
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ ...EMPTY_PROMO });
   const [toast, setToast] = useState("");
-  const showToast = (m: string) => { setToast(m); setTimeout(() => setToast(""), 3000); };
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (toastTimerRef.current) clearTimeout(toastTimerRef.current); }, []);
+  const showToast = (m: string) => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    setToast(m);
+    toastTimerRef.current = setTimeout(() => setToast(""), 3000);
+  };
   const f = (k: string, v: any) => setForm(p => ({ ...p, [k]: v }));
 
   const { data, isLoading, isError, refetch } = useQuery({

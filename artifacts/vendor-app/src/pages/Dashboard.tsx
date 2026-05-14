@@ -6,7 +6,7 @@ import { api } from "../lib/api";
 import { usePlatformConfig } from "../lib/useConfig";
 import { useLanguage } from "../lib/useLanguage";
 import { tDual } from "@workspace/i18n";
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { PageHeader } from "../components/PageHeader";
 import { PullToRefresh } from "../components/PullToRefresh";
 import { useOfflineQueue } from "../hooks/useOfflineQueue";
@@ -282,7 +282,13 @@ export default function Dashboard() {
   const qc = useQueryClient();
   const { isOnline, pendingProductCount } = useOfflineQueue();
   const [toast, setToast] = useState("");
-  const showToast = (m: string) => { setToast(m); setTimeout(() => setToast(""), 3000); };
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showToast = (m: string) => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    setToast(m);
+    toastTimerRef.current = setTimeout(() => setToast(""), 3000);
+  };
+  useEffect(() => () => { if (toastTimerRef.current) clearTimeout(toastTimerRef.current); }, []);
   const [pendingOrderIds, setPendingOrderIds] = useState<Set<string>>(new Set());
   const [cancelDialog, setCancelDialog] = useState<{ orderId: string } | null>(null);
   const [acceptDialog, setAcceptDialog] = useState<{ orderId: string; total: number } | null>(null);

@@ -84,7 +84,13 @@ export default function Store() {
   const qc = useQueryClient();
   const [tab, setTab] = useState<"info"|"hours"|"schedule"|"promos"|"location">("info");
   const [toast, setToast] = useState("");
-  const showToast = (m: string) => { setToast(m); setTimeout(() => setToast(""), 3000); };
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (toastTimerRef.current) clearTimeout(toastTimerRef.current); }, []);
+  const showToast = (m: string) => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    setToast(m);
+    toastTimerRef.current = setTimeout(() => setToast(""), 3000);
+  };
 
   const [sf, setSf] = useState({
     storeName:         user?.storeName || "",

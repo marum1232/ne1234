@@ -148,7 +148,13 @@ export default function Products() {
   const [toast, setToast]         = useState("");
   const [formErrors, setFormErrors] = useState<{ name?: string; price?: string; category?: string }>({});
   const [videoUploading, setVideoUploading] = useState(false);
-  const showToast = (m: string) => { setToast(m); setTimeout(() => setToast(""), 3000); };
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showToast = (m: string) => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    setToast(m);
+    toastTimerRef.current = setTimeout(() => setToast(""), 3000);
+  };
+  useEffect(() => () => { if (toastTimerRef.current) clearTimeout(toastTimerRef.current); }, []);
   const f = (k: string, v: any) => {
     setForm(p => ({ ...p, [k]: v }));
     if (k === "name" || k === "price" || k === "category") {

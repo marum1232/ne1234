@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "../lib/api";
 import { PageHeader } from "../components/PageHeader";
@@ -188,9 +188,12 @@ export default function Campaigns() {
   const [withdrawingId, setWithdrawingId] = useState<string | null>(null);
   const [perfOpen, setPerfOpen] = useState<string | null>(null);
 
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (toastTimerRef.current) clearTimeout(toastTimerRef.current); }, []);
   const showToast = (m: string) => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     setToast(m);
-    setTimeout(() => setToast(""), 3500);
+    toastTimerRef.current = setTimeout(() => setToast(""), 3500);
   };
 
   const { data, isLoading, refetch } = useQuery({

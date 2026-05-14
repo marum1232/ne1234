@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Moon, Sun } from "lucide-react";
 import { useTheme } from "../lib/useTheme";
 import { Link } from "wouter";
@@ -57,7 +57,13 @@ export default function Profile() {
   const [bankAccount, setBankAccount]         = useState(user?.bankAccount || "");
   const [bankAccountTitle, setBankAccountTitle] = useState(user?.bankAccountTitle || "");
 
-  const showToast = (m: string) => { setToast(m); setTimeout(() => setToast(""), 3500); };
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (toastTimerRef.current) clearTimeout(toastTimerRef.current); }, []);
+  const showToast = (m: string) => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    setToast(m);
+    toastTimerRef.current = setTimeout(() => setToast(""), 3500);
+  };
 
   const [notifPermission, setNotifPermission] = useState<NotificationPermission | "unsupported">("unsupported");
   const [testingNotif, setTestingNotif] = useState(false);

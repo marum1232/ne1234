@@ -89,7 +89,13 @@ export default function Orders({ targetOrderId }: { targetOrderId?: string } = {
     staleTime: 30_000,
   });
   const [toast, setToast]       = useState("");
-  const showToast = (m: string) => { setToast(m); setTimeout(() => setToast(""), 3000); };
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showToast = (m: string) => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    setToast(m);
+    toastTimerRef.current = setTimeout(() => setToast(""), 3000);
+  };
+  useEffect(() => () => { if (toastTimerRef.current) clearTimeout(toastTimerRef.current); }, []);
   const [pendingOrderIds, setPendingOrderIds] = useState<Set<string>>(new Set());
   const [acceptDialog, setAcceptDialog] = useState<{ id: string; total: number } | null>(null);
   const [rejectDialog, setRejectDialog] = useState<{ id: string } | null>(null);
