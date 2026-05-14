@@ -433,7 +433,7 @@ router.get("/requests", async (req: any, res) => {
       db.update(communicationRequestsTable)
         .set({ status: "expired", updatedAt: now })
         .where(sql`${communicationRequestsTable.id} = ANY(ARRAY[${sql.join(expiredIds.map(id => sql`${id}`), sql`, `)}]::text[])`)
-        .catch(e => logger.warn({ err: e }, "[comm] Failed to expire stale requests"));
+        .catch((e: unknown) => logger.warn({ message: "[comm] Failed to expire stale requests", error: e instanceof Error ? e.message : String(e), code: "COMM_EXPIRE_STALE_FAILED", correlationId: null, timestamp: new Date().toISOString() }, "[comm] Failed to expire stale requests"));
     }
 
     const userIds = [...new Set(filtered.flatMap(r => [r.senderId, r.receiverId]))];

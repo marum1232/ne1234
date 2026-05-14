@@ -1,4 +1,5 @@
 import { logger } from "../../lib/logger.js";
+import { fireAndForget } from "../../lib/fireAndForget.js";
 import { Router } from "express";
 import { z } from "zod";
 import { sendValidationError } from "../../lib/response.js";
@@ -402,7 +403,7 @@ router.post("/conditions", async (req, res) => {
       severity,
       reason,
       appliedBy: appliedBy ?? "admin",
-    }).catch(err => logger.error("[admin/conditions] notify error:", err));
+    }).catch((err: unknown) => logger.warn({ message: "[admin/conditions] notify error", error: err instanceof Error ? err.message : String(err), code: "CONDITIONS_NOTIFY_FAILED", correlationId: null, timestamp: new Date().toISOString() }, "[admin/conditions] notify error"));
 
     return;
   } catch (error) {
@@ -842,7 +843,7 @@ export async function evaluateRulesForUser(userId: string) {
       reason:        `Auto: ${rule.name} (${rule.metric} ${rule.operator} ${rule.threshold}, observed ${value})`,
       appliedBy:     "rule_engine",
       triggeredByRule: rule.name,
-    }).catch(err => logger.error("[admin/conditions] notify error (rule engine):", err));
+    }).catch((err: unknown) => logger.warn({ message: "[admin/conditions] notify error (rule engine)", error: err instanceof Error ? err.message : String(err), code: "CONDITIONS_RULE_ENGINE_NOTIFY_FAILED", correlationId: null, timestamp: new Date().toISOString() }, "[admin/conditions] notify error (rule engine)"));
   }
 
   return {

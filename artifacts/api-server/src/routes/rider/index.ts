@@ -1,5 +1,6 @@
 import { randomInt } from "crypto";
 import { logger } from "../../lib/logger.js";
+import { fireAndForget } from "../../lib/fireAndForget.js";
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import { db } from "@workspace/db";
 import { usersTable, ordersTable, rideBidsTable, ridesTable, riderPenaltiesTable, walletTransactionsTable, notificationsTable, liveLocationsTable, reviewsTable, rideRatingsTable, locationLogsTable, rideServiceTypesTable, riderProfilesTable, vendorProfilesTable, otpAttemptsTable } from "@workspace/db/schema";
@@ -1192,7 +1193,7 @@ router.patch("/orders/:id/status", async (req, res) => {
         id: generateId(), userId: riderId,
         title: t("notifWalletCredited", riderEarnLang), body: t("notifWalletCreditedBody", riderEarnLang).replace("{amount}", earnings.toFixed(0)),
         type: "wallet", icon: "wallet-outline",
-      }).catch((e: Error) => logger.error("[rider] notif insert failed:", e.message));
+      }).catch((e: Error) => logger.warn({ message: "[rider] rider-delivery-earn notif insert failed", error: e.message, code: "RIDER_NOTIF_EARN_FAILED", correlationId: null, timestamp: new Date().toISOString(), userId: riderId }, "[rider] rider-delivery-earn notif insert failed"));
     }
 
     const custDelivLang = await getUserLanguage(order.userId);
@@ -1200,7 +1201,7 @@ router.patch("/orders/:id/status", async (req, res) => {
       id: generateId(), userId: order.userId,
       title: t("notifOrderDelivered", custDelivLang) + " 🎉", body: t("orderDeliveredEnjoy", custDelivLang),
       type: "order", icon: "bag-check-outline",
-    }).catch(e => logger.error("customer notif insert failed:", e));
+    }).catch((e: unknown) => logger.warn({ message: "[rider] customer order-delivered notif insert failed", error: e instanceof Error ? e.message : String(e), code: "RIDER_NOTIF_CUST_DELIVERED_FAILED", correlationId: null, timestamp: new Date().toISOString(), orderId: order.userId }, "[rider] customer order-delivered notif insert failed"));
 
     /* ── Customer loyalty points (customer_loyalty_enabled + customer_loyalty_pts) ── */
     const loyaltyEnabled = (s["customer_loyalty_enabled"] ?? "on") === "on";
@@ -1266,12 +1267,18 @@ router.patch("/orders/:id/status", async (req, res) => {
   }
 
   if (status === "delivered") {
-    emitWebhookEvent("order_delivered", { orderId: updated.id, riderId, userId: updated.userId, total: safeNum(updated.total).toFixed(2) }).catch((err: unknown) => {
-      logger.warn({ err: err instanceof Error ? err.message : String(err), orderId: updated.id }, "[rider] webhook order_delivered failed");
-    });
-    emitWebhookEvent("payment_received", { orderId: updated.id, userId: updated.userId, amount: safeNum(updated.total).toFixed(2), method: updated.paymentMethod ?? "unknown" }).catch((err: unknown) => {
-      logger.warn({ err: err instanceof Error ? err.message : String(err), orderId: updated.id }, "[rider] webhook payment_received failed");
-    });
+    fireAndForget(
+      emitWebhookEvent("order_delivered", { orderId: updated.id, riderId, userId: updated.userId, total: safeNum(updated.total).toFixed(2) }),
+      "rider:webhook:order_delivered",
+      logger,
+      { orderId: updated.id, code: "WEBHOOK_EMIT" },
+    );
+    fireAndForget(
+      emitWebhookEvent("payment_received", { orderId: updated.id, userId: updated.userId, amount: safeNum(updated.total).toFixed(2), method: updated.paymentMethod ?? "unknown" }),
+      "rider:webhook:payment_received",
+      logger,
+      { orderId: updated.id, code: "WEBHOOK_EMIT" },
+    );
   }
 
   const orderStatusBody = { ...updated, total: safeNum(updated.total) };
@@ -1668,7 +1675,7 @@ router.patch("/rides/:id/status", rideStatusLimiter, async (req, res) => {
         id: generateId(), userId: riderId,
         title: t("notifWalletCredited", rideEarnLang), body: t("notifWalletCreditedBody", rideEarnLang).replace("{amount}", earnings.toFixed(0)),
         type: "wallet", icon: "wallet-outline",
-      }).catch(e => logger.error("notif insert failed:", e));
+      }).catch((e: unknown) => logger.warn({ message: "[rider] ride-earn wallet notif insert failed", error: e instanceof Error ? e.message : String(e), code: "RIDER_NOTIF_RIDE_EARN_FAILED", correlationId: null, timestamp: new Date().toISOString(), userId: riderId }, "[rider] ride-earn wallet notif insert failed"));
     }
 
     const custRideCompleteLang = await getUserLanguage(ride.userId);
@@ -1683,16 +1690,19 @@ router.patch("/rides/:id/status", rideStatusLimiter, async (req, res) => {
       body: `Your ride has been completed. Fare: Rs. ${safeNum(ride.fare).toFixed(0)}`,
       tag: "ride-completed",
       data: { rideId: ride.id },
-    }).catch((e: Error) => { logger.warn({ rideId: ride.id, userId: ride.userId, err: e.message }, "[rider] trip-completed push to customer failed"); });
+    }).catch((e: Error) => { logger.warn({ message: "[rider] trip-completed push to customer failed", error: e.message, code: "RIDER_PUSH_TRIP_CUST_FAILED", correlationId: null, timestamp: new Date().toISOString(), rideId: ride.id, userId: ride.userId }, "[rider] trip-completed push to customer failed"); });
     sendPushToUser(riderId, {
       title: "Trip Completed 🎉",
       body: `You've completed a trip. Check your wallet for earnings.`,
       tag: "ride-completed-rider",
       data: { rideId: ride.id },
-    }).catch((e: Error) => { logger.warn({ rideId: ride.id, riderId, err: e.message }, "[rider] trip-completed push to rider failed"); });
-    emitWebhookEvent("ride_completed", { rideId: ride.id, riderId, userId: ride.userId, fare: safeNum(ride.fare).toFixed(2) }).catch((err: unknown) => {
-      logger.warn({ err: err instanceof Error ? err.message : String(err), rideId: ride.id }, "[rider] webhook ride_completed failed");
-    });
+    }).catch((e: Error) => { logger.warn({ message: "[rider] trip-completed push to rider failed", error: e.message, code: "RIDER_PUSH_TRIP_RIDER_FAILED", correlationId: null, timestamp: new Date().toISOString(), rideId: ride.id, riderId }, "[rider] trip-completed push to rider failed"); });
+    fireAndForget(
+      emitWebhookEvent("ride_completed", { rideId: ride.id, riderId, userId: ride.userId, fare: safeNum(ride.fare).toFixed(2) }),
+      "rider:webhook:ride_completed",
+      logger,
+      { rideId: ride.id, code: "WEBHOOK_EMIT" },
+    );
   } else {
     const now = new Date();
     const timestampFields =
@@ -2506,7 +2516,7 @@ router.post("/wallet/deposit", async (req, res) => {
     title: t("notifWalletDeposit", depositNotifLang) + " ✅",
     body: t("notifWalletDepositBody", depositNotifLang).replace("{amount}", amt.toFixed(0)),
     type: "wallet", icon: "wallet-outline",
-  }).catch(e => logger.error("deposit notif insert failed:", e));
+  }).catch((e: unknown) => logger.warn({ message: "[rider] deposit notif insert failed", error: e instanceof Error ? e.message : String(e), code: "RIDER_NOTIF_DEPOSIT_FAILED", correlationId: null, timestamp: new Date().toISOString(), userId: riderId }, "[rider] deposit notif insert failed"));
 
   sendSuccess(res, { txId, amount: amt });
   } catch {

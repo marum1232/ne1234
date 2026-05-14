@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import { fireAndForget } from "../../lib/fireAndForget.js";
 import { db } from "@workspace/db";
 import { refreshTokensTable, usersTable } from "@workspace/db/schema";
 import { eq, and } from "drizzle-orm";
@@ -180,9 +181,12 @@ export async function detectAndInvalidateFamily(tokenHash: string): Promise<type
       metadata: { familyId, hashPrefix: tokenHash.slice(0, 16) },
     });
 
-    sendBreachNotification(rt.userId, familyId ?? "unknown").catch((err) => {
-      logger.warn({ err, userId: rt.userId }, "[tokenRotation] Breach notification failed (non-fatal)");
-    });
+    fireAndForget(
+      sendBreachNotification(rt.userId, familyId ?? "unknown"),
+      "tokenRotation:breach-notification",
+      logger,
+      { userId: rt.userId, code: "TOKEN_BREACH_NOTIF_FAILED" },
+    );
 
     throw new TokenFamilyBreachError(rt.userId, familyId ?? "unknown");
   }

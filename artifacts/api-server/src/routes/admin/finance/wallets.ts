@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { fireAndForget } from "../../../lib/fireAndForget.js";
 import { db } from "@workspace/db";
 import {
   usersTable,
@@ -1471,7 +1472,7 @@ router.patch("/deposit-requests/:id/approve", async (req, res) => {
         type: "wallet",
         icon: "wallet-outline",
       })
-      .catch((e) => logger.error("deposit approval notif failed:", e));
+      .catch((e: unknown) => logger.warn({ message: "[wallets] deposit approval notif failed", error: e instanceof Error ? e.message : String(e), code: "WALLET_NOTIF_DEPOSIT_APPROVAL_FAILED", correlationId: null, timestamp: new Date().toISOString() }, "[wallets] deposit approval notif failed"));
     const fleetIo = getIO();
     if (fleetIo)
       fleetIo
@@ -1553,7 +1554,7 @@ router.patch("/deposit-requests/:id/reject", async (req, res) => {
         type: "wallet",
         icon: "close-circle-outline",
       })
-      .catch((e) => logger.error("deposit rejection notif failed:", e));
+      .catch((e: unknown) => logger.warn({ message: "[wallets] deposit rejection notif failed", error: e instanceof Error ? e.message : String(e), code: "WALLET_NOTIF_DEPOSIT_REJECTION_FAILED", correlationId: null, timestamp: new Date().toISOString() }, "[wallets] deposit rejection notif failed"));
     sendSuccess(res, { txId, status: "rejected", reason: rejReason });
   } catch {
     res.status(500).json({ success: false, error: "Internal server error" });
@@ -1692,7 +1693,7 @@ router.post("/deposit-requests/bulk-approve", async (req, res) => {
           type: "wallet",
           icon: "wallet-outline",
         })
-        .catch((e) => logger.error("bulk deposit approval notif failed:", e));
+        .catch((e: unknown) => logger.warn({ message: "[wallets] bulk deposit approval notif failed", error: e instanceof Error ? e.message : String(e), code: "WALLET_NOTIF_BULK_APPROVAL_FAILED", correlationId: null, timestamp: new Date().toISOString() }, "[wallets] bulk deposit approval notif failed"));
     }
 
     sendSuccess(res, { approved: preChecked.length });
@@ -1808,7 +1809,7 @@ router.post("/deposit-requests/bulk-reject", async (req, res) => {
           type: "wallet",
           icon: "close-circle-outline",
         })
-        .catch((e) => logger.error("bulk deposit rejection notif failed:", e));
+        .catch((e: unknown) => logger.warn({ message: "[wallets] bulk deposit rejection notif failed", error: e instanceof Error ? e.message : String(e), code: "WALLET_NOTIF_BULK_REJECTION_FAILED", correlationId: null, timestamp: new Date().toISOString() }, "[wallets] bulk deposit rejection notif failed"));
     }
 
     sendSuccess(res, { rejected: preChecked.length });

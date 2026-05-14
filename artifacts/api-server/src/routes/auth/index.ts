@@ -1540,7 +1540,7 @@ router.post("/vendor-register", async (req, res) => {
     type: "system",
     icon: autoApprove ? "checkmark-circle-outline" : "time-outline",
   }).catch((err: unknown) => {
-    logger.warn({ err: err instanceof Error ? err.message : String(err), userId: user.id }, "[auth] vendor-registration notification insert failed");
+    logger.warn({ message: "[auth] vendor-registration notification insert failed", error: err instanceof Error ? err.message : String(err), code: "AUTH_VENDOR_NOTIF_FAILED", correlationId: null, timestamp: new Date().toISOString(), userId: user.id }, "[auth] vendor-registration notification insert failed");
   });
 
   if (!autoApprove) {
@@ -1555,21 +1555,22 @@ router.post("/vendor-register", async (req, res) => {
       icon: "storefront-outline",
     }));
     if (adminNotifs.length) {
-      db.insert(notificationsTable).values(adminNotifs).catch((err: unknown) => {
-        logger.warn({ err: err instanceof Error ? err.message : String(err), userId: user.id }, "[auth] admin vendor-application notifications insert failed");
-      });
+      fireAndForget(
+        db.insert(notificationsTable).values(adminNotifs),
+        "auth:vendor-application-admin-notifs",
+        logger,
+        { userId: user.id, code: "AUTH_ADMIN_NOTIF_FAILED" },
+      );
     }
   }
 
   if (!autoApprove) {
-    alertNewVendor(
-      name || user.name || user.phone || "Unknown",
-      user.phone || "N/A",
-      storeName,
-      settings,
-    ).catch((err: unknown) => {
-      logger.warn({ err: err instanceof Error ? err.message : String(err), userId: user.id }, "[auth] alertNewVendor email/Slack failed");
-    });
+    fireAndForget(
+      alertNewVendor(name || user.name || user.phone || "Unknown", user.phone || "N/A", storeName, settings),
+      "auth:alert-new-vendor",
+      logger,
+      { userId: user.id, code: "AUTH_ALERT_VENDOR_FAILED" },
+    );
   }
 
   sendSuccess(res, {
@@ -1801,7 +1802,7 @@ router.post("/logout", async (req, res) => {
          even before tokenVersion takes effect (covers Redis-connected deployments). */
       if (payload.jti && payload.exp) {
         await blacklistJti(payload.jti, payload.exp).catch((err: unknown) => {
-          logger.warn({ err: err instanceof Error ? err.message : String(err), jti: payload.jti }, "[auth] blacklistJti on logout failed — token may not be immediately revoked in Redis");
+          logger.warn({ message: "[auth] blacklistJti on logout failed — token may not be immediately revoked in Redis", error: err instanceof Error ? err.message : String(err), code: "AUTH_BLACKLIST_JTI_FAILED", correlationId: null, timestamp: new Date().toISOString(), jti: payload.jti }, "[auth] blacklistJti on logout failed — token may not be immediately revoked in Redis");
         });
       }
       /* Increment tokenVersion to immediately invalidate ALL outstanding access JWTs for this user */
@@ -1818,7 +1819,7 @@ router.post("/logout", async (req, res) => {
   /* Revoke all unique refresh tokens found across body + both app cookies */
   for (const tok of tokensToRevoke) {
     await revokeRefreshToken(hashRefreshToken(tok)).catch((err: unknown) => {
-      logger.warn({ err: err instanceof Error ? err.message : String(err) }, "[auth] revokeRefreshToken on logout failed — token may remain active");
+      logger.warn({ message: "[auth] revokeRefreshToken on logout failed — token may remain active", error: err instanceof Error ? err.message : String(err), code: "AUTH_REVOKE_TOKEN_FAILED", correlationId: null, timestamp: new Date().toISOString() }, "[auth] revokeRefreshToken on logout failed — token may remain active");
     });
   }
   if (tokensToRevoke.size > 0) writeAuthAuditLog("token_revoked", { ip });
@@ -3085,9 +3086,12 @@ router.post("/forgot-password", verifyCaptcha, sharedValidateBody(forgotPassword
     const targetPhone = canonicalizePhone(phone);
     await sendOtpSMS(targetPhone, otp, settings, forgotLang);
     if (settings["integration_whatsapp"] === "on") {
-      sendWhatsAppOTP(targetPhone, otp, settings, forgotLang).catch((err: unknown) => {
-        logger.warn({ err: err instanceof Error ? err.message : String(err) }, "[auth] WhatsApp OTP send (forgot-password) failed");
-      });
+      fireAndForget(
+        sendWhatsAppOTP(targetPhone, otp, settings, forgotLang),
+        "auth:whatsapp-otp:forgot-password",
+        logger,
+        { code: "AUTH_WHATSAPP_OTP_FAILED" },
+      );
     }
   } else {
     await db.update(usersTable)
@@ -4887,9 +4891,12 @@ router.post("/firebase-verify", async (req, res) => {
   }
 
   /* Set Firebase Custom Claims so next Firebase idToken refresh carries the role */
-  setFirebaseCustomClaims(decoded.uid, { role: user.roles ?? "customer", roles: user.roles ?? "customer", userId: user.id }).catch((err: unknown) => {
-    logger.warn({ err: err instanceof Error ? err.message : String(err), uid: decoded.uid, userId: user.id }, "[auth] setFirebaseCustomClaims failed — Firebase token may carry stale role");
-  });
+  fireAndForget(
+    setFirebaseCustomClaims(decoded.uid, { role: user.roles ?? "customer", roles: user.roles ?? "customer", userId: user.id }),
+    "auth:firebase-custom-claims",
+    logger,
+    { uid: decoded.uid, userId: user.id, code: "AUTH_FIREBASE_CLAIMS_FAILED" },
+  );
 
   /* Issue platform tokens */
   const userAgent = req.headers["user-agent"] as string | undefined;

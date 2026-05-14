@@ -395,7 +395,7 @@ router.patch("/orders/:id/status", async (req, res) => {
     });
     if (!txResult) { sendError(res, "Order has already been refunded", 409); return; }
     updated = txResult;
-    await db.insert(notificationsTable).values({ id: generateId(), userId: order.userId, title: t("notifRefundProcessed", custLang) + " 💰", body: t("notifRefundProcessedBody", custLang).replace("{amount}", safeNum(order.total).toFixed(0)), type: "wallet", icon: "wallet-outline" }).catch((e: Error) => logger.warn({ orderId, userId: order.userId, err: e.message }, "[vendor/order-status] refund notification insert failed"));
+    await db.insert(notificationsTable).values({ id: generateId(), userId: order.userId, title: t("notifRefundProcessed", custLang) + " 💰", body: t("notifRefundProcessedBody", custLang).replace("{amount}", safeNum(order.total).toFixed(0)), type: "wallet", icon: "wallet-outline" }).catch((e: Error) => logger.warn({ message: "[vendor/order-status] refund notification insert failed", error: e.message, code: "VENDOR_NOTIF_REFUND_FAILED", correlationId: null, timestamp: new Date().toISOString(), orderId, userId: order.userId }, "[vendor/order-status] refund notification insert failed"));
   } else {
     /* Non-wallet or non-cancel: plain status update — vendorId in WHERE closes TOCTOU window */
     const [result] = await db.update(ordersTable)
@@ -411,10 +411,10 @@ router.patch("/orders/:id/status", async (req, res) => {
     id: generateId(), orderId, vendorId,
     fromStatus: order.status, toStatus: status,
     note: note || null,
-  }).catch((e: Error) => logger.warn({ orderId, vendorId, err: e.message }, "[vendor/order-status] audit log insert failed"));
+  }).catch((e: Error) => logger.warn({ message: "[vendor/order-status] audit log insert failed", error: e.message, code: "VENDOR_AUDIT_LOG_FAILED", correlationId: null, timestamp: new Date().toISOString(), orderId, vendorId }, "[vendor/order-status] audit log insert failed"));
 
   if (msgs[status]) {
-    await db.insert(notificationsTable).values({ id: generateId(), userId: order.userId, title: msgs[status]!.title, body: msgs[status]!.body, type: "order", icon: "bag-outline" }).catch((e: Error) => logger.warn({ orderId, userId: order.userId, status, err: e.message }, "[vendor/order-status] status notification insert failed"));
+    await db.insert(notificationsTable).values({ id: generateId(), userId: order.userId, title: msgs[status]!.title, body: msgs[status]!.body, type: "order", icon: "bag-outline" }).catch((e: Error) => logger.warn({ message: "[vendor/order-status] status notification insert failed", error: e.message, code: "VENDOR_NOTIF_STATUS_FAILED", correlationId: null, timestamp: new Date().toISOString(), orderId, userId: order.userId, status }, "[vendor/order-status] status notification insert failed"));
   }
 
   /* ── Push notification to customer ── */
