@@ -48,6 +48,22 @@ interface FoodProduct {
   reviewCount?: number;
 }
 
+function toFoodProduct(i: { id: string; name: string; price: string | number; image?: string; description?: string; category?: string; vendorId?: string; vendorName?: string; deliveryTime?: string; rating?: number; reviewCount?: number; [key: string]: unknown }): FoodProduct {
+  return {
+    id: i.id,
+    name: i.name,
+    price: typeof i.price === 'string' ? parseFloat(i.price) : i.price,
+    image: i.image,
+    description: i.description,
+    category: i.category,
+    vendorId: i.vendorId,
+    vendorName: i.vendorName,
+    deliveryTime: i.deliveryTime,
+    rating: i.rating,
+    reviewCount: i.reviewCount,
+  };
+}
+
 interface RawVendorData {
   id?: string;
   _id?: string;
@@ -524,7 +540,7 @@ function FoodScreenInner() {
               </View>
             </View>
             <View style={styles.foodList}>
-              {(items as unknown as FoodProduct[]).map(i => <FoodCard key={i.id} item={i} />)}
+              {items.map(i => <FoodCard key={i.id} item={toFoodProduct(i)} />)}
             </View>
           </>
         )}
