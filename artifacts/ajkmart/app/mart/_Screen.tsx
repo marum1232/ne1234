@@ -8,7 +8,6 @@ import { useSmartBack } from "@/hooks/useSmartBack";
 import React, { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import {
   Animated,
-  Dimensions,
   FlatList,
   Image,
   Platform,
@@ -19,10 +18,12 @@ import {
   Text,
   TextInput,
   View,
+  useWindowDimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import Colors from "@/constants/colors";
+import { useTheme } from "@/context/ThemeContext";
 import { T as Typ, Font } from "@/constants/typography";
 import { useCollapsibleHeader } from "@/hooks/useCollapsibleHeader";
 import { useCart } from "@/context/CartContext";
@@ -36,9 +37,8 @@ import { CartSwitchModal } from "@/components/CartSwitchModal";
 import { AuthGateSheet, useAuthGate, useRoleGate, RoleBlockSheet } from "@/components/AuthGateSheet";
 
 const C = Colors.light;
-const { width } = Dimensions.get("window");
-const FLASH_CARD_W = (width - 16 * 2 - 12) / 2;
-const PRODUCT_CARD_W = (width - 16 * 2 - 12) / 2;
+const FLASH_CARD_W = (375 - 16 * 2 - 12) / 2;
+const PRODUCT_CARD_W = (375 - 16 * 2 - 12) / 2;
 const RECENTLY_VIEWED_KEY = "recently_viewed_products";
 
 interface RecentItem { id: string; name: string; image: string | null; price: number; }
@@ -354,6 +354,10 @@ const ProductCard = React.memo(function ProductCard({ product }: { product: Mart
 });
 
 function MartScreenInner() {
+  const { colors: C } = useTheme();
+  const { width } = useWindowDimensions();
+  const FLASH_CARD_W = (width - 16 * 2 - 12) / 2;
+  const PRODUCT_CARD_W = (width - 16 * 2 - 12) / 2;
   const insets = useSafeAreaInsets();
   const { goBack } = useSmartBack();
   const { itemCount, cartType, clearCart } = useCart();

@@ -4,12 +4,10 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Animated, TouchableOpacity, StyleSheet, Alert, type StyleProp, type ViewStyle } from "react-native";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 
-import Colors from "@/constants/colors";
+import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthContext";
 import { addToWishlist, removeFromWishlist, getWishlist, type WishlistItem } from "@workspace/api-client-react";
 import { AuthGateSheet, useAuthGate } from "@/components/AuthGateSheet";
-
-const C = Colors.light;
 
 const PENDING_KEY_PREFIX = "@ajkmart_pending_wishlist_";
 
@@ -24,6 +22,7 @@ export function WishlistHeart({
   style?: StyleProp<ViewStyle>;
   initialState?: boolean;
 }) {
+  const { colors: C } = useTheme();
   const { user, token, isCustomer } = useAuth();
   const isLoggedIn = !!user && !!token;
   const queryClient = useQueryClient();
@@ -93,7 +92,7 @@ export function WishlistHeart({
       queryClient.invalidateQueries({ queryKey: ["wishlist"] });
     } catch (err: unknown) {
       setLocalOverride(was);
-      const code = (err as any)?.code ?? (err as any)?.data?.code;
+      const code = (err as { code?: string; data?: { code?: string } })?.code ?? (err as { code?: string; data?: { code?: string } })?.data?.code;
       if (code !== "ROLE_DENIED") {
         Alert.alert("Wishlist Error", "Could not update wishlist. Please try again.");
       }
@@ -113,6 +112,8 @@ export function WishlistHeart({
           onPress={(e) => { e?.stopPropagation?.(); toggle(); }}
           style={s.btn}
           hitSlop={6}
+          accessibilityLabel={isInWishlist ? "Remove from wishlist" : "Add to wishlist"}
+          accessibilityRole="button"
         >
           <Ionicons
             name={isInWishlist ? "heart" : "heart-outline"}

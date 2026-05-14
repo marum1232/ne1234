@@ -1,7 +1,5 @@
 import { BlurView } from "expo-blur";
-import { isLiquidGlassAvailable } from "expo-glass-effect";
 import { Tabs } from "expo-router";
-import { Icon, Label, NativeTabs } from "expo-router/unstable-native-tabs";
 import { SymbolView } from "expo-symbols";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useMemo } from "react";
@@ -55,35 +53,6 @@ function useAdaptiveTabConfig() {
       showOrdersTab: true,
     };
   }, [features, language]);
-}
-
-function NativeTabLayout() {
-  const tabConfig = useAdaptiveTabConfig();
-
-  return (
-    <NativeTabs>
-      <NativeTabs.Trigger name="index">
-        <Icon sf={{ default: "house", selected: "house.fill" }} />
-        <Label>{tabConfig.homeTitle}</Label>
-      </NativeTabs.Trigger>
-      {tabConfig.showOrdersTab && (
-        <NativeTabs.Trigger name="orders">
-          <Icon sf={{ default: "bag", selected: "bag.fill" }} />
-          <Label>{tabConfig.ordersTitle}</Label>
-        </NativeTabs.Trigger>
-      )}
-      {tabConfig.showWalletTab && (
-        <NativeTabs.Trigger name="wallet">
-          <Icon sf={{ default: "creditcard", selected: "creditcard.fill" }} />
-          <Label>{tabConfig.walletTitle}</Label>
-        </NativeTabs.Trigger>
-      )}
-      <NativeTabs.Trigger name="profile">
-        <Icon sf={{ default: "person", selected: "person.fill" }} />
-        <Label>{tabConfig.profileTitle}</Label>
-      </NativeTabs.Trigger>
-    </NativeTabs>
-  );
 }
 
 function TabIconWithBadge({ name, focusedName, color, focused, badgeCount }: {
@@ -266,11 +235,9 @@ export default function TabLayout() {
   const { colors: C } = useTheme();
   const inMaintenance = config.appStatus === "maintenance";
 
-  const inner = isLiquidGlassAvailable() ? <NativeTabLayout /> : <ClassicTabLayout />;
-
   return (
     <View style={{ flex: 1, backgroundColor: C.background }}>
-      {inner}
+      <ClassicTabLayout />
       {inMaintenance && (
         <MaintenanceOverlay message={config.content.maintenanceMsg} />
       )}

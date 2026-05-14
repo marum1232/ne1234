@@ -8,7 +8,6 @@ import { useSmartBack } from "@/hooks/useSmartBack";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  Dimensions,
   Platform,
   ScrollView,
   StyleSheet,
@@ -16,11 +15,13 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  useWindowDimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Location from "expo-location";
 
+import { useTheme } from "@/context/ThemeContext";
 import Colors, {
   spacing,
   radii,
@@ -29,8 +30,6 @@ import Colors, {
 } from "@/constants/colors";
 import { Font } from "@/constants/typography";
 
-const C = Colors.light;
-const W = Dimensions.get("window").width;
 
 const WMO_ICONS: Record<
   number,
@@ -229,9 +228,14 @@ async function geocodeCity(
 
 type Tab = "hourly" | "daily";
 
+const C = Colors.light;
+const W = 375;
+
 export default withErrorBoundary(WeatherDetailScreenInner);
 
 function WeatherDetailScreenInner() {
+  const { colors: C } = useTheme();
+  const { width: W } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const { goBack } = useSmartBack();
   const [forecast, setForecast] = useState<ForecastData | null>(null);

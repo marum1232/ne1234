@@ -842,7 +842,7 @@ function ProfileScreenInner() {
                           message: `Join ${appName} using my referral code ${code} and we both get ${currencySymbol} ${bonus} bonus! Download the app now.`,
                           title: `Join ${appName}`,
                         });
-                      } catch {}
+                      } catch (_e) { /* user cancelled share dialog */ }
                     }}
                     accessibilityRole="button"
                     accessibilityLabel="Share referral code"
@@ -1077,7 +1077,7 @@ function ProfileScreenInner() {
                        await StoreReview.requestReview();
                        return;
                      }
-                   } catch {}
+                   } catch (_e) { /* StoreReview unavailable — fall through to in-app form */ }
                    router.push("/rate-app");
                  }}
                  iconColor={C.gold} iconBg={C.amberBg} />

@@ -14,7 +14,6 @@ import {
   ActivityIndicator,
   Alert,
   Animated,
-  Dimensions,
   Image,
   Modal,
   Platform,
@@ -25,9 +24,11 @@ import {
   Text,
   TextInput,
   View,
+  useWindowDimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
+import { useTheme } from "@/context/ThemeContext";
 import { T as Typ, Font } from "@/constants/typography";
 import { useCollapsibleHeader } from "@/hooks/useCollapsibleHeader";
 import { useAuth, hasRole } from "@/context/AuthContext";
@@ -44,9 +45,8 @@ import { isValidPakistaniPhone, buildPhoneValidator } from "@/utils/phone";
 import { usePlatformConfig } from "@/context/PlatformConfigContext";
 import { AuthGateSheet, useAuthGate, useRoleGate, RoleBlockSheet } from "@/components/AuthGateSheet";
 
-const C = Colors.light;
-const W = Dimensions.get("window").width;
 
+const C = Colors.light;
 interface PharmacyProduct {
   id: string;
   name: string;
@@ -120,6 +120,8 @@ const MedCard = React.memo(function MedCard({ med, qty, onAdd, onRemove }: {
 });
 
 function PharmacyScreenInner() {
+  const { colors: C } = useTheme();
+  const { width: W } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const { goBack } = useSmartBack();
   const topPad = Math.max(insets.top, 12);

@@ -12,19 +12,19 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-  Dimensions,
+  useWindowDimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 import Colors, { spacing, radii, shadows } from "@/constants/colors";
+import { useTheme } from "@/context/ThemeContext";
 import { Font } from "@/constants/typography";
 import { API_BASE, unwrapApiResponse } from "@/utils/api";
 import { useSmartBack } from "@/hooks/useSmartBack";
 import { SkeletonBlock } from "@/components/ui/SkeletonBlock";
 
-const C = Colors.light;
-const W = Dimensions.get("window").width;
 
+const C = Colors.light;
 interface PharmacyStore {
   id: string;
   name: string;
@@ -100,6 +100,8 @@ function StoreCard({ store }: { store: PharmacyStore }) {
 }
 
 export default function PharmacyStoresScreen() {
+  const { colors: C } = useTheme();
+  const { width: W } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const { goBack } = useSmartBack("/pharmacy");
   const [search, setSearch] = useState("");

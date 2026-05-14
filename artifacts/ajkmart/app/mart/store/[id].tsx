@@ -3,7 +3,6 @@ import { router, useLocalSearchParams } from "expo-router";
 import React, { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import {
   Animated,
-  Dimensions,
   Image,
   RefreshControl,
   ScrollView,
@@ -12,10 +11,12 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  useWindowDimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 import Colors, { spacing, radii, shadows } from "@/constants/colors";
+import { useTheme } from "@/context/ThemeContext";
 import { Font } from "@/constants/typography";
 import { API_BASE, unwrapApiResponse } from "@/utils/api";
 import { useCart } from "@/context/CartContext";
@@ -26,8 +27,7 @@ import { SkeletonBlock } from "@/components/ui/SkeletonBlock";
 import { WishlistHeart } from "@/components/WishlistHeart";
 
 const C = Colors.light;
-const W = Dimensions.get("window").width;
-const CARD_W = (W - 16 * 2 - 12) / 2;
+const CARD_W = (375 - 16 * 2 - 12) / 2;
 
 interface MartProduct {
   id: string;
@@ -177,6 +177,9 @@ function ProductGridCard({ product }: { product: MartProduct }) {
 }
 
 export default function MartStorePage() {
+  const { colors: C } = useTheme();
+  const { width: W } = useWindowDimensions();
+  const CARD_W = (W - 16 * 2 - 12) / 2;
   const insets = useSafeAreaInsets();
   const { goBack } = useSmartBack();
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -193,7 +196,7 @@ export default function MartStorePage() {
       return unwrapApiResponse(json) as { vendor: Vendor; products: MartProduct[] };
     },
     enabled: !!id,
-    staleTime: 60_000,
+    staleTime: 2 * 60 * 1000,
   });
 
   const vendor = data?.vendor;

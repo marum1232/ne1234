@@ -2,7 +2,6 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
 import React, { useRef, useState } from "react";
 import {
-  Dimensions,
   FlatList,
   Image,
   Platform,
@@ -11,12 +10,13 @@ import {
   TouchableOpacity,
   View,
   ViewToken,
+  useWindowDimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { usePlatformConfig } from "@/context/PlatformConfigContext";
 import Colors from "@/constants/colors";
 
-const { width } = Dimensions.get("window");
+const width = 375;
 
 const ONBOARDING_SEEN_KEY = "@ajkmart_onboarding_seen";
 
@@ -109,6 +109,7 @@ function SlideItem({ item, isLast, onSkip, onNext, onDone }: {
 }
 
 export default function OnboardingScreen() {
+  const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const { config } = usePlatformConfig();
   const flatListRef = useRef<FlatList<Slide>>(null);

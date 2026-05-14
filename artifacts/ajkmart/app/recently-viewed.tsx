@@ -6,7 +6,6 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useEffect, useState, useCallback } from "react";
 import {
   Alert,
-  Dimensions,
   Image,
   Platform,
   RefreshControl,
@@ -15,15 +14,16 @@ import {
   Text,
   TouchableOpacity,
   View,
+  useWindowDimensions,
 } from "react-native";
 
 import Colors from "@/constants/colors";
+import { useTheme } from "@/context/ThemeContext";
 import { Font } from "@/constants/typography";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
 
 const C = Colors.light;
-const { width } = Dimensions.get("window");
-const CARD_W = (width - 16 * 2 - 12) / 2;
+const CARD_W = (375 - 16 * 2 - 12) / 2;
 const RECENTLY_VIEWED_KEY = "recently_viewed_products";
 
 interface RecentItem {
@@ -37,6 +37,9 @@ interface RecentItem {
 export default withErrorBoundary(RecentlyViewedScreenInner);
 
 function RecentlyViewedScreenInner() {
+  const { colors: C } = useTheme();
+  const { width } = useWindowDimensions();
+  const CARD_W = (width - 16 * 2 - 12) / 2;
   const { goBack } = useSmartBack();
   const [items, setItems] = useState<RecentItem[]>([]);
   const [loading, setLoading] = useState(true);

@@ -1,6 +1,9 @@
 /**
  * Sentry error monitoring — Web-only for Expo.
  * For native mobile, use @sentry/react-native with the expo plugin.
+ *
+ * SDK version is read from EXPO_PUBLIC_SENTRY_SDK_VERSION (default "8.55.0").
+ * To pin a specific version set the env var in your build environment.
  */
 import { Platform } from "react-native";
 import { createLogger } from "@/utils/logger";
@@ -26,10 +29,12 @@ export async function initSentry(
   if (!dsn || _initialized || Platform.OS !== "web") return;
   _initialized = true;
 
+  const sdkVersion =
+    (process.env.EXPO_PUBLIC_SENTRY_SDK_VERSION ?? "").trim() || "8.55.0";
+
   return new Promise((resolve) => {
     const script = document.createElement("script");
-    script.src =
-      "https://browser.sentry-cdn.com/8.0.0/bundle.min.js";
+    script.src = `https://browser.sentry-cdn.com/${sdkVersion}/bundle.min.js`;
     script.crossOrigin = "anonymous";
     script.onload = () => {
       try {

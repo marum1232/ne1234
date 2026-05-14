@@ -135,16 +135,6 @@ export function RideTracker({
 
   const isSocketActive = ["accepted", "arrived", "in_transit"].includes(ride?.status ?? "");
 
-  const expoDomain = process.env.EXPO_PUBLIC_DOMAIN;
-  const rideApiBase = expoDomain ? `https://${expoDomain}/api` : API_BASE;
-  const warnedNoDomainRef = useRef(false);
-
-  useEffect(() => {
-    if (__DEV__ && !expoDomain && !warnedNoDomainRef.current) {
-      warnedNoDomainRef.current = true;
-      log.warn("EXPO_PUBLIC_DOMAIN is undefined — SOS and cancel requests will use API_BASE fallback. Set EXPO_PUBLIC_DOMAIN in your environment.");
-    }
-  }, [expoDomain]);
 
   useEffect(() => {
     if (!isSocketActive || !rideId) return;
@@ -333,7 +323,7 @@ export function RideTracker({
     if (sosSent) return;
     setSosLoading(true);
     try {
-      const resp = await fetch(`${rideApiBase}/sos`, {
+      const resp = await fetch(`${API_BASE}/sos`, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({ rideId }),
@@ -411,7 +401,7 @@ export function RideTracker({
           </TouchableOpacity>
         </View>
         {cancelModalTarget && (
-          <CancelModal target={cancelModalTarget} cancellationFee={effectiveCancellationFee} apiBase={rideApiBase} token={token} onClose={() => setCancelModalTarget(null)} onDone={(result) => { setCancelResult({ cancellationFee: result?.cancellationFee, cancelReason: result?.cancelReason }); setRide((r) => r ? { ...r, status: "cancelled" } : r); }} />
+          <CancelModal target={cancelModalTarget} cancellationFee={effectiveCancellationFee} apiBase={API_BASE} token={token} onClose={() => setCancelModalTarget(null)} onDone={(result) => { setCancelResult({ cancellationFee: result?.cancellationFee, cancelReason: result?.cancelReason }); setRide((r) => r ? { ...r, status: "cancelled" } : r); }} />
         )}
       </View>
     );
@@ -452,7 +442,7 @@ export function RideTracker({
           </TouchableOpacity>
         </View>
         {cancelModalTarget && (
-          <CancelModal target={cancelModalTarget} cancellationFee={effectiveCancellationFee} apiBase={rideApiBase} token={token} onClose={() => setCancelModalTarget(null)} onDone={(result) => { setCancelResult({ cancellationFee: result?.cancellationFee, cancelReason: result?.cancelReason }); setRide((r) => r ? { ...r, status: "cancelled" } : r); }} />
+          <CancelModal target={cancelModalTarget} cancellationFee={effectiveCancellationFee} apiBase={API_BASE} token={token} onClose={() => setCancelModalTarget(null)} onDone={(result) => { setCancelResult({ cancellationFee: result?.cancellationFee, cancelReason: result?.cancelReason }); setRide((r) => r ? { ...r, status: "cancelled" } : r); }} />
         )}
       </View>
     );
@@ -914,7 +904,7 @@ export function RideTracker({
         <CancelModal
           target={cancelModalTarget}
           cancellationFee={effectiveCancellationFee}
-          apiBase={rideApiBase}
+          apiBase={API_BASE}
           token={token}
           onClose={() => setCancelModalTarget(null)}
           onDone={(result) => {

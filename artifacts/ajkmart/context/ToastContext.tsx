@@ -1,5 +1,14 @@
-import React, { createContext, useCallback, useContext, useRef, useState } from "react";
-import { Animated, Platform, TouchableOpacity, StyleSheet, Text, View } from "react-native";
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+  withDelay,
+  withSequence,
+  runOnJS,
+} from "react-native-reanimated";
+import { Platform, TouchableOpacity, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -27,25 +36,45 @@ const COLORS: Record<ToastType, { bg: string; icon: IoniconName; text: string }>
 
 function ToastBanner({ item, onDone }: { item: ToastItem; onDone: () => void }) {
   const insets = useSafeAreaInsets();
-  const anim = useRef(new Animated.Value(0)).current;
   const c = COLORS[item.type];
+  const progress = useSharedValue(0);
+  const doneCalled = useRef(false);
 
-  React.useEffect(() => {
-    Animated.sequence([
-      Animated.spring(anim, { toValue: 1, useNativeDriver: true, bounciness: 6 }),
-      Animated.delay(2800),
-      Animated.timing(anim, { toValue: 0, duration: 250, useNativeDriver: true }),
-    ]).start(onDone);
+  const callDone = useCallback(() => {
+    if (!doneCalled.current) {
+      doneCalled.current = true;
+      onDone();
+    }
+  }, [onDone]);
+
+  useEffect(() => {
+    progress.value = withSequence(
+      withSpring(1, { damping: 12, stiffness: 180 }),
+      withDelay(2800, withTiming(0, { duration: 250 })),
+    );
+    const timer = setTimeout(callDone, 2800 + 250 + 100);
+    return () => clearTimeout(timer);
   }, []);
 
-  const translateY = anim.interpolate({ inputRange: [0, 1], outputRange: [-20, 0] });
-  const opacity = anim;
+  const animStyle = useAnimatedStyle(() => ({
+    opacity: progress.value,
+    transform: [{ translateY: (1 - progress.value) * -20 }],
+  }));
 
   return (
-    <Animated.View style={[ts.banner, { backgroundColor: c.bg, opacity, transform: [{ translateY }], top: Platform.OS === "web" ? 72 : insets.top + 10 }]}>
+    <Animated.View
+      style={[
+        ts.banner,
+        {
+          backgroundColor: c.bg,
+          top: Platform.OS === "web" ? 72 : insets.top + 10,
+        },
+        animStyle,
+      ]}
+    >
       <Ionicons name={c.icon} size={20} color={c.text} />
       <Text style={[ts.bannerTxt, { color: c.text }]} numberOfLines={3}>{item.message}</Text>
-      <TouchableOpacity activeOpacity={0.7} onPress={onDone} style={ts.closeBtn}>
+      <TouchableOpacity activeOpacity={0.7} onPress={callDone} style={ts.closeBtn}>
         <Ionicons name="close" size={16} color={c.text} />
       </TouchableOpacity>
     </Animated.View>
@@ -94,7 +123,7 @@ const ts = StyleSheet.create({
     paddingVertical: 14,
     elevation: 10,
     ...Platform.select({
-      web: { boxShadow: "0 4px 12px rgba(0,0,0,0.25)" },
+      web: { boxShadow: "0 4px 12px rgba(0,0,0,0.25)" } as object,
       default: { shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 12 },
     }),
   },

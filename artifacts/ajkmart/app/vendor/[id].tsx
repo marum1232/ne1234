@@ -4,7 +4,6 @@ import React, { useState, useMemo, useCallback } from "react";
 import {
   ActivityIndicator,
   Animated,
-  Dimensions,
   FlatList,
   Image,
   RefreshControl,
@@ -14,10 +13,12 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  useWindowDimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 import Colors, { spacing, radii, shadows } from "@/constants/colors";
+import { useTheme } from "@/context/ThemeContext";
 import { Font } from "@/constants/typography";
 import { API_BASE, unwrapApiResponse } from "@/utils/api";
 import { withErrorBoundary } from "@/utils/withErrorBoundary";
@@ -32,8 +33,8 @@ import {
 import { CartSwitchModal } from "@/components/CartSwitchModal";
 import { SkeletonBlock } from "@/components/ui/SkeletonBlock";
 
+
 const C = Colors.light;
-const W = Dimensions.get("window").width;
 
 interface Product {
   id: string;
@@ -243,6 +244,8 @@ function ProductCard({ product }: { product: Product }) {
 export default withErrorBoundary(VendorStoreScreenInner);
 
 function VendorStoreScreenInner() {
+  const { colors: C } = useTheme();
+  const { width: W } = useWindowDimensions();
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
   const { goBack } = useSmartBack();
@@ -579,6 +582,7 @@ function VendorStoreScreenInner() {
   );
 }
 
+const W = 375;
 const CARD_W = (W - 32 - 10) / 2;
 
 const styles = StyleSheet.create({

@@ -187,6 +187,7 @@ export function useRideStatus(rideId: string): RideStatusHookResult {
 
       let streamDone = false;
       while (mountedRef.current) {
+        if (controller.signal.aborted) break;
         const { done, value } = await reader.read();
         if (done) { streamDone = true; break; }
 

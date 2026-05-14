@@ -9,9 +9,9 @@ import {
   ActivityIndicator,
   Modal,
   Platform,
-  Dimensions,
   RefreshControl,
   ViewStyle,
+  useWindowDimensions,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
@@ -20,15 +20,15 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { router } from "expo-router";
 import Colors, { spacing, radii, shadows } from "@/constants/colors";
+import { useTheme } from "@/context/ThemeContext";
 import { Font } from "@/constants/typography";
 import { useAuth } from "@/context/AuthContext";
 import { CountdownTimer } from "@/components/user-shared";
 import { API_BASE } from "@/utils/api";
 
+const C = Colors.light;
 type IoniconsName = ComponentProps<typeof Ionicons>["name"];
 
-const C = Colors.light;
-const W = Dimensions.get("window").width;
 
 type OfferType = {
   id: string;
@@ -371,6 +371,8 @@ const GROUP_LABELS: Record<GroupKey, { label: string; emoji: string }> = {
 export default withErrorBoundary(OffersScreenInner);
 
 function OffersScreenInner() {
+  const { colors: C } = useTheme();
+  const { width: W } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const { token } = useAuth();
   const qc = useQueryClient();

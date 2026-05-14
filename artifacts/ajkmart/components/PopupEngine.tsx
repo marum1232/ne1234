@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Animated,
-  Dimensions,
+  AppState,
+  type AppStateStatus,
   Image,
   Linking,
   Modal,
@@ -10,15 +11,17 @@ import {
   Text,
   TouchableOpacity,
   View,
+  useWindowDimensions,
   type ViewStyle,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
 import { useAuth } from "@/context/AuthContext";
+import { createLogger } from "@/utils/logger";
+const log = createLogger("[PopupEngine]");
 
-const W = Dimensions.get("window").width;
-const H = Dimensions.get("window").height;
+const MIN_FETCH_INTERVAL_MS = 30_000;
 
 interface Popup {
   id: string;
@@ -91,7 +94,9 @@ async function markPopupSeen(popup: Popup): Promise<void> {
     } else if (popup.displayFrequency === "every_session") {
       sessionSeenIds.add(popup.id);
     }
-  } catch {}
+  } catch (e) {
+    log.warn("markPopupSeen failed:", e);
+  }
 }
 
 async function sendImpression(popupId: string, action: "view" | "click" | "dismiss", token: string | null, sessionId: string, apiBase: string): Promise<void> {
@@ -104,14 +109,15 @@ async function sendImpression(popupId: string, action: "view" | "click" | "dismi
       },
       body: JSON.stringify({ popupId, action, sessionId }),
     });
-  } catch {}
+  } catch (e) {
+    log.warn("sendImpression failed:", e);
+  }
 }
 
 function usePopupAnimation(type: string, animation: string | null) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(type === "top_banner" ? -80 : type === "bottom_sheet" ? 300 : 0)).current;
   const scaleAnim = useRef(new Animated.Value(animation === "scale" ? 0.7 : 1)).current;
-  const bounceAnim = useRef(new Animated.Value(0)).current;
 
   const animateIn = useCallback(() => {
     const animations: Animated.CompositeAnimation[] = [
@@ -156,12 +162,12 @@ function TopBannerPopup({ popup, onDismiss, onCta, style }: PopupRendererProps &
         <View style={styles.topBannerContent}>
           <Text style={[styles.topBannerTitle, { color: popup.textColor || "#fff" }]} numberOfLines={1}>{popup.title}</Text>
           {popup.ctaText && (
-            <TouchableOpacity onPress={onCta} style={styles.topBannerCta}>
+            <TouchableOpacity onPress={onCta} style={styles.topBannerCta} accessibilityRole="button" accessibilityLabel={popup.ctaText}>
               <Text style={[styles.topBannerCtaText, { color: popup.textColor || "#fff" }]}>{popup.ctaText}</Text>
             </TouchableOpacity>
           )}
         </View>
-        <TouchableOpacity onPress={onDismiss} style={styles.topBannerClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+        <TouchableOpacity onPress={onDismiss} style={styles.topBannerClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityRole="button" accessibilityLabel="Close banner">
           <Text style={{ color: popup.textColor || "#fff", fontSize: 18, fontWeight: "bold" }}>×</Text>
         </TouchableOpacity>
       </LinearGradient>
@@ -184,11 +190,11 @@ function BottomSheetPopup({ popup, onDismiss, onCta, style }: PopupRendererProps
         )}
         <View style={styles.bottomSheetActions}>
           {popup.ctaText && (
-            <TouchableOpacity onPress={onCta} style={styles.ctaButton} activeOpacity={0.85}>
+            <TouchableOpacity onPress={onCta} style={styles.ctaButton} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel={popup.ctaText}>
               <Text style={styles.ctaButtonText}>{popup.ctaText}</Text>
             </TouchableOpacity>
           )}
-          <TouchableOpacity onPress={onDismiss} style={styles.dismissButton} activeOpacity={0.75}>
+          <TouchableOpacity onPress={onDismiss} style={styles.dismissButton} activeOpacity={0.75} accessibilityRole="button" accessibilityLabel="Dismiss">
             <Text style={[styles.dismissButtonText, { color: `${popup.textColor || "#fff"}99` }]}>Dismiss</Text>
           </TouchableOpacity>
         </View>
@@ -205,7 +211,7 @@ function FloatingCardPopup({ popup, onDismiss, onCta, style }: PopupRendererProp
         {popup.mediaUrl && (
           <Image source={{ uri: popup.mediaUrl }} style={styles.floatingCardImage} resizeMode="cover" />
         )}
-        <TouchableOpacity onPress={onDismiss} style={styles.floatingCardClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+        <TouchableOpacity onPress={onDismiss} style={styles.floatingCardClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel="Close">
           <Text style={{ color: popup.textColor || "#fff", fontSize: 18, fontWeight: "bold" }}>×</Text>
         </TouchableOpacity>
         <Text style={[styles.floatingCardTitle, { color: popup.textColor || "#fff" }]}>{popup.title}</Text>
@@ -213,7 +219,7 @@ function FloatingCardPopup({ popup, onDismiss, onCta, style }: PopupRendererProp
           <Text style={[styles.floatingCardBody, { color: `${popup.textColor || "#fff"}CC` }]}>{popup.body}</Text>
         )}
         {popup.ctaText && (
-          <TouchableOpacity onPress={onCta} style={styles.ctaButton} activeOpacity={0.85}>
+          <TouchableOpacity onPress={onCta} style={styles.ctaButton} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel={popup.ctaText}>
             <Text style={styles.ctaButtonText}>{popup.ctaText}</Text>
           </TouchableOpacity>
         )}
@@ -230,7 +236,7 @@ function FullscreenModalPopup({ popup, onDismiss, onCta, style }: PopupRendererP
         {popup.mediaUrl && (
           <Image source={{ uri: popup.mediaUrl }} style={styles.modalImage} resizeMode="cover" />
         )}
-        <TouchableOpacity onPress={onDismiss} style={styles.modalClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+        <TouchableOpacity onPress={onDismiss} style={styles.modalClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityRole="button" accessibilityLabel="Close">
           <Text style={{ color: popup.textColor || "#fff", fontSize: 24, fontWeight: "bold" }}>×</Text>
         </TouchableOpacity>
         <View style={styles.modalContent}>
@@ -239,11 +245,11 @@ function FullscreenModalPopup({ popup, onDismiss, onCta, style }: PopupRendererP
             <Text style={[styles.modalBody, { color: `${popup.textColor || "#fff"}CC` }]}>{popup.body}</Text>
           )}
           {popup.ctaText && (
-            <TouchableOpacity onPress={onCta} style={styles.ctaButton} activeOpacity={0.85}>
+            <TouchableOpacity onPress={onCta} style={styles.ctaButton} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel={popup.ctaText}>
               <Text style={styles.ctaButtonText}>{popup.ctaText}</Text>
             </TouchableOpacity>
           )}
-          <TouchableOpacity onPress={onDismiss} style={[styles.dismissButton, { marginTop: 12 }]} activeOpacity={0.75}>
+          <TouchableOpacity onPress={onDismiss} style={[styles.dismissButton, { marginTop: 12 }]} activeOpacity={0.75} accessibilityRole="button" accessibilityLabel="Maybe later">
             <Text style={[styles.dismissButtonText, { color: `${popup.textColor || "#fff"}80` }]}>Maybe Later</Text>
           </TouchableOpacity>
         </View>
@@ -259,12 +265,16 @@ interface PopupEngineProps {
 
 export function PopupEngine({ apiBase, triggerKey = "app_open" }: PopupEngineProps) {
   const { user, token } = useAuth();
+  const { width: W } = useWindowDimensions();
   const [queue, setQueue] = useState<Popup[]>([]);
   const [current, setCurrent] = useState<Popup | null>(null);
   const [visible, setVisible] = useState(false);
   const sessionIdRef = useRef<string>("");
   const sessionReady = useRef(false);
   const autoDismissTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isMountedRef = useRef(true);
+  const lastFetchTimeRef = useRef<number>(0);
+  const fetchControllerRef = useRef<AbortController | null>(null);
 
   const { fadeAnim, slideAnim, scaleAnim, animateIn, animateOut } = usePopupAnimation(
     current?.popupType ?? "modal",
@@ -272,11 +282,58 @@ export function PopupEngine({ apiBase, triggerKey = "app_open" }: PopupEnginePro
   );
 
   useEffect(() => {
+    isMountedRef.current = true;
     getOrCreateSessionId().then(id => {
       sessionIdRef.current = id;
       sessionReady.current = true;
+    }).catch((e) => {
+      log.warn("getOrCreateSessionId failed:", e);
     });
+    return () => {
+      isMountedRef.current = false;
+      if (autoDismissTimer.current) clearTimeout(autoDismissTimer.current);
+      if (fetchControllerRef.current) fetchControllerRef.current.abort();
+    };
   }, []);
+
+  const fetchPopups = useCallback(async () => {
+    if (!isMountedRef.current) return;
+
+    const now = Date.now();
+    if (now - lastFetchTimeRef.current < MIN_FETCH_INTERVAL_MS) return;
+    lastFetchTimeRef.current = now;
+
+    if (fetchControllerRef.current) fetchControllerRef.current.abort();
+    const controller = new AbortController();
+    fetchControllerRef.current = controller;
+
+    try {
+      const sessionId = sessionIdRef.current;
+      const url = `${apiBase}/popups/active?sessionId=${sessionId}`;
+      const res = await fetch(url, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        signal: controller.signal,
+      });
+      if (!res.ok || !isMountedRef.current) return;
+      const data = await res.json();
+      const popups: Popup[] = data?.data?.popups ?? data?.popups ?? [];
+      const eligible: Popup[] = [];
+      for (const popup of popups) {
+        if (!isMountedRef.current) return;
+        const show = await shouldShowPopup(popup);
+        if (show) eligible.push(popup);
+      }
+      if (!isMountedRef.current) return;
+      const capped = eligible.slice(0, 10);
+      if (capped.length > 0) {
+        setQueue(capped);
+        showNext(capped, 0);
+      }
+    } catch (e: unknown) {
+      if ((e as { name?: string })?.name === "AbortError") return;
+      log.warn("fetchPopups error:", e);
+    }
+  }, [apiBase, token]);
 
   useEffect(() => {
     if (!sessionReady.current) {
@@ -284,43 +341,26 @@ export function PopupEngine({ apiBase, triggerKey = "app_open" }: PopupEnginePro
         sessionIdRef.current = id;
         sessionReady.current = true;
         fetchPopups();
+      }).catch((e) => {
+        log.warn("getOrCreateSessionId error:", e);
       });
     } else {
       fetchPopups();
     }
-  }, [triggerKey]);
+  }, [triggerKey, fetchPopups]);
 
   useEffect(() => {
-    return () => {
-      if (autoDismissTimer.current) clearTimeout(autoDismissTimer.current);
+    const handleAppStateChange = (state: AppStateStatus) => {
+      if (state === "active" && isMountedRef.current) {
+        fetchPopups();
+      }
     };
-  }, []);
-
-  const fetchPopups = async () => {
-    try {
-      const sessionId = sessionIdRef.current;
-      const url = `${apiBase}/popups/active?sessionId=${sessionId}`;
-      const res = await fetch(url, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      if (!res.ok) return;
-      const data = await res.json();
-      const popups: Popup[] = data?.data?.popups ?? data?.popups ?? [];
-      const eligible: Popup[] = [];
-      for (const popup of popups) {
-        const show = await shouldShowPopup(popup);
-        if (show) eligible.push(popup);
-      }
-      const capped = eligible.slice(0, 10);
-      if (capped.length > 0) {
-        setQueue(capped);
-        showNext(capped, 0);
-      }
-    } catch {}
-  };
+    const sub = AppState.addEventListener("change", handleAppStateChange);
+    return () => sub.remove();
+  }, [fetchPopups]);
 
   const showNext = (q: Popup[], idx: number) => {
-    if (idx >= q.length) return;
+    if (idx >= q.length || !isMountedRef.current) return;
     const popup = q[idx]!;
     setCurrent(popup);
     setVisible(true);
@@ -343,7 +383,7 @@ export function PopupEngine({ apiBase, triggerKey = "app_open" }: PopupEnginePro
     }
   };
 
-  const handleDismiss = async (q: Popup[], idx: number, action: "dismiss" | "click" = "dismiss") => {
+  const handleDismiss = useCallback(async (q: Popup[], idx: number, action: "dismiss" | "click" = "dismiss") => {
     if (autoDismissTimer.current) {
       clearTimeout(autoDismissTimer.current);
       autoDismissTimer.current = null;
@@ -357,23 +397,27 @@ export function PopupEngine({ apiBase, triggerKey = "app_open" }: PopupEnginePro
         setTimeout(() => showNext(q, idx + 1), 400);
       }
     });
-  };
+  }, [current, token, apiBase, animateOut]);
 
-  const handleCta = () => {
+  const handleCta = useCallback(() => {
     if (!current) return;
     const ctaLink = current.ctaLink;
     const qIdx = queue.indexOf(current);
     handleDismiss(queue, qIdx, "click");
     if (ctaLink) {
       if (ctaLink.startsWith("http")) {
-        Linking.openURL(ctaLink).catch(() => {});
+        Linking.openURL(ctaLink).catch((e) => {
+          log.warn("Linking.openURL failed:", e);
+        });
       } else {
         try {
           router.push(ctaLink as Parameters<typeof router.push>[0]);
-        } catch {}
+        } catch (e) {
+          log.warn("Router push failed for popup CTA:", e);
+        }
       }
     }
-  };
+  }, [current, queue, handleDismiss]);
 
   if (!current || !visible) return null;
 
@@ -400,7 +444,7 @@ export function PopupEngine({ apiBase, triggerKey = "app_open" }: PopupEnginePro
     return (
       <Modal transparent visible animationType="none" onRequestClose={() => handleDismiss(queue, qIdx)} statusBarTranslucent>
         <Animated.View style={[StyleSheet.absoluteFill, styles.backdropOverlay, { opacity: fadeAnim }]}>
-          <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => handleDismiss(queue, qIdx)} />
+          <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => handleDismiss(queue, qIdx)} accessibilityLabel="Close popup" />
         </Animated.View>
         <View style={styles.bottomSheetModalContainer} pointerEvents="box-none">
           <BottomSheetPopup
@@ -421,9 +465,9 @@ export function PopupEngine({ apiBase, triggerKey = "app_open" }: PopupEnginePro
     return (
       <Modal transparent visible animationType="none" onRequestClose={() => handleDismiss(queue, qIdx)} statusBarTranslucent>
         <Animated.View style={[StyleSheet.absoluteFill, styles.backdropOverlay, { opacity: fadeAnim }]}>
-          <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => handleDismiss(queue, qIdx)} />
+          <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => handleDismiss(queue, qIdx)} accessibilityLabel="Close popup" />
         </Animated.View>
-        <View style={styles.floatingCardModal} pointerEvents="box-none">
+        <View style={[styles.floatingCardModal, { width: W }]} pointerEvents="box-none">
           <FloatingCardPopup
             popup={current}
             onDismiss={() => handleDismiss(queue, qIdx)}

@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
   Alert,
   Animated,
-  Dimensions,
+
   FlatList,
   Image,
   Modal,
@@ -47,8 +47,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { VideoView, useVideoPlayer } from "expo-video";
 
 const C = Colors.light;
-const { width: SCREEN_W } = Dimensions.get("window");
-const IMAGE_H = SCREEN_W * 0.85;
+const SCREEN_W_FALLBACK = 375;
 
 function InlineVideoPlayer({ url, width, height, isActive }: { url: string; width: number; height: number; isActive: boolean }) {
   const [isMuted, setIsMuted] = useState(true);
@@ -347,9 +346,8 @@ function WriteReviewModal({
   );
 }
 
-const SCREEN_H = Dimensions.get("window").height;
-
 function ZoomableImage({ uri }: { uri: string }) {
+  const { width: SCREEN_W, height: SCREEN_H } = useWindowDimensions();
   const scrollRef = useRef<ScrollView>(null);
 
   const handleDoubleTap = useCallback(() => {
@@ -359,7 +357,7 @@ function ZoomableImage({ uri }: { uri: string }) {
       height: SCREEN_H,
       animated: true,
     });
-  }, []);
+  }, [SCREEN_W, SCREEN_H]);
 
   return (
     <ScrollView
@@ -392,6 +390,7 @@ function FullScreenImageViewer({
   initialIndex: number;
   onClose: () => void;
 }) {
+  const { width: screenW } = useWindowDimensions();
   const [activeIdx, setActiveIdx] = useState(initialIndex);
 
   useEffect(() => {
@@ -413,9 +412,9 @@ function FullScreenImageViewer({
           pagingEnabled
           showsHorizontalScrollIndicator={false}
           initialScrollIndex={initialIndex}
-          getItemLayout={(_, i) => ({ length: SCREEN_W, offset: SCREEN_W * i, index: i })}
+          getItemLayout={(_, i) => ({ length: screenW, offset: screenW * i, index: i })}
           onMomentumScrollEnd={(e) => {
-            setActiveIdx(Math.round(e.nativeEvent.contentOffset.x / SCREEN_W));
+            setActiveIdx(Math.round(e.nativeEvent.contentOffset.x / screenW));
           }}
           renderItem={({ item }) => (
             <ZoomableImage uri={item} />
@@ -1289,7 +1288,7 @@ const rs = StyleSheet.create({
   vendorReplyText: { fontFamily: Font.regular, fontSize: 12, color: C.textSecondary, lineHeight: 17 },
   fullScreenOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.95)", justifyContent: "center", alignItems: "center" },
   fullScreenClose: { position: "absolute", top: 60, right: 20, zIndex: 10, width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.2)", alignItems: "center", justifyContent: "center" },
-  fullScreenImg: { width: SCREEN_W, height: SCREEN_W },
+  fullScreenImg: { width: SCREEN_W_FALLBACK, height: SCREEN_W_FALLBACK },
   writeBtn: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: C.primarySoft, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20 },
   writeBtnTxt: { fontFamily: Font.semiBold, fontSize: 12, color: C.primary },
   reviewedHint: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "#ecfdf5", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16 },
@@ -1369,7 +1368,7 @@ const styles = StyleSheet.create({
   cartBadgeTxt: { ...Typ.tiny, color: C.textInverse },
 
   imageContainer: { position: "relative", backgroundColor: C.surfaceSecondary },
-  placeholderImage: { width: SCREEN_W, alignItems: "center", justifyContent: "center" },
+  placeholderImage: { width: SCREEN_W_FALLBACK, alignItems: "center", justifyContent: "center" },
   placeholderIconWrap: { width: 80, height: 80, borderRadius: 24, backgroundColor: "rgba(0,0,0,0.05)", alignItems: "center", justifyContent: "center", marginBottom: 8 },
   placeholderText: { fontFamily: Font.medium, fontSize: 13, color: C.textMuted },
   imgCounterBadge: {
@@ -1454,7 +1453,7 @@ const styles = StyleSheet.create({
   relatedSection: { paddingVertical: 14 },
   relatedGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   relatedCard: {
-    width: (SCREEN_W - 32 - 10) / 2, backgroundColor: C.surface, borderRadius: 16,
+    width: (SCREEN_W_FALLBACK - 32 - 10) / 2, backgroundColor: C.surface, borderRadius: 16,
     overflow: "hidden", borderWidth: 1, borderColor: C.border,
   },
   relatedImg: { height: 100, backgroundColor: C.surfaceSecondary, alignItems: "center", justifyContent: "center", overflow: "hidden" },

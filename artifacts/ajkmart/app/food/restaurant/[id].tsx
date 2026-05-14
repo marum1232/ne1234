@@ -4,7 +4,6 @@ import React, { useState, useMemo, useCallback } from "react";
 import {
   ActivityIndicator,
   Animated,
-  Dimensions,
   FlatList,
   Image,
   RefreshControl,
@@ -14,10 +13,12 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  useWindowDimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 import Colors, { spacing, radii, shadows } from "@/constants/colors";
+import { useTheme } from "@/context/ThemeContext";
 import { Font } from "@/constants/typography";
 import { API_BASE, unwrapApiResponse } from "@/utils/api";
 import { useCart } from "@/context/CartContext";
@@ -27,7 +28,6 @@ import { CartSwitchModal } from "@/components/CartSwitchModal";
 import { SkeletonBlock } from "@/components/ui/SkeletonBlock";
 
 const C = Colors.light;
-const W = Dimensions.get("window").width;
 
 interface MenuItem {
   id: string;
@@ -182,6 +182,8 @@ function MenuItemCard({ item }: { item: MenuItem }) {
 }
 
 export default function FoodRestaurantScreen() {
+  const { colors: C } = useTheme();
+  const { width: W } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const { goBack } = useSmartBack();
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -198,7 +200,7 @@ export default function FoodRestaurantScreen() {
       return unwrapApiResponse(json) as { vendor: Restaurant; products: MenuItem[] };
     },
     enabled: !!id,
-    staleTime: 60_000,
+    staleTime: 2 * 60 * 1000,
   });
 
   const restaurant = data?.vendor;

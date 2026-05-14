@@ -12,20 +12,20 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-  Dimensions,
+  useWindowDimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 import { withErrorBoundary } from "@/utils/withErrorBoundary";
 import Colors, { spacing, radii, shadows } from "@/constants/colors";
+import { useTheme } from "@/context/ThemeContext";
 import { Font } from "@/constants/typography";
 import { API_BASE, unwrapApiResponse } from "@/utils/api";
 import { useSmartBack } from "@/hooks/useSmartBack";
 import { SkeletonBlock } from "@/components/ui/SkeletonBlock";
 
-const C = Colors.light;
-const W = Dimensions.get("window").width;
 
+const C = Colors.light;
 interface Restaurant {
   id: string;
   name: string;
@@ -144,6 +144,8 @@ function RestaurantCard({ restaurant }: { restaurant: Restaurant }) {
 export default withErrorBoundary(RestaurantsScreenInner);
 
 function RestaurantsScreenInner() {
+  const { colors: C } = useTheme();
+  const { width: W } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const { goBack } = useSmartBack();
   const [search, setSearch] = useState("");
@@ -158,7 +160,7 @@ function RestaurantsScreenInner() {
         users?: Restaurant[];
       }>(json);
     },
-    staleTime: 5 * 60 * 1000,
+    staleTime: 2 * 60 * 1000,
   });
 
   const restaurants: Restaurant[] = useMemo(() => {

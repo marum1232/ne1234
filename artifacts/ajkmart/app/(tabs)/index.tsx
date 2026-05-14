@@ -8,7 +8,6 @@ import { router, type RelativePathString } from "expo-router";
 import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
-  Dimensions,
   useWindowDimensions,
   Modal,
   Platform,
@@ -52,7 +51,6 @@ const LazyFlashDeals = React.lazy(() => import("@/components/home/FlashDeals").t
 const LazyTrending = React.lazy(() => import("@/components/home/TrendingSection").then(m => ({ default: m.TrendingSection })));
 
 const C = Colors.light;
-const W = Dimensions.get("window").width;
 const H_PAD = spacing.lg;
 
 interface RecentItem {
@@ -401,6 +399,7 @@ const wS = StyleSheet.create({
 });
 
 function HomeSkeleton() {
+  const { width: W } = useWindowDimensions();
   return (
     <View style={{ paddingHorizontal: H_PAD, gap: spacing.sm, marginTop: spacing.sm }}>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 0 }}>

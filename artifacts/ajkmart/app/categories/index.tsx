@@ -7,7 +7,6 @@ import { tDual, type TranslationKey } from "@workspace/i18n";
 import { withErrorBoundary } from "@/utils/withErrorBoundary";
 import {
   ActivityIndicator,
-  Dimensions,
   Image,
   Platform,
   RefreshControl,
@@ -16,10 +15,12 @@ import {
   StyleSheet,
   Text,
   View,
+  useWindowDimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 import Colors from "@/constants/colors";
+import { useTheme } from "@/context/ThemeContext";
 import { Font } from "@/constants/typography";
 import {
   getHierarchicalCategories,
@@ -28,9 +29,8 @@ import {
 import { ErrorState } from "@/components/ui/ErrorState";
 
 const C = Colors.light;
-const { width } = Dimensions.get("window");
 const SIDEBAR_W = 90;
-const RIGHT_W = width - SIDEBAR_W;
+const RIGHT_W = 375 - SIDEBAR_W;
 
 type SortKey = "newest" | "popular" | "price_asc" | "price_desc" | "rating";
 
@@ -49,6 +49,9 @@ const SORT_OPTIONS: {
 export default withErrorBoundary(CategoriesBrowseScreenInner);
 
 function CategoriesBrowseScreenInner() {
+  const { colors: C } = useTheme();
+  const { width } = useWindowDimensions();
+  const RIGHT_W = width - SIDEBAR_W;
   const insets = useSafeAreaInsets();
   const { goBack } = useSmartBack();
   const topPad = Platform.OS === "web" ? 67 : insets.top;

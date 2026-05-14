@@ -7,7 +7,6 @@ import {
   ActivityIndicator,
   Alert,
   Animated,
-  Dimensions,
   Image,
   TouchableOpacity,
   RefreshControl,
@@ -16,10 +15,12 @@ import {
   Text,
   View,
   Platform,
+  useWindowDimensions,
 } from "react-native";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import Colors from "@/constants/colors";
+import { useTheme } from "@/context/ThemeContext";
 import { Font } from "@/constants/typography";
 import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
@@ -32,9 +33,9 @@ import {
   type WishlistItem,
 } from "@workspace/api-client-react";
 
+
 const C = Colors.light;
-const { width } = Dimensions.get("window");
-const CARD_W = (width - 16 * 2 - 12) / 2;
+const CARD_W = (375 - 16 * 2 - 12) / 2;
 const API_BASE = `https://${process.env.EXPO_PUBLIC_DOMAIN ?? ""}/api`;
 
 function WishlistCard({
@@ -139,6 +140,9 @@ function WishlistCard({
 export default withErrorBoundary(WishlistScreenInner);
 
 function WishlistScreenInner() {
+  const { colors: C } = useTheme();
+  const { width } = useWindowDimensions();
+  const CARD_W = (width - 16 * 2 - 12) / 2;
   const { goBack } = useSmartBack();
   const {
     user,
