@@ -5,7 +5,7 @@
   "main": "expo-router/entry",
   "scripts": {
     "dev": "{ [ -d ../../node_modules/.pnpm ] || (cd ../.. && pnpm install --no-frozen-lockfile); }; fuser -k ${PORT}/tcp 2>/dev/null || true; sleep 2 && EXPO_PACKAGER_PROXY_URL=https://$REPLIT_EXPO_DEV_DOMAIN EXPO_PUBLIC_DOMAIN=$REPLIT_DEV_DOMAIN EXPO_PUBLIC_REPL_ID=$REPL_ID REACT_NATIVE_PACKAGER_HOSTNAME=$REPLIT_DEV_DOMAIN pnpm exec expo start --localhost --port $PORT --non-interactive",
-    "dev:web": "{ [ -d ../../node_modules/.pnpm ] || (cd ../.. && pnpm install --no-frozen-lockfile); }; fuser -k ${EXPO_DEV_PORT:-20716}/tcp 2>/dev/null || true; NODE_OPTIONS=--max-old-space-size=512 CI=1 EXPO_PUBLIC_DOMAIN=$REPLIT_DEV_DOMAIN EXPO_PUBLIC_REPL_ID=$REPL_ID pnpm exec expo start --web --port ${EXPO_DEV_PORT:-20716} --host localhost",
+    "dev:web": "{ [ -d ../../node_modules/.pnpm ] || (cd ../.. && pnpm install --no-frozen-lockfile); }; fuser -k ${EXPO_DEV_PORT:-20716}/tcp 2>/dev/null || true; NODE_OPTIONS=--max-old-space-size=768 CI=1 EXPO_PUBLIC_DOMAIN=$REPLIT_DEV_DOMAIN EXPO_PUBLIC_REPL_ID=$REPL_ID pnpm exec expo start --web --port ${EXPO_DEV_PORT:-20716} --host localhost",
     "build": "node scripts/build.js",
     "serve": "node server/serve.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",

@@ -34,7 +34,7 @@ import { useLanguage } from "@/context/LanguageContext";
 import { usePlatformConfig, useCurrency } from "@/context/PlatformConfigContext";
 import { useTheme } from "@/context/ThemeContext";
 import { useToast } from "@/context/ToastContext";
-import { tDual, type TranslationKey } from "@workspace/i18n";
+import { tDual, type TranslationKey, LANGUAGE_OPTIONS } from "@workspace/i18n";
 import { SmartRefresh } from "@/components/ui/SmartRefresh";
 import Accordion from "@/components/Accordion";
 import { API_BASE as API, unwrapApiResponse } from "@/utils/api";
@@ -434,7 +434,7 @@ function ProfileScreenInner() {
     }
   }, [section]);
 
-  const { language } = useLanguage();
+  const { language, setLanguage } = useLanguage();
   const T = (key: TranslationKey) => tDual(key, language);
 
   const { fontSizeLevel, setFontSizeLevel } = useFontSize();
@@ -939,6 +939,38 @@ function ProfileScreenInner() {
                 accessibilityRole="switch"
               />
             </View>
+            <View style={[row.wrap, { borderBottomWidth: 1, borderBottomColor: C.borderLight, alignItems: "flex-start", paddingVertical: 12 }]} accessible accessibilityLabel="Language">
+              <View style={[row.icon, { backgroundColor: C.successSoft, marginTop: 2 }]}>
+                <Ionicons name="language-outline" size={18} color={C.success} />
+              </View>
+              <View style={{ flex: 1, gap: 8 }}>
+                <Text style={row.label}>Language</Text>
+                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+                  {LANGUAGE_OPTIONS.map(opt => (
+                    <TouchableOpacity
+                      key={opt.value}
+                      onPress={() => setLanguage(opt.value)}
+                      style={{
+                        paddingVertical: 6,
+                        paddingHorizontal: 10,
+                        borderRadius: radii.md,
+                        borderWidth: 1.5,
+                        borderColor: language === opt.value ? C.primary : C.border,
+                        backgroundColor: language === opt.value ? C.primarySoft : C.surfaceSecondary,
+                      }}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Language ${opt.label}`}
+                      accessibilityState={{ selected: language === opt.value }}
+                    >
+                      <Text style={{ fontFamily: Font.semiBold, fontSize: 11, color: language === opt.value ? C.primary : C.textSecondary }}>
+                        {opt.nativeLabel}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            </View>
+
             <View style={[row.wrap, { borderBottomWidth: 0 }]} accessible accessibilityLabel="Font Size">
               <View style={[row.icon, { backgroundColor: C.primarySoft }]}>
                 <Ionicons name="text-outline" size={18} color={C.primary} />
