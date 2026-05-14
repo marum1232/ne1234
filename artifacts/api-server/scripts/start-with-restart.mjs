@@ -67,6 +67,7 @@ function startServer() {
       env: {
         ...process.env,
         NODE_ENV: process.env.NODE_ENV ?? "development",
+        NODE_OPTIONS: process.env.NODE_OPTIONS ?? "--max-old-space-size=512",
       },
     }
   );

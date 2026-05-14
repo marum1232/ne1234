@@ -122,6 +122,7 @@ export async function checkMigrationGuard(): Promise<MigrationGuardReport> {
   try {
     // ── drizzle-kit tracker (hash-based) ──────────────────────────────────
     let drizzleKitHashes = new Set<string>();
+    let drizzleSchemaFresh = false;
     try {
       await pool.query(
         `CREATE TABLE IF NOT EXISTS drizzle.__drizzle_migrations (
@@ -134,8 +135,20 @@ export async function checkMigrationGuard(): Promise<MigrationGuardReport> {
         "SELECT hash FROM drizzle.__drizzle_migrations"
       );
       drizzleKitHashes = new Set(rows.map((r) => r.hash));
-    } catch (err) {
-      logger.warn({ err }, "[migration-guard] Could not read drizzle.__drizzle_migrations");
+    } catch (err: unknown) {
+      const pgErr = err as { code?: string; message?: string };
+      const isSchemaNotExist =
+        pgErr?.code === "3F000" ||
+        (typeof pgErr?.message === "string" && pgErr.message.includes('schema "drizzle" does not exist'));
+      if (isSchemaNotExist) {
+        drizzleSchemaFresh = true;
+        logger.info(
+          "[migration-guard] drizzle schema not yet created — database is fresh, no migrations applied yet. " +
+          "Run `pnpm --filter @workspace/db run migrate` to initialise."
+        );
+      } else {
+        logger.warn({ err }, "[migration-guard] Could not read drizzle.__drizzle_migrations");
+      }
     }
 
     // ── custom runner tracker (filename-based) ────────────────────────────
@@ -191,7 +204,7 @@ export async function checkMigrationGuard(): Promise<MigrationGuardReport> {
     };
 
     if (!ok) {
-      if (drizzleKitMissing.length > 0) {
+      if (drizzleKitMissing.length > 0 && !drizzleSchemaFresh) {
         logger.warn(
           { missing: drizzleKitMissing },
           `[migration-guard] ${drizzleKitMissing.length} journal migration(s) missing from drizzle.__drizzle_migrations — ` +
