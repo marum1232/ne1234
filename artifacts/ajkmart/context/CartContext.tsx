@@ -93,7 +93,7 @@ async function fetchCartSnapshot(token: string): Promise<CartItem[] | null> {
     if (!res.ok) return null;
     const data = unwrapApiResponse<{ items?: CartItem[] }>(await res.json());
     return Array.isArray(data.items) && data.items.length > 0
-      ? data.items
+      ? data.items.map((item) => ({ ...item, price: Number(item.price) }))
       : null;
   } catch {
     return null;
