@@ -25,10 +25,15 @@ import {
   sendValidationError,
 } from "../lib/response.js";
 import { logAdminAudit, getClientIp } from "../middleware/admin-audit.js";
+import { validateBody } from "../middleware/validate.js";
+import {
+  KycAdminReviewSchema,
+  KycSubmitTextSchema,
+  KycSubmitBase64Schema,
+} from "../lib/validation/schemas.js";
 import { sendPushToUser } from "../lib/webpush.js";
 import { sendSms } from "../services/sms.js";
 
-const stripHtml = (s: string) => s.replace(/<[^>]*>/g, "").trim();
 
 const UPLOADS_DIR = path.resolve(process.cwd(), "uploads/kyc");
 const DEFAULT_ALLOWED_TYPES = [
@@ -206,6 +211,7 @@ router.post(
     { name: "selfie", maxCount: 1 },
     { name: "idPhoto", maxCount: 1 },
   ]),
+  validateBody(KycSubmitTextSchema),
   async (req, res) => {
     try {
       const userId = req.customerId!;
@@ -266,60 +272,7 @@ router.post(
         }
       }
 
-      const rawBody = req.body;
-      const fullName =
-        typeof rawBody.fullName === "string" ? stripHtml(rawBody.fullName) : "";
-      const cnic = typeof rawBody.cnic === "string" ? rawBody.cnic : "";
-      const dateOfBirth = rawBody.dateOfBirth;
-      const gender = rawBody.gender;
-      const address =
-        typeof rawBody.address === "string"
-          ? stripHtml(rawBody.address)
-          : undefined;
-      const city =
-        typeof rawBody.city === "string" ? stripHtml(rawBody.city) : undefined;
-
-      if (!fullName) {
-        res.status(400).json({ error: "Full name is required" });
-        return;
-      }
-      if (!cnic?.trim()) {
-        res.status(400).json({ error: "CNIC number is required" });
-        return;
-      }
-      if (!/^\d{13}$/.test(cnic.replace(/[-\s]/g, ""))) {
-        res
-          .status(400)
-          .json({ error: "CNIC must be 13 digits (e.g. 3740512345678)" });
-        return;
-      }
-      if (!dateOfBirth) {
-        res.status(400).json({ error: "Date of birth is required" });
-        return;
-      }
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth)) {
-        res
-          .status(400)
-          .json({ error: "Date of birth must be in YYYY-MM-DD format" });
-        return;
-      }
-      const dobDateMp = new Date(dateOfBirth);
-      if (isNaN(dobDateMp.getTime()) || dobDateMp > new Date()) {
-        res
-          .status(400)
-          .json({ error: "Date of birth must be a valid past date" });
-        return;
-      }
-      if (!gender) {
-        res.status(400).json({ error: "Gender is required" });
-        return;
-      }
-      if (!["male", "female"].includes(gender)) {
-        res.status(400).json({ error: "Gender must be 'male' or 'female'" });
-        return;
-      }
-
-      const cnicClean = cnic.replace(/[-\s]/g, "");
+      const { fullName, cnic: cnicClean, dateOfBirth, gender, address, city } = req.body;
 
       try {
         await db.transaction(async (tx) => {
@@ -450,7 +403,7 @@ router.post(
 );
 
 /* ─── Customer: POST /api/kyc/submit-base64 — JSON base64 photo upload ─── */
-router.post("/submit-base64", customerAuth, async (req, res) => {
+router.post("/submit-base64", customerAuth, validateBody(KycSubmitBase64Schema), async (req, res) => {
   try {
     const userId = req.customerId!;
 
@@ -460,79 +413,7 @@ router.post("/submit-base64", customerAuth, async (req, res) => {
       return;
     }
 
-    const rawBody = req.body;
-    const fullName =
-      typeof rawBody.fullName === "string" ? stripHtml(rawBody.fullName) : "";
-    const cnic = typeof rawBody.cnic === "string" ? rawBody.cnic : "";
-    const dateOfBirth = rawBody.dateOfBirth;
-    const gender = rawBody.gender;
-    const address =
-      typeof rawBody.address === "string"
-        ? stripHtml(rawBody.address)
-        : undefined;
-    const city =
-      typeof rawBody.city === "string" ? stripHtml(rawBody.city) : undefined;
-    const { frontIdPhoto, backIdPhoto, selfiePhoto } = rawBody;
-
-    if (!fullName) {
-      res.status(400).json({ error: "Full name is required" });
-      return;
-    }
-    if (!cnic?.trim()) {
-      res.status(400).json({ error: "CNIC number is required" });
-      return;
-    }
-    if (!/^\d{13}$/.test(cnic.replace(/[-\s]/g, ""))) {
-      res
-        .status(400)
-        .json({ error: "CNIC must be 13 digits (e.g. 3740512345678)" });
-      return;
-    }
-    if (!dateOfBirth) {
-      res.status(400).json({ error: "Date of birth is required" });
-      return;
-    }
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth)) {
-      res
-        .status(400)
-        .json({ error: "Date of birth must be in YYYY-MM-DD format" });
-      return;
-    }
-    const dobDate = new Date(dateOfBirth);
-    if (isNaN(dobDate.getTime()) || dobDate > new Date()) {
-      res
-        .status(400)
-        .json({ error: "Date of birth must be a valid past date" });
-      return;
-    }
-    if (!gender) {
-      res.status(400).json({ error: "Gender is required" });
-      return;
-    }
-    if (!["male", "female"].includes(gender)) {
-      res.status(400).json({ error: "Gender must be 'male' or 'female'" });
-      return;
-    }
-    if (!frontIdPhoto) {
-      res
-        .status(400)
-        .json({ success: false, error: "Front side of CNIC is required" });
-      return;
-    }
-    if (!backIdPhoto) {
-      res
-        .status(400)
-        .json({ success: false, error: "Back side of CNIC is required" });
-      return;
-    }
-    if (!selfiePhoto) {
-      res
-        .status(400)
-        .json({ success: false, error: "Selfie photo is required" });
-      return;
-    }
-
-    const cnicClean = cnic.replace(/[-\s]/g, "");
+    const { fullName, cnic: cnicClean, dateOfBirth, gender, address, city, frontIdPhoto, backIdPhoto, selfiePhoto } = req.body;
 
     const kycLimits = await getKycUploadLimits();
 
@@ -861,13 +742,9 @@ router.get("/admin/:id", adminAuth, async (req, res) => {
 });
 
 /* ─── Admin: PATCH /api/kyc/admin/:id — Review KYC ─── */
-router.patch("/admin/:id", adminAuth, async (req, res) => {
+router.patch("/admin/:id", adminAuth, validateBody(KycAdminReviewSchema), async (req, res) => {
   try {
     const { status, rejectionReason } = req.body;
-    if (!["approved", "rejected", "resubmit"].includes(status)) {
-      res.status(400).json({ error: "Invalid status" });
-      return;
-    }
 
     const [record] = await db
       .select({

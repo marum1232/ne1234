@@ -54,7 +54,38 @@ import { canonicalizePhone } from "@workspace/phone-utils";
 import { isAuthMethodEnabled, isAuthMethodEnabledStrict } from "@workspace/auth-utils/server";
 import { validateBody as sharedValidateBody } from "../../middleware/validate.js";
 import { authLimiter, loginLimiter, otpLimiter } from "../../middleware/rate-limit.js";
-import { SendOtpSchema, VerifyOtpSchema, UserLoginSchema } from "../../lib/validation/schemas.js";
+import {
+  SendOtpSchema,
+  VerifyOtpSchema,
+  UserLoginSchema,
+  SendMergeOtpSchema,
+  MergeAccountSchema,
+  VendorRegisterSchema,
+  SendEmailOtpSchema,
+  VerifyEmailOtpSchema,
+  LoginVerifyOtpSchema,
+  CompleteProfileSchema,
+  SetPasswordSchema,
+  SocialGoogleSchema,
+  SocialFacebookSchema,
+  TotpCodeSchema,
+  TwoFaVerifySchema,
+  TwoFaRecoverySchema,
+  TrustDeviceSchema,
+  MagicLinkSendSchema,
+  VerifyResetOtpSchema,
+  ResetPasswordSchema,
+  EmailRegisterSchema,
+  LogoutSchema,
+  ValidateTokenSchema,
+  CheckAvailableSchema,
+  MagicLinkVerifySchema,
+  ChangePhoneRequestSchema,
+  ChangePhoneConfirmSchema,
+  LinkGoogleSchema,
+  LinkFacebookSchema,
+  FirebaseVerifySchema,
+} from "../../lib/validation/schemas.js";
 import {
   RIDER_REFRESH_COOKIE,
   RIDER_REFRESH_COOKIE_PATH,
@@ -102,7 +133,6 @@ const phoneSchema = z
    call sites below continue to compile unchanged. */
 const sendOtpSchema = SendOtpSchema;
 const verifyOtpSchema = VerifyOtpSchema;
-const loginSchema = UserLoginSchema;
 
 /* Refresh tokens are carried exclusively as HttpOnly cookies (rider or vendor).
    Body-submitted refresh tokens are rejected unconditionally by the handler.
@@ -110,10 +140,7 @@ const loginSchema = UserLoginSchema;
 const refreshTokenSchema = z.object({}).strip();
 
 function isVendorSession(req: Request, user?: { role?: string | null; roles?: string | null } | null): boolean {
-  const body: Record<string, unknown> = (req.body && typeof req.body === "object")
-    ? (req.body as Record<string, unknown>)
-    : {};
-  const bodyRole = typeof body.role === "string" ? body.role : undefined;
+  const bodyRole: string | undefined = typeof req.body?.role === "string" ? req.body.role : undefined;
   if (bodyRole === "vendor") return true;
   const rolesStr = (user?.roles ?? user?.role ?? "") as string;
   if (!rolesStr) return false;
@@ -513,7 +540,7 @@ router.post("/check-identifier", checkIdentifierLimiter, sharedValidateBody(chec
    Stores OTP on the authenticated user's record.
    Body: { identifier }
 ───────────────────────────────────────────────────────────── */
-router.post("/send-merge-otp", otpLimiter, async (req, res) => {
+router.post("/send-merge-otp", otpLimiter, sharedValidateBody(SendMergeOtpSchema), async (req, res) => {
   try {
   const auth = extractAuthUser(req);
   if (!auth) { sendUnauthorized(res, "Authentication required"); return; }
@@ -583,7 +610,7 @@ router.post("/send-merge-otp", otpLimiter, async (req, res) => {
    Requires: valid JWT + OTP verification for the new identifier.
    Body: { identifier, otp }
 ───────────────────────────────────────────────────────────── */
-router.post("/merge-account", async (req, res) => {
+router.post("/merge-account", sharedValidateBody(MergeAccountSchema), async (req, res) => {
   try {
   const auth = extractAuthUser(req);
   if (!auth) { sendUnauthorized(res, "Authentication required"); return; }
@@ -1021,7 +1048,7 @@ router.post("/verify-otp", otpLimiter, verifyCaptcha, sharedValidateBody(verifyO
     /* ── Cross-role new-user guard ──
        Riders and vendors must register through admin-controlled flows.
        Block auto-registration for these roles to prevent cross-app token issuance. */
-    const requestedRoleForNew = req.body.role as string | undefined;
+    const requestedRoleForNew: string | undefined = typeof req.body?.role === "string" ? req.body.role : undefined;
     if (requestedRoleForNew && requestedRoleForNew !== "customer") {
       sendErrorWithData(res, `No ${requestedRoleForNew} account found for this phone number. Please use the correct registration process or contact admin.`, { wrongApp: true }, 403);
       return;
@@ -1136,7 +1163,7 @@ router.post("/verify-otp", otpLimiter, verifyCaptcha, sharedValidateBody(verifyO
      For the customer app context, role enforcement happens AFTER OTP proof
      so the user can be offered the "add customer role" flow with a valid token.
      For rider/vendor apps, block immediately if role mismatch. ── */
-  const requestedRole = req.body.role as string | undefined;
+  const requestedRole: string | undefined = typeof req.body?.role === "string" ? req.body.role : undefined;
   const appIdHeader = req.headers["x-app-id"] as string | undefined;
   const appIdQuery = req.query.appId as string | undefined;
   const isCustomerAppContext = requestedRole === "customer" || appIdHeader === "customer" || appIdQuery === "customer";
@@ -1445,7 +1472,7 @@ router.post("/verify-otp", otpLimiter, verifyCaptcha, sharedValidateBody(verifyO
    Vendor signup: after phone OTP verified, submit store info
    and register as a vendor pending admin approval.
 ───────────────────────────────────────────────────────────── */
-router.post("/vendor-register", async (req, res) => {
+router.post("/vendor-register", sharedValidateBody(VendorRegisterSchema), async (req, res) => {
   try {
   const auth = extractAuthUser(req);
   if (!auth) {
@@ -1596,7 +1623,7 @@ router.post("/vendor-register", async (req, res) => {
    POST /auth/validate-token
    Client can use this to check if their token is still valid.
 ───────────────────────────────────────────────────────────── */
-router.post("/validate-token", async (req, res) => {
+router.post("/validate-token", sharedValidateBody(ValidateTokenSchema), async (req, res) => {
   try {
   /* Support both body token and Authorization header */
   const authHeader = req.headers.authorization ?? "";
@@ -1784,7 +1811,7 @@ router.post("/refresh-token", sharedValidateBody(refreshTokenSchema), handleRefr
    POST /auth/logout
    Revokes the refresh token and clears OTP. Client must discard tokens.
 ───────────────────────────────────────────────────────────── */
-router.post("/logout", async (req, res) => {
+router.post("/logout", sharedValidateBody(LogoutSchema), async (req, res) => {
   try {
   const authHeader = req.headers["authorization"] as string | undefined;
   const tokenHeader = req.headers["x-auth-token"] as string | undefined;
@@ -1795,7 +1822,7 @@ router.post("/logout", async (req, res) => {
   const logoutCookies = (req.cookies && typeof req.cookies === "object")
     ? (req.cookies as Record<string, string>)
     : {};
-  const { refreshToken: bodyRefresh } = (req.body ?? {}) as { refreshToken?: string };
+  const bodyRefresh: string | undefined = req.body?.refreshToken;
   const tokensToRevoke = new Set<string>(
     [bodyRefresh,
      logoutCookies[RIDER_REFRESH_COOKIE],
@@ -1851,7 +1878,7 @@ router.post("/logout", async (req, res) => {
    Body: { phone?, email?, username? }
    Returns: { phone: {available,taken}, email: {...}, username: {...} }
 ══════════════════════════════════════════════════════════════ */
-router.post("/check-available", async (req, res) => {
+router.post("/check-available", sharedValidateBody(CheckAvailableSchema), async (req, res) => {
   try {
   /* ── IP-based rate limit: max 20 checks per 10 minutes per IP ──
      Prevents scraping the entire user registry via phone/email/username probing. */
@@ -1898,7 +1925,7 @@ router.post("/check-available", async (req, res) => {
    Send OTP to email address (only for existing accounts with that email)
    Body: { email }
 ══════════════════════════════════════════════════════════════ */
-router.post("/send-email-otp", otpLimiter, verifyCaptcha, async (req, res) => {
+router.post("/send-email-otp", otpLimiter, verifyCaptcha, sharedValidateBody(SendEmailOtpSchema), async (req, res) => {
   try {
   const { email } = req.body;
   if (!email || !email.includes("@")) {
@@ -2007,7 +2034,7 @@ router.post("/send-email-otp", otpLimiter, verifyCaptcha, async (req, res) => {
    POST /auth/verify-email-otp
    Login via email OTP. Body: { email, otp }
 ══════════════════════════════════════════════════════════════ */
-router.post("/verify-email-otp", otpLimiter, verifyCaptcha, async (req, res) => {
+router.post("/verify-email-otp", otpLimiter, verifyCaptcha, sharedValidateBody(VerifyEmailOtpSchema), async (req, res) => {
   try {
   const { email, otp } = req.body;
   if (!email || !otp) { sendError(res, "Email and OTP are required", 400); return; }
@@ -2041,7 +2068,7 @@ router.post("/verify-email-otp", otpLimiter, verifyCaptcha, async (req, res) => 
      Customer app context is identified by X-App-Id header or role=customer body field.
      For customer app, enforcement happens post-OTP so user can be issued a token and
      offered the "Add Customer Access" flow from wrong-app screen. */
-  const requestedEmailRole = req.body.role as string | undefined;
+  const requestedEmailRole: string | undefined = typeof req.body?.role === "string" ? req.body.role : undefined;
   const emailAppIdHeader = req.headers["x-app-id"] as string | undefined;
   const emailAppIdQuery = req.query.appId as string | undefined;
   const isEmailCustomerAppCtx = requestedEmailRole === "customer" || emailAppIdHeader === "customer" || emailAppIdQuery === "customer";
@@ -2200,14 +2227,8 @@ async function findUserByIdentifier(identifier: string) {
 }
 
 async function handleUnifiedLogin(req: Request, res: any) {
-  const parsed = loginSchema.safeParse(req.body ?? {});
-  if (!parsed.success) {
-    const first = parsed.error.issues[0];
-    sendErrorWithData(res, first?.message ?? "Invalid request body", { field: first?.path?.[0] ?? undefined }, 400);
-    return;
-  }
-  const identifier = (parsed.data.identifier || parsed.data.username || "").trim();
-  const { password } = parsed.data;
+  const identifier = ((req.body.identifier || req.body.username) ?? "").trim();
+  const password: string = req.body.password;
   if (!identifier) { sendError(res, "Identifier and password required", 400); return; }
 
   const ip = getClientIp(req);
@@ -2245,7 +2266,7 @@ async function handleUnifiedLogin(req: Request, res: any) {
   }
 
   /* ── Cross-role enforcement ── */
-  const requestedRoleLogin = parsed.data.role;
+  const requestedRoleLogin: string | undefined = req.body.role;
   if (requestedRoleLogin) {
     const userRolesLogin = (user.roles || "customer").split(",").map((r: string) => r.trim());
     if (!userRolesLogin.includes(requestedRoleLogin)) {
@@ -2365,8 +2386,8 @@ async function handleUnifiedLogin(req: Request, res: any) {
   });
 }
 
-router.post("/login/username", loginLimiter, verifyCaptcha, handleUnifiedLogin);
-router.post("/login", loginLimiter, verifyCaptcha, handleUnifiedLogin);
+router.post("/login/username", loginLimiter, verifyCaptcha, sharedValidateBody(UserLoginSchema), handleUnifiedLogin);
+router.post("/login", loginLimiter, verifyCaptcha, sharedValidateBody(UserLoginSchema), handleUnifiedLogin);
 
 /* ══════════════════════════════════════════════════════════════
    POST /auth/login/verify-otp
@@ -2374,7 +2395,7 @@ router.post("/login", loginLimiter, verifyCaptcha, handleUnifiedLogin);
    Body: { tempToken: string, otp: string }
    Returns JWT token on success.
 ══════════════════════════════════════════════════════════════ */
-router.post("/login/verify-otp", otpLimiter, async (req, res) => {
+router.post("/login/verify-otp", otpLimiter, sharedValidateBody(LoginVerifyOtpSchema), async (req, res) => {
   try {
   const { tempToken, otp } = req.body ?? {};
   if (!tempToken || !otp) {
@@ -2474,7 +2495,7 @@ router.post("/login/verify-otp", otpLimiter, async (req, res) => {
    Set name, email, username, password for first-time setup.
    Requires valid JWT. Body: { token, name, email?, username?, password? }
 ══════════════════════════════════════════════════════════════ */
-router.post("/complete-profile", async (req, res) => {
+router.post("/complete-profile", sharedValidateBody(CompleteProfileSchema), async (req, res) => {
   try {
   /* Accept token from body OR Authorization: Bearer header */
   const authHeader = req.headers["authorization"] as string | undefined;
@@ -2642,7 +2663,7 @@ router.post("/complete-profile", async (req, res) => {
    POST /auth/set-password
    Set or change password. Body: { token, password, currentPassword? }
 ══════════════════════════════════════════════════════════════ */
-router.post("/set-password", async (req, res) => {
+router.post("/set-password", sharedValidateBody(SetPasswordSchema), async (req, res) => {
   try {
   /* Accept token from body OR Authorization: Bearer header */
   const authHeader = req.headers["authorization"] as string | undefined;
@@ -3135,7 +3156,7 @@ router.post("/forgot-password", verifyCaptcha, sharedValidateBody(forgotPassword
    Body: { phone?, email?, otp }
    Returns: { valid: true } or 400/422 with error
 ══════════════════════════════════════════════════════════════ */
-router.post("/verify-reset-otp", otpLimiter, verifyCaptcha, async (req, res) => {
+router.post("/verify-reset-otp", otpLimiter, verifyCaptcha, sharedValidateBody(VerifyResetOtpSchema), async (req, res) => {
   try {
   let { phone, email, otp } = req.body;
   const ip = getClientIp(req);
@@ -3200,7 +3221,7 @@ router.post("/verify-reset-otp", otpLimiter, verifyCaptcha, async (req, res) => 
   }
 });
 
-router.post("/reset-password", verifyCaptcha, async (req, res) => {
+router.post("/reset-password", verifyCaptcha, sharedValidateBody(ResetPasswordSchema), async (req, res) => {
   try {
   let { phone, email, identifier, otp, newPassword, totpCode } = req.body;
   const ip = getClientIp(req);
@@ -3341,7 +3362,7 @@ router.post("/reset-password", verifyCaptcha, async (req, res) => {
   }
 });
 
-router.post("/email-register", verifyCaptcha, async (req, res) => {
+router.post("/email-register", verifyCaptcha, sharedValidateBody(EmailRegisterSchema), async (req, res) => {
   try {
   const { email, password, name, role, phone, username, cnic, vehicleType, vehicleRegNo, vehicleRegistration, drivingLicense,
           address, city, emergencyContact, vehiclePlate, vehiclePhoto, documents } = req.body;
@@ -3665,7 +3686,7 @@ function isDeviceTrusted(user: any, deviceFingerprint: string, trustedDays: numb
    Verify Google ID token, match or create user, return JWT.
    Body: { idToken, deviceFingerprint? }
 ══════════════════════════════════════════════════════════════ */
-router.post("/social/google", async (req, res) => {
+router.post("/social/google", sharedValidateBody(SocialGoogleSchema), async (req, res) => {
   try {
   const { idToken, deviceFingerprint } = req.body;
   if (!idToken) { sendError(res, "idToken required", 400); return; }
@@ -3710,7 +3731,7 @@ router.post("/social/google", async (req, res) => {
   /* ── Cross-role guard for social login ──
      If the caller specifies a role (rider/vendor), enforce that the existing account
      includes that role. Block new user creation for non-customer roles via social auth. */
-  const requestedSocialRole = (req.body?.role as string | undefined) ?? null;
+  const requestedSocialRole: string | null = (typeof req.body?.role === "string" ? req.body.role : undefined) ?? null;
   if (requestedSocialRole && requestedSocialRole !== "customer") {
     if (user) {
       const userRoles = (user.roles || "").split(",").map((r: string) => r.trim());
@@ -3774,7 +3795,7 @@ router.post("/social/google", async (req, res) => {
    Verify Facebook access token, match or create user, return JWT.
    Body: { accessToken, deviceFingerprint? }
 ══════════════════════════════════════════════════════════════ */
-router.post("/social/facebook", async (req, res) => {
+router.post("/social/facebook", sharedValidateBody(SocialFacebookSchema), async (req, res) => {
   try {
   const { accessToken: fbToken, deviceFingerprint } = req.body;
   if (!fbToken) { sendError(res, "accessToken required", 400); return; }
@@ -3819,7 +3840,7 @@ router.post("/social/facebook", async (req, res) => {
   /* ── Cross-role guard for social login ──
      If the caller specifies a role (rider/vendor), enforce that the existing account
      includes that role. Block new user creation for non-customer roles via social auth. */
-  const requestedFbSocialRole = (req.body?.role as string | undefined) ?? null;
+  const requestedFbSocialRole: string | null = (typeof req.body?.role === "string" ? req.body.role : undefined) ?? null;
   if (requestedFbSocialRole && requestedFbSocialRole !== "customer") {
     if (user) {
       const userRoles = (user.roles || "").split(",").map((r: string) => r.trim());
@@ -3923,7 +3944,7 @@ router.get("/2fa/setup", async (req, res) => {
    Confirm first TOTP code, activate 2FA, return backup codes.
    Body: { code }
 ══════════════════════════════════════════════════════════════ */
-router.post("/2fa/verify-setup", async (req, res) => {
+router.post("/2fa/verify-setup", sharedValidateBody(TotpCodeSchema), async (req, res) => {
   try {
   const auth = extractAuthUser(req);
   if (!auth) { sendUnauthorized(res, "Authentication required"); return; }
@@ -4002,7 +4023,7 @@ router.post("/2fa/verify-setup", async (req, res) => {
    is kept as the backward-compatible alias). Clients should
    prefer this canonical path going forward.
 ══════════════════════════════════════════════════════════════ */
-router.post("/totp/enable", async (req, res) => {
+router.post("/totp/enable", sharedValidateBody(TotpCodeSchema), async (req, res) => {
   try {
   const auth = extractAuthUser(req);
   if (!auth) { sendUnauthorized(res, "Authentication required"); return; }
@@ -4073,7 +4094,7 @@ router.post("/totp/enable", async (req, res) => {
    Verify TOTP code during login flow.
    Body: { tempToken, code, deviceFingerprint? }
 ══════════════════════════════════════════════════════════════ */
-router.post("/2fa/verify", async (req, res) => {
+router.post("/2fa/verify", sharedValidateBody(TwoFaVerifySchema), async (req, res) => {
   try {
   const { tempToken, code, deviceFingerprint } = req.body;
   if (!tempToken || !code) { sendError(res, "tempToken and code required", 400); return; }
@@ -4113,7 +4134,7 @@ router.post("/2fa/verify", async (req, res) => {
    POST /auth/2fa/disable
    Disable 2FA for the authenticated user. Body: { code }
 ══════════════════════════════════════════════════════════════ */
-router.post("/2fa/disable", async (req, res) => {
+router.post("/2fa/disable", sharedValidateBody(TotpCodeSchema), async (req, res) => {
   try {
   const auth = extractAuthUser(req);
   if (!auth) { sendUnauthorized(res, "Authentication required"); return; }
@@ -4240,7 +4261,7 @@ async function consumeRecoveryCode(
    POST /auth/2fa/recovery
    Use a single-use backup code. Body: { tempToken, backupCode }
 ══════════════════════════════════════════════════════════════ */
-router.post("/2fa/recovery", async (req, res) => {
+router.post("/2fa/recovery", sharedValidateBody(TwoFaRecoverySchema), async (req, res) => {
   try {
   const { tempToken, backupCode } = req.body;
   if (!tempToken || !backupCode) { sendError(res, "tempToken and backupCode required", 400); return; }
@@ -4284,7 +4305,7 @@ router.post("/2fa/recovery", async (req, res) => {
    consumed on use.  Eight codes are issued per setup; running
    out requires admin intervention or 2FA re-enrollment.
 ══════════════════════════════════════════════════════════════ */
-router.post("/totp/recover", async (req, res) => {
+router.post("/totp/recover", sharedValidateBody(TwoFaRecoverySchema), async (req, res) => {
   try {
   /* Canonical TOTP lockout-recovery path — delegates to consumeRecoveryCode() shared
      helper which handles new-table atomic consume and legacy JSON fallback/migration. */
@@ -4323,7 +4344,7 @@ router.post("/totp/recover", async (req, res) => {
    Store device fingerprint for trusted device bypass.
    Body: { deviceFingerprint }
 ══════════════════════════════════════════════════════════════ */
-router.post("/2fa/trust-device", async (req, res) => {
+router.post("/2fa/trust-device", sharedValidateBody(TrustDeviceSchema), async (req, res) => {
   try {
   const auth = extractAuthUser(req);
   if (!auth) { sendUnauthorized(res, "Authentication required"); return; }
@@ -4373,7 +4394,7 @@ router.post("/2fa/trust-device", async (req, res) => {
 ══════════════════════════════════════════════════════════════ */
 const magicLinkRateMap = new Map<string, { count: number; windowStart: number }>();
 
-router.post("/magic-link/send", async (req, res) => {
+router.post("/magic-link/send", sharedValidateBody(MagicLinkSendSchema), async (req, res) => {
   try {
   const { email } = req.body;
   if (!email || !email.includes("@")) { sendError(res, "Valid email address required", 400); return; }
@@ -4448,7 +4469,7 @@ router.post("/magic-link/send", async (req, res) => {
    Validate magic link token, handle 2FA guard.
    Body: { token, totpCode?, deviceFingerprint? }
 ══════════════════════════════════════════════════════════════ */
-router.post("/magic-link/verify", async (req, res) => {
+router.post("/magic-link/verify", sharedValidateBody(MagicLinkVerifySchema), async (req, res) => {
   try {
   const { token, totpCode, deviceFingerprint } = req.body;
   if (!token) { sendError(res, "Token required", 400); return; }
@@ -4515,7 +4536,7 @@ router.post("/magic-link/verify", async (req, res) => {
    Send OTP to a new phone number for phone change flow.
    Body: { newPhone }
 ══════════════════════════════════════════════════════════════ */
-router.post("/change-phone/request", async (req, res) => {
+router.post("/change-phone/request", sharedValidateBody(ChangePhoneRequestSchema), async (req, res) => {
   try {
   const auth = extractAuthUser(req);
   if (!auth) { sendUnauthorized(res, "Authentication required"); return; }
@@ -4572,7 +4593,7 @@ router.post("/change-phone/request", async (req, res) => {
    Verify OTP and update phone number.
    Body: { newPhone, otp }
 ══════════════════════════════════════════════════════════════ */
-router.post("/change-phone/confirm", async (req, res) => {
+router.post("/change-phone/confirm", sharedValidateBody(ChangePhoneConfirmSchema), async (req, res) => {
   try {
   const auth = extractAuthUser(req);
   if (!auth) { sendUnauthorized(res, "Authentication required"); return; }
@@ -4758,7 +4779,7 @@ router.delete("/sessions", async (req, res) => {
    Link a Google account to the currently authenticated user.
    Body: { idToken: string }   (Google idToken from client)
 ══════════════════════════════════════════════════════════════ */
-router.post("/link-google", async (req, res) => {
+router.post("/link-google", sharedValidateBody(LinkGoogleSchema), async (req, res) => {
   try {
   const auth = extractAuthUser(req);
   if (!auth) { sendUnauthorized(res, "Authentication required"); return; }
@@ -4811,7 +4832,7 @@ router.post("/link-google", async (req, res) => {
    Link a Facebook account to the currently authenticated user.
    Body: { accessToken: string }
 ══════════════════════════════════════════════════════════════ */
-router.post("/link-facebook", async (req, res) => {
+router.post("/link-facebook", sharedValidateBody(LinkFacebookSchema), async (req, res) => {
   try {
   const auth = extractAuthUser(req);
   if (!auth) { sendUnauthorized(res, "Authentication required"); return; }
@@ -4866,7 +4887,7 @@ router.post("/link-facebook", async (req, res) => {
    entry point that returns the same token format as OTP login.
    Body: { idToken: string, role?: string }
 ══════════════════════════════════════════════════════════════ */
-router.post("/firebase-verify", async (req, res) => {
+router.post("/firebase-verify", sharedValidateBody(FirebaseVerifySchema), async (req, res) => {
   try {
   const { idToken, role: requestedRole } = req.body;
   if (!idToken) { sendError(res, "idToken is required", 400); return; }

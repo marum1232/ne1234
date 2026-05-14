@@ -9,37 +9,20 @@ import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import multer from "multer";
 import { generateId } from "../lib/id.js";
-import { z } from "zod";
-import { sendSuccess, sendCreated, sendError, sendNotFound, sendForbidden, sendValidationError } from "../lib/response.js";
+import { sendSuccess, sendError, sendNotFound, sendForbidden, sendValidationError } from "../lib/response.js";
+import { validateBody } from "../middleware/validate.js";
+import {
+  AddRoleSchema,
+  ProfileUpdateSchema,
+  DeleteAccountSchema,
+  LoyaltyRedeemSchema,
+  ExportDataSchema,
+} from "../lib/validation/schemas.js";
 import { paymentLimiter, exportDataLimiter } from "../middleware/rate-limit.js";
 import { sendAdminAlert } from "../services/email.js";
 import { logger } from "../lib/logger.js";
 
 const stripHtml = (s: string) => s.replace(/<[^>]*>/g, "").trim();
-
-/* Avatar field is intentionally excluded — set only via POST /avatar */
-const sanitizedString = (maxLen: number, minLen = 0) =>
-  z.preprocess(
-    (v) => (typeof v === "string" ? stripHtml(v) : v),
-    minLen > 0
-      ? z.string().min(minLen, "This field cannot be empty").max(maxLen).optional()
-      : z.string().max(maxLen).optional()
-  );
-
-const profileUpdateSchema = z.object({
-  name: sanitizedString(100, 1),
-  email: z.string().email("Invalid email format").max(255).optional().or(z.literal("")),
-  cnic: z.preprocess(
-    (v) => typeof v === "string" ? v.replace(/[-\s]/g, "") : v,
-    z.string().regex(/^\d{13}$/, "CNIC must be 13 digits (e.g. 3740512345678 or 37405-1234567-8)").optional().or(z.literal(""))
-  ),
-  city: sanitizedString(100),
-  address: sanitizedString(500),
-}).strip();
-
-const deleteAccountSchema = z.object({
-  confirmation: z.literal("DELETE", { errorMap: () => ({ message: "You must type DELETE to confirm account deletion." }) }),
-});
 
 const UPLOADS_DIR = path.resolve(process.cwd(), "uploads");
 const ALLOWED_AVATAR_TYPES = ["image/jpeg", "image/png", "image/webp", "image/jpg"];
@@ -106,12 +89,12 @@ router.get("/profile", anyUserAuth, async (req, res) => {
 /* POST /users/add-role
    Lets an authenticated user (any role) add "customer" to their roles field.
    Idempotent — if they already have the role, returns success immediately. */
-router.post("/add-role", anyUserAuth, async (req, res) => {
+router.post("/add-role", anyUserAuth, validateBody(AddRoleSchema), async (req, res) => {
   const userId = req.customerId!;
-  const { role } = req.body as { role?: string };
+  const { role } = req.body;
 
   if (role !== "customer") {
-    sendError(res, "Only the 'customer' role can be self-assigned via this endpoint.", 400);
+    sendValidationError(res, "Only the 'customer' role can be self-assigned via this endpoint.");
     return;
   }
 
@@ -157,7 +140,7 @@ router.get("/:id/debt", async (req, res) => {
   sendSuccess(res, { debtBalance: parseFloat(user.cancellationDebt ?? "0") });
 });
 
-router.post("/export-data", exportDataLimiter, async (req, res) => {
+router.post("/export-data", exportDataLimiter, validateBody(ExportDataSchema), async (req, res) => {
   const userId = req.customerId!;
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
   if (!user) {
@@ -370,7 +353,7 @@ router.post("/avatar", avatarUpload.single("avatar"), async (req, res) => {
   }
 });
 
-router.put("/profile", async (req, res) => {
+router.put("/profile", validateBody(ProfileUpdateSchema), async (req, res) => {
   const userId = req.customerId!;
 
   /* Rate limit: max 10 profile updates per minute per user */
@@ -379,14 +362,7 @@ router.put("/profile", async (req, res) => {
     return;
   }
 
-  const parsed = profileUpdateSchema.safeParse(req.body);
-  if (!parsed.success) {
-    const firstError = parsed.error.errors[0]?.message ?? "Invalid input";
-    sendValidationError(res, firstError);
-    return;
-  }
-
-  const { name, email, cnic, city, address } = parsed.data;
+  const { name, email, cnic, city, address } = req.body;
 
   const [current] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
   if (!current) {
@@ -485,15 +461,8 @@ router.put("/profile", async (req, res) => {
   }, "پروفائل کامیابی سے اپ ڈیٹ ہو گیا۔");
 });
 
-router.delete("/delete-account", async (req, res) => {
+router.delete("/delete-account", validateBody(DeleteAccountSchema), async (req, res) => {
   const userId = req.customerId!;
-
-  const parsed = deleteAccountSchema.safeParse(req.body ?? {});
-  if (!parsed.success) {
-    const msg = parsed.error.errors[0]?.message ?? "You must type DELETE to confirm account deletion.";
-    sendValidationError(res, msg);
-    return;
-  }
 
   try {
     const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
@@ -790,15 +759,7 @@ router.get("/me/loyalty", customerAuth, async (req, res) => {
   });
 });
 
-const loyaltyRedeemSchema = z.object({}).strict();
-
-router.post("/loyalty/redeem", paymentLimiter, async (req, res) => {
-  const bodyCheck = loyaltyRedeemSchema.safeParse(req.body ?? {});
-  if (!bodyCheck.success) {
-    sendValidationError(res, "Request body must be empty");
-    return;
-  }
-
+router.post("/loyalty/redeem", paymentLimiter, validateBody(LoyaltyRedeemSchema), async (req, res) => {
   const userId = req.customerId!;
 
   const s = await getCachedSettings();

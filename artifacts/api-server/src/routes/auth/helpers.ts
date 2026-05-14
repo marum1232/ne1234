@@ -68,11 +68,7 @@ export async function isValidCanonicalPhone(phone: string): Promise<boolean> {
 }
 
 export function isRiderSession(req: Request, user?: { role?: string | null; roles?: string | null } | null): boolean {
-  const body: Record<string, unknown> = (req.body && typeof req.body === "object")
-    ? (req.body as Record<string, unknown>)
-    : {};
-  const bodyRoleRaw = body.role;
-  const bodyRole = typeof bodyRoleRaw === "string" ? bodyRoleRaw : undefined;
+  const bodyRole: string | undefined = typeof req.body?.role === "string" ? req.body.role : undefined;
   if (bodyRole === "rider") return true;
   const rolesStr = (user?.roles ?? user?.role ?? "") as string;
   if (!rolesStr) return false;
@@ -104,10 +100,7 @@ export function clearRiderRefreshCookie(res: Response): void {
 }
 
 export function isVendorSession(req: Request, user?: { role?: string | null; roles?: string | null } | null): boolean {
-  const body: Record<string, unknown> = (req.body && typeof req.body === "object")
-    ? (req.body as Record<string, unknown>)
-    : {};
-  const bodyRole = typeof body.role === "string" ? body.role : undefined;
+  const bodyRole: string | undefined = typeof req.body?.role === "string" ? req.body.role : undefined;
   if (bodyRole === "vendor") return true;
   const rolesStr = (user?.roles ?? user?.role ?? "") as string;
   if (!rolesStr) return false;
