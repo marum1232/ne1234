@@ -48,7 +48,7 @@ interface FoodProduct {
   reviewCount?: number;
 }
 
-function toFoodProduct(i: { id: string; name: string; price: string | number; image?: string; description?: string; category?: string; vendorId?: string; vendorName?: string; deliveryTime?: string; rating?: number; reviewCount?: number; [key: string]: unknown }): FoodProduct {
+function toFoodProduct(i: { id: string; name: string; price: string | number; image?: string; description?: string; category?: string; vendorId?: string; vendorName?: string; deliveryTime?: string; rating?: number; reviewCount?: number }): FoodProduct {
   return {
     id: i.id,
     name: i.name,
