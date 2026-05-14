@@ -74,8 +74,9 @@ function ProductGridCard({ product }: { product: MartProduct }) {
   const qtyInCart = cartItem?.quantity ?? 0;
 
   const origPrice = Number(product.originalPrice) || 0;
-  const discount = origPrice > 0 && origPrice > product.price
-    ? Math.round(((origPrice - product.price) / origPrice) * 100)
+  const price = Number(product.price) || 0;
+  const discount = origPrice > 0 && origPrice > price
+    ? Math.round(((origPrice - price) / origPrice) * 100)
     : 0;
 
   useEffect(() => () => { if (addedTimerRef.current) clearTimeout(addedTimerRef.current); }, []);
@@ -135,8 +136,8 @@ function ProductGridCard({ product }: { product: MartProduct }) {
         {product.unit && <Text style={styles.productUnit}>{product.unit}</Text>}
         <View style={styles.productFooter}>
           <View>
-            <Text style={styles.productPrice}>Rs. {product.price.toLocaleString()}</Text>
-            {origPrice > product.price && (
+            <Text style={styles.productPrice}>Rs. {price.toLocaleString()}</Text>
+            {origPrice > price && (
               <Text style={styles.productOrigPrice}>Rs. {origPrice.toLocaleString()}</Text>
             )}
           </View>

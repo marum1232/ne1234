@@ -115,12 +115,11 @@ function ProductCard({ product }: { product: Product }) {
     );
   };
 
+  const origPrice = Number(product.originalPrice) || 0;
+  const price = Number(product.price) || 0;
   const discount =
-    product.originalPrice && product.originalPrice > product.price
-      ? Math.round(
-          ((product.originalPrice - product.price) / product.originalPrice) *
-            100,
-        )
+    origPrice > 0 && origPrice > price
+      ? Math.round(((origPrice - price) / origPrice) * 100)
       : 0;
 
   return (
@@ -186,10 +185,10 @@ function ProductCard({ product }: { product: Product }) {
         {product.unit && <Text style={styles.productUnit}>{product.unit}</Text>}
         <View style={styles.productFooter}>
           <View>
-            <Text style={styles.productPrice}>Rs. {product.price}</Text>
-            {product.originalPrice && product.originalPrice > product.price && (
+            <Text style={styles.productPrice}>Rs. {price.toLocaleString()}</Text>
+            {origPrice > 0 && origPrice > price && (
               <Text style={styles.productOrigPrice}>
-                Rs. {product.originalPrice}
+                Rs. {origPrice.toLocaleString()}
               </Text>
             )}
           </View>
