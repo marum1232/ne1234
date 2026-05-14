@@ -1,0 +1,96 @@
+Issues Found
+1. Type Mismatch: Product[] to FoodProduct[] (line 527)
+File: app/food/_Screen.tsx
+
+The Product type from the API has a price: string, but FoodProduct expects price: number.
+
+Fix: Add type assertion or convert the type:
+
+TSX
+// Line 527 - Change from:
+{(items as FoodProduct[]).map(i => <FoodCard key={i.id} item={i} />)}
+
+// To:
+{items.map(i => <FoodCard key={i.id} item={{
+  ...i,
+  price: typeof i.price === 'string' ? parseFloat(i.price) : i.price
+}} />)}
+2. Missing pricing Property on PlatformConfig (lines 55, 55)
+File: app/pharmacy/checkout.tsx
+
+The code accesses config.pricing?.deliveryFeePharmacy and config.pricing?.deliveryFee, but PlatformConfig doesn't have a pricing property.
+
+Fix: Update the type definition or provide a safe default:
+
+TSX
+// Line 55 - Change from:
+const deliveryFee = parseFloat(config.pricing?.deliveryFeePharmacy ?? config.pricing?.deliveryFee ?? "50");
+
+// To:
+const deliveryFee = parseFloat((config as any).pricing?.deliveryFeePharmacy ?? (config as any).pricing?.deliveryFee ?? "50");
+// Or better - ensure PlatformConfig includes pricing:
+const deliveryFee = parseFloat((config?.pricing as any)?.deliveryFeePharmacy ?? (config?.pricing as any)?.deliveryFee ?? "50");
+3. Missing textSub Property on Colors (lines 194, 205, 215, 241, 313, 320, 324, 335, 340, 350)
+File: app/pharmacy/checkout.tsx
+
+Multiple uses of C.textSub but the color object doesn't include this property.
+
+Fix: Replace all instances with an existing property or add it to the colors:
+
+TSX
+// Replace all C.textSub with:
+placeholderTextColor={C.textSecondary}  // or C.textMuted depending on desired shade
+
+// Examples:
+// Line 194:
+placeholderTextColor={C.textSecondary}
+
+// Line 205:
+placeholderTextColor={C.textSecondary}
+
+// Line 215:
+placeholderTextColor={C.textSecondary}
+4. Invalid Comparison Type (line 129)
+File: app/pharmacy/checkout.tsx
+
+Type "address" | "review" | "payment" cannot be compared to "done".
+
+Fix: Add "done" to the comparison array or check separately:
+
+TSX
+// Line 129 - Change from:
+{step !== "done" && (
+
+// Already correct in the file - verify line 129 context
+5. Wrong Component Props (lines 204, 260)
+File: app/pharmacy/store/[id].tsx
+
+Using width, height, radius props instead of w, h, r for SkeletonBlock.
+
+Fix:
+
+TSX
+// Line 204 - Change from:
+<SkeletonBlock width={140} height={18} radius={6} />
+
+// To:
+<SkeletonBlock w={140} h={18} r={6} />
+
+// Line 260 - Change from:
+{[1, 2, 3, 4].map(i => <SkeletonBlock key={i} width="100%" height={90} radius={12} style={{ marginBottom: 10 }} />)}
+
+// To:
+{[1, 2, 3, 4].map(i => <SkeletonBlock key={i} w="100%" h={90} r={12} style={{ marginBottom: 10 }} />)}
+6. Missing Required quantity Property (line 280)
+File: app/pharmacy/store/[id].tsx
+
+Creating a cart item without the required quantity field.
+
+Fix:
+
+TSX
+// Line 280 - Change from:
+addItem({ productId: item.id, name: item.name, price: item.price, image: item.image ?? "", type: "pharmacy" });
+
+// To:
+addItem({ productId: item.id, name: item.name, price: item.price, quantity: 1, image: item.image ?? "", type: "pharmacy" });
