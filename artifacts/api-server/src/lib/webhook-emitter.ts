@@ -81,7 +81,10 @@ async function dispatchWebhook(
 
     clearTimeout(timeout);
     const durationMs = Date.now() - startTime;
-    const responseText = await response.text().catch(() => "");
+    const responseText = await response.text().catch((err: unknown) => {
+      logger.debug({ err: err instanceof Error ? err.message : String(err), webhookId: webhook.id, event }, "[webhook-emitter] response.text() read failed — using empty body");
+      return "";
+    });
 
     await db.insert(webhookLogsTable).values({
       id: logId,
@@ -155,7 +158,10 @@ async function retryWebhook(
 
     clearTimeout(timeout);
     const durationMs = Date.now() - startTime;
-    const responseText = await response.text().catch(() => "");
+    const responseText = await response.text().catch((err: unknown) => {
+      logger.debug({ err: err instanceof Error ? err.message : String(err), webhookId: webhook.id, event }, "[webhook-emitter] retry response.text() read failed — using empty body");
+      return "";
+    });
 
     await db.insert(webhookLogsTable).values({
       id: logId,

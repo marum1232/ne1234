@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { popularLocationsTable, mapApiUsageLogTable, platformSettingsTable } from "@workspace/db/schema";
 import { eq, asc, and, sql } from "drizzle-orm";
 import { getCachedSettings, adminAuth } from "./admin.js";
+import { logger } from "../lib/logger.js";
 import { sendSuccess, sendError, sendNotFound, sendValidationError } from "../lib/response.js";
 import { verifyUserJwt } from "../middleware/security.js";
 import type {
@@ -1142,7 +1143,10 @@ async function handleMapsTest(req: import("express").Request, res: import("expre
       );
       ok = r.ok;
       if (!r.ok) {
-        const body = await r.json().catch(() => ({})) as { message?: string };
+        const body = await r.json().catch((err: unknown) => {
+          logger.debug({ err: err instanceof Error ? err.message : String(err), provider: "mapbox", status: r.status }, "[maps] key-validation error body parse failed");
+          return {};
+        }) as { message?: string };
         error = body?.message ?? `HTTP ${r.status}`;
       }
 
@@ -1165,7 +1169,10 @@ async function handleMapsTest(req: import("express").Request, res: import("expre
       );
       ok = r.ok;
       if (!r.ok) {
-        const body = await r.json().catch(() => ({})) as { error?: string };
+        const body = await r.json().catch((err: unknown) => {
+          logger.debug({ err: err instanceof Error ? err.message : String(err), provider: "locationiq", status: r.status }, "[maps] key-validation error body parse failed");
+          return {};
+        }) as { error?: string };
         error = body?.error ?? `HTTP ${r.status}`;
       }
     }

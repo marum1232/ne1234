@@ -416,17 +416,23 @@ router.patch("/pharmacy-orders/:id/status", wrapAsync(async (req, res) => {
   // Wallet refund on cancellation (atomic)
   if (status === "cancelled" && order.paymentMethod === "wallet") {
     const refundAmt = parseFloat(order.total);
-    await db.transaction(async (tx) => {
-      await tx.update(usersTable).set({ walletBalance: sql`wallet_balance + ${refundAmt}`, updatedAt: new Date() }).where(eq(usersTable.id, order.userId));
-      await tx.insert(walletTransactionsTable).values({ id: generateId(), userId: order.userId, type: "credit", amount: refundAmt.toFixed(2), description: `Refund — Pharmacy Order #${order.id.slice(-6).toUpperCase()} cancelled` });
-    }).catch((err: unknown) => {
+    let pharmRefundOk = true;
+    try {
+      await db.transaction(async (tx) => {
+        await tx.update(usersTable).set({ walletBalance: sql`wallet_balance + ${refundAmt}`, updatedAt: new Date() }).where(eq(usersTable.id, order.userId));
+        await tx.insert(walletTransactionsTable).values({ id: generateId(), userId: order.userId, type: "credit", amount: refundAmt.toFixed(2), description: `Refund — Pharmacy Order #${order.id.slice(-6).toUpperCase()} cancelled` });
+      });
+    } catch (refundErr: unknown) {
+      pharmRefundOk = false;
       logger.error(
-        { err: err instanceof Error ? err.message : String(err), orderId: order.id, userId: order.userId, refundAmt },
+        { err: refundErr instanceof Error ? refundErr.message : String(refundErr), code: (refundErr as { code?: string }).code, orderId: order.id, userId: order.userId, refundAmt },
         "[orders] CRITICAL: pharmacy wallet refund transaction failed — customer not refunded",
       );
-    });
-    const pharmRefundLang = await getUserLanguage(order.userId);
-    await sendUserNotification(order.userId, t("notifPharmacyRefund", pharmRefundLang), t("notifPharmacyRefundBody", pharmRefundLang).replace("{amount}", refundAmt.toFixed(0)), "pharmacy", "wallet-outline");
+    }
+    if (pharmRefundOk) {
+      const pharmRefundLang = await getUserLanguage(order.userId);
+      await sendUserNotification(order.userId, t("notifPharmacyRefund", pharmRefundLang), t("notifPharmacyRefundBody", pharmRefundLang).replace("{amount}", refundAmt.toFixed(0)), "pharmacy", "wallet-outline");
+    }
   }
 
   const ioPharm = getIO();
@@ -489,17 +495,23 @@ router.patch("/parcel-bookings/:id/status", wrapAsync(async (req, res) => {
   // Wallet refund on cancellation (atomic)
   if (status === "cancelled" && booking.paymentMethod === "wallet") {
     const refundAmt = parseFloat(booking.fare);
-    await db.transaction(async (tx) => {
-      await tx.update(usersTable).set({ walletBalance: sql`wallet_balance + ${refundAmt}`, updatedAt: new Date() }).where(eq(usersTable.id, booking.userId));
-      await tx.insert(walletTransactionsTable).values({ id: generateId(), userId: booking.userId, type: "credit", amount: refundAmt.toFixed(2), description: `Refund — Parcel Booking #${booking.id.slice(-6).toUpperCase()} cancelled` });
-    }).catch((err: unknown) => {
+    let parcelRefundOk = true;
+    try {
+      await db.transaction(async (tx) => {
+        await tx.update(usersTable).set({ walletBalance: sql`wallet_balance + ${refundAmt}`, updatedAt: new Date() }).where(eq(usersTable.id, booking.userId));
+        await tx.insert(walletTransactionsTable).values({ id: generateId(), userId: booking.userId, type: "credit", amount: refundAmt.toFixed(2), description: `Refund — Parcel Booking #${booking.id.slice(-6).toUpperCase()} cancelled` });
+      });
+    } catch (refundErr: unknown) {
+      parcelRefundOk = false;
       logger.error(
-        { err: err instanceof Error ? err.message : String(err), bookingId: booking.id, userId: booking.userId, refundAmt },
+        { err: refundErr instanceof Error ? refundErr.message : String(refundErr), code: (refundErr as { code?: string }).code, bookingId: booking.id, userId: booking.userId, refundAmt },
         "[orders] CRITICAL: parcel wallet refund transaction failed — customer not refunded",
       );
-    });
-    const parcelRefundLang = await getUserLanguage(booking.userId);
-    await sendUserNotification(booking.userId, t("notifParcelRefund", parcelRefundLang), t("notifParcelRefundBody", parcelRefundLang).replace("{amount}", refundAmt.toFixed(0)), "parcel", "wallet-outline");
+    }
+    if (parcelRefundOk) {
+      const parcelRefundLang = await getUserLanguage(booking.userId);
+      await sendUserNotification(booking.userId, t("notifParcelRefund", parcelRefundLang), t("notifParcelRefundBody", parcelRefundLang).replace("{amount}", refundAmt.toFixed(0)), "parcel", "wallet-outline");
+    }
   }
 
   const ioParcel = getIO();

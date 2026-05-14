@@ -2,7 +2,7 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { webhookRegistrationsTable, webhookLogsTable } from "@workspace/db/schema";
 import { eq, desc } from "drizzle-orm";
-import { generateId, addAuditEntry, getClientIp, type AdminRequest } from "../admin-shared.js";
+import { generateId, addAuditEntry, getClientIp, type AdminRequest, logger } from "../admin-shared.js";
 import { sendSuccess, sendError, sendNotFound, sendValidationError } from "../../lib/response.js";
 import crypto from "crypto";
 
@@ -123,7 +123,10 @@ router.post("/webhooks/:id/test", async (req, res, next) => {
     });
     clearTimeout(timeout);
     const durationMs = Date.now() - startTime;
-    const responseText = await response.text().catch(() => "");
+    const responseText = await response.text().catch((err: unknown) => {
+      logger.warn({ err: err instanceof Error ? err.message : String(err), webhookId: id }, "[webhook-registrations] test-ping response.text() read failed — using empty body");
+      return "";
+    });
 
     await db.insert(webhookLogsTable).values({
       id: logId,

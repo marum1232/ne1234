@@ -173,7 +173,9 @@ router.patch("/users/:id", wrapAsync(async (req, res) => {
   if (!user) { sendNotFound(res, "User not found"); return; }
   /* Revoke sessions on role or status change so user re-authenticates with new role */
   if (role !== undefined || isActive === false) {
-    revokeAllUserSessions(req.params["id"]!).catch(() => {});
+    revokeAllUserSessions(req.params["id"]!).catch((err: unknown) => {
+      logger.warn({ err: err instanceof Error ? err.message : String(err), userId: req.params["id"] }, "[archive/users] revokeAllUserSessions on role/status change failed — sessions may persist");
+    });
   }
   sendSuccess(res, { ...stripUser(user), walletBalance: parseFloat(user.walletBalance ?? "0") });
 }));
@@ -390,7 +392,9 @@ router.patch("/users/:id/security", wrapAsync(async (req, res) => {
 
   /* Revoke all sessions if ban, deactivation, or role change occurred */
   if (body.isBanned || body.isActive === false || body.roles !== undefined || body.role !== undefined) {
-    revokeAllUserSessions(id!).catch(() => {});
+    revokeAllUserSessions(id!).catch((err: unknown) => {
+      logger.warn({ err: err instanceof Error ? err.message : String(err), userId: id }, "[archive/users] revokeAllUserSessions on ban/deactivate/role-change failed — sessions may persist");
+    });
   }
   if (body.isBanned && body.notify) {
     await sendUserNotification(id!, "Account Suspended ⚠️", String(body.banReason || "Your account has been suspended. Contact support."), "warning", "warning-outline");
@@ -466,7 +470,9 @@ router.patch("/users/:id/identity", wrapAsync(async (req, res) => {
   const [user] = await db.update(usersTable).set(updates).where(eq(usersTable.id, userId)).returning();
   if (!user) { sendNotFound(res, "User not found"); return; }
 
-  revokeAllUserSessions(userId).catch(() => {});
+  revokeAllUserSessions(userId).catch((err: unknown) => {
+    logger.warn({ err: err instanceof Error ? err.message : String(err), userId }, "[archive/users] revokeAllUserSessions on identity update failed — sessions may persist");
+  });
 
   sendSuccess(res, { ...stripUser(user), walletBalance: parseFloat(String(user.walletBalance)) });
 }));
@@ -526,7 +532,9 @@ router.patch("/users/:id/request-correction", wrapAsync(async (req, res) => {
     title: t("notifDocumentCorrection", docLang),
     body: note || t("notifDocumentCorrectionBody", docLang).replace("{field}", field || "document"),
     type: "system", icon: "document-outline",
-  }).catch(() => {});
+  }).catch((err: unknown) => {
+    logger.warn({ err: err instanceof Error ? err.message : String(err), userId: user.id }, "[archive/users] document-correction notification insert failed");
+  });
   sendSuccess(res, { success: true, user: stripUser(user) });
 }));
 
@@ -546,7 +554,9 @@ router.patch("/users/:id/waive-debt", wrapAsync(async (req, res) => {
     title: t("notifDebtWaived", debtLang),
     body: t("notifDebtWaivedBody", debtLang).replace("{amount}", debt.toFixed(0)),
     type: "system", icon: "checkmark-circle-outline",
-  }).catch(() => {});
+  }).catch((err: unknown) => {
+    logger.warn({ err: err instanceof Error ? err.message : String(err), userId }, "[archive/users] debt-waived notification insert failed");
+  });
   sendSuccess(res, { success: true, waived: debt });
 }));
 

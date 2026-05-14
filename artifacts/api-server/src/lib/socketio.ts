@@ -495,14 +495,20 @@ export function initSocketIO(httpServer: HttpServer): SocketIOServer {
     /* ── Communication system events ── */
     socket.on("comm:typing:start", async (payload: { conversationId: string; userId: string }) => {
       if (!cachedSession?.userId || cachedSession.userId !== payload?.userId || !payload?.conversationId) return;
-      const ok = await isAuthorizedForConversationRoom(payload.conversationId, cachedSession.userId).catch(() => false);
+      const ok = await isAuthorizedForConversationRoom(payload.conversationId, cachedSession.userId).catch((err: unknown) => {
+        logger.warn({ err: err instanceof Error ? err.message : String(err), conversationId: payload.conversationId, userId: cachedSession.userId }, "[socketio] typing:start auth check failed — treating as unauthorized");
+        return false;
+      });
       if (!ok) return;
       socket.to(`conversation:${payload.conversationId}`).emit("comm:typing:start", { userId: payload.userId, conversationId: payload.conversationId });
     });
 
     socket.on("comm:typing:stop", async (payload: { conversationId: string; userId: string }) => {
       if (!cachedSession?.userId || cachedSession.userId !== payload?.userId || !payload?.conversationId) return;
-      const ok = await isAuthorizedForConversationRoom(payload.conversationId, cachedSession.userId).catch(() => false);
+      const ok = await isAuthorizedForConversationRoom(payload.conversationId, cachedSession.userId).catch((err: unknown) => {
+        logger.warn({ err: err instanceof Error ? err.message : String(err), conversationId: payload.conversationId, userId: cachedSession.userId }, "[socketio] typing:stop auth check failed — treating as unauthorized");
+        return false;
+      });
       if (!ok) return;
       socket.to(`conversation:${payload.conversationId}`).emit("comm:typing:stop", { userId: payload.userId, conversationId: payload.conversationId });
     });

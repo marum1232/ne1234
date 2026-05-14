@@ -268,7 +268,10 @@ router.get("/vendors", requirePermission("vendors.view"), async (_req, res) => {
         .from(ordersTable)
         .where(inArray(ordersTable.vendorId, vendorIds))
         .groupBy(ordersTable.vendorId)
-        .catch(() => []);
+        .catch((err: unknown) => {
+          logger.warn({ err: err instanceof Error ? err.message : String(err) }, "[wallets] vendor order-stats aggregate query failed — returning empty stats");
+          return [] as { vendorId: string | null; totalOrders: number; totalRevenue: string | null; pendingOrders: number }[];
+        });
     }
 
     const statsMap = Object.fromEntries(orderStats.map((s) => [s.vendorId, s]));

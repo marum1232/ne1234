@@ -9,6 +9,7 @@ import { eq, and, sql, lt, or, desc, ilike, isNull } from "drizzle-orm";
 import { generateId } from "../../lib/id.js";
 import { getPlatformSettings } from "../admin.js";
 import { emitWebhookEvent } from "../../lib/webhook-emitter.js";
+import { fireAndForget } from "../../lib/fireAndForget.js";
 import {
   checkLockout,
   recordFailedAttempt,
@@ -1098,9 +1099,12 @@ router.post("/verify-otp", otpLimiter, verifyCaptcha, sharedValidateBody(verifyO
       authMethod: "phone_otp", expiresAt: new Date(Date.now() + getRefreshTokenTtlDays() * 24 * 60 * 60 * 1000),
     });
 
-    emitWebhookEvent("user_registered", { userId: newUserId, phone, role: "customer", method: "phone_otp" }).catch((err: unknown) => {
-      logger.warn({ err: err instanceof Error ? err.message : String(err), userId: newUserId }, "[auth] webhook user_registered (phone_otp) failed");
-    });
+    fireAndForget(
+      emitWebhookEvent("user_registered", { userId: newUserId, phone, role: "customer", method: "phone_otp" }),
+      "auth:webhook:user_registered:phone_otp",
+      logger,
+      { userId: newUserId, code: "WEBHOOK_EMIT" },
+    );
 
     /* New phone-OTP signups always create customer accounts, but the rider app
        can also send role=rider on the verify-otp call. The cookie helper
@@ -1350,11 +1354,12 @@ router.post("/verify-otp", otpLimiter, verifyCaptcha, sharedValidateBody(verifyO
   });
 
   /* Clean up expired refresh tokens for this user (housekeeping) */
-  db.delete(refreshTokensTable)
-    .where(and(eq(refreshTokensTable.userId, u.id), lt(refreshTokensTable.expiresAt, new Date())))
-    .catch((err: unknown) => {
-      logger.debug({ err: err instanceof Error ? err.message : String(err), userId: u.id }, "[auth] expired refresh token cleanup failed — non-critical");
-    });
+  fireAndForget(
+    db.delete(refreshTokensTable).where(and(eq(refreshTokensTable.userId, u.id), lt(refreshTokensTable.expiresAt, new Date()))),
+    "auth:expired-token-cleanup:phone_otp",
+    logger,
+    { userId: u.id, code: "DB_CLEANUP" },
+  );
 
   /* Set HttpOnly cookie for rider and vendor sessions. */
   setRiderRefreshCookie(req, res, refreshRaw, u);
@@ -2110,9 +2115,12 @@ router.post("/verify-email-otp", otpLimiter, verifyCaptcha, async (req, res) => 
   const { raw: refreshRaw, hash: refreshHash } = generateRefreshToken();
   const refreshExpiresAt = new Date(Date.now() + getRefreshTokenTtlDays() * 24 * 60 * 60 * 1000);
   await db.insert(refreshTokensTable).values({ id: generateId(), userId: user.id, tokenHash: refreshHash, authMethod: "email_otp", expiresAt: refreshExpiresAt });
-  db.delete(refreshTokensTable).where(and(eq(refreshTokensTable.userId, user.id), lt(refreshTokensTable.expiresAt, new Date()))).catch((err: unknown) => {
-    logger.debug({ err: err instanceof Error ? err.message : String(err), userId: user.id }, "[auth] expired refresh token cleanup (email_otp) failed — non-critical");
-  });
+  fireAndForget(
+    db.delete(refreshTokensTable).where(and(eq(refreshTokensTable.userId, user.id), lt(refreshTokensTable.expiresAt, new Date()))),
+    "auth:expired-token-cleanup:email_otp",
+    logger,
+    { userId: user.id, code: "DB_CLEANUP" },
+  );
 
   setRiderRefreshCookie(req, res, refreshRaw, user);
   setVendorRefreshCookie(req, res, refreshRaw, user);
@@ -2319,9 +2327,12 @@ async function handleUnifiedLogin(req: Request, res: any) {
   const { raw: refreshRaw, hash: refreshHash } = generateRefreshToken();
   const refreshExpiresAt = new Date(Date.now() + getRefreshTokenTtlDays() * 24 * 60 * 60 * 1000);
   await db.insert(refreshTokensTable).values({ id: generateId(), userId: user.id, tokenHash: refreshHash, authMethod: "password", expiresAt: refreshExpiresAt });
-  db.delete(refreshTokensTable).where(and(eq(refreshTokensTable.userId, user.id), lt(refreshTokensTable.expiresAt, new Date()))).catch((err: unknown) => {
-    logger.debug({ err: err instanceof Error ? err.message : String(err), userId: user.id }, "[auth] expired refresh token cleanup (password login) failed — non-critical");
-  });
+  fireAndForget(
+    db.delete(refreshTokensTable).where(and(eq(refreshTokensTable.userId, user.id), lt(refreshTokensTable.expiresAt, new Date()))),
+    "auth:expired-token-cleanup:password_login",
+    logger,
+    { userId: user.id, code: "DB_CLEANUP" },
+  );
 
   setRiderRefreshCookie(req, res, refreshRaw, user);
   setVendorRefreshCookie(req, res, refreshRaw, user);
@@ -2589,11 +2600,12 @@ router.post("/complete-profile", async (req, res) => {
     expiresAt: refreshExpiresAt,
   });
 
-  db.delete(refreshTokensTable)
-    .where(and(eq(refreshTokensTable.userId, updated!.id), lt(refreshTokensTable.expiresAt, new Date())))
-    .catch((err: unknown) => {
-      logger.debug({ err: err instanceof Error ? err.message : String(err), userId: updated!.id }, "[auth] expired refresh token cleanup (profile update) failed — non-critical");
-    });
+  fireAndForget(
+    db.delete(refreshTokensTable).where(and(eq(refreshTokensTable.userId, updated!.id), lt(refreshTokensTable.expiresAt, new Date()))),
+    "auth:expired-token-cleanup:profile_update",
+    logger,
+    { userId: updated!.id, code: "DB_CLEANUP" },
+  );
 
   setRiderRefreshCookie(req, res, refreshRaw, updated);
   setVendorRefreshCookie(req, res, refreshRaw, updated);
@@ -2919,9 +2931,12 @@ router.post("/register", verifyCaptcha, sharedValidateBody(registerSchema), asyn
   }
 
   writeAuthAuditLog("register", { ip, userAgent: req.headers["user-agent"] ?? undefined, metadata: { phone: normalizedPhone, role: userRole } });
-  emitWebhookEvent("user_registered", { userId, phone: normalizedPhone, role: userRole, method: "username_password" }).catch((err: unknown) => {
-    logger.warn({ err: err instanceof Error ? err.message : String(err), userId }, "[auth] webhook user_registered (username_password) failed");
-  });
+  fireAndForget(
+    emitWebhookEvent("user_registered", { userId, phone: normalizedPhone, role: userRole, method: "username_password" }),
+    "auth:webhook:user_registered:username_password",
+    logger,
+    { userId, code: "WEBHOOK_EMIT" },
+  );
 
   /* ── OTP bypass: skip delivery; issue tokens when account is immediately active ── */
   if (otpBypassed) {
@@ -3410,9 +3425,12 @@ router.post("/email-register", verifyCaptcha, async (req, res) => {
   const emailResult = await sendVerificationEmail(normalizedEmail, verificationLink, name, verifyLang);
 
   writeAuthAuditLog("email_register", { userId, ip, userAgent: req.headers["user-agent"] ?? undefined, metadata: { email: normalizedEmail, role: userRole, emailSent: emailResult.sent } });
-  emitWebhookEvent("user_registered", { userId, email: normalizedEmail, role: userRole, method: "email" }).catch((err: unknown) => {
-    logger.warn({ err: err instanceof Error ? err.message : String(err), userId }, "[auth] webhook user_registered (email) failed");
-  });
+  fireAndForget(
+    emitWebhookEvent("user_registered", { userId, email: normalizedEmail, role: userRole, method: "email" }),
+    "auth:webhook:user_registered:email",
+    logger,
+    { userId, code: "WEBHOOK_EMIT" },
+  );
 
   const isDevTokenLog = process.env.NODE_ENV === "development" && process.env["LOG_OTP"] === "1";
   if (isDevTokenLog) {
@@ -3695,9 +3713,12 @@ router.post("/social/google", async (req, res) => {
       emailVerified: !!email,
       isActive: !requireApproval, approvalStatus: requireApproval ? "pending" : "approved",
     }).returning();
-    emitWebhookEvent("user_registered", { userId: id, email, role: "customer", method: "social_google" }).catch((err: unknown) => {
-      logger.warn({ err: err instanceof Error ? err.message : String(err), userId: id }, "[auth] webhook user_registered (social_google) failed");
-    });
+    fireAndForget(
+      emitWebhookEvent("user_registered", { userId: id, email, role: "customer", method: "social_google" }),
+      "auth:webhook:user_registered:social_google",
+      logger,
+      { userId: id, code: "WEBHOOK_EMIT" },
+    );
   }
 
   if (user!.isBanned) { sendForbidden(res, "Account suspended"); return; }
@@ -3799,9 +3820,12 @@ router.post("/social/facebook", async (req, res) => {
       emailVerified: !!email,
       isActive: !requireApproval, approvalStatus: requireApproval ? "pending" : "approved",
     }).returning();
-    emitWebhookEvent("user_registered", { userId: id, email, role: "customer", method: "social_facebook" }).catch((err: unknown) => {
-      logger.warn({ err: err instanceof Error ? err.message : String(err), userId: id }, "[auth] webhook user_registered (social_facebook) failed");
-    });
+    fireAndForget(
+      emitWebhookEvent("user_registered", { userId: id, email, role: "customer", method: "social_facebook" }),
+      "auth:webhook:user_registered:social_facebook",
+      logger,
+      { userId: id, code: "WEBHOOK_EMIT" },
+    );
   }
 
   if (user!.isBanned) { sendForbidden(res, "Account suspended"); return; }
