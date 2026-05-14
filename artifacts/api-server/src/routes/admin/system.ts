@@ -493,7 +493,15 @@ router.post("/test-integration/fcm", async (req, res) => {
     });
 
     let body: any = null;
-    try { body = await resp.json(); } catch { body = { raw: await resp.text().catch(() => "") }; }
+    try {
+      body = await resp.json();
+    } catch {
+      const rawText = await resp.text().catch((textErr: unknown) => {
+        logger.warn({ error: textErr instanceof Error ? textErr.message : String(textErr), code: "FCM_BODY_PARSE_FAILED", timestamp: new Date().toISOString(), status: resp.status }, "[system] FCM test — failed to read error response body as text");
+        return "";
+      });
+      body = { raw: rawText };
+    }
 
     if (resp.status === 401 || resp.status === 404) {
       const detail = body?.error?.message || body?.error || body?.raw || `HTTP ${resp.status}`;

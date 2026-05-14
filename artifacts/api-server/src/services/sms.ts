@@ -123,7 +123,10 @@ async function dispatchSMS(phone: string, message: string, settings: Record<stri
         logger.info(`[SMS:zong] Sent to ${e164}`);
         return { sent: true, provider: "zong" };
       }
-      const errText = await resp.text().catch(() => `HTTP ${resp.status}`);
+      const errText = await resp.text().catch((textErr: unknown) => {
+        logger.warn({ error: textErr instanceof Error ? textErr.message : String(textErr), code: "SMS_BODY_PARSE_FAILED", timestamp: new Date().toISOString(), provider: "zong", status: resp.status }, "[SMS:zong] failed to read error response body");
+        return `HTTP ${resp.status}`;
+      });
       return { sent: false, provider: "zong", error: errText };
     } catch (err: any) {
       logger.error(`[SMS:zong] Error:`, err.message);

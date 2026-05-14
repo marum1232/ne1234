@@ -6,11 +6,11 @@ import type { AppLogger } from "./logger.js";
  *
  * Usage:
  *   fireAndForget(emitWebhookEvent("order_delivered", payload), "webhook:order_delivered", logger);
- *   fireAndForget(db.delete(...), "otp-cleanup", logger, { userId });
+ *   fireAndForget(db.delete(...), "otp-cleanup", logger, { userId, correlationId });
  *
  * The promise is NOT awaited. Errors are logged at `warn` level with the
- * supplied label and optional metadata. This keeps the response fast while
- * ensuring that failures are visible in structured logs.
+ * full required schema { message, error, code, correlationId, timestamp }.
+ * This keeps the response fast while ensuring failures are visible in logs.
  */
 export function fireAndForget(
   promise: Promise<unknown>,
@@ -19,15 +19,18 @@ export function fireAndForget(
   meta?: Record<string, unknown>,
 ): void {
   promise.catch((err: unknown) => {
+    const message = `[fireAndForget] ${label} failed`;
     log.warn(
       {
         label,
-        err: err instanceof Error ? err.message : String(err),
+        message,
+        error: err instanceof Error ? err.message : String(err),
         code: (err as { code?: string }).code ?? "FIRE_AND_FORGET_ERROR",
+        correlationId: meta?.["correlationId"] ?? null,
         timestamp: new Date().toISOString(),
         ...meta,
       },
-      `[fireAndForget] ${label} failed`,
+      message,
     );
   });
 }
