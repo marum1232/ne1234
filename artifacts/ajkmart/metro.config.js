@@ -13,10 +13,26 @@ config.resolver.nodeModulesPaths = [
   path.resolve(monorepoRoot, "node_modules"),
 ];
 
-/* Pin React to a single copy so Metro's SSR pass and the client bundle both
-   use the exact same instance.  In a pnpm monorepo, Metro can accidentally
-   pick up a different React copy from the workspace root during server-side
-   rendering, causing `jsxDEV is not a function` at runtime. */
+/* ─── React instance pinning ────────────────────────────────────────────────
+   Problem: in this pnpm monorepo the Replit environment sets NODE_ENV=production
+   at the OS level.  React 19's production jsx-dev-runtime explicitly exports
+   `jsxDEV = void 0` (it is not available in production builds).
+   expo-router's renderStaticContent.js runs inside the Expo CLI Node.js
+   process — OUTSIDE Metro — and inherits that NODE_ENV.  When it does
+     require("react/jsx-dev-runtime")
+   it loads the production CJS build and crashes:
+     TypeError: _reactJsxDevRuntime.jsxDEV is not a function
+
+   Two-layer fix:
+   1. package.json dev:web sets NODE_ENV=development so the Expo CLI process
+      (and renderStaticContent.js with it) loads the development React build
+      where jsxDEV is a real function.  This is not a diagnostic flag; it is
+      required because the system-level NODE_ENV=production would otherwise
+      break every SSR request in the dev server.
+   2. extraNodeModules + resolveRequest below pin both Metro bundle platforms
+      (client and SSR "node") to the app-local React copy, preventing the
+      workspace-root copy from leaking in and creating a dual-instance problem.
+   ─────────────────────────────────────────────────────────────────────────── */
 config.resolver.extraNodeModules = {
   react: path.resolve(projectRoot, "node_modules/react"),
   "react-dom": path.resolve(projectRoot, "node_modules/react-dom"),
