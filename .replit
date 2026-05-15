@@ -4,6 +4,7 @@ modules = ["nodejs-20", "python-3.11"]
 [deployment]
 run = ["pnpm", "start"]
 deploymentTarget = "autoscale"
+build = ["pnpm", "build"]
 
 [deployment.postBuild]
 args = ["pnpm", "store", "prune"]
