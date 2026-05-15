@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useLanguage } from "@/lib/useLanguage";
 import { tDual, type TranslationKey } from "@workspace/i18n";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 const STATUS_LABELS: Record<string, string> = {
   pending:    "Pending",
@@ -99,6 +100,7 @@ export default function Parcel() {
   const allowedNext = (b: any) => ALLOWED_TRANSITIONS[b.status] ?? [];
 
   return (
+    <ErrorBoundary fallback={<div className="p-8 text-center text-sm text-red-500">Parcel page crashed. Please reload.</div>}>
     <div className="space-y-5 sm:space-y-6">
       <PageHeader
         icon={Box}
@@ -468,5 +470,6 @@ export default function Parcel() {
         </DialogContent>
       </Dialog>
     </div>
+    </ErrorBoundary>
   );
 }

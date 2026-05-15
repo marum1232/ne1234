@@ -25,6 +25,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ADMIN_SERVICE_LIST } from "@workspace/service-constants";
 import { safeCopyToClipboard } from "@/lib/safeClipboard";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 type PlatformSetting = { key: string; value: string };
 
@@ -513,6 +514,7 @@ export default function AppManagement() {
   }
 
   return (
+    <ErrorBoundary fallback={<div className="p-8 text-center text-sm text-red-500">App Management page crashed. Please reload.</div>}>
     <div className="space-y-6">
       <PageHeader
         icon={AppWindow}
@@ -1048,5 +1050,6 @@ export default function AppManagement() {
         busy={deleteRn.isPending}
       />
     </div>
+    </ErrorBoundary>
   );
 }

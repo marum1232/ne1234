@@ -16,6 +16,7 @@ import { MobileDrawer } from "@/components/MobileDrawer";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 type LoyaltyPoints = {
   totalEarned: number;
@@ -105,7 +106,7 @@ function AdjustPointsModal({ user, onClose }: { user: LoyaltyUser; onClose: () =
               <p className="text-xs text-muted-foreground">{user.phone}</p>
             </div>
             <div className="text-right">
-              <p className="text-lg font-bold text-amber-700">{user.loyaltyPoints.available}</p>
+              <p className="text-lg font-bold text-amber-700">{user.loyaltyPoints?.available ?? 0}</p>
               <p className="text-[10px] text-muted-foreground uppercase font-bold">Available Pts</p>
             </div>
           </div>
@@ -154,18 +155,18 @@ function AdjustPointsModal({ user, onClose }: { user: LoyaltyUser; onClose: () =
           />
         </div>
 
-        {type === "debit" && Number(amount) > user.loyaltyPoints.available && Number(amount) > 0 && (
+        {type === "debit" && Number(amount) > (user.loyaltyPoints?.available ?? 0) && Number(amount) > 0 && (
           <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-start gap-2">
             <Minus className="w-4 h-4 text-red-500 mt-0.5 shrink-0" />
             <p className="text-xs text-red-700">
-              Cannot debit {amount} points. User only has {user.loyaltyPoints.available} points available.
+              Cannot debit {amount} points. User only has {user.loyaltyPoints?.available ?? 0} points available.
             </p>
           </div>
         )}
 
         <Button
           onClick={handleSubmit}
-          disabled={mutation.isPending || !amount || !reason.trim() || (type === "debit" && Number(amount) > user.loyaltyPoints.available)}
+          disabled={mutation.isPending || !amount || !reason.trim() || (type === "debit" && Number(amount) > (user.loyaltyPoints?.available ?? 0))}
           className={`w-full h-11 rounded-xl gap-2 ${type === "credit" ? "bg-emerald-600 hover:bg-emerald-700" : "bg-red-600 hover:bg-red-700"} text-white`}
         >
           {mutation.isPending ? (
@@ -224,22 +225,23 @@ export default function LoyaltyPage() {
     if (sortField === "name") {
       cmp = (a.name || "").localeCompare(b.name || "");
     } else if (sortField === "available") {
-      cmp = a.loyaltyPoints.available - b.loyaltyPoints.available;
+      cmp = (a.loyaltyPoints?.available ?? 0) - (b.loyaltyPoints?.available ?? 0);
     } else if (sortField === "totalEarned") {
-      cmp = a.loyaltyPoints.totalEarned - b.loyaltyPoints.totalEarned;
+      cmp = (a.loyaltyPoints?.totalEarned ?? 0) - (b.loyaltyPoints?.totalEarned ?? 0);
     }
     return sortDir === "asc" ? cmp : -cmp;
   });
 
-  const totalPointsInCirculation = users.reduce((sum, u) => sum + u.loyaltyPoints.available, 0);
-  const totalEarned = users.reduce((sum, u) => sum + u.loyaltyPoints.totalEarned, 0);
-  const totalRedeemed = users.reduce((sum, u) => sum + u.loyaltyPoints.totalRedeemed, 0);
+  const totalPointsInCirculation = users.reduce((sum, u) => sum + (u.loyaltyPoints?.available ?? 0), 0);
+  const totalEarned = users.reduce((sum, u) => sum + (u.loyaltyPoints?.totalEarned ?? 0), 0);
+  const totalRedeemed = users.reduce((sum, u) => sum + (u.loyaltyPoints?.totalRedeemed ?? 0), 0);
 
   const SortIcon = ({ field }: { field: SortField }) => (
     <ArrowUpDown className={`w-3 h-3 inline ml-1 cursor-pointer ${sortField === field ? "text-amber-600" : "text-muted-foreground/50"}`} />
   );
 
   return (
+    <ErrorBoundary fallback={<div className="p-8 text-center text-sm text-red-500">Loyalty page crashed. Please reload.</div>}>
     <PullToRefresh onRefresh={async () => { await refetch(); }}>
       <div className="space-y-6 p-4 md:p-6 max-w-7xl mx-auto">
         <PageHeader
@@ -349,15 +351,15 @@ export default function LoyaltyPage() {
                   </div>
                   <div className="grid grid-cols-3 gap-2 text-center text-xs">
                     <div className="bg-amber-50 rounded-lg p-2">
-                      <p className="font-bold text-amber-700">{u.loyaltyPoints.available.toLocaleString()}</p>
+                      <p className="font-bold text-amber-700">{(u.loyaltyPoints?.available ?? 0).toLocaleString()}</p>
                       <p className="text-muted-foreground">Available</p>
                     </div>
                     <div className="bg-emerald-50 rounded-lg p-2">
-                      <p className="font-bold text-emerald-600">{u.loyaltyPoints.totalEarned.toLocaleString()}</p>
+                      <p className="font-bold text-emerald-600">{(u.loyaltyPoints?.totalEarned ?? 0).toLocaleString()}</p>
                       <p className="text-muted-foreground">Earned</p>
                     </div>
                     <div className="bg-blue-50 rounded-lg p-2">
-                      <p className="font-bold text-blue-600">{u.loyaltyPoints.totalRedeemed.toLocaleString()}</p>
+                      <p className="font-bold text-blue-600">{(u.loyaltyPoints?.totalRedeemed ?? 0).toLocaleString()}</p>
                       <p className="text-muted-foreground">Redeemed</p>
                     </div>
                   </div>
@@ -426,13 +428,13 @@ export default function LoyaltyPage() {
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">{u.phone || "—"}</TableCell>
                       <TableCell className="text-right">
-                        <span className="font-bold text-amber-700">{u.loyaltyPoints.available.toLocaleString()}</span>
+                        <span className="font-bold text-amber-700">{(u.loyaltyPoints?.available ?? 0).toLocaleString()}</span>
                       </TableCell>
                       <TableCell className="text-right text-sm text-emerald-600 font-medium">
-                        {u.loyaltyPoints.totalEarned.toLocaleString()}
+                        {(u.loyaltyPoints?.totalEarned ?? 0).toLocaleString()}
                       </TableCell>
                       <TableCell className="text-right text-sm text-blue-600 font-medium">
-                        {u.loyaltyPoints.totalRedeemed.toLocaleString()}
+                        {(u.loyaltyPoints?.totalRedeemed ?? 0).toLocaleString()}
                       </TableCell>
                       <TableCell className="text-right text-sm font-medium">
                         {formatCurrency(u.walletBalance)}
@@ -461,5 +463,6 @@ export default function LoyaltyPage() {
         )}
       </div>
     </PullToRefresh>
+    </ErrorBoundary>
   );
 }

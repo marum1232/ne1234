@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { io, type Socket } from "socket.io-client";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 type SosStatus = "pending" | "acknowledged" | "resolved";
 
@@ -415,6 +416,7 @@ export default function SosAlerts() {
   ];
 
   return (
+    <ErrorBoundary fallback={<div className="p-8 text-center text-sm text-red-500">SOS Alerts page crashed. Please reload.</div>}>
     <div className="p-6 max-w-4xl mx-auto space-y-6">
       <PageHeader
         icon={AlertTriangle}
@@ -526,5 +528,6 @@ export default function SosAlerts() {
         />
       )}
     </div>
+    </ErrorBoundary>
   );
 }

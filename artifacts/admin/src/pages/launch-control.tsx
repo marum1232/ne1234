@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 /* ── Types ── */
 interface SettingRow {
@@ -472,6 +473,7 @@ export default function LaunchControl() {
   const diffCount = diffs.filter(d => d.differsFromAI).length;
 
   return (
+    <ErrorBoundary fallback={<div className="p-8 text-center text-sm text-red-500">Launch Control page crashed. Please reload.</div>}>
     <div className="space-y-6 pb-10">
       <PageHeader
         icon={Rocket}
@@ -1103,5 +1105,6 @@ export default function LaunchControl() {
         </DialogContent>
       </Dialog>
     </div>
+    </ErrorBoundary>
   );
 }

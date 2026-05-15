@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { SensitiveActionDialog } from "@/components/SensitiveActionDialog";
 import { NavigationGuard } from "@/components/NavigationGuard";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import {
   FlaskConical, Plus, Loader2, Trash2, BarChart3, Play, Pause, CheckCircle2, MoreHorizontal,
   AlertTriangle,
@@ -109,6 +110,7 @@ export default function ExperimentsPage() {
   };
 
   return (
+    <ErrorBoundary fallback={<div className="p-8 text-center text-sm text-red-500">Experiments page crashed. Please reload.</div>}>
     <PullToRefresh onRefresh={async () => { await refetch(); }}>
       <NavigationGuard isDirty={isDirty} />
       <div className="space-y-6">
@@ -377,5 +379,6 @@ export default function ExperimentsPage() {
         />
       </div>
     </PullToRefresh>
+    </ErrorBoundary>
   );
 }

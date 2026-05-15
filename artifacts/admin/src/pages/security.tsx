@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Toggle, Field, SecretInput } from "@/components/AdminShared";
 import { LastUpdated } from "@/components/ui/LastUpdated";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 type SecTab = "auth" | "authmethods" | "ratelimit" | "gps" | "passwords" | "uploads" | "fraud" | "dataexports" | "tokenaudit";
 
@@ -470,6 +471,7 @@ export default function SecurityPage() {
   }
 
   return (
+    <ErrorBoundary fallback={<div className="p-8 text-center text-sm text-red-500">Security page crashed. Please reload.</div>}>
     <div className="space-y-6 max-w-5xl">
       <PageHeader
         icon={Shield}
@@ -1239,6 +1241,7 @@ export default function SecurityPage() {
         </p>
       </div>
     </div>
+    </ErrorBoundary>
   );
 }
 

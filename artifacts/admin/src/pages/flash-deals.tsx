@@ -21,6 +21,7 @@ import { tDual, type TranslationKey } from "@workspace/i18n";
 import { StatusBadge } from "@/components/AdminShared";
 import { SensitiveActionDialog } from "@/components/SensitiveActionDialog";
 import { NavigationGuard } from "@/components/NavigationGuard";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 /* ── Types ── */
 interface Product { id: string; name: string; price: string | number; category: string; image?: string }
@@ -200,6 +201,7 @@ export default function FlashDealsPage() {
   const liveDeals = deals.filter(d => d.status === "live").length;
 
   return (
+    <ErrorBoundary fallback={<div className="p-8 text-center text-sm text-red-500">Flash Deals page crashed. Please reload.</div>}>
     <div className="space-y-6">
       <NavigationGuard isDirty={isDirty} />
       <PageHeader
@@ -469,5 +471,6 @@ export default function FlashDealsPage() {
       />
 
     </div>
+    </ErrorBoundary>
   );
 }

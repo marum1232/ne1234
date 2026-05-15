@@ -15,6 +15,7 @@ import { PLATFORM_DEFAULTS } from "@/lib/platformConfig";
 import { io, type Socket } from "socket.io-client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 const DEFAULT_OFFLINE_AFTER_SEC = 5 * 60;
 
@@ -1092,6 +1093,7 @@ export default function LiveRidersMap() {
   }
 
   return (
+    <ErrorBoundary fallback={<div className="p-8 text-center text-sm text-red-500">Live Riders Map page crashed. Please reload.</div>}>
     <div className="flex flex-col" style={{ height: "calc(100vh - 80px)", minHeight: 600 }}>
       {/* GPS Spoof Alert Banner */}
       {spoofAlerts.length > 0 && (
@@ -1942,5 +1944,6 @@ export default function LiveRidersMap() {
         </div>
       )}
     </div>
+    </ErrorBoundary>
   );
 }

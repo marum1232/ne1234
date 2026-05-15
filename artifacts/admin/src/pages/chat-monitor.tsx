@@ -12,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { MobileDrawer } from "@/components/MobileDrawer";
 import { PullToRefresh } from "@/components/PullToRefresh";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import {
   MessageCircle, Search, VolumeX, Volume2, Eye, AlertTriangle,
   CheckCircle2, Clock, Loader2, Users, Flag, Shield, MoreHorizontal,
@@ -106,6 +107,7 @@ export default function ChatMonitor() {
   const pName = (p: Participant | null) => p?.name || p?.phone || "Unknown";
 
   return (
+    <ErrorBoundary fallback={<div className="p-8 text-center text-sm text-red-500">Chat Monitor page crashed. Please reload.</div>}>
     <PullToRefresh onRefresh={() => qc.invalidateQueries({ queryKey: tab === "conversations" ? ["admin-chat-conversations"] : ["admin-chat-reports"] })}>
       <div className="space-y-6">
         <PageHeader
@@ -368,5 +370,6 @@ export default function ChatMonitor() {
         )}
       </div>
     </PullToRefresh>
+    </ErrorBoundary>
   );
 }

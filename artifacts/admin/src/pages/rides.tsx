@@ -42,6 +42,7 @@ import { useLanguage } from "@/lib/useLanguage";
 import { tDual, type TranslationKey } from "@workspace/i18n";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { LastUpdated } from "@/components/ui/LastUpdated";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 interface EnrichedRide {
   id: string;
@@ -1857,6 +1858,7 @@ export default function Rides() {
   );
 
   return (
+    <ErrorBoundary fallback={<div className="p-8 text-center text-sm text-red-500">Rides page crashed. Please reload.</div>}>
     <div className="space-y-5 sm:space-y-6">
       <PageHeader
         icon={Car}
@@ -2119,5 +2121,6 @@ export default function Rides() {
         <RideDetailModal rideId={selectedRideId} onClose={() => setSelectedRideId(null)} />
       )}
     </div>
+    </ErrorBoundary>
   );
 }

@@ -12,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { PullToRefresh } from "@/components/PullToRefresh";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import {
   Webhook, Plus, Loader2, Trash2, Send, Eye, CheckCircle2, XCircle, MoreHorizontal,
 } from "lucide-react";
@@ -129,6 +130,7 @@ export default function WebhookManagerPage() {
   }
 
   return (
+    <ErrorBoundary fallback={<div className="p-8 text-center text-sm text-red-500">Webhook Manager page crashed. Please reload.</div>}>
     <PullToRefresh onRefresh={async () => { await refetch(); }}>
       <div className="space-y-6">
         <PageHeader
@@ -336,5 +338,6 @@ export default function WebhookManagerPage() {
         </Dialog>
       </div>
     </PullToRefresh>
+    </ErrorBoundary>
   );
 }

@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect } from "react";
 import { useSearch, useLocation } from "wouter";
 import { Shield, Settings2 } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 const AccountConditions = lazy(() => import("@/pages/account-conditions"));
 const ConditionRules    = lazy(() => import("@/pages/condition-rules"));
@@ -39,6 +40,7 @@ export default function BusinessRulesPage() {
   }, [tabParam, navigate]);
 
   return (
+    <ErrorBoundary fallback={<div className="p-8 text-center text-sm text-red-500">Business Rules page crashed. Please reload.</div>}>
     <div className="space-y-0">
       <Tabs value={activeTab} onValueChange={v => setTab(v as BusinessRulesTab)}>
         <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border/50 px-4 pt-4 pb-0">
@@ -73,5 +75,6 @@ export default function BusinessRulesPage() {
         </TabsContent>
       </Tabs>
     </div>
+    </ErrorBoundary>
   );
 }

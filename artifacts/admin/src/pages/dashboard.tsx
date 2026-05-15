@@ -17,6 +17,7 @@ import { useLanguage } from "@/lib/useLanguage";
 import { tDual, type TranslationKey } from "@workspace/i18n";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { useToast } from "@/hooks/use-toast";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 function exportDashboard(
   trend: { date: string; revenue: number }[],
@@ -500,6 +501,7 @@ export default function Dashboard() {
   const lastUpdated = dataUpdatedAt ? updatedAgo(dataUpdatedAt) : "";
 
   return (
+    <ErrorBoundary fallback={<div className="p-8 text-center text-sm text-red-500">Dashboard page crashed. Please reload.</div>}>
     <PullToRefresh onRefresh={handleRefresh} className="space-y-6 sm:space-y-8">
       {hasError && (
         <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">
@@ -1217,6 +1219,7 @@ export default function Dashboard() {
         </div>
       </div>
     </PullToRefresh>
+    </ErrorBoundary>
   );
 }
 

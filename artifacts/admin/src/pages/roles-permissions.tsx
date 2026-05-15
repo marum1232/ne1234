@@ -27,6 +27,7 @@ import { useAbortableEffect, isAbortError } from "@/lib/useAbortableEffect";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { SensitiveActionDialog } from "@/components/SensitiveActionDialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 interface PermissionDef {
   id: string;
@@ -751,6 +752,7 @@ export default function RolesPermissionsPage() {
   }, [admins, adminSearch]);
 
   return (
+    <ErrorBoundary fallback={<div className="p-8 text-center text-sm text-red-500">Roles & Permissions page crashed. Please reload.</div>}>
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
       <PageHeader
         icon={Shield}
@@ -1230,6 +1232,7 @@ export default function RolesPermissionsPage() {
         targetId={sensitiveRoleToggle?.adminId}
       />
     </div>
+    </ErrorBoundary>
   );
 }
 

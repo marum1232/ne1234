@@ -19,6 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import {
   CONDITION_TYPES,
   SEVERITY_COLORS,
@@ -255,6 +256,7 @@ export default function ConditionRules() {
   }, [qc]);
 
   return (
+    <ErrorBoundary fallback={<div className="p-8 text-center text-sm text-red-500">Condition Rules page crashed. Please reload.</div>}>
     <PullToRefresh onRefresh={handlePullRefresh} className="space-y-6">
       <PageHeader
         icon={Settings2}
@@ -379,5 +381,6 @@ export default function ConditionRules() {
         <RuleFormModal rule={editRule} onClose={() => { setShowCreateRule(false); setEditRule(null); }} />
       )}
     </PullToRefresh>
+    </ErrorBoundary>
   );
 }

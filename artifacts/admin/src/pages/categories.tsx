@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/dialog";
 import { useLanguage } from "@/lib/useLanguage";
 import { tDual, type TranslationKey } from "@workspace/i18n";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 interface Category {
   id: string;
@@ -248,6 +249,7 @@ export default function CategoriesPage() {
   const isSearching = q.length > 0;
 
   return (
+    <ErrorBoundary fallback={<div className="p-8 text-center text-sm text-red-500">Categories page crashed. Please reload.</div>}>
     <div className="space-y-6">
       <PageHeader
         icon={FolderTree}
@@ -642,6 +644,7 @@ export default function CategoriesPage() {
         </DialogContent>
       </Dialog>
     </div>
+    </ErrorBoundary>
   );
 }
 

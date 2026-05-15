@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { io, type Socket } from "socket.io-client";
 import { PageHeader } from "@/components/shared";
 import { LastUpdated } from "@/components/ui/LastUpdated";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 
 async function apiFetch(path: string, opts: RequestInit = {}) {
@@ -150,6 +151,7 @@ export default function SupportChatPage() {
   const totalUnread = conversations.reduce((s, c) => s + (c.unreadCount || 0), 0);
 
   return (
+    <ErrorBoundary fallback={<div className="p-8 text-center text-sm text-red-500">Support Chat page crashed. Please reload.</div>}>
     <div className="flex flex-col h-[calc(100vh-56px)]">
       <PageHeader
         icon={Headphones}
@@ -354,5 +356,6 @@ export default function SupportChatPage() {
       )}
       </div>
     </div>
+    </ErrorBoundary>
   );
 }

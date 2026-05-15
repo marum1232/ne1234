@@ -12,6 +12,7 @@ import { LoadingState } from "@/components/ui/LoadingState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { useQuery } from "@tanstack/react-query";
 import { ADMIN_I18N_KEYS, t } from "@/lib/i18nKeys";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 /**
  * Vendor Inventory Settings — admin surface for vendor-side inventory
@@ -119,6 +120,7 @@ export default function VendorInventorySettingsPage() {
   }
 
   return (
+    <ErrorBoundary fallback={<div className="p-8 text-center text-sm text-red-500">Vendor Inventory Settings page crashed. Please reload.</div>}>
     <div className="p-6 max-w-3xl mx-auto space-y-6">
       <PageHeader
         icon={Package}
@@ -255,5 +257,6 @@ export default function VendorInventorySettingsPage() {
         </SubmitButton>
       </div>
     </div>
+    </ErrorBoundary>
   );
 }

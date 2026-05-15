@@ -13,6 +13,7 @@ import { Pill, Search, FileText, User, ShoppingCart, Phone, TrendingUp, CheckCir
 import { Input } from "@/components/ui/input";
 import { useLanguage } from "@/lib/useLanguage";
 import { tDual, type TranslationKey } from "@workspace/i18n";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 const STATUSES = ["pending", "confirmed", "preparing", "out_for_delivery", "delivered", "cancelled"];
 
@@ -114,6 +115,7 @@ export default function Pharmacy() {
   }, [lastRefreshed]);
 
   return (
+    <ErrorBoundary fallback={<div className="p-8 text-center text-sm text-red-500">Pharmacy page crashed. Please reload.</div>}>
     <div className="space-y-5 sm:space-y-6">
 
       <PageHeader
@@ -546,5 +548,6 @@ export default function Pharmacy() {
         </DialogContent>
       </Dialog>
     </div>
+    </ErrorBoundary>
   );
 }

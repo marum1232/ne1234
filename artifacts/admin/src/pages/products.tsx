@@ -586,8 +586,8 @@ export default function Products() {
   const pendingCount = pendingProducts.length;
 
   return (
-    <>
     <ErrorBoundary fallback={<div className="p-8 text-center text-sm text-red-500">Products page crashed. Please reload.</div>}>
+    <>
     <div className="space-y-6">
       <PageHeader
         icon={PackageSearch}
@@ -1461,7 +1461,6 @@ export default function Products() {
         </>
       )}
     </div>
-    </ErrorBoundary>
 
     {stockHistoryProduct && (
       <StockHistoryDialog
@@ -1531,5 +1530,6 @@ export default function Products() {
       </div>
     )}
     </>
+    </ErrorBoundary>
   );
 }

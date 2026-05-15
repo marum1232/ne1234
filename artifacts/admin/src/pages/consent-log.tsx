@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { ErrorState } from "@/components/ui/ErrorState";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import type {
   ConsentLogEntry,
   TermsVersionRow,
@@ -92,6 +93,7 @@ export default function ConsentLogPage() {
   const hasFilters = !!policyFilter || (!!versionFilter && versionFilter !== "all") || !!dateFrom || !!dateTo;
 
   return (
+    <ErrorBoundary fallback={<div className="p-8 text-center text-sm text-red-500">Consent Log page crashed. Please reload.</div>}>
     <div className="p-6 max-w-5xl mx-auto space-y-6">
       <PageHeader
         icon={FileText}
@@ -262,5 +264,6 @@ export default function ConsentLogPage() {
         )}
       </Card>
     </div>
+    </ErrorBoundary>
   );
 }

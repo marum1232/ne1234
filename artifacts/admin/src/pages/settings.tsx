@@ -41,6 +41,7 @@ import { WeatherSection } from "./settings-weather";
 import { ComplianceSection } from "./settings-compliance";
 import { BrandingSection } from "./settings-branding";
 import { renderSection, Setting, CatKey, TEXT_KEYS } from "./settings-render";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 /* ─────────────────────────────────────────────────────────────────────────
  * TOP-10 settings model
@@ -537,6 +538,7 @@ export default function SettingsPage() {
   };
 
   return (
+    <ErrorBoundary fallback={<div className="p-8 text-center text-sm text-red-500">Settings page crashed. Please reload.</div>}>
     <div className="space-y-4 max-w-5xl">
       <NavigationGuard isDirty={dirtyKeys.size > 0} message={`You have ${dirtyKeys.size} unsaved setting${dirtyKeys.size !== 1 ? "s" : ""}. Save before leaving?`} />
       {/* Hidden file input for restore */}
@@ -994,5 +996,6 @@ export default function SettingsPage() {
       />
 
     </div>
+    </ErrorBoundary>
   );
 }

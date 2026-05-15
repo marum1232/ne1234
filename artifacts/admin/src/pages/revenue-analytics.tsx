@@ -12,6 +12,7 @@ import {
 import { useLanguage } from "@/lib/useLanguage";
 import { tDual, type TranslationKey } from "@workspace/i18n";
 import { PullToRefresh } from "@/components/PullToRefresh";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 function SkeletonBlock({ className }: { className?: string }) {
   return (
@@ -121,6 +122,7 @@ export default function RevenueAnalytics() {
   const growthPositive = momGrowth >= 0;
 
   return (
+    <ErrorBoundary fallback={<div className="p-8 text-center text-sm text-red-500">Revenue Analytics page crashed. Please reload.</div>}>
     <PullToRefresh onRefresh={handleRefresh} className="space-y-6 sm:space-y-8">
       <PageHeader
         icon={BarChart2}
@@ -301,5 +303,6 @@ export default function RevenueAnalytics() {
         </Card>
       </div>
     </PullToRefresh>
+    </ErrorBoundary>
   );
 }

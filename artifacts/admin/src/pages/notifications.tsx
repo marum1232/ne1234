@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useLanguage } from "@/lib/useLanguage";
 import { tDual, type TranslationKey } from "@workspace/i18n";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 function fd(d: string | Date) {
   return new Date(d).toLocaleString("en-PK", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
@@ -37,6 +38,7 @@ export default function Notifications() {
   const notifications: any[] = nData?.notifications || [];
 
   return (
+    <ErrorBoundary fallback={<div className="p-8 text-center text-sm text-red-500">Notifications page crashed. Please reload.</div>}>
     <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-5">
       <PageHeader
         icon={Bell}
@@ -108,5 +110,6 @@ export default function Notifications() {
         </Card>
       )}
     </div>
+    </ErrorBoundary>
   );
 }

@@ -24,6 +24,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useLanguage } from "@/lib/useLanguage";
 import { tDual, type TranslationKey } from "@workspace/i18n";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 type Review = {
   id: string;
@@ -532,6 +533,7 @@ export default function ReviewsPage() {
   ];
 
   return (
+    <ErrorBoundary fallback={<div className="p-8 text-center text-sm text-red-500">Reviews page crashed. Please reload.</div>}>
     <div className="space-y-6">
       <PageHeader
         icon={Star}
@@ -762,6 +764,7 @@ export default function ReviewsPage() {
       {showModQueue && <ModerationModal onClose={() => setShowModQueue(false)} T={T} />}
       {showImport && <ImportModal onClose={() => setShowImport(false)} onSuccess={() => refetch()} />}
     </div>
+    </ErrorBoundary>
   );
 }
 

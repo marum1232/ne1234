@@ -15,6 +15,7 @@ import { tDual, type TranslationKey } from "@workspace/i18n";
 import { formatCurrency } from "@/lib/format";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { LastUpdated } from "@/components/ui/LastUpdated";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 const fc = formatCurrency;
 const fd = (d: string | Date) =>
@@ -435,6 +436,7 @@ export default function DepositRequests() {
   ];
 
   return (
+    <ErrorBoundary fallback={<div className="p-8 text-center text-sm text-red-500">Deposit Requests page crashed. Please reload.</div>}>
     <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-5 pb-28">
       <PageHeader
         icon={ArrowDownToLine}
@@ -734,5 +736,6 @@ export default function DepositRequests() {
         />
       )}
     </div>
+    </ErrorBoundary>
   );
 }

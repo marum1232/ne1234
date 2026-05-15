@@ -12,6 +12,7 @@ import { PageHeader, StatCard, StatCardSkeleton, FilterBar } from "@/components/
 import { useLanguage } from "@/lib/useLanguage";
 import { tDual, type TranslationKey } from "@workspace/i18n";
 import { LastUpdated } from "@/components/ui/LastUpdated";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 function exportTxnCSV(txns: any[]) {
   const header = "ID,User,Phone,Type,Amount,Description,Date";
@@ -83,6 +84,7 @@ export default function Transactions() {
   }
 
   return (
+    <ErrorBoundary fallback={<div className="p-8 text-center text-sm text-red-500">Transactions page crashed. Please reload.</div>}>
     <div className="space-y-6">
       <PageHeader
         icon={Receipt}
@@ -326,5 +328,6 @@ export default function Transactions() {
         </div>
       </Card>
     </div>
+    </ErrorBoundary>
   );
 }

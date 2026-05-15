@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { Heart, TrendingUp, Package, Loader2 } from "lucide-react";
 import { SafeImage } from "@/components/ui/SafeImage";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   Cell, CartesianGrid,
@@ -64,6 +65,7 @@ export default function WishlistInsights() {
   }));
 
   return (
+    <ErrorBoundary fallback={<div className="p-8 text-center text-sm text-red-500">Wishlist Insights page crashed. Please reload.</div>}>
     <PullToRefresh onRefresh={async () => { await refetch(); }}>
       <div className="space-y-6">
         <PageHeader
@@ -276,5 +278,6 @@ export default function WishlistInsights() {
         </Card>
       </div>
     </PullToRefresh>
+    </ErrorBoundary>
   );
 }

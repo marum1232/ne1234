@@ -21,6 +21,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 
 async function apiFetch(path: string, opts: RequestInit = {}) {
@@ -209,6 +210,7 @@ export default function FAQManagementPage() {
   const inactiveCount = faqs.length - activeCount;
 
   return (
+    <ErrorBoundary fallback={<div className="p-8 text-center text-sm text-red-500">FAQ Management page crashed. Please reload.</div>}>
     <div className="p-4 md:p-6 max-w-4xl mx-auto space-y-5">
       <PageHeader
         icon={HelpCircle}
@@ -368,5 +370,6 @@ export default function FAQManagementPage() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+    </ErrorBoundary>
   );
 }

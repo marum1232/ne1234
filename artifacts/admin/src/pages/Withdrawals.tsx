@@ -17,6 +17,7 @@ import { formatCurrency } from "@/lib/format";
 import { SensitiveActionDialog } from "@/components/SensitiveActionDialog";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { LastUpdated } from "@/components/ui/LastUpdated";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 const fc = formatCurrency;
 const fd = (d: string | Date) =>
@@ -305,6 +306,7 @@ export default function Withdrawals() {
   ];
 
   return (
+    <ErrorBoundary fallback={<div className="p-8 text-center text-sm text-red-500">Withdrawals page crashed. Please reload.</div>}>
     <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-5">
       <PageHeader
         icon={BanknoteIcon}
@@ -553,5 +555,6 @@ export default function Withdrawals() {
         targetId={sensitiveApproveTarget?.id}
       />
     </div>
+    </ErrorBoundary>
   );
 }

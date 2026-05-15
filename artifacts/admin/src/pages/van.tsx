@@ -15,6 +15,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -1414,6 +1415,7 @@ function RulesTab() {
 ══════════════════════════════════════════════════════════ */
 export default function VanServicePage() {
   return (
+    <ErrorBoundary fallback={<div className="p-8 text-center text-sm text-red-500">Van page crashed. Please reload.</div>}>
     <div className="space-y-6">
       <PageHeader
         icon={Bus}
@@ -1440,5 +1442,6 @@ export default function VanServicePage() {
         <TabsContent value="rules"><RulesTab /></TabsContent>
       </Tabs>
     </div>
+    </ErrorBoundary>
   );
 }

@@ -17,6 +17,7 @@ import {
   Link2, Plus, Loader2, Trash2, Copy, MousePointerClick, MoreHorizontal, ExternalLink, QrCode,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 const TARGET_SCREENS = [
   { value: "product", label: "Product Page", paramHint: "productId" },
@@ -127,6 +128,7 @@ export default function DeepLinksPage() {
   const totalClicks = links.reduce((sum, l) => sum + l.clickCount, 0);
 
   return (
+    <ErrorBoundary fallback={<div className="p-8 text-center text-sm text-red-500">Deep Links page crashed. Please reload.</div>}>
     <PullToRefresh onRefresh={async () => { await refetch(); }}>
       <div className="space-y-6">
         <PageHeader
@@ -329,5 +331,6 @@ export default function DeepLinksPage() {
         </Dialog>
       </div>
     </PullToRefresh>
+    </ErrorBoundary>
   );
 }

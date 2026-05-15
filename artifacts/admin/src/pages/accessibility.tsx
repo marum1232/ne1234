@@ -9,6 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { ADMIN_I18N_KEYS, t } from "@/lib/i18nKeys";
 import { NavigationGuard } from "@/components/NavigationGuard";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 export default function AccessibilityPage() {
   const { settings, setFontScale, setContrast, setReduceMotion, reset } =
@@ -63,6 +64,7 @@ export default function AccessibilityPage() {
   ];
 
   return (
+    <ErrorBoundary fallback={<div className="p-8 text-center text-sm text-red-500">Accessibility page crashed. Please reload.</div>}>
     <div className="p-6 max-w-3xl mx-auto space-y-6">
       <NavigationGuard isDirty={syncStatus === "saving"} message="Your accessibility settings are still saving. Are you sure you want to leave?" />
       <PageHeader
@@ -155,5 +157,6 @@ export default function AccessibilityPage() {
         </Button>
       </div>
     </div>
+    </ErrorBoundary>
   );
 }

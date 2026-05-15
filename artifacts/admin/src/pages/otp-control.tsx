@@ -38,6 +38,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import {
   Dialog,
   DialogContent,
@@ -672,6 +673,7 @@ export default function OtpControl() {
   };
 
   return (
+    <ErrorBoundary fallback={<div className="p-8 text-center text-sm text-red-500">OTP Control page crashed. Please reload.</div>}>
     <div className="space-y-6 max-w-4xl">
       {/* ── Header ── */}
       <PageHeader
@@ -1389,6 +1391,7 @@ export default function OtpControl() {
       {/* ── 6. WHITELIST ── */}
       <WhitelistSection />
     </div>
+    </ErrorBoundary>
   );
 }
 

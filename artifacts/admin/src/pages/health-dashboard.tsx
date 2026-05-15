@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { useHealthDashboard, useUnlockAdminIpLockout, useDiagnostics } from "@/hooks/use-admin";
 import { LastUpdated } from "@/components/ui/LastUpdated";
 import { Link } from "wouter";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 /* ── helpers ── */
 function updatedAgo(ts: string | undefined): string {
@@ -156,6 +157,7 @@ export default function HealthDashboard() {
   const alertCfg = d?.alertConfig;
 
   return (
+    <ErrorBoundary fallback={<div className="p-8 text-center text-sm text-red-500">Health Dashboard page crashed. Please reload.</div>}>
     <div className="space-y-6 pb-10">
       <PageHeader
         title="Health Dashboard"
@@ -516,6 +518,7 @@ export default function HealthDashboard() {
         Auto-refreshes every 10 seconds · Last updated {dataUpdatedAt > 0 ? updatedAgo(new Date(dataUpdatedAt).toISOString()) : "—"}
       </p>
     </div>
+    </ErrorBoundary>
   );
 }
 

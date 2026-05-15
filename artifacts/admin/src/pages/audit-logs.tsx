@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 const ACTION_OPTIONS = [
   { value: "all",                    label: "All Actions" },
@@ -112,6 +113,7 @@ export default function AuditLogsPage() {
   const hasFilters = action !== "all" || result !== "all" || dateFrom || dateTo || search;
 
   return (
+    <ErrorBoundary fallback={<div className="p-8 text-center text-sm text-red-500">Audit Logs page crashed. Please reload.</div>}>
     <div className="space-y-6 max-w-[1400px]">
       <PageHeader
         icon={ClipboardList}
@@ -406,5 +408,6 @@ export default function AuditLogsPage() {
         )}
       </Card>
     </div>
+    </ErrorBoundary>
   );
 }

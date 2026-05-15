@@ -19,6 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { StatusBadge } from "@/components/AdminShared";
 import { formatDate } from "@/lib/format";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 /* ── Types ── */
 interface TopOffer {
@@ -795,6 +796,7 @@ export default function PromotionsHub() {
   ];
 
   return (
+    <ErrorBoundary fallback={<div className="p-8 text-center text-sm text-red-500">Promotions Hub page crashed. Please reload.</div>}>
     <div className="space-y-6">
       <PageHeader
         icon={Megaphone}
@@ -1128,5 +1130,6 @@ export default function PromotionsHub() {
         />
       )}
     </div>
+    </ErrorBoundary>
   );
 }

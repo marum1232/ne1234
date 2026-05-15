@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { Switch } from "@/components/ui/switch";
 import { QRCodeSVG } from "qrcode.react";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import {
   QrCode as QrCodeIcon, Plus, CheckCircle2, XCircle, Loader2, Copy, Download, ScanLine,
 } from "lucide-react";
@@ -107,6 +108,7 @@ export default function QrCodesPage() {
   };
 
   return (
+    <ErrorBoundary fallback={<div className="p-8 text-center text-sm text-red-500">QR Codes page crashed. Please reload.</div>}>
     <PullToRefresh onRefresh={async () => { await refetch(); }}>
       <div className="space-y-6">
         <PageHeader
@@ -309,5 +311,6 @@ export default function QrCodesPage() {
         </Dialog>
       </div>
     </PullToRefresh>
+    </ErrorBoundary>
   );
 }

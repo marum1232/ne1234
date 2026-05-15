@@ -3,6 +3,7 @@ import { useSearch, useLocation } from "wouter";
 import { BarChart2, Search, Heart } from "lucide-react";
 import { StatCardSkeleton } from "@/components/shared";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 const RevenueAnalytics = lazy(() => import("@/pages/revenue-analytics"));
 const SearchAnalytics  = lazy(() => import("@/pages/search-analytics"));
@@ -49,6 +50,7 @@ export default function AnalyticsPage() {
   }, [tabParam, navigate]);
 
   return (
+    <ErrorBoundary fallback={<div className="p-8 text-center text-sm text-red-500">Analytics page crashed. Please reload.</div>}>
     <div className="space-y-0">
       <Tabs value={activeTab} onValueChange={v => setTab(v as AnalyticsTab)}>
         <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border/50 px-4 pt-4 pb-0">
@@ -96,5 +98,6 @@ export default function AnalyticsPage() {
         </TabsContent>
       </Tabs>
     </div>
+    </ErrorBoundary>
   );
 }

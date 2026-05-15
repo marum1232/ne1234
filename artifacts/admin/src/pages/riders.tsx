@@ -26,6 +26,7 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { LastUpdated } from "@/components/ui/LastUpdated";
 
 import { WalletAdjustModal } from "@/components/WalletAdjustModal";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 /* ── Suspend Modal ── */
 function RiderSuspendModal({ rider, onClose }: { rider: any; onClose: () => void }) {
@@ -336,6 +337,7 @@ export default function Riders() {
   }, [qc]);
 
   return (
+    <ErrorBoundary fallback={<div className="p-8 text-center text-sm text-red-500">Riders page crashed. Please reload.</div>}>
     <PullToRefresh onRefresh={handlePullRefresh} className="space-y-6">
       <PageHeader
         icon={Bike}
@@ -561,5 +563,6 @@ export default function Riders() {
         onSubmit={submitReject}
       />
     </PullToRefresh>
+    </ErrorBoundary>
   );
 }

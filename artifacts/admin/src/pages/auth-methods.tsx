@@ -32,6 +32,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 /* ─────────────────────────────────────────────────────────────────────────
  * Auth Methods (per-role)
@@ -315,6 +316,7 @@ export default function AuthMethodsPage() {
   }
 
   return (
+    <ErrorBoundary fallback={<div className="p-8 text-center text-sm text-red-500">Auth Methods page crashed. Please reload.</div>}>
     <TooltipProvider delayDuration={200}>
       <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-50 pb-32 sm:pb-24">
         {/* ───────── Header ───────── */}
@@ -752,5 +754,6 @@ export default function AuthMethodsPage() {
         )}
       </div>
     </TooltipProvider>
+    </ErrorBoundary>
   );
 }

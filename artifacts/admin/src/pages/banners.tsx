@@ -20,6 +20,7 @@ import { tDual, type TranslationKey } from "@workspace/i18n";
 import { StatusBadge } from "@/components/AdminShared";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { SafeImage } from "@/components/ui/SafeImage";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 interface Banner {
   id: string;
@@ -243,6 +244,7 @@ export default function BannersPage() {
   const scheduledBanners = banners.filter(b => b.status === "scheduled").length;
 
   return (
+    <ErrorBoundary fallback={<div className="p-8 text-center text-sm text-red-500">Banners page crashed. Please reload.</div>}>
     <div className="space-y-6">
       <PageHeader
         icon={Layers}
@@ -669,5 +671,6 @@ export default function BannersPage() {
         busy={deleteBanner.isPending}
       />
     </div>
+    </ErrorBoundary>
   );
 }

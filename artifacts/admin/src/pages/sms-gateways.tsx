@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { useSmsGateways, useCreateSmsGateway, useUpdateSmsGateway, useDeleteSmsGateway, useToggleSmsGateway } from "@/hooks/use-admin";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 const PROVIDERS = [
   { value: "twilio",  label: "Twilio",           color: "text-red-600"    },
@@ -97,6 +98,7 @@ export default function SmsGateways() {
   const fields = PROVIDER_FIELDS[form.provider] ?? [];
 
   return (
+    <ErrorBoundary fallback={<div className="p-8 text-center text-sm text-red-500">SMS Gateways page crashed. Please reload.</div>}>
     <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-6">
       <PageHeader
         icon={Server}
@@ -222,5 +224,6 @@ export default function SmsGateways() {
         </DialogContent>
       </Dialog>
     </div>
+    </ErrorBoundary>
   );
 }

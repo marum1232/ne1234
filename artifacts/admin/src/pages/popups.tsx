@@ -20,6 +20,7 @@ import { StatusBadge } from "@/components/AdminShared";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useLanguage } from "@/lib/useLanguage";
 import { tDual, type TranslationKey } from "@workspace/i18n";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 type PopupType = "modal" | "bottom_sheet" | "top_banner" | "floating_card";
 type DisplayFrequency = "once" | "daily" | "every_session";
@@ -482,6 +483,7 @@ export default function PopupsPage() {
   const STEPS = ["Template", "Content", "Style", "Targeting", "Schedule", "Preview"];
 
   return (
+    <ErrorBoundary fallback={<div className="p-8 text-center text-sm text-red-500">Popups page crashed. Please reload.</div>}>
     <div className="space-y-6">
       <PageHeader
         icon={Megaphone}
@@ -1274,5 +1276,6 @@ export default function PopupsPage() {
         busy={deleteMutation.isPending}
       />
     </div>
+    </ErrorBoundary>
   );
 }

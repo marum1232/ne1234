@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/shared";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { safeCopyToClipboard } from "@/lib/safeClipboard";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import {
   AlertTriangle, Bug, Server, Monitor, Code, Zap,
   ChevronDown, ChevronRight, RefreshCw, Filter, X, CheckCircle2,
@@ -1226,6 +1227,7 @@ export default function ErrorMonitor() {
   };
 
   return (
+    <ErrorBoundary fallback={<div className="p-8 text-center text-sm text-red-500">Error Monitor page crashed. Please reload.</div>}>
     <div style={{ minHeight: "100vh", backgroundColor: "#F8FAFC", padding: "24px", fontFamily: "Inter, sans-serif" }}>
 
       <PageHeader
@@ -2087,5 +2089,6 @@ export default function ErrorMonitor() {
 
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
+    </ErrorBoundary>
   );
 }

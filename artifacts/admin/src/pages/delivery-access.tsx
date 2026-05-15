@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import {
   useDeliveryAccess, useUpdateDeliveryMode, useAddWhitelistEntry,
   useDeleteWhitelistEntry, useUpdateWhitelistEntry,
@@ -281,6 +282,7 @@ export default function DeliveryAccess() {
   };
 
   return (
+    <ErrorBoundary fallback={<div className="p-8 text-center text-sm text-red-500">Delivery Access page crashed. Please reload.</div>}>
     <div className="space-y-6">
       <PageHeader
         icon={Truck}
@@ -500,5 +502,6 @@ export default function DeliveryAccess() {
       {addModal && <AddEntryModal type={addModal} onClose={() => setAddModal(null)} />}
       {editModal && <EditEntryModal entry={editModal} onClose={() => setEditModal(null)} />}
     </div>
+    </ErrorBoundary>
   );
 }

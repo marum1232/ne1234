@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import {
   CONDITION_TYPES,
   SEVERITY_COLORS,
@@ -289,6 +290,7 @@ export default function AccountConditions() {
   }, [qc]);
 
   return (
+    <ErrorBoundary fallback={<div className="p-8 text-center text-sm text-red-500">Account Conditions page crashed. Please reload.</div>}>
     <PullToRefresh onRefresh={handlePullRefresh} className="space-y-6">
       <PageHeader
         icon={Shield}
@@ -437,5 +439,6 @@ export default function AccountConditions() {
         <ApplyConditionModal onClose={() => setShowApplyModal(false)} prefillUserId={userIdFilter || undefined} />
       )}
     </PullToRefresh>
+    </ErrorBoundary>
   );
 }

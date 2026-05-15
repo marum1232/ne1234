@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useQuery } from "@tanstack/react-query";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 const LIMIT = 50;
 
@@ -67,6 +68,7 @@ export default function WhatsAppDeliveryLog() {
   }, [logs]);
 
   return (
+    <ErrorBoundary fallback={<div className="p-8 text-center text-sm text-red-500">WhatsApp Delivery Log page crashed. Please reload.</div>}>
     <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-5">
       <PageHeader
         icon={MessageCircle}
@@ -195,5 +197,6 @@ export default function WhatsAppDeliveryLog() {
         </>
       )}
     </div>
+    </ErrorBoundary>
   );
 }

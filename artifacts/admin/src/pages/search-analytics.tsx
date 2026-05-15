@@ -17,6 +17,7 @@ import {
 } from "recharts";
 
 import { SafeImage } from "@/components/ui/SafeImage";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 async function apiFetch(path: string) {
   return adminAbsoluteFetch(`/api${path}`);
@@ -207,6 +208,7 @@ export default function SearchAnalyticsPage() {
   const cartRate = statsInteraction?.cartRate ?? 0;
 
   return (
+    <ErrorBoundary fallback={<div className="p-8 text-center text-sm text-red-500">Search Analytics page crashed. Please reload.</div>}>
     <div className="p-4 md:p-6 max-w-6xl mx-auto space-y-6">
       <PageHeader
         icon={BarChart2}
@@ -668,5 +670,6 @@ export default function SearchAnalyticsPage() {
         </div>
       </div>
     </div>
+    </ErrorBoundary>
   );
 }

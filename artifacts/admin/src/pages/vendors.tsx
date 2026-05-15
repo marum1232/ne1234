@@ -28,6 +28,7 @@ import { AdminFormSheet } from "@/components/AdminFormSheet";
 import { WalletAdjustModal } from "@/components/WalletAdjustModal";
 import { LastUpdated } from "@/components/ui/LastUpdated";
 import { useHasPermission } from "@/hooks/usePermissions";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 /* ── Suspend Modal ── */
 function SuspendModal({ vendor, onClose }: { vendor: any; onClose: () => void }) {
@@ -524,6 +525,7 @@ export default function Vendors() {
   }, [qc]);
 
   return (
+    <ErrorBoundary fallback={<div className="p-8 text-center text-sm text-red-500">Vendors page crashed. Please reload.</div>}>
     <PullToRefresh onRefresh={handlePullRefresh} className="space-y-6">
       <PageHeader
         icon={Store}
@@ -904,5 +906,6 @@ export default function Vendors() {
         </form>
       </AdminFormSheet>
     </PullToRefresh>
+    </ErrorBoundary>
   );
 }

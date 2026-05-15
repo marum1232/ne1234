@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useLanguage } from "@/lib/useLanguage";
 import { tDual, type TranslationKey } from "@workspace/i18n";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 type AudienceRole = "customer" | "rider" | "vendor" | "admin";
 const ROLE_OPTIONS: { value: AudienceRole; label: string }[] = [
@@ -116,6 +117,7 @@ export default function Broadcast() {
   };
 
   return (
+    <ErrorBoundary fallback={<div className="p-8 text-center text-sm text-red-500">Broadcast page crashed. Please reload.</div>}>
     <div className="space-y-6">
       <PageHeader
         icon={Megaphone}
@@ -359,5 +361,6 @@ export default function Broadcast() {
         )}
       </Card>
     </div>
+    </ErrorBoundary>
   );
 }

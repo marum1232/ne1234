@@ -16,6 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { useLanguage } from "@/lib/useLanguage";
 import { tDual, type TranslationKey } from "@workspace/i18n";
 import { SensitiveActionDialog } from "@/components/SensitiveActionDialog";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 const EMPTY_FORM = {
   code: "", description: "", discountPct: "", discountFlat: "",
@@ -231,6 +232,7 @@ export default function PromoCodes() {
   };
 
   return (
+    <ErrorBoundary fallback={<div className="p-8 text-center text-sm text-red-500">Promo Codes page crashed. Please reload.</div>}>
     <div className="space-y-6">
       <PageHeader
         icon={Ticket}
@@ -358,5 +360,6 @@ export default function PromoCodes() {
         targetId={deleteId ?? undefined}
       />
     </div>
+    </ErrorBoundary>
   );
 }

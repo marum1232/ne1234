@@ -18,6 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 /* ─── Types ──────────────────────────────────────────────────────────────── */
 type P2PTx = {
@@ -51,6 +52,7 @@ type PlatformSettingsResponse = {
 /* ─── Main Page ──────────────────────────────────────────────────────────── */
 export default function WalletTransfersPage() {
   return (
+    <ErrorBoundary fallback={<div className="p-8 text-center text-sm text-red-500">Wallet Transfers page crashed. Please reload.</div>}>
     <div className="space-y-6">
       <PageHeader
         icon={Wallet}
@@ -80,6 +82,7 @@ export default function WalletTransfersPage() {
         </TabsContent>
       </Tabs>
     </div>
+    </ErrorBoundary>
   );
 }
 
