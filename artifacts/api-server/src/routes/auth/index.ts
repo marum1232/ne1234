@@ -1214,7 +1214,12 @@ router.post("/verify-otp", otpLimiter, verifyCaptcha, sharedValidateBody(verifyO
   const otpBypassActive = !!(user.otpBypassUntil && user.otpBypassUntil > new Date());
 
   /* ── Global OTP bypass: when enabled in Danger Zone or during timed disable, accept any code for all users ── */
-  const globalOtpBypass = settings["security_otp_bypass"] === "on" || isTimedGlobalDisableActive;
+  /* Also bypass when no real OTP delivery provider is configured — mirrors send-otp auto_bypass logic so
+     environments without Twilio/SendGrid can still log in (same condition that makes send-otp return
+     otpRequired:false / channel:"auto_bypass"). */
+  const _hasRealOtpProvider = !!(process.env["TWILIO_ACCOUNT_SID"] || process.env["TWILIO_AUTH_TOKEN"] || process.env["SENDGRID_API_KEY"]);
+  const _noProviderBypass = !_hasRealOtpProvider && settings["otp_require_when_no_provider"] !== "on";
+  const globalOtpBypass = settings["security_otp_bypass"] === "on" || isTimedGlobalDisableActive || _noProviderBypass;
 
   /* ── Atomic OTP consumption via a single conditional UPDATE ──
      The WHERE clause combines: correct code + not-yet-used + not-expired.
