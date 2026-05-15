@@ -13,6 +13,17 @@ config.resolver.nodeModulesPaths = [
   path.resolve(monorepoRoot, "node_modules"),
 ];
 
+/* Pin React to a single copy so Metro's SSR pass and the client bundle both
+   use the exact same instance.  In a pnpm monorepo, Metro can accidentally
+   pick up a different React copy from the workspace root during server-side
+   rendering, causing `jsxDEV is not a function` at runtime. */
+config.resolver.extraNodeModules = {
+  react: path.resolve(projectRoot, "node_modules/react"),
+  "react-dom": path.resolve(projectRoot, "node_modules/react-dom"),
+  "react/jsx-runtime": path.resolve(projectRoot, "node_modules/react/jsx-runtime.js"),
+  "react/jsx-dev-runtime": path.resolve(projectRoot, "node_modules/react/jsx-dev-runtime.js"),
+};
+
 /* Exclude transient / tool-managed directories that may disappear at runtime.
    Metro crashes with ENOENT if it tries to watch a directory that no longer exists. */
 const escapeRegex = (str) => str.replace(/[/\-\\^$*+?.()|[\]{}]/g, "\\$&");
@@ -51,8 +62,23 @@ const WEB_SHIMS = {
   "expo-symbols":               path.resolve(projectRoot, "shims/expo-symbols.web.js"),
 };
 
+/* React 19 has a "react-server" condition in its exports field for
+   jsx-dev-runtime and jsx-runtime.  When Metro bundles the SSR ("node")
+   platform it matches that condition, loading a server build that does NOT
+   export jsxDEV — causing `_reactJsxDevRuntime.jsxDEV is not a function`.
+   Force these two sub-paths to their standard client files unconditionally so
+   the same React instance and the same jsxDEV function are used for every
+   bundle, on every platform. */
+const REACT_JSX_PINS = {
+  "react/jsx-runtime":     path.resolve(projectRoot, "node_modules/react/jsx-runtime.js"),
+  "react/jsx-dev-runtime": path.resolve(projectRoot, "node_modules/react/jsx-dev-runtime.js"),
+};
+
 const originalResolveRequest = config.resolver.resolveRequest;
 config.resolver.resolveRequest = (context, moduleName, platform) => {
+  if (REACT_JSX_PINS[moduleName]) {
+    return { filePath: REACT_JSX_PINS[moduleName], type: "sourceFile" };
+  }
   if (platform === "web" && WEB_SHIMS[moduleName]) {
     return { filePath: WEB_SHIMS[moduleName], type: "sourceFile" };
   }
