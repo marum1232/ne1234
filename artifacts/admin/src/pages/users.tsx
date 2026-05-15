@@ -36,6 +36,11 @@ import { MobileDrawer } from "@/components/MobileDrawer";
 import { SensitiveActionDialog } from "@/components/SensitiveActionDialog";
 import { LastUpdated } from "@/components/ui/LastUpdated";
 
+function normalizeRoles(roles: string | string[] | undefined, fallback = "customer"): string[] {
+  if (Array.isArray(roles)) return roles.filter(Boolean);
+  return (roles || fallback).split(",").map((r) => r.trim()).filter(Boolean);
+}
+
 const ROLE_COLORS: Record<string, string> = {
   customer: "bg-blue-100 text-blue-700 border-blue-200",
   rider:    "bg-emerald-100 text-emerald-700 border-emerald-200",
@@ -86,7 +91,7 @@ function SkeletonRow() {
 
 function UserActivityModal({ userId, userName, user: userData, onClose }: { userId: string; userName: string; user: any; onClose: () => void }) {
   const { data, isLoading, isError } = useUserActivity(userId);
-  const userRoles = (userData.roles || userData.role || "customer").split(",").filter(Boolean);
+  const userRoles = normalizeRoles(userData.roles || userData.role);
   const isRider  = userRoles.includes("rider");
   const isVendor = userRoles.includes("vendor");
 
@@ -526,7 +531,7 @@ function SecurityModal({ user, onClose }: { user: any; onClose: () => void }) {
   const { toast } = useToast();
   const qc = useQueryClient();
 
-  const userRoles  = (user.roles || user.role || "customer").split(",").map((r: string) => r.trim()).filter(Boolean);
+  const userRoles  = normalizeRoles(user.roles || user.role);
   const blockedSvc = (user.blockedServices || "").split(",").map((s: string) => s.trim()).filter(Boolean);
 
   const [roles,           setRoles]           = useState<string[]>(userRoles);
@@ -657,7 +662,7 @@ function SecurityModal({ user, onClose }: { user: any; onClose: () => void }) {
   const [pendingRoleChange, setPendingRoleChange] = useState(false);
 
   const rolesChanged = useMemo(() => {
-    const origRoles = (user.roles || user.role || "customer").split(",").map((r: string) => r.trim()).filter(Boolean).sort();
+    const origRoles = normalizeRoles(user.roles || user.role).sort();
     return roles.slice().sort().join(",") !== origRoles.join(",");
   }, [roles, user]);
 
@@ -671,7 +676,7 @@ function SecurityModal({ user, onClose }: { user: any; onClose: () => void }) {
 
   const performSaveUser = () => {
     const newRoles = roles.length > 0 ? roles : ["customer"];
-    const origRoles = Array.isArray(user.roles) ? user.roles.slice().sort() : (user.roles || "customer").split(",").map((r: string) => r.trim()).filter(Boolean).sort();
+    const origRoles = normalizeRoles(user.roles || user.role).sort();
     securityMutation.mutate(
       {
         id: user.id,
@@ -2091,7 +2096,7 @@ export default function Users() {
               <p className="text-muted-foreground text-sm">No users found</p>
             </Card>
           ) : users.map((user: any) => {
-            const userRoles = (user.roles || user.role || "customer").split(",").filter(Boolean);
+            const userRoles = normalizeRoles(user.roles || user.role);
             const isBanned  = user.isBanned;
             const isBlocked = !user.isActive && !isBanned;
             return (
@@ -2187,7 +2192,7 @@ export default function Users() {
                   </TableRow>
                 ) : (
                   users.map((user: any) => {
-                    const userRoles = (user.roles || user.role || "customer").split(",").filter(Boolean);
+                    const userRoles = normalizeRoles(user.roles || user.role);
                     const isBanned  = user.isBanned;
                     const isBlocked = !user.isActive && !isBanned;
                     const isChecked = selectedIds.has(user.id);
@@ -2365,8 +2370,7 @@ export default function Users() {
 
       {walletUser && (() => {
         const walletUserRoles = new Set([
-          ...(walletUser.roles || "").split(",").map((r: string) => r.trim()).filter(Boolean),
-          ...(walletUser.role  || "").split(",").map((r: string) => r.trim()).filter(Boolean),
+          ...normalizeRoles(walletUser.roles || walletUser.role),
         ]);
         const walletMode = walletUserRoles.has("rider") ? "rider" : walletUserRoles.has("vendor") ? "vendor" : "customer";
         return (
