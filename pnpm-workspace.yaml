@@ -142,9 +142,8 @@ overrides:
   lodash: ^4.18.0
   postcss: ^8.5.10
   protocol-buffers-schema: ^3.6.1
-  # @tootallnate/once@^2 has no v2 patch (fix requires v3+); http-proxy-agent
-  # pins ^2 so a global override to ^3 would break the firebase-admin chain.
-  # Low-severity GHSA-vpq2-c234-7xj6 accepted as transitive risk until
-  # firebase-admin upgrades http-proxy-agent.
+  # GHSA-vpq2-c234-7xj6: @tootallnate/once@2.0.1 — force http-proxy-agent to
+  # v7+ which dropped the @tootallnate/once dependency entirely (Task #7)
+  http-proxy-agent: ^7.0.2
   axios: ^1.15.2
   node-forge: ^1.4.0
