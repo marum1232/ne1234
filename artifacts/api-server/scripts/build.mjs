@@ -16,7 +16,7 @@
  */
 import { build } from "esbuild";
 import { esbuildPluginPino } from "esbuild-plugin-pino";
-import { mkdirSync, readFileSync, existsSync } from "fs";
+import { mkdirSync, readFileSync, existsSync, realpathSync } from "fs";
 import { createRequire } from "module";
 import { resolve, dirname, join } from "path";
 import { fileURLToPath } from "url";
@@ -31,6 +31,14 @@ const workspaceRoot = resolve(__dirname, "../../..");
  * Resolve @workspace/* imports to their TypeScript source so esbuild
  * bundles them inline instead of leaving them as bare package imports
  * that Node.js cannot execute (.ts exports map entries).
+ *
+ * Resolution strategy (tried in order):
+ *   1. lib/<pkgName>  — fast path covering all packages under lib/
+ *   2. realpathSync(node_modules/@workspace/<pkgName>) — generic fallback
+ *      that handles any workspace package regardless of its directory,
+ *      using pnpm's own symlink to locate the real package root.
+ *      This covers packages under artifacts/, scripts/, or any future
+ *      directory that is listed in pnpm-workspace.yaml.
  */
 const bundleWorkspacePlugin = {
   name: "bundle-workspace-packages",
@@ -43,9 +51,25 @@ const bundleWorkspacePlugin = {
       const subpath =
         slashIdx === -1 ? "." : `./${withoutPrefix.slice(slashIdx + 1)}`;
 
-      const pkgDir = join(workspaceRoot, "lib", pkgName);
-      const pkgJsonPath = join(pkgDir, "package.json");
-      if (!existsSync(pkgJsonPath)) return null;
+      // Fast path: lib/<pkgName>
+      let pkgDir = join(workspaceRoot, "lib", pkgName);
+      let pkgJsonPath = join(pkgDir, "package.json");
+
+      // Generic fallback: resolve via the pnpm workspace symlink.
+      // This handles packages that live outside lib/ (e.g. artifacts/*, scripts/).
+      if (!existsSync(pkgJsonPath)) {
+        const symlink = join(
+          workspaceRoot, "node_modules", "@workspace", pkgName
+        );
+        if (!existsSync(symlink)) return null;
+        try {
+          pkgDir = realpathSync(symlink);
+        } catch {
+          return null;
+        }
+        pkgJsonPath = join(pkgDir, "package.json");
+        if (!existsSync(pkgJsonPath)) return null;
+      }
 
       const pkg = JSON.parse(readFileSync(pkgJsonPath, "utf-8"));
       const exp = pkg.exports?.[subpath];
