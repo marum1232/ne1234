@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { webhookRegistrationsTable, webhookLogsTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
 import { logger } from "./logger.js";
+import { isValidWebhookUrl } from "./webhook-url-validator.js";
 
 const generateLogId = () => randomBytes(10).toString("hex");
 
@@ -61,6 +62,13 @@ async function dispatchWebhook(
   event: string,
   payload: Record<string, unknown>,
 ) {
+  // Re-validate the stored URL at send time to block DNS rebinding attacks
+  // and any URLs that pre-date stricter registration validation.
+  if (!await isValidWebhookUrl(webhook.url)) {
+    logger.warn({ webhookId: webhook.id, url: webhook.url }, "[webhook-emitter] dispatch blocked — stored URL failed send-time SSRF validation");
+    return;
+  }
+
   const logId = generateLogId();
   const startTime = Date.now();
 
@@ -77,9 +85,27 @@ async function dispatchWebhook(
       },
       body: JSON.stringify(payload),
       signal: controller.signal,
+      redirect: "manual",
     });
 
     clearTimeout(timeout);
+
+    if (response.type === "opaqueredirect" || (response.status >= 300 && response.status < 400)) {
+      logger.warn({ webhookId: webhook.id, url: webhook.url, status: response.status }, "[webhook-emitter] dispatch blocked — webhook URL returned a redirect (SSRF guard)");
+      await db.insert(webhookLogsTable).values({
+        id: logId,
+        webhookId: webhook.id,
+        event,
+        url: webhook.url,
+        status: 0,
+        requestBody: payload,
+        success: false,
+        error: "Redirects are not permitted for webhook destinations",
+        durationMs: Date.now() - startTime,
+      }).catch((dbErr: Error) => { logger.error({ err: dbErr.message }, "[webhook-emitter] Failed to write redirect-block log"); });
+      return;
+    }
+
     const durationMs = Date.now() - startTime;
     const responseText = await response.text().catch((err: unknown) => {
       logger.debug({ err: err instanceof Error ? err.message : String(err), webhookId: webhook.id, event }, "[webhook-emitter] response.text() read failed — using empty body");
@@ -137,6 +163,12 @@ async function retryWebhook(
   event: string,
   payload: Record<string, unknown>,
 ) {
+  // Re-validate the stored URL at retry time as well.
+  if (!await isValidWebhookUrl(webhook.url)) {
+    logger.warn({ webhookId: webhook.id, url: webhook.url }, "[webhook-emitter] retry blocked — stored URL failed send-time SSRF validation");
+    return;
+  }
+
   const logId = generateLogId();
   const startTime = Date.now();
 
@@ -154,9 +186,27 @@ async function retryWebhook(
       },
       body: JSON.stringify(payload),
       signal: controller.signal,
+      redirect: "manual",
     });
 
     clearTimeout(timeout);
+
+    if (response.type === "opaqueredirect" || (response.status >= 300 && response.status < 400)) {
+      logger.warn({ webhookId: webhook.id, url: webhook.url, status: response.status }, "[webhook-emitter] retry blocked — webhook URL returned a redirect (SSRF guard)");
+      await db.insert(webhookLogsTable).values({
+        id: logId,
+        webhookId: webhook.id,
+        event: `${event} (retry)`,
+        url: webhook.url,
+        status: 0,
+        requestBody: payload,
+        success: false,
+        error: "Redirects are not permitted for webhook destinations",
+        durationMs: Date.now() - startTime,
+      }).catch((dbErr: Error) => { logger.error({ err: dbErr.message }, "[webhook-emitter] Failed to write redirect-block retry log"); });
+      return;
+    }
+
     const durationMs = Date.now() - startTime;
     const responseText = await response.text().catch((err: unknown) => {
       logger.debug({ err: err instanceof Error ? err.message : String(err), webhookId: webhook.id, event }, "[webhook-emitter] retry response.text() read failed — using empty body");

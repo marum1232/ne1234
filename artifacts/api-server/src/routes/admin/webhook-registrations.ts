@@ -5,27 +5,12 @@ import { eq, desc } from "drizzle-orm";
 import { generateId, addAuditEntry, getClientIp, type AdminRequest, logger } from "../admin-shared.js";
 import { sendSuccess, sendError, sendNotFound, sendValidationError } from "../../lib/response.js";
 import crypto from "crypto";
+import { isValidWebhookUrl } from "../../lib/webhook-url-validator.js";
 
 const SUPPORTED_EVENTS = [
   "order_placed", "order_delivered", "ride_completed",
   "user_registered", "payment_received",
 ];
-
-function isValidWebhookUrl(raw: string): boolean {
-  try {
-    const parsed = new URL(raw);
-    if (parsed.protocol !== "https:") return false;
-    const host = parsed.hostname.toLowerCase();
-    if (host === "localhost" || host === "127.0.0.1" || host === "::1") return false;
-    if (host === "0.0.0.0" || host.startsWith("10.") || host.startsWith("192.168.")) return false;
-    if (/^172\.(1[6-9]|2\d|3[01])\./.test(host)) return false;
-    if (host === "169.254.169.254" || host.endsWith(".internal") || host.endsWith(".local")) return false;
-    return true;
-  } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
-    return false;
-  }
-}
 
 const router = Router();
 
@@ -44,7 +29,7 @@ router.post("/webhooks", async (req, res) => {
   try {
     const { url, events, description } = req.body;
     if (!url) { sendValidationError(res, "URL is required"); return; }
-    if (!isValidWebhookUrl(url)) {
+    if (!await isValidWebhookUrl(url)) {
       sendValidationError(res, "URL must be HTTPS and must not point to private/internal networks"); return;
     }
     if (!events || !Array.isArray(events) || events.length === 0) {
@@ -99,9 +84,16 @@ router.post("/webhooks/:id/test", async (req, res, next) => {
     const [found] = await db.select().from(webhookRegistrationsTable).where(eq(webhookRegistrationsTable.id, id)).limit(1);
     webhook = found;
   } catch (err) { next(err); return; }
-  if (!webhook) { sendNotFound(res, "Webhook not found"); return;
-  }
+  if (!webhook) { sendNotFound(res, "Webhook not found"); return; }
   const id = webhook.id;
+
+  // Re-validate the stored URL at send time to prevent DNS rebinding attacks
+  // and to block any URLs that were registered before stricter validation was in place.
+  if (!await isValidWebhookUrl(webhook.url)) {
+    logger.warn({ webhookId: id, url: webhook.url }, "[webhook-registrations] test-ping blocked — stored URL failed send-time SSRF validation");
+    sendValidationError(res, "Webhook URL no longer passes destination validation and cannot be used");
+    return;
+  }
 
   const testPayload = {
     event: "test_ping",
@@ -124,7 +116,25 @@ router.post("/webhooks/:id/test", async (req, res, next) => {
       },
       body: JSON.stringify(testPayload),
       signal: controller.signal,
+      redirect: "manual",
     });
+    if (response.type === "opaqueredirect" || (response.status >= 300 && response.status < 400)) {
+      clearTimeout(timeout);
+      logger.warn({ webhookId: id, url: webhook.url, status: response.status }, "[webhook-registrations] test-ping blocked — webhook URL returned a redirect (SSRF guard)");
+      await db.insert(webhookLogsTable).values({
+        id: logId,
+        webhookId: id,
+        event: "test_ping",
+        url: webhook.url,
+        status: 0,
+        requestBody: testPayload,
+        success: false,
+        error: "Redirects are not permitted for webhook destinations",
+        durationMs: Date.now() - startTime,
+      });
+      sendSuccess(res, { success: false, error: "Redirects are not permitted for webhook destinations", durationMs: Date.now() - startTime });
+      return;
+    }
     clearTimeout(timeout);
     const durationMs = Date.now() - startTime;
     const responseText = await response.text().catch((err: unknown) => {
