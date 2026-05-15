@@ -119,6 +119,7 @@ ADMIN_DEV_PORT = "3001"
 [userenv.development]
 
 [userenv.production]
+ALLOWED_ORIGINS = "https://ajkmart.com,https://www.ajkmart.com"
 
 [postMerge]
 path = "scripts/post-merge.sh"
