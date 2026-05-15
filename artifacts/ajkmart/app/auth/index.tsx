@@ -50,9 +50,9 @@ async function authPost(path: string, body: object, extraHeaders?: Record<string
     headers: { "Content-Type": "application/json", ...extraHeaders },
     body: JSON.stringify(body),
   });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "Request failed");
-  return data;
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || json.message || "Request failed");
+  return json?.data !== undefined ? json.data : json;
 }
 
 export default function AuthScreen() {

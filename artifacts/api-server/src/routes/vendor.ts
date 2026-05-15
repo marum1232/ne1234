@@ -19,6 +19,25 @@ const router: IRouter = Router();
 /* ── Auth: replaced duplicated vendorAuth with the shared requireRole factory ── */
 router.use(requireRole("vendor", { vendorApprovalCheck: true }));
 
+/* ── Load full vendor user object so req.vendorUser is available to all routes ──
+   requireRole sets req.vendorId but not req.vendorUser. Routes that call
+   formatUser(req.vendorUser!) crash with "Cannot read properties of undefined".
+   This middleware fetches the user row once per request and caches it on req. ── */
+router.use(async (req: Request, res: any, next: any) => {
+  try {
+    const vendorId = req.vendorId;
+    if (!vendorId) { next(); return; }
+    if (req.vendorUser) { next(); return; }
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, vendorId)).limit(1);
+    if (!user) { res.status(403).json({ success: false, error: "Vendor account not found" }); return; }
+    req.vendorUser = user as any;
+    next();
+  } catch (err) {
+    logger.error({ err }, "[vendor] user-load middleware error");
+    next(err);
+  }
+});
+
 /* ── Vendor PATCH schemas ── */
 const patchProfileSchema = z.object({
   name:             z.string().min(1).max(100).optional(),
