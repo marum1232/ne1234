@@ -291,6 +291,17 @@ export function verifyAdminJwt(token: string): AdminPayload | null {
 }
 
 export async function getAdminSecret(): Promise<string | null> {
+  // Priority order:
+  //   1. Runtime-config value — updated immediately when the rotate-secret
+  //      endpoint is called, and seeded from "admin_secret_override" in the
+  //      DB on every restart. This is the only source that reflects a
+  //      rotation performed without a server restart.
+  //   2. platform_settings["admin_master_secret"] — manually set via admin UI.
+  //   3. ADMIN_SECRET env var — initial bootstrap value.
+  const { getAdminSecretRuntime } = await import("../lib/runtime-config.js");
+  const runtimeSecret = getAdminSecretRuntime();
+  if (runtimeSecret) return runtimeSecret;
+
   const envSecret = process.env.ADMIN_SECRET;
   try {
     const settings = await _getCachedSettings();

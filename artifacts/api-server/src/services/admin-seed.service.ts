@@ -59,6 +59,12 @@ function resolveSeedPassword(): string {
 /**
  * Seed the default super-admin if and only if no admin accounts exist.
  * Idempotent — safe to call on every boot.
+ *
+ * Production guard: in production the seed is skipped unless the operator
+ * has explicitly set `ADMIN_SEED_PASSWORD`. Deploying with the publicly
+ * documented fallback password `Admin@123` would leave a fully-functional
+ * super-admin account with a well-known credential, so we refuse to create
+ * it and log a clear message explaining what the operator must do instead.
  */
 export async function seedDefaultSuperAdmin(): Promise<SeedResult> {
   const existing = await db
@@ -71,6 +77,19 @@ export async function seedDefaultSuperAdmin(): Promise<SeedResult> {
     // that seeding ran and decided to leave the existing admin set alone,
     // instead of having to infer it from the absence of a "created" line.
     logger.info("[admin-seed] skipped — at least one admin account already exists");
+    return { created: false };
+  }
+
+  // Production safety gate: refuse to seed with the hard-coded fallback
+  // password. The operator must supply a strong, unique ADMIN_SEED_PASSWORD
+  // before the first super-admin account can be created automatically.
+  const fromEnv = process.env.ADMIN_SEED_PASSWORD?.trim();
+  if (process.env.NODE_ENV === "production" && (!fromEnv || fromEnv.length === 0)) {
+    logger.fatal(
+      "[admin-seed] BLOCKED: no admin accounts exist and ADMIN_SEED_PASSWORD is not set. " +
+      "Set ADMIN_SEED_PASSWORD to a strong unique password in your environment secrets, then restart. " +
+      "The server will not create a default admin account with the documented fallback password in production."
+    );
     return { created: false };
   }
 
