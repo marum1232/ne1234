@@ -1,5 +1,6 @@
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
-import { writeFile, mkdir } from "fs/promises";
+import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
+import { writeFile, mkdir, readFile } from "fs/promises";
+import { Readable } from "stream";
 import path from "path";
 import { logger } from "./logger.js";
 
@@ -105,6 +106,52 @@ export function isS3Enabled(): boolean {
   return s3Client !== null && resolvedBucketName !== null;
 }
 
+/**
+ * Download an object from storage by key and return its raw bytes.
+ * Used to serve pre-registration documents through the authenticated proxy
+ * instead of exposing direct S3/public URLs.
+ */
+export async function storageDownload(key: string): Promise<{ buffer: Buffer; contentType: string } | null> {
+  if (s3Client && resolvedBucketName) {
+    try {
+      const response = await s3Client.send(
+        new GetObjectCommand({ Bucket: resolvedBucketName, Key: key }),
+      );
+      if (!response.Body) return null;
+      const stream = response.Body as Readable;
+      const chunks: Buffer[] = [];
+      for await (const chunk of stream) {
+        chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk as Uint8Array));
+      }
+      return {
+        buffer: Buffer.concat(chunks),
+        contentType: response.ContentType ?? "application/octet-stream",
+      };
+    } catch (err) {
+      logger.warn({ key, err: err instanceof Error ? err.message : String(err) }, "[storage] storageDownload S3 fetch failed");
+      return null;
+    }
+  }
+
+  if (IS_PROD) {
+    throw new Error("[storage] storageDownload called in production without a working S3 client.");
+  }
+
+  try {
+    const filePath = path.join(LOCAL_UPLOADS_DIR, key);
+    const buffer = await readFile(filePath);
+    const ext = path.extname(key).toLowerCase();
+    const contentType =
+      ext === ".jpg" || ext === ".jpeg" ? "image/jpeg"
+      : ext === ".png" ? "image/png"
+      : ext === ".webp" ? "image/webp"
+      : "application/octet-stream";
+    return { buffer, contentType };
+  } catch {
+    return null;
+  }
+}
+
 export async function storageUpload(
   buffer: Buffer,
   key: string,
@@ -133,4 +180,146 @@ export async function storageUpload(
   await ensureLocalDir();
   await writeFile(path.join(LOCAL_UPLOADS_DIR, key), buffer);
   return `/api/uploads/${key}`;
+}
+
+/* ── Private object storage ───────────────────────────────────────────────
+   A SEPARATE S3 client is used for sensitive pre-registration documents so
+   that those objects are NEVER written to the same bucket origin that is
+   publicly readable. No per-object ACL tricks are used here: the private
+   bucket itself must be configured with no public access.
+
+   Required env vars (when deploying):
+     STORAGE_PRIVATE_BUCKET_URL   — e.g. https://my-private-bucket.s3.amazonaws.com
+     STORAGE_PRIVATE_ACCESS_KEY   — falls back to STORAGE_ACCESS_KEY
+     STORAGE_PRIVATE_SECRET_KEY   — falls back to STORAGE_SECRET_KEY
+     STORAGE_PRIVATE_BUCKET_NAME  — auto-detected from URL if absent
+
+   In development (NODE_ENV !== "production"), files are written to the local
+   uploads directory instead, which is never publicly served as a static tree.
+
+   If the private bucket is not configured in production this function throws
+   immediately (no silent fallback to the public bucket).
+*/
+
+const STORAGE_PRIVATE_BUCKET_URL = process.env["STORAGE_PRIVATE_BUCKET_URL"];
+const STORAGE_PRIVATE_ACCESS_KEY = process.env["STORAGE_PRIVATE_ACCESS_KEY"] ?? STORAGE_ACCESS_KEY;
+const STORAGE_PRIVATE_SECRET_KEY = process.env["STORAGE_PRIVATE_SECRET_KEY"] ?? STORAGE_SECRET_KEY;
+const STORAGE_PRIVATE_BUCKET_NAME = process.env["STORAGE_PRIVATE_BUCKET_NAME"];
+
+let privateS3Client: S3Client | null = null;
+let privateResolvedBucketName: string | null = null;
+
+if (STORAGE_PRIVATE_BUCKET_URL) {
+  try {
+    const { bucket: derivedBucket, endpoint: derivedEndpoint } = parseBucketUrl(STORAGE_PRIVATE_BUCKET_URL);
+    privateResolvedBucketName = STORAGE_PRIVATE_BUCKET_NAME ?? derivedBucket;
+    const endpoint = derivedEndpoint;
+    if (privateResolvedBucketName && STORAGE_PRIVATE_ACCESS_KEY && STORAGE_PRIVATE_SECRET_KEY) {
+      privateS3Client = new S3Client({
+        region: STORAGE_REGION,
+        endpoint,
+        credentials: {
+          accessKeyId: STORAGE_PRIVATE_ACCESS_KEY,
+          secretAccessKey: STORAGE_PRIVATE_SECRET_KEY,
+        },
+        forcePathStyle: true,
+      });
+      logger.info(`[storage] Private S3 bucket configured. Bucket: ${privateResolvedBucketName}`);
+    } else {
+      logger.warn("[storage] STORAGE_PRIVATE_BUCKET_URL set but credentials/bucket name incomplete — private uploads will use local disk.");
+    }
+  } catch (err) {
+    logger.warn({ err }, "[storage] Failed to init private S3 client.");
+  }
+} else if (!IS_PROD) {
+  logger.info("[storage] STORAGE_PRIVATE_BUCKET_URL not set — private uploads go to local disk (development only).");
+}
+
+/**
+ * Upload an object to PRIVATE storage — for sensitive pre-registration
+ * documents. Uses a dedicated private S3 bucket (not the public uploads
+ * bucket). Files are never directly accessible via a public URL; they are
+ * served only through the authenticated proxy (GET /api/uploads/reg/:key).
+ *
+ * In production, requires STORAGE_PRIVATE_BUCKET_URL to be configured.
+ * Throws explicitly if private storage is unavailable — no silent fallback
+ * to the public bucket.
+ */
+export async function storageUploadPrivate(
+  buffer: Buffer,
+  key: string,
+  contentType: string,
+): Promise<void> {
+  if (privateS3Client && privateResolvedBucketName) {
+    await privateS3Client.send(
+      new PutObjectCommand({
+        Bucket: privateResolvedBucketName,
+        Key: key,
+        Body: buffer,
+        ContentType: contentType,
+        /* No ACL field — the bucket itself must deny public access at the
+           bucket policy/block-public-access level. We rely on bucket-level
+           access control, not object-level ACLs, for broad provider compat. */
+      }),
+    );
+    return;
+  }
+
+  if (IS_PROD) {
+    throw new Error(
+      "[storage] storageUploadPrivate: STORAGE_PRIVATE_BUCKET_URL is required in production. " +
+      "Configure a private (non-public) S3 bucket and set STORAGE_PRIVATE_BUCKET_URL, " +
+      "STORAGE_PRIVATE_ACCESS_KEY, and STORAGE_PRIVATE_SECRET_KEY.",
+    );
+  }
+
+  /* Development fallback — local disk, served only through authenticated proxy */
+  await ensureLocalDir();
+  await writeFile(path.join(LOCAL_UPLOADS_DIR, key), buffer);
+}
+
+/**
+ * Download an object from private storage.
+ * Mirrors storageDownload() but uses the private S3 client.
+ */
+export async function storageDownloadPrivate(key: string): Promise<{ buffer: Buffer; contentType: string } | null> {
+  if (privateS3Client && privateResolvedBucketName) {
+    try {
+      const response = await privateS3Client.send(
+        new GetObjectCommand({ Bucket: privateResolvedBucketName, Key: key }),
+      );
+      if (!response.Body) return null;
+      const stream = response.Body as Readable;
+      const chunks: Buffer[] = [];
+      for await (const chunk of stream) {
+        chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk as Uint8Array));
+      }
+      return {
+        buffer: Buffer.concat(chunks),
+        contentType: response.ContentType ?? "application/octet-stream",
+      };
+    } catch (err) {
+      logger.warn({ key, err: err instanceof Error ? err.message : String(err) }, "[storage] storageDownloadPrivate S3 fetch failed");
+      return null;
+    }
+  }
+
+  if (IS_PROD) {
+    throw new Error("[storage] storageDownloadPrivate called in production without a private S3 client.");
+  }
+
+  /* Dev: read from local disk */
+  try {
+    const filePath = path.join(LOCAL_UPLOADS_DIR, key);
+    const buffer = await readFile(filePath);
+    const ext = path.extname(key).toLowerCase();
+    const contentType =
+      ext === ".jpg" || ext === ".jpeg" ? "image/jpeg"
+      : ext === ".png" ? "image/png"
+      : ext === ".webp" ? "image/webp"
+      : "application/octet-stream";
+    return { buffer, contentType };
+  } catch {
+    return null;
+  }
 }

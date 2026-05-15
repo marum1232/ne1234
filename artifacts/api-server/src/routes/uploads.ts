@@ -8,11 +8,116 @@ import os from "os";
 import multer from "multer";
 import sharp from "sharp";
 import { sendSuccess, sendCreated, sendError, sendNotFound, sendValidationError } from "../lib/response.js";
-import { customerAuth, riderAuth, requireRole, getCachedSettings } from "../middleware/security.js";
+import { customerAuth, riderAuth, requireRole, getCachedSettings, verifyUserJwt } from "../middleware/security.js";
+import { registerUploadLimiter } from "../middleware/rate-limit.js";
 import { db } from "@workspace/db";
 import { pharmacyPrescriptionRefsTable } from "@workspace/db/schema";
 import { logger } from "../lib/logger.js";
-import { storageUpload } from "../lib/storage.js";
+import { storageUpload, storageUploadPrivate, storageDownloadPrivate } from "../lib/storage.js";
+import { verifyAccessToken } from "../utils/admin-jwt.js";
+import type { Request, Response, NextFunction } from "express";
+
+/* ── Server-side registration upload nonce store ─────────────────────────
+   Each call to POST /uploads/register-token issues a UUID nonce stored in
+   this in-memory Map. The nonce is ONE-TIME USE: consumed on the first
+   successful POST /uploads/register and deleted from the map.
+   A second Map records which nonce owns each uploaded document so that
+   GET /uploads/reg/:key can enforce owner-or-admin access.
+*/
+const REG_TOKEN_TTL_MS = 30 * 60 * 1000; /* 30 minutes */
+const MAX_PENDING_NONCES = 500;
+
+interface PendingNonce { exp: number; consumed: boolean }
+const pendingNonces = new Map<string, PendingNonce>();
+const docNonces = new Map<string, string>(); /* docKey → nonce */
+
+function pruneNonces(): void {
+  const now = Date.now();
+  for (const [nonce, info] of pendingNonces) {
+    if (info.exp < now) pendingNonces.delete(nonce);
+  }
+  for (const [key, nonce] of docNonces) {
+    if (!pendingNonces.has(nonce)) docNonces.delete(key);
+  }
+}
+
+function issueNonce(): string {
+  if (pendingNonces.size >= MAX_PENDING_NONCES) pruneNonces();
+  const nonce = randomUUID();
+  pendingNonces.set(nonce, { exp: Date.now() + REG_TOKEN_TTL_MS, consumed: false });
+  return nonce;
+}
+
+/** Validate and atomically consume a nonce (one-time use). */
+function consumeNonce(nonce: string): boolean {
+  if (!nonce) return false;
+  const info = pendingNonces.get(nonce);
+  if (!info) return false;
+  if (info.exp < Date.now()) { pendingNonces.delete(nonce); return false; }
+  if (info.consumed) return false;
+  info.consumed = true;
+  return true;
+}
+
+/** Associate docKey with the nonce that uploaded it (used for access check). */
+function bindDocToNonce(docKey: string, nonce: string): void {
+  /* Keep the nonce entry alive (even though consumed) for the doc lifetime.
+     Reset consumed flag so the GET endpoint can re-validate without re-issuing. */
+  const info = pendingNonces.get(nonce);
+  if (info) {
+    docNonces.set(docKey, nonce);
+    /* extend expiry 24h so admins can review before cleanup */
+    info.exp = Date.now() + 24 * 60 * 60 * 1000;
+  }
+}
+
+/** Returns true if the supplied nonce is authorised to read the given docKey. */
+function nonceCanReadDoc(docKey: string, nonce: string): boolean {
+  const stored = docNonces.get(docKey);
+  if (!stored || stored !== nonce) return false;
+  const info = pendingNonces.get(nonce);
+  return info !== undefined && info.exp > Date.now();
+}
+
+/* ── Combined user + admin auth for the registration-doc proxy ────────────
+   Accepts either a valid end-user JWT or a valid admin access token.
+   Sets req.userId (user path) or req.adminId (admin path) before next(). */
+function anyAuthOrAdmin(req: Request, res: Response, next: NextFunction): void {
+  const header = req.headers["authorization"] as string | undefined;
+  const tokenHeader = req.headers["x-auth-token"] as string | undefined;
+  const raw = tokenHeader || (header?.startsWith("Bearer ") ? header.slice(7) : null);
+
+  if (!raw) {
+    res.status(401).json({ error: "Authentication required" });
+    return;
+  }
+
+  /* Try user JWT first */
+  try {
+    const userPayload = verifyUserJwt(raw);
+    if (userPayload) {
+      (req as Request & { userId?: string }).userId = userPayload.userId;
+      next();
+      return;
+    }
+  } catch {
+    /* not a user token — fall through to admin check */
+  }
+
+  /* Try admin JWT */
+  try {
+    const adminPayload = verifyAccessToken(raw);
+    if (adminPayload?.sub) {
+      (req as Request & { adminId?: string }).adminId = adminPayload.sub;
+      next();
+      return;
+    }
+  } catch {
+    /* not a valid admin token either */
+  }
+
+  res.status(401).json({ error: "Authentication required" });
+}
 
 const execFileAsync = promisify(execFile);
 
@@ -274,12 +379,33 @@ router.post(
   },
 );
 
-/* ── POST /uploads/register — multipart/form-data upload for registration documents (unauthenticated) ──
-   Used during rider/vendor registration before the user has a JWT.
-   Same 5MB / allowed-type limits as other upload routes.
+/* ── POST /uploads/register-token — issue a server-side one-time-use nonce ───
+   Public endpoint (no auth required) that creates a UUID nonce, stores it
+   server-side, and returns it to the caller. The nonce is required in
+   POST /uploads/register (x-upload-token header) and is ONE-TIME USE —
+   consumed on the first successful upload. This binds each document upload
+   to a specific, server-tracked onboarding session rather than a freely
+   mintable stateless token.
+   Rate-limited by registerUploadLimiter (10 req/60 min/IP).
+*/
+router.post("/register-token", registerUploadLimiter, (_req, res) => {
+  try {
+    const nonce = issueNonce();
+    res.status(200).json({ success: true, token: nonce, expiresIn: REG_TOKEN_TTL_MS / 1000 });
+  } catch (e: unknown) {
+    sendError(res, e instanceof Error ? e.message : "Failed to generate token");
+  }
+});
+
+/* ── POST /uploads/register — multipart/form-data upload for registration documents ──
+   Requires a valid x-upload-token header (obtained from POST /uploads/register-token).
+   Stores the document as a private S3 object (ACL: private).
+   Returns an opaque /api/uploads/reg/:key path — NOT a direct storage URL.
+   The file is served only via the authenticated GET /uploads/reg/:key proxy.
 */
 router.post(
   "/register",
+  registerUploadLimiter,
   (req, res, next) => {
     upload.single("file")(req, res, (err) => {
       if (err instanceof multer.MulterError) {
@@ -298,6 +424,19 @@ router.post(
     });
   },
   async (req, res) => {
+    /* Validate and atomically consume the one-time server-side nonce.
+       Each nonce is issued by POST /uploads/register-token, tracked in memory,
+       and can only be used once. Replay or forged tokens are rejected. */
+    const uploadToken = req.headers["x-upload-token"] as string | undefined;
+    if (!uploadToken || !consumeNonce(uploadToken)) {
+      res.status(403).json({
+        success: false,
+        error: "A valid registration upload token is required. Call POST /api/uploads/register-token first.",
+        code: "MISSING_UPLOAD_TOKEN",
+      });
+      return;
+    }
+
     try {
       if (!req.file) {
         sendValidationError(res, "No file uploaded");
@@ -321,11 +460,25 @@ router.post(
         return;
       }
 
-      const url = await saveBuffer(buffer, "reg", mimetype);
+      /* Store in private storage (separate private S3 bucket, or local disk in dev).
+         Never stored in the public uploads bucket. */
+      const ext = mimetype === "image/png" ? ".png" : mimetype === "image/webp" ? ".webp" : ".jpg";
+      const key = `reg_${Date.now()}_${randomUUID().slice(0, 8)}${ext}`;
+      const processed = await maybeCompressImage(buffer, mimetype);
+      await storageUploadPrivate(processed, key, mimetype);
+
+      /* Bind the doc key to the nonce so the GET proxy can enforce ownership. */
+      bindDocToNonce(key, uploadToken);
+
+      /* Return an opaque server-relative path AND the download nonce.
+         The client must pass the nonce as x-doc-nonce when retrieving the doc.
+         Admins can retrieve any doc with an admin JWT (no nonce required). */
+      const opaqueUrl = `/api/uploads/reg/${key}`;
 
       sendCreated(res, {
-        url,
-        filename: originalname || path.basename(url),
+        url: opaqueUrl,
+        downloadToken: uploadToken,
+        filename: originalname || key,
         size: buffer.length,
       });
     } catch (e: unknown) {
@@ -334,6 +487,67 @@ router.post(
     }
   },
 );
+
+/* ── GET /uploads/reg/:key — owner-or-admin proxy for pre-registration docs ──
+   Access is restricted to either:
+     (a) The original uploader: presents x-doc-nonce header matching the nonce
+         that was returned in the POST /uploads/register response. This nonce
+         is server-tracked and scoped to the specific docKey.
+     (b) An admin: presents a valid admin access token via Authorization header.
+   Any other request (valid user JWT with no matching nonce, public request,
+   wrong nonce) receives a 403. Key format is validated to prevent traversal.
+*/
+const REG_KEY_SAFE = /^reg_[\w.-]+$/;
+
+router.get("/reg/:key", async (req, res) => {
+  const { key } = req.params;
+
+  if (!key || !REG_KEY_SAFE.test(key)) {
+    sendNotFound(res);
+    return;
+  }
+
+  /* Check admin JWT first */
+  const header = req.headers["authorization"] as string | undefined;
+  const tokenHeader = req.headers["x-auth-token"] as string | undefined;
+  const rawToken = tokenHeader || (header?.startsWith("Bearer ") ? header.slice(7) : null);
+  const docNonce = req.headers["x-doc-nonce"] as string | undefined;
+
+  let isAdmin = false;
+  if (rawToken) {
+    try {
+      const adminPayload = verifyAccessToken(rawToken);
+      if (adminPayload?.sub) isAdmin = true;
+    } catch { /* not admin */ }
+  }
+
+  /* Check owner nonce (required for non-admin callers) */
+  const isOwner = docNonce ? nonceCanReadDoc(key, docNonce) : false;
+
+  if (!isAdmin && !isOwner) {
+    res.status(403).json({
+      success: false,
+      error: "Access denied. Present x-doc-nonce (from original upload) or an admin token.",
+      code: "DOC_ACCESS_DENIED",
+    });
+    return;
+  }
+
+  try {
+    const result = await storageDownloadPrivate(key);
+    if (!result) {
+      sendNotFound(res);
+      return;
+    }
+    res.setHeader("Content-Type", result.contentType);
+    res.setHeader("Cache-Control", "private, no-store");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.end(result.buffer);
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : "Fetch failed";
+    sendError(res, msg);
+  }
+});
 
 /* ── POST /uploads/prescription — base64 prescription upload (customers) ── */
 router.post("/prescription", customerAuth, async (req, res) => {

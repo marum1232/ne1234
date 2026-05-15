@@ -7,16 +7,17 @@
  * ever blocked by a Redis outage.
  *
  * Tiers:
- *   globalLimiter      300 req / 15 min  — all /api traffic
- *   loginLimiter         5 req / 60 s   / IP            — POST /api/auth/login
- *   otpLimiter           3 req / 60 s   / phone (or IP) — OTP send/verify
- *   userApiLimiter     100 req / 60 s   / authenticated user ID
- *   authLimiter         20 req / 15 min  — OTP / login / social-auth (legacy guard)
- *   adminAuthLimiter    10 req / 15 min  — admin login & password-reset
- *   paymentLimiter      30 req / 15 min  — wallet & payment routes
- *   publicLimiter       60 req / 15 min  — public scraping-prone endpoints
- *   redeemLimiter        5 req / 15 min / user — POST /api/loyalty/redeem
- *   exportDataLimiter    3 req / 15 min / user — POST /api/users/export-data
+ *   globalLimiter           300 req / 15 min  — all /api traffic
+ *   loginLimiter              5 req / 60 s   / IP            — POST /api/auth/login
+ *   otpLimiter                3 req / 60 s   / phone (or IP) — OTP send/verify
+ *   userApiLimiter          100 req / 60 s   / authenticated user ID
+ *   authLimiter              20 req / 15 min  — OTP / login / social-auth (legacy guard)
+ *   adminAuthLimiter         10 req / 15 min  — admin login & password-reset
+ *   paymentLimiter           30 req / 15 min  — wallet & payment routes
+ *   publicLimiter            60 req / 15 min  — public scraping-prone endpoints
+ *   redeemLimiter             5 req / 15 min / user — POST /api/loyalty/redeem
+ *   exportDataLimiter         3 req / 15 min / user — POST /api/users/export-data
+ *   registerUploadLimiter    10 req / 60 min / IP  — POST /api/uploads/register (unauthenticated)
  */
 import rateLimit, { type Options, type Store } from "express-rate-limit";
 import { RedisStore } from "rate-limit-redis";
@@ -156,6 +157,18 @@ export const exportDataLimiter = rateLimit(makeOptions("export-data", 3, WINDOW_
       "unknown"
     );
   },
+}));
+
+/**
+ * registerUploadLimiter — 10 uploads / 60 min / IP.
+ * Apply to POST /api/uploads/register (unauthenticated pre-signup document upload).
+ * Prevents storage/bandwidth exhaustion by anonymous callers.
+ */
+export const registerUploadLimiter = rateLimit(makeOptions("register-upload", 10, 60 * 60 * 1000, {
+  keyGenerator: (req: Request) =>
+    ((req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ||
+     req.socket?.remoteAddress ||
+     "unknown"),
 }));
 
 /**

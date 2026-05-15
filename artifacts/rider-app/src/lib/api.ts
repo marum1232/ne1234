@@ -440,10 +440,19 @@ export const api = {
     form.append("purpose", "delivery_proof");
     return apiFetch("/uploads/proof", { method: "POST", body: form });
   },
-  uploadRegistrationDoc: (file: File) => {
+  uploadRegistrationDoc: async (file: File) => {
+    /* Obtain a short-lived upload session token (required by the server
+       to bind the upload to an active onboarding flow). */
+    const tokenRes = await apiFetch("/uploads/register-token", { method: "POST" });
+    const uploadToken: string = tokenRes?.token ?? "";
+    if (!uploadToken) throw new Error("Failed to obtain upload session token");
     const form = new FormData();
     form.append("file", file, file.name || "document.jpg");
-    return apiFetch("/uploads/register", { method: "POST", body: form });
+    return apiFetch("/uploads/register", {
+      method: "POST",
+      body: form,
+      headers: { "x-upload-token": uploadToken },
+    });
   },
   forgotPassword: (data: { method: "phone" | "email"; phone?: string; email?: string; captchaToken?: string }) =>
     apiFetch("/auth/forgot-password", { method: "POST", body: JSON.stringify(data) }),
