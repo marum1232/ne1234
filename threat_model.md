@@ -25,6 +25,7 @@ Production assumptions for this repo:
 - **User to admin boundary** — `/api/admin*` and admin-only business actions are a hard privilege boundary. Breaks here are high impact.
 - **API to database boundary** — the API has broad DB access; injection or authorization mistakes can expose or corrupt the full dataset.
 - **API to external service boundary** — SMS, WhatsApp, email, maps/geocoding, payment providers, Firebase, Sentry, Slack/webhooks, AI, and S3/object storage all consume server-side secrets and can become SSRF or secret-leak pivots.
+- **Deployment config to runtime boundary** — files like `.replit` are in scope when project docs say their values can feed the live process environment. Committed secrets, bootstrap passwords, or production flags in these files are production vulnerabilities, not dev-only noise.
 - **Production to dev-only boundary** — local-disk uploads, dev placeholder secrets, seed routes, console OTP delivery, and mock fallbacks are only acceptable when truly unreachable in production.
 
 ## Scan Anchors
