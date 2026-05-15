@@ -1,3 +1,4 @@
+import { memo } from "react";
 import type { TranslationKey } from "@workspace/i18n";
 import { CheckCircle, MapPin, Navigation, X, XCircle } from "lucide-react";
 import { AcceptCountdown } from "./AcceptCountdown";
@@ -24,7 +25,7 @@ interface OrderRequestCardProps {
   T: (key: TranslationKey) => string;
 }
 
-export function OrderRequestCard({
+export const OrderRequestCard = memo(function OrderRequestCard({
   order: o,
   earnings,
   currency,
@@ -183,4 +184,4 @@ export function OrderRequestCard({
       </div>
     </div>
   );
-}
+});

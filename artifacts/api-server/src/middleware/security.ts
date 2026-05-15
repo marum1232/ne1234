@@ -15,7 +15,7 @@ import { generateId } from "../lib/id.js";
    ══════════════════════════════════════════════════════════════ */
 let settingsCache: Record<string, string> = {};
 let _settingsCacheTimestamp = 0;
-const SETTINGS_CACHE_TTL_MS = 60 * 1000;
+const SETTINGS_CACHE_TTL_MS = 5 * 60 * 1000;
 
 export async function getCachedSettings(): Promise<Record<string, string>> {
   const now = Date.now();

@@ -13,6 +13,7 @@ const router: IRouter = Router();
 
 // Public endpoint — all client apps fetch this for config + feature flags
 router.get("/", async (req, res) => {
+  res.set("Cache-Control", "public, max-age=30, stale-while-revalidate=60");
   const s: Record<string, string> = await getCachedSettings();
   const isDemoMode = s["platform_mode"] !== "live";
   let demoData: { vendors: unknown[]; orders: unknown[]; riders: unknown[]; products: unknown[]; source: string } | null = null;

@@ -64,7 +64,7 @@ export default function Home() {
 
   const { config } = usePlatformConfig();
   const { language } = useLanguage();
-  const T = (key: Parameters<typeof tDual>[0]) => tDual(key, language);
+  const T = useCallback((key: Parameters<typeof tDual>[0]) => tDual(key, language), [language]);
   const currency = config.platform.currencySymbol ?? "Rs.";
   const qc = useQueryClient();
   const [toggling, setToggling] = useState(false);
@@ -155,7 +155,7 @@ export default function Home() {
   const [showOfflineConfirm, setShowOfflineConfirm] = useState(false);
   const [zoneWarning, setZoneWarning] = useState<string | null>(null);
 
-  const doActualToggle = async () => {
+  const doActualToggle = useCallback(async () => {
     const now = Date.now();
     lastToggleRef.current = now;
     setToggling(true);
@@ -184,9 +184,9 @@ export default function Home() {
         setToggling(false);
       }
     }
-  };
+  }, [effectiveOnline, refreshUser, showToast, T]);
 
-  const toggleOnline = async () => {
+  const toggleOnline = useCallback(async () => {
     const now = Date.now();
     if (toggling || now - lastToggleRef.current < TOGGLE_DEBOUNCE_MS) return;
     lastToggleRef.current = now;
@@ -197,7 +197,7 @@ export default function Home() {
     }
 
     await doActualToggle();
-  };
+  }, [toggling, effectiveOnline, doActualToggle]);
 
   const { data: earningsData } = useQuery({
     queryKey: ["rider-earnings"],

@@ -1,3 +1,4 @@
+import { memo } from "react";
 import type { TranslationKey } from "@workspace/i18n";
 import { Zap, Radio } from "lucide-react";
 
@@ -6,7 +7,7 @@ interface RequestListHeaderProps {
   T: (key: TranslationKey) => string;
 }
 
-export function RequestListHeader({ totalRequests, T }: RequestListHeaderProps) {
+export const RequestListHeader = memo(function RequestListHeader({ totalRequests, T }: RequestListHeaderProps) {
   return (
     <div
       className={`px-4 py-3.5 flex items-center justify-between ${totalRequests > 0 ? "bg-gradient-to-r from-orange-500 via-orange-500 to-amber-500" : "bg-gray-900"}`}
@@ -40,4 +41,4 @@ export function RequestListHeader({ totalRequests, T }: RequestListHeaderProps) 
       )}
     </div>
   );
-}
+});

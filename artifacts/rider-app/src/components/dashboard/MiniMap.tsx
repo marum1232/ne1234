@@ -1,8 +1,34 @@
-import { useEffect, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { MapContainer, TileLayer, Marker, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+
+/* ── Static icon instances — created once at module load, never recreated ── */
+const PICKUP_ICON_MINI = L.divIcon({
+  html: `<div style="width:14px;height:14px;background:#22c55e;border:2.5px solid white;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.4)"></div>`,
+  className: "",
+  iconSize: [14, 14],
+  iconAnchor: [7, 7],
+});
+const DROP_ICON_MINI = L.divIcon({
+  html: `<div style="width:14px;height:14px;background:#ef4444;border:2.5px solid white;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.4)"></div>`,
+  className: "",
+  iconSize: [14, 14],
+  iconAnchor: [7, 7],
+});
+const PICKUP_ICON_FULL = L.divIcon({
+  html: `<div style="width:18px;height:18px;background:#22c55e;border:3px solid white;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,0.4)"></div>`,
+  className: "",
+  iconSize: [18, 18],
+  iconAnchor: [9, 9],
+});
+const DROP_ICON_FULL = L.divIcon({
+  html: `<div style="width:18px;height:18px;background:#ef4444;border:3px solid white;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,0.4)"></div>`,
+  className: "",
+  iconSize: [18, 18],
+  iconAnchor: [9, 9],
+});
 import { Maximize2, X, Navigation } from "lucide-react";
 import { buildMapsDeepLink } from "./helpers";
 import { riderEnv } from "../../lib/envValidation";
@@ -117,18 +143,8 @@ function FullscreenMap({
   const centerLat = hasPick && hasDrop ? (pickupLat + dropLat) / 2 : hasPick ? pickupLat : dropLat;
   const centerLng = hasPick && hasDrop ? (pickupLng + dropLng) / 2 : hasPick ? pickupLng : dropLng;
 
-  const pickupIcon = L.divIcon({
-    html: `<div style="width:18px;height:18px;background:#22c55e;border:3px solid white;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,0.4)"></div>`,
-    className: "",
-    iconSize: [18, 18],
-    iconAnchor: [9, 9],
-  });
-  const dropIcon = L.divIcon({
-    html: `<div style="width:18px;height:18px;background:#ef4444;border:3px solid white;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,0.4)"></div>`,
-    className: "",
-    iconSize: [18, 18],
-    iconAnchor: [9, 9],
-  });
+  const pickupIcon = PICKUP_ICON_FULL;
+  const dropIcon = DROP_ICON_FULL;
 
   const mapsHref = hasDrop
     ? buildMapsDeepLink(dropLat, dropLng)
@@ -192,7 +208,7 @@ function FullscreenMap({
   );
 }
 
-export function MiniMap({
+export const MiniMap = memo(function MiniMap({
   pickupLat,
   pickupLng,
   dropLat,
@@ -223,18 +239,8 @@ export function MiniMap({
         ? pickupLng!
         : dropLng!;
 
-  const pickupIcon = L.divIcon({
-    html: `<div style="width:14px;height:14px;background:#22c55e;border:2.5px solid white;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.4)"></div>`,
-    className: "",
-    iconSize: [14, 14],
-    iconAnchor: [7, 7],
-  });
-  const dropIcon = L.divIcon({
-    html: `<div style="width:14px;height:14px;background:#ef4444;border:2.5px solid white;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.4)"></div>`,
-    className: "",
-    iconSize: [14, 14],
-    iconAnchor: [7, 7],
-  });
+  const pickupIcon = PICKUP_ICON_MINI;
+  const dropIcon = DROP_ICON_MINI;
 
   return (
     <>
@@ -300,4 +306,4 @@ export function MiniMap({
       </div>
     </>
   );
-}
+});

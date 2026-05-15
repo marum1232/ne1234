@@ -1,5 +1,5 @@
+import { memo, useState, useEffect } from "react";
 import type { TranslationKey } from "@workspace/i18n";
-import { useState, useEffect } from "react";
 import {
   CheckCircle,
   MapPin,
@@ -45,7 +45,7 @@ interface RideRequestCardProps {
   T: (key: TranslationKey) => string;
 }
 
-export function RideRequestCard({
+export const RideRequestCard = memo(function RideRequestCard({
   ride: r,
   userId,
   isRestricted,
@@ -472,4 +472,4 @@ export function RideRequestCard({
       )}
     </div>
   );
-}
+});

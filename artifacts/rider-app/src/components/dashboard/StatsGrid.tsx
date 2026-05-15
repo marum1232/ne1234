@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Package, TrendingUp, Calendar, Trophy, Truck } from "lucide-react";
 import { formatCurrency } from "./helpers";
 
@@ -10,7 +11,7 @@ interface StatsGridProps {
   maxDeliveries?: number;
 }
 
-export function StatsGrid({
+export const StatsGrid = memo(function StatsGrid({
   deliveriesToday,
   earningsToday,
   weekEarnings,
@@ -75,4 +76,4 @@ export function StatsGrid({
       </div>
     </div>
   );
-}
+});

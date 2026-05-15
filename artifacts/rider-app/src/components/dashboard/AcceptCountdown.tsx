@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef } from "react";
+import { memo, useState, useEffect, useRef } from "react";
 import { ACCEPT_TIMEOUT_SEC } from "./helpers";
 
-export function AcceptCountdown({
+export const AcceptCountdown = memo(function AcceptCountdown({
   createdAt,
   serverTime,
   onExpired,
@@ -84,4 +84,4 @@ export function AcceptCountdown({
       </span>
     </div>
   );
-}
+});

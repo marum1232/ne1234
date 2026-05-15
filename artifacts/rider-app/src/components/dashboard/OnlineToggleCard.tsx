@@ -1,3 +1,4 @@
+import { memo } from "react";
 import type { TranslationKey } from "@workspace/i18n";
 import { Zap, Wifi, VolumeX, Volume2 } from "lucide-react";
 
@@ -10,7 +11,7 @@ interface OnlineToggleCardProps {
   T: (key: TranslationKey) => string;
 }
 
-export function OnlineToggleCard({
+export const OnlineToggleCard = memo(function OnlineToggleCard({
   effectiveOnline,
   toggling,
   silenceOn,
@@ -74,4 +75,4 @@ export function OnlineToggleCard({
       </div>
     </div>
   );
-}
+});
