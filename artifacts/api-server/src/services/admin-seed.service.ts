@@ -38,11 +38,54 @@ const DEFAULT_SEED_EMAIL = "admin@ajkmart.local";
 const DEFAULT_SEED_USERNAME = "superadmin";
 const DEFAULT_SEED_NAME = "Super Admin";
 /**
- * Hard-coded fallback for the bootstrap super-admin password. Operators
- * may override via the `ADMIN_SEED_PASSWORD` env var (recommended for
- * production); the constant is the documented default for fresh installs.
+ * Hard-coded fallback for the bootstrap super-admin password used only in
+ * development. This value is blocked in production — operators must supply
+ * a strong, unique `ADMIN_SEED_PASSWORD` via the secrets manager.
  */
 const DEFAULT_SEED_PASSWORD = "Admin@123";
+
+/**
+ * Passwords that are publicly known (including the documented default) and
+ * must never be accepted as a production seed credential.
+ */
+const BLOCKED_SEED_PASSWORDS = new Set([
+  "Admin@123",
+  "admin@123",
+  "admin123",
+  "Admin123",
+  "password",
+  "Password1",
+  "Password@1",
+  "superadmin",
+  "SuperAdmin",
+  "123456",
+  "12345678",
+]);
+
+/**
+ * Enforce minimum production password strength: at least 16 characters,
+ * containing at least one uppercase letter, one lowercase letter, one digit,
+ * and one special character. Returns null when the password passes, or a
+ * human-readable rejection reason when it does not.
+ */
+function rejectWeakSeedPassword(password: string): string | null {
+  if (password.length < 16) {
+    return "must be at least 16 characters long";
+  }
+  if (!/[A-Z]/.test(password)) {
+    return "must contain at least one uppercase letter";
+  }
+  if (!/[a-z]/.test(password)) {
+    return "must contain at least one lowercase letter";
+  }
+  if (!/[0-9]/.test(password)) {
+    return "must contain at least one digit";
+  }
+  if (!/[^A-Za-z0-9]/.test(password)) {
+    return "must contain at least one special character";
+  }
+  return null;
+}
 
 export interface SeedResult {
   /** True if a new admin was created on this boot. */
@@ -80,17 +123,36 @@ export async function seedDefaultSuperAdmin(): Promise<SeedResult> {
     return { created: false };
   }
 
-  // Production safety gate: refuse to seed with the hard-coded fallback
-  // password. The operator must supply a strong, unique ADMIN_SEED_PASSWORD
-  // before the first super-admin account can be created automatically.
+  // Production safety gate: refuse to seed with a missing, default, or
+  // publicly-known password. The operator must supply a strong, unique
+  // ADMIN_SEED_PASSWORD via the secrets manager before the first super-admin
+  // account can be created automatically.
   const fromEnv = process.env.ADMIN_SEED_PASSWORD?.trim();
-  if (process.env.NODE_ENV === "production" && (!fromEnv || fromEnv.length === 0)) {
-    logger.fatal(
-      "[admin-seed] BLOCKED: no admin accounts exist and ADMIN_SEED_PASSWORD is not set. " +
-      "Set ADMIN_SEED_PASSWORD to a strong unique password in your environment secrets, then restart. " +
-      "The server will not create a default admin account with the documented fallback password in production."
-    );
-    return { created: false };
+  if (process.env.NODE_ENV === "production") {
+    if (!fromEnv || fromEnv.length === 0) {
+      logger.fatal(
+        "[admin-seed] BLOCKED: no admin accounts exist and ADMIN_SEED_PASSWORD is not set. " +
+        "Set ADMIN_SEED_PASSWORD to a strong unique password in your environment secrets, then restart. " +
+        "The server will not create a default admin account with the documented fallback password in production."
+      );
+      return { created: false };
+    }
+    if (BLOCKED_SEED_PASSWORDS.has(fromEnv)) {
+      logger.fatal(
+        "[admin-seed] BLOCKED: ADMIN_SEED_PASSWORD is set to a publicly-known or weak value. " +
+        "Choose a strong, unique password that is not in the documented defaults or common password lists, " +
+        "then set it in your environment secrets and restart."
+      );
+      return { created: false };
+    }
+    const complexityError = rejectWeakSeedPassword(fromEnv);
+    if (complexityError) {
+      logger.fatal(
+        `[admin-seed] BLOCKED: ADMIN_SEED_PASSWORD does not meet minimum strength requirements (${complexityError}). ` +
+        "Use a password that is at least 16 characters and includes uppercase, lowercase, digits, and special characters."
+      );
+      return { created: false };
+    }
   }
 
   const email = (process.env.ADMIN_SEED_EMAIL ?? DEFAULT_SEED_EMAIL).trim();

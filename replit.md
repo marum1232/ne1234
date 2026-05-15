@@ -105,15 +105,23 @@ All credentials and secrets are managed via **Replit Secrets** (the padlock icon
 
 **Frontend dev warnings:** Admin, Vendor, and Rider apps log a `console.group` warning in dev mode if `VITE_API_PROXY_TARGET` is not set.
 
-**Secrets with dev placeholder values (must replace before production):**
-The following JWT secrets have development placeholder values set in `userenv.shared`. They are safe for local dev but **must be replaced with strong, unique random values before any production deployment**:
-- `ADMIN_REFRESH_SECRET` — used to sign admin refresh tokens
-- `ADMIN_SECRET` — used for admin session signing
-- `VENDOR_JWT_SECRET` — used to sign vendor app JWTs
-- `RIDER_JWT_SECRET` — used to sign rider app JWTs
-- `JWT_SECRET`, `ADMIN_JWT_SECRET`, `ADMIN_ACCESS_TOKEN_SECRET`, `ADMIN_REFRESH_TOKEN_SECRET`, `ADMIN_CSRF_SECRET`, `ERROR_REPORT_HMAC_SECRET` — already present in `userenv.shared` with dev placeholders
+**JWT and auth secrets must be set via Replit Secrets (padlock icon) — never in `.replit`:**
+The following secrets have no committed values and must be provided before the server will start. Generate each one with:
+`node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"`
 
-Generate production values with: `node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"`
+- `JWT_SECRET` — signs customer JWTs
+- `ADMIN_JWT_SECRET` — signs admin JWTs
+- `ADMIN_REFRESH_SECRET` — signs admin refresh tokens
+- `ADMIN_SECRET` — admin session signing
+- `ADMIN_ACCESS_TOKEN_SECRET` — admin access tokens
+- `ADMIN_REFRESH_TOKEN_SECRET` — admin refresh tokens
+- `ADMIN_CSRF_SECRET` — admin CSRF tokens
+- `VENDOR_JWT_SECRET` — vendor app JWTs
+- `RIDER_JWT_SECRET` — rider app JWTs
+- `ERROR_REPORT_HMAC_SECRET` — HMAC signing for error-report ingest
+- `ENCRYPTION_MASTER_KEY` — AES-256-GCM master key for PII encryption
+- `ADMIN_SEED_PASSWORD` — bootstrap super-admin password (**must not be a known/weak value; the server blocks `Admin@123` and similar in production**)
+- `ADMIN_SEED_USERNAME` — bootstrap super-admin username (default: `superadmin` if not set)
 
 **Required variables (50 total):**
 | Category | Variables |
