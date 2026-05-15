@@ -1040,13 +1040,30 @@ router.get("/payment-methods", async (_req, res) => {
 router.get("/pool/:groupId", customerAuth, async (req, res) => {
   try {
   const groupId = String(req.params["groupId"]);
+  const callerId = req.customerId!;
+
+  const membership = await db.select({ id: ridesTable.id })
+    .from(ridesTable)
+    .where(and(eq(ridesTable.poolGroupId, groupId), eq(ridesTable.userId, callerId)))
+    .limit(1);
+  if (membership.length === 0) {
+    return sendForbidden(res, "Access denied");
+  }
+
   const rides = await db.select({
     id: ridesTable.id, userId: ridesTable.userId,
     pickupAddress: ridesTable.pickupAddress, dropAddress: ridesTable.dropAddress,
     status: ridesTable.status, fare: ridesTable.fare, paymentMethod: ridesTable.paymentMethod,
     stops: ridesTable.stops, createdAt: ridesTable.createdAt,
   }).from(ridesTable).where(eq(ridesTable.poolGroupId, groupId)).orderBy(ridesTable.createdAt);
-  sendSuccess(res, { groupId, rides, passengerCount: rides.length });
+
+  const sanitizedRides = rides.map(ride => {
+    if (ride.userId === callerId) return ride;
+    const { userId: _u, pickupAddress: _p, dropAddress: _d, stops: _s, paymentMethod: _pm, ...safeFields } = ride;
+    return safeFields;
+  });
+
+  sendSuccess(res, { groupId, rides: sanitizedRides, passengerCount: rides.length });
   } catch (err) {
     logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     res.status(500).json({ success: false, error: "Internal server error" });
