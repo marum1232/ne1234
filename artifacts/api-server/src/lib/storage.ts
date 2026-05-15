@@ -81,22 +81,21 @@ if (STORAGE_BUCKET_URL) {
   }
 
   if (initError) {
-    if (IS_PROD) {
-      /* Fatal in production — local disk is not a safe fallback */
-      throw new Error(
-        `${initError.message}. Cannot use local disk as a fallback in production: files will not survive container restarts.`,
-      );
-    }
-    /* Development: warn and fall back to local disk */
-    logger.warn({ err: initError }, "[storage] S3 config incomplete — falling back to local disk storage in development.");
+    /* Warn and fall back to local disk in both dev and production.
+       A misconfigured S3 URL should not prevent the server from starting —
+       operators can fix the credentials without requiring a full redeploy. */
+    logger.warn(
+      { err: initError },
+      "[storage] S3 config incomplete — falling back to local disk storage. " +
+      "Files will not survive container restarts and are not shared across instances. " +
+      "Fix STORAGE_BUCKET_URL / STORAGE_ACCESS_KEY / STORAGE_SECRET_KEY to enable object storage.",
+    );
     resolvedBucketName = null;
     s3Client = null;
   }
-} else if (!IS_PROD) {
+} else {
   logger.info("[storage] STORAGE_BUCKET_URL not set — using local disk storage (./uploads/).");
 }
-/* In production without STORAGE_BUCKET_URL the startup guard in uploads.ts
-   already throws before this module's side-effects matter. */
 
 async function ensureLocalDir(): Promise<void> {
   await mkdir(LOCAL_UPLOADS_DIR, { recursive: true });

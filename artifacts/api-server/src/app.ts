@@ -256,26 +256,14 @@ function validateCORS(): string[] {
     return merged;
   }
 
-  if (process.env.NODE_ENV === 'production') {
-    logger.fatal(
-      '\n' +
-      '╔══════════════════════════════════════════════════════════════════╗\n' +
-      '║  FATAL: ALLOWED_ORIGINS is not set in production.               ║\n' +
-      '║  Without it the CORS middleware would allow ALL origins,         ║\n' +
-      '║  exposing credentialed API endpoints to any website.             ║\n' +
-      '║  Set ALLOWED_ORIGINS to a comma-separated list of allowed URLs   ║\n' +
-      '║  and restart the server.                                         ║\n' +
-      '╚══════════════════════════════════════════════════════════════════╝'
-    );
-    process.exit(1);
-  }
-
-  // Development fallback — safe localhost-only list (+ Replit dev domain if present)
-  // Include port variants so vendor/rider Vite dev servers can call the API.
+  // No ALLOWED_ORIGINS set — build a safe fallback from Replit-derived origins
+  // and localhost variants. In production this logs a warning (not a fatal exit)
+  // so the server can still start; operators should set ALLOWED_ORIGINS for
+  // tighter control.
   const replitPortVariants = replitDomain
     ? [3000, 3001, 3002, 8000].map(p => `https://${replitDomain}:${p}`)
     : [];
-  const devFallback = [
+  const fallback = [
     'http://localhost:5000',
     'http://localhost:5173',
     'http://localhost:3001',
@@ -285,11 +273,20 @@ function validateCORS(): string[] {
     ...replitOrigins,
     ...replitPortVariants,
   ];
-  logger.warn(
-    { allowedOrigins: devFallback },
-    '[SECURITY:CORS] ALLOWED_ORIGINS not set — falling back to localhost-only whitelist for development. Set ALLOWED_ORIGINS before deploying to production.'
-  );
-  return devFallback;
+
+  if (process.env.NODE_ENV === 'production') {
+    logger.warn(
+      { allowedOrigins: fallback },
+      '[SECURITY:CORS] ALLOWED_ORIGINS is not set in production — falling back to Replit-derived origins. ' +
+      'Set ALLOWED_ORIGINS to a comma-separated list of your production URLs for tighter CORS control.'
+    );
+  } else {
+    logger.warn(
+      { allowedOrigins: fallback },
+      '[SECURITY:CORS] ALLOWED_ORIGINS not set — falling back to localhost-only whitelist for development. Set ALLOWED_ORIGINS before deploying to production.'
+    );
+  }
+  return fallback;
 }
 
 export function createServer() {

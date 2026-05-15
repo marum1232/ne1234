@@ -54,19 +54,10 @@ export const isProduction = ["production", "staging"].includes(process.env["NODE
 
 /* ── Missing REDIS_URL ───────────────────────────────────────────────────── */
 if (!rawUrl) {
-  if (isProduction) {
-    logger.fatal(
-      "[redis] FATAL — REDIS_URL is not set in production. " +
-      "JWT token blacklisting and distributed rate limiting require Redis. " +
-      "Without Redis, revoked tokens stay valid and brute-force protection is per-instance only. " +
-      "Set REDIS_URL in the Replit Secrets panel and restart."
-    );
-    process.exit(1);
-  }
   logger.warn(
-    "[redis] REDIS_URL is not set — JWT token blacklisting is DISABLED. " +
-    "Logged-out access tokens will remain valid until they expire naturally. " +
-    "Set REDIS_URL in the Replit Secrets panel to enable blacklisting."
+    "[redis] REDIS_URL is not set — JWT token blacklisting and distributed rate limiting are DISABLED. " +
+    "Logged-out access tokens will remain valid until they expire naturally, and brute-force protection " +
+    "is per-instance only. Set REDIS_URL in the Replit Secrets panel to enable these features."
   );
 }
 

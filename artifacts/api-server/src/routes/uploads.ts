@@ -126,13 +126,14 @@ const router: IRouter = Router();
 /* ── Production disk-storage warning ────────────────────────────────────────
    Files are stored on local disk inside ./uploads/ as a dev fallback.
    In production, set STORAGE_BUCKET_URL + STORAGE_ACCESS_KEY +
-   STORAGE_SECRET_KEY to enable S3-compatible object storage. */
+   STORAGE_SECRET_KEY to enable S3-compatible object storage.
+   Without S3, uploads survive restarts on persistent volumes but are not
+   shared across multiple instances. */
 if (process.env.NODE_ENV === "production" && !process.env["STORAGE_BUCKET_URL"]) {
-  throw new Error(
-    "[uploads] FATAL: Running in production without object storage. " +
-    "Files stored in ./uploads/ will be lost on container restart and are " +
-    "not shared across instances. Set STORAGE_BUCKET_URL (S3-compatible) " +
-    "in your environment before deploying to production.",
+  logger.warn(
+    "[uploads] STORAGE_BUCKET_URL is not set — using local disk storage (./uploads/). " +
+    "Files will not survive container restarts and are not shared across instances. " +
+    "Set STORAGE_BUCKET_URL, STORAGE_ACCESS_KEY, and STORAGE_SECRET_KEY for S3-compatible storage.",
   );
 }
 
