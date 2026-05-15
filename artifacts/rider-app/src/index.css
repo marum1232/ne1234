@@ -53,17 +53,17 @@
   --sab: env(safe-area-inset-bottom, 0px);
   --sal: env(safe-area-inset-left, 0px);
 
-  /* Login page brand tokens */
-  --login-brand: #4f46e5;
-  --login-brand-hover: #4338ca;
-  --login-brand-shadow: rgba(79, 70, 229, 0.25);
-  --login-hero-from: #4338ca;
-  --login-hero-via: #4f46e5;
-  --login-hero-to: #2563eb;
-  --login-otp-filled-bg: #eef2ff;
-  --login-otp-filled-border: #6366f1;
-  --login-otp-filled-text: #4338ca;
-  --login-btn-radius: 1rem;
+  /* Login page brand tokens — dark trading-platform theme */
+  --login-brand: #F0B90B;
+  --login-brand-hover: #D97706;
+  --login-brand-shadow: rgba(240, 185, 11, 0.25);
+  --login-hero-from: #0B0E11;
+  --login-hero-via: #0D1017;
+  --login-hero-to: #0F1117;
+  --login-otp-filled-bg: rgba(240,185,11,0.08);
+  --login-otp-filled-border: #F0B90B;
+  --login-otp-filled-text: #F0B90B;
+  --login-btn-radius: 0.75rem;
 }
 
 .dark {
