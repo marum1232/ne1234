@@ -985,6 +985,7 @@ router.post("/send-otp", otpLimiter, verifyCaptcha, sharedValidateBody(sendOtpSc
     message: "OTP sent successfully",
     channel: deliveryChannel,
     fallbackChannels,
+    ...(isDev && (isConsoleDelivery || deliveryChannel === "dev") ? { otp } : {}),
   };
 
   sendSuccess(res, response);
@@ -3021,13 +3022,14 @@ router.post("/register", verifyCaptcha, sharedValidateBody(registerSchema), asyn
   }
 
   const isDev = process.env.NODE_ENV !== "production";
+  const isConsoleDelivery = smsResult.provider === "console" || !smsResult.sent;
   sendSuccess(res, {
     message: "Registration successful. Please verify your phone with the OTP sent.",
     userId,
-
     pendingApproval: needsApproval,
     otpRequired: true,
     channel: smsResult.sent ? smsResult.provider : "console",
+    ...(isDev && isConsoleDelivery ? { otp } : {}),
   }, undefined, 201);
   } catch (err) {
     logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
