@@ -9,12 +9,13 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 
 echo ""
 echo "▶  Step 1/4 — Building shared libraries..."
+# Only packages that actually have a "build" script are listed here.
+# @workspace/api-zod, @workspace/auth-utils, and @workspace/integrations-gemini-ai
+# have no build script — esbuild inlines their TypeScript source directly.
+# --if-present guards against any future entry that drops its build script.
 pnpm --filter @workspace/db \
-     --filter @workspace/api-zod \
      --filter @workspace/phone-utils \
-     --filter @workspace/auth-utils \
-     --filter @workspace/integrations-gemini-ai \
-     run build
+     run --if-present build
 
 echo ""
 echo "▶  Step 2/4 — Building API server..."

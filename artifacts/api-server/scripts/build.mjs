@@ -86,3 +86,39 @@ await build({
 });
 
 console.log("✅  API server built → dist/index.mjs");
+
+/* ── Post-build assertion ─────────────────────────────────────────────────
+   Verify that bundleWorkspacePlugin inlined every @workspace/* dependency
+   and that no .ts source file escaped as a runtime import.
+   If either check fails the build exits non-zero so CI / deployment knows
+   immediately rather than discovering the crash at node startup.           */
+const bundle = readFileSync("dist/index.mjs", "utf-8");
+const leakedImports = [];
+
+for (const re of [
+  // static ESM:  import X from "@workspace/..."
+  /\bfrom\s*["']@workspace\//g,
+  // CJS:         require("@workspace/...")
+  /\brequire\s*\(\s*["']@workspace\//g,
+  // dynamic ESM: import("@workspace/...")
+  /\bimport\s*\(\s*["']@workspace\//g,
+  // .ts extension — any of the above pointing at a raw TS file
+  /\bfrom\s*["'][^"']+\.ts["']/g,
+  /\brequire\s*\(\s*["'][^"']+\.ts["']\)/g,
+]) {
+  for (const m of bundle.matchAll(re)) {
+    leakedImports.push(m[0].trimStart().slice(0, 120));
+  }
+}
+
+if (leakedImports.length > 0) {
+  console.error("❌  Build assertion FAILED — these imports escaped bundling:");
+  for (const l of leakedImports) console.error("    " + l);
+  console.error(
+    "\n    Cause: bundleWorkspacePlugin did not resolve them.\n" +
+    "    Fix:   check that the package exists under lib/ and its package.json\n" +
+    "           exports field has an entry for the requested subpath."
+  );
+  process.exit(1);
+}
+console.log("✅  Bundle assertion passed — no escaped workspace imports or .ts references.");
