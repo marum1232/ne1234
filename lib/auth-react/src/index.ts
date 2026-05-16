@@ -22,3 +22,17 @@ export { useTokenRefresh } from './hooks/useTokenRefresh';
 export type { UseTokenRefreshOptions } from './hooks/useTokenRefresh';
 export { useLoginFlow } from './hooks/useLoginFlow';
 export type { UseLoginFlowOptions, LoginMethod, IdentifierCheckResult } from './hooks/useLoginFlow';
+
+// Components
+export { OtpInput } from './components/OtpInput';
+export type { OtpInputProps } from './components/OtpInput';
+export { PhoneInput } from './components/PhoneInput';
+export type { PhoneInputProps, Country } from './components/PhoneInput';
+export { PasswordInput } from './components/PasswordInput';
+export type { PasswordInputProps, PasswordStrength } from './components/PasswordInput';
+export { SocialButtons } from './components/SocialButtons';
+export type { SocialButtonsProps } from './components/SocialButtons';
+export { BiometricPrompt } from './components/BiometricPrompt';
+export type { BiometricPromptProps } from './components/BiometricPrompt';
+export { LoginScreen } from './components/LoginScreen';
+export type { LoginScreenProps, AppRole, CustomField } from './components/LoginScreen';
