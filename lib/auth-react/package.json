@@ -7,8 +7,8 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "build": "tsup src/index.ts --format esm,cjs --dts --clean",
-    "dev": "tsup src/index.ts --format esm,cjs --dts --watch"
+    "build": "tsup src/index.ts --format esm,cjs --dts --clean --tsconfig tsconfig.build.json",
+    "dev": "tsup src/index.ts --format esm,cjs --dts --watch --tsconfig tsconfig.build.json"
   },
   "dependencies": {
     "@workspace/auth-utils": "workspace:*"

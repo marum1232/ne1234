@@ -5,7 +5,7 @@ export { AuthProvider, useAuthContext, AuthContext } from './AuthProvider';
 export type { AuthContextValue, AuthProviderProps, AuthUser } from './AuthProvider';
 
 // Token storage
-export { createTokenStorage } from './api/tokenStorage';
+export { createTokenStorage, createNativeTokenStorage } from './api/tokenStorage';
 export type { TokenStorage, StorageType } from './api/tokenStorage';
 
 // Auth client
@@ -43,3 +43,5 @@ export { BiometricPrompt } from './components/BiometricPrompt';
 export type { BiometricPromptProps } from './components/BiometricPrompt';
 export { LoginScreen } from './components/LoginScreen';
 export type { LoginScreenProps, AppRole, CustomField } from './components/LoginScreen';
+export { SessionManagerScreen } from './components/SessionManagerScreen';
+export type { SessionManagerScreenProps } from './components/SessionManagerScreen';

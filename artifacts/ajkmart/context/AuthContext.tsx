@@ -19,6 +19,11 @@ import { useLanguage } from "./LanguageContext";
 import { io, type Socket } from "socket.io-client";
 import { API_BASE, SOCKET_BASE } from "@/utils/api";
 import { createLogger } from "@/utils/logger";
+import {
+  bootstrapSdkAuth,
+  syncAccessToken,
+  clearSdkTokens,
+} from "@/lib/sdkAuthClient";
 
 const log = createLogger("[AuthContext]");
 
@@ -404,6 +409,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     clearRefreshTimer();
+    /* Clear SDK auth client in-memory tokens before wiping SecureStore */
+    clearSdkTokens();
     await AsyncStorage.multiRemove([
       USER_KEY,
       "@ajkmart_cart",
@@ -473,9 +480,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     scheduleProactiveRefresh(tok);
   }, []);
 
+  /* ── SDK bridge: sync access token whenever AuthContext token state changes ── */
+  useEffect(() => {
+    syncAccessToken(token);
+  }, [token]);
+
   useEffect(() => {
     const loadAuth = async () => {
       try {
+        /* Bootstrap the shared SDK auth client (seeds in-memory token cache). */
+        await bootstrapSdkAuth();
+
         /* Migrate any legacy unencrypted AsyncStorage tokens to SecureStore.
            If migration succeeds the tokens are now available via SecureStore below. */
         await migrateLegacyInsecureTokens();

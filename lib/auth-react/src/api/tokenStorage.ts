@@ -85,8 +85,45 @@ class WebStorage implements TokenStorage {
   }
 }
 
+type ExpoSecureStoreApi = {
+  getItemAsync: (k: string) => Promise<string | null>;
+  setItemAsync: (k: string, v: string) => Promise<void>;
+  deleteItemAsync: (k: string) => Promise<void>;
+};
+
+function getSecureStore(): ExpoSecureStoreApi | undefined {
+  if (typeof globalThis === 'undefined') return undefined;
+  return (globalThis as Record<string, unknown>)[
+    '__ExpoSecureStore'
+  ] as ExpoSecureStoreApi | undefined;
+}
+
 class NativeStorage implements TokenStorage {
   private mem = new MemoryStorage();
+
+  /**
+   * Restore tokens from expo-secure-store into the in-memory cache.
+   * Call this once at app startup (e.g. inside the AuthProvider's useEffect)
+   * before any getAccessToken / getRefreshToken calls, so the synchronous
+   * getters return the persisted values rather than null.
+   *
+   * Safe to call multiple times — subsequent calls are no-ops if tokens
+   * are already cached in memory.
+   */
+  async restoreFromSecureStore(): Promise<void> {
+    const ss = getSecureStore();
+    if (!ss) return;
+    try {
+      const [access, refresh] = await Promise.all([
+        ss.getItemAsync(ACCESS_TOKEN_KEY).catch(() => null),
+        ss.getItemAsync(REFRESH_TOKEN_KEY).catch(() => null),
+      ]);
+      if (access && !this.mem.getAccessToken()) this.mem.setAccessToken(access);
+      if (refresh && !this.mem.getRefreshToken()) this.mem.setRefreshToken(refresh);
+    } catch {
+      // SecureStore unavailable on this device — memory-only fallback is fine
+    }
+  }
 
   getAccessToken(): string | null {
     return this.mem.getAccessToken();
@@ -94,32 +131,12 @@ class NativeStorage implements TokenStorage {
 
   setAccessToken(token: string): void {
     this.mem.setAccessToken(token);
-    if (typeof globalThis !== 'undefined') {
-      try {
-        const SecureStore = (globalThis as Record<string, unknown>)[
-          '__ExpoSecureStore'
-        ] as
-          | { setItemAsync: (k: string, v: string) => Promise<void> }
-          | undefined;
-        SecureStore?.setItemAsync(ACCESS_TOKEN_KEY, token).catch(() => {});
-      } catch {
-        // expo-secure-store not available — fall back to memory
-      }
-    }
+    getSecureStore()?.setItemAsync(ACCESS_TOKEN_KEY, token).catch(() => {});
   }
 
   removeAccessToken(): void {
     this.mem.removeAccessToken();
-    if (typeof globalThis !== 'undefined') {
-      try {
-        const SecureStore = (globalThis as Record<string, unknown>)[
-          '__ExpoSecureStore'
-        ] as { deleteItemAsync: (k: string) => Promise<void> } | undefined;
-        SecureStore?.deleteItemAsync(ACCESS_TOKEN_KEY).catch(() => {});
-      } catch {
-        // expo-secure-store not available — fall back to memory
-      }
-    }
+    getSecureStore()?.deleteItemAsync(ACCESS_TOKEN_KEY).catch(() => {});
   }
 
   getRefreshToken(): string | null {
@@ -128,36 +145,18 @@ class NativeStorage implements TokenStorage {
 
   setRefreshToken(token: string): void {
     this.mem.setRefreshToken(token);
-    if (typeof globalThis !== 'undefined') {
-      try {
-        const SecureStore = (globalThis as Record<string, unknown>)[
-          '__ExpoSecureStore'
-        ] as
-          | { setItemAsync: (k: string, v: string) => Promise<void> }
-          | undefined;
-        SecureStore?.setItemAsync(REFRESH_TOKEN_KEY, token).catch(() => {});
-      } catch {
-        // expo-secure-store not available — fall back to memory
-      }
-    }
+    getSecureStore()?.setItemAsync(REFRESH_TOKEN_KEY, token).catch(() => {});
   }
 
   removeRefreshToken(): void {
     this.mem.removeRefreshToken();
-    if (typeof globalThis !== 'undefined') {
-      try {
-        const SecureStore = (globalThis as Record<string, unknown>)[
-          '__ExpoSecureStore'
-        ] as { deleteItemAsync: (k: string) => Promise<void> } | undefined;
-        SecureStore?.deleteItemAsync(REFRESH_TOKEN_KEY).catch(() => {});
-      } catch {
-        // expo-secure-store not available — fall back to memory
-      }
-    }
+    getSecureStore()?.deleteItemAsync(REFRESH_TOKEN_KEY).catch(() => {});
   }
 
   clear(): void {
     this.mem.clear();
+    getSecureStore()?.deleteItemAsync(ACCESS_TOKEN_KEY).catch(() => {});
+    getSecureStore()?.deleteItemAsync(REFRESH_TOKEN_KEY).catch(() => {});
   }
 }
 
@@ -175,4 +174,22 @@ export function createTokenStorage(type: StorageType = 'web'): TokenStorage {
     default:
       return new MemoryStorage();
   }
+}
+
+/**
+ * Create a NativeStorage instance and immediately restore persisted tokens
+ * from expo-secure-store into the in-memory cache.
+ *
+ * Use this in the Expo app instead of `createTokenStorage('native')` so that
+ * synchronous `getAccessToken()` / `getRefreshToken()` calls return the
+ * correct values from the very first render.
+ *
+ * @example
+ *   const storage = await createNativeTokenStorage();
+ *   // storage.getAccessToken() now returns the persisted token (if any)
+ */
+export async function createNativeTokenStorage(): Promise<TokenStorage> {
+  const storage = new NativeStorage();
+  await storage.restoreFromSecureStore();
+  return storage;
 }
