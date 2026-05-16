@@ -5,7 +5,8 @@ import { useAuth, type AuthUser } from "../lib/auth";
 import { api, apiFetch } from "../lib/api";
 import { createLogger } from "@/lib/logger";
 const log = createLogger("[Login]");
-import { usePlatformConfig, getRiderAuthConfig } from "../lib/useConfig";
+import { usePlatformConfig } from "../lib/useConfig";
+import { useRiderAuthConfig } from "../lib/AuthConfigContext";
 import { useLanguage } from "../lib/useLanguage";
 import { tDual, type TranslationKey } from "@workspace/i18n";
 import { TwoFactorVerify, MagicLinkSender, executeCaptcha, loadGoogleGSIToken, loadFacebookAccessToken, formatPhoneForApi, canonicalizePhone, useAuthConfig } from "@workspace/auth-utils";
@@ -63,14 +64,14 @@ export default function Login() {
      user's cache atomically. */
   const queryClient = useQueryClient();
   const { config } = usePlatformConfig();
+  const auth = useRiderAuthConfig();
   const { language } = useLanguage();
   const T = (key: TranslationKey) => tDual(key, language);
   const appName = config.platform.appName;
-  const auth = getRiderAuthConfig(config);
   const firebaseCfg = useAuthConfig("/api");
-  const captchaSiteKey = config.auth?.captchaSiteKey;
-  const googleClientId = config.auth?.googleClientId;
-  const facebookAppId = config.auth?.facebookAppId;
+  const captchaSiteKey = auth.captchaSiteKey ?? config.auth?.captchaSiteKey;
+  const googleClientId = auth.googleClientId ?? config.auth?.googleClientId;
+  const facebookAppId = auth.facebookAppId ?? config.auth?.facebookAppId;
   const phoneHint = config.regional?.phoneHint ?? "03XXXXXXXXX";
   const isValidPhone = (() => {
     try {

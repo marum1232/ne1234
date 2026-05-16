@@ -1014,7 +1014,7 @@ router.post("/verify-otp", otpLimiter, verifyCaptcha, sharedValidateBody(verifyO
   const settings = await getCachedSettings();
 
   if (!isAuthMethodEnabled(settings, "auth_phone_otp_enabled")) {
-    sendForbidden(res, "Phone OTP login is currently disabled.");
+    sendErrorWithData(res, "Phone OTP login is currently disabled.", { code: "GATEWAY_DISABLED" }, 400);
     return;
   }
 
@@ -2241,7 +2241,7 @@ async function handleUnifiedLogin(req: Request, res: any) {
   const settings = await getCachedSettings();
 
   if (!isAuthMethodEnabled(settings, "auth_username_password_enabled")) {
-    sendForbidden(res, "Password login is currently disabled.");
+    sendErrorWithData(res, "Password login is currently disabled.", { code: "GATEWAY_DISABLED" }, 400);
     return;
   }
 
@@ -2816,7 +2816,7 @@ router.post("/register", verifyCaptcha, sharedValidateBody(registerSchema), asyn
   }
 
   if (!isAuthMethodEnabled(settings, "auth_phone_otp_enabled", userRole)) {
-    sendForbidden(res, "Phone registration is currently disabled for this role.");
+    sendErrorWithData(res, "Phone registration is currently disabled for this role.", { code: "GATEWAY_DISABLED" }, 400);
     return;
   }
 
@@ -3000,6 +3000,7 @@ router.post("/register", verifyCaptcha, sharedValidateBody(registerSchema), asyn
         userId, role: userRole,
         pendingApproval: false,
         otpRequired: false,
+        otpSkipped: true,
         channel: "bypass",
         token: accessToken,
         refreshToken: refreshRaw,
@@ -3012,10 +3013,57 @@ router.post("/register", verifyCaptcha, sharedValidateBody(registerSchema), asyn
         userId, role: userRole,
         pendingApproval: true,
         otpRequired: false,
+        otpSkipped: true,
         channel: "bypass",
       }, undefined, 201);
     }
     return;
+  }
+
+  /* ── Both OTP channels disabled for this role: skip OTP, return otpSkipped ── */
+  const emailOtpEnabledForRole = isAuthMethodEnabled(settings, "auth_email_otp_enabled", userRole);
+  if (!emailOtpEnabledForRole) {
+    /* Phone OTP is enabled (passed gateway check above) but email OTP is off for
+       this role. If no SMS provider is configured, riders would be stuck in OTP limbo.
+       Detect that scenario: if SMS sending later fails we fall through; here we
+       opportunistically mark the phone verified and skip OTP for riders when
+       both delivery channels are unavailable in dev/no-provider mode. */
+    const noSmsProvider = !settings["twilio_account_sid"] && !settings["integration_sms_provider"];
+    if (noSmsProvider) {
+      await db.update(usersTable).set({ phoneVerified: true, updatedAt: new Date() }).where(eq(usersTable.id, userId));
+      writeAuthAuditLog("register_otp_skipped", { ip, userAgent: req.headers["user-agent"] ?? undefined, metadata: { phone: normalizedPhone, role: userRole, reason: "no_otp_channels" } });
+      if (!needsApproval) {
+        const accessToken = signAccessToken(userId, normalizedPhone, userRole, userRole, 0);
+        const { raw: refreshRaw, hash: refreshHash } = generateRefreshToken();
+        await db.insert(refreshTokensTable).values({
+          id: generateId(), userId, tokenHash: refreshHash, authMethod: "register_otp_skipped",
+          expiresAt: new Date(Date.now() + getRefreshTokenTtlDays() * 24 * 60 * 60 * 1000),
+        });
+        setRiderRefreshCookie(req, res, refreshRaw, { roles: userRole });
+        setVendorRefreshCookie(req, res, refreshRaw, { roles: userRole });
+        sendSuccess(res, {
+          message: "Registration successful.",
+          userId, role: userRole,
+          pendingApproval: false,
+          otpRequired: true,
+          otpSkipped: true,
+          channel: "skipped",
+          token: accessToken,
+          refreshToken: refreshRaw,
+          expiresAt: new Date(Date.now() + getAccessTokenTtlSec() * 1000).toISOString(),
+        }, undefined, 201);
+      } else {
+        sendSuccess(res, {
+          message: "Registration submitted. Your account is pending admin approval.",
+          userId, role: userRole,
+          pendingApproval: true,
+          otpRequired: true,
+          otpSkipped: true,
+          channel: "skipped",
+        }, undefined, 201);
+      }
+      return;
+    }
   }
 
   const registerLang = await getUserLanguage(userId);

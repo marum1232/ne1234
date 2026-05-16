@@ -3,7 +3,8 @@ import { Link, useLocation } from "wouter";
 import { api, isApiError, setApiTimeoutMs } from "../lib/api";
 import { createLogger } from "@/lib/logger";
 const log = createLogger("[Register]");
-import { usePlatformConfig, getRiderAuthConfig, buildPhoneValidator } from "../lib/useConfig";
+import { usePlatformConfig, buildPhoneValidator } from "../lib/useConfig";
+import { useRiderAuthConfig } from "../lib/AuthConfigContext";
 import { useLanguage } from "../lib/useLanguage";
 import { tDual, type TranslationKey } from "@workspace/i18n";
 import { executeCaptcha, loadGoogleGSIToken, loadFacebookAccessToken, decodeGoogleJwtPayload, formatPhoneForApi } from "@workspace/auth-utils";
@@ -106,13 +107,13 @@ function FileUploadBox({ label, icon, value, onChange, required, uploading, erro
 
 export default function Register() {
   const { config } = usePlatformConfig();
+  const auth = useRiderAuthConfig();
   const { login: authLogin } = useAuth();
   const [, navigate] = useLocation();
   const { language } = useLanguage();
   const T = (key: TranslationKey) => tDual(key, language);
 
-  const auth = getRiderAuthConfig(config);
-  const captchaSiteKey = config.auth?.captchaSiteKey;
+  const captchaSiteKey = auth.captchaSiteKey ?? config.auth?.captchaSiteKey;
   const isValidPhone = buildPhoneValidator(config);
   const phoneHint = config.regional?.phoneHint ?? "03XXXXXXXXX";
 
@@ -170,7 +171,7 @@ export default function Register() {
     setUploadingField(field);
     setUploadErrors(prev => { const next = { ...prev }; delete next[field]; return next; });
     const preview = URL.createObjectURL(file);
-    setApiTimeoutMs(120_000);
+    setApiTimeoutMs(90_000);
     const MAX_RETRIES = 3;
     let lastErr: Error | null = null;
     try {
@@ -184,7 +185,7 @@ export default function Register() {
         } catch (e: unknown) {
           lastErr = e instanceof Error ? e : new Error(T("uploadFailed"));
           if (attempt < MAX_RETRIES - 1) {
-            await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+            await new Promise(r => setTimeout(r, 2000 * Math.pow(2, attempt)));
           }
         }
       }
@@ -250,8 +251,8 @@ export default function Register() {
   }, [phone, email]);
 
   const handleSocialAutofill = async (provider: "google" | "facebook") => {
-    const googleClientId = config.auth?.googleClientId;
-    const facebookAppId = config.auth?.facebookAppId;
+    const googleClientId = auth.googleClientId ?? config.auth?.googleClientId;
+    const facebookAppId = auth.facebookAppId ?? config.auth?.facebookAppId;
     if (provider === "google" && !googleClientId) { setError(T("socialLoginComingSoon")); return; }
     if (provider === "facebook" && !facebookAppId) { setError(T("socialLoginComingSoon")); return; }
     setLoading(true); clearError();
@@ -391,6 +392,22 @@ export default function Register() {
         } else {
           try {
             const res = await api.registerRider(regData);
+            /* otpSkipped: server signals OTP is not needed (bypass or no OTP channel) */
+            if ((res as Record<string, unknown>).otpSkipped) {
+              if (res.token) {
+                api.storeTokens(res.token, res.refreshToken);
+                if (res.pendingApproval) { setCompleted(true); setLoading(false); return; }
+                let profile: AuthUser | null = res.user ?? null;
+                if (!profile) {
+                  try { profile = await api.getMe() as AuthUser; } catch { api.clearTokens(); setCompleted(true); setLoading(false); return; }
+                }
+                authLogin(res.token, profile!, res.refreshToken);
+                navigate("/");
+              } else {
+                setCompleted(true);
+              }
+              setLoading(false); return;
+            }
             if (res.otpRequired === false) {
               /* OTP globally bypassed by admin — skip Step 4 */
               if (res.token) {
@@ -412,10 +429,6 @@ export default function Register() {
               setLoading(false); return;
             }
             setDevOtp(res.otp || "");
-            if ((res as Record<string, unknown>).otpSkipped) {
-              setCompleted(true);
-              setLoading(false); return;
-            }
           } catch (e: unknown) {
             const err = e instanceof Error ? e : new Error(T("loginFailed"));
             const apiErr = isApiError(e) ? e : null;
@@ -439,7 +452,7 @@ export default function Register() {
       try {
         let captchaToken: string | undefined;
         if (auth.captchaEnabled) {
-          captchaToken = await executeCaptcha("register_verify_otp", config.auth?.captchaSiteKey || "");
+          captchaToken = await executeCaptcha("register_verify_otp", captchaSiteKey || "");
         }
         type OtpVerifyResponse = {
           token?: string; refreshToken?: string;
@@ -614,13 +627,14 @@ export default function Register() {
                 </div>
                 <p className="text-[10px] text-gray-400 mt-1">Format: 03XX-XXXXXXX</p>
               </div>
+              {auth.emailOtp && (
               <div>
                 <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 block flex items-center gap-1">
                   <Mail size={11} /> {T("emailRequired")}
-                  {!auth.emailOtp && <span className="normal-case text-gray-400 font-normal ml-1">(optional)</span>}
                 </label>
                 <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="email@example.com" className={INPUT} />
               </div>
+              )}
               <div>
                 <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 block flex items-center gap-1">
                   <MapPin size={11} /> Home Address <span className="text-red-500">*</span>
@@ -690,7 +704,7 @@ export default function Register() {
                   </div>
                   <div className="space-y-2">
                     {auth.google && (() => {
-                      const hasClientId = !!config.auth?.googleClientId;
+                      const hasClientId = !!(auth.googleClientId ?? config.auth?.googleClientId);
                       return (
                         <button onClick={() => handleSocialAutofill("google")} disabled={loading}
                           className="w-full h-11 border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 disabled:opacity-60 relative">
@@ -704,7 +718,7 @@ export default function Register() {
                       );
                     })()}
                     {auth.facebook && (() => {
-                      const hasAppId = !!config.auth?.facebookAppId;
+                      const hasAppId = !!(auth.facebookAppId ?? config.auth?.facebookAppId);
                       return (
                         <button onClick={() => handleSocialAutofill("facebook")} disabled={loading}
                           className="w-full h-11 bg-[#1877F2] rounded-xl text-sm font-semibold text-white hover:bg-[#166FE5] transition-colors flex items-center justify-center gap-2 disabled:opacity-60 relative">
@@ -927,7 +941,7 @@ export default function Register() {
                       try {
                         let captchaToken: string | undefined;
                         if (auth.captchaEnabled) {
-                          captchaToken = await executeCaptcha("resend_email_otp", config.auth?.captchaSiteKey || "");
+                          captchaToken = await executeCaptcha("resend_email_otp", captchaSiteKey || "");
                         }
                         const emailRes = await api.sendEmailOtp(email.trim(), captchaToken);
                         if (emailRes.otp) setDevOtp(emailRes.otp);
