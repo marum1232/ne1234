@@ -51,12 +51,17 @@ export default function WithdrawModal({
   const [todayWithdrawn, setTodayWithdrawn]         = useState(0);
   const [todayWithdrawCount, setTodayWithdrawCount] = useState(0);
 
-  /* Fetch today's withdrawal totals on mount so checkDailyLimits has real data */
+  /* Fetch today's withdrawal totals on mount so checkDailyLimits has real data.
+     Withdrawals are stored as type="debit" with description starting with "Withdrawal".
+     Filtering by type="withdrawal" would always return 0 since that type does not exist. */
   useEffect(() => {
     api.getWalletPage({ limit: 200 }).then(({ items }) => {
       const todayStr = new Date().toISOString().slice(0, 10);
       const todayWithdrawals = items.filter(
-        it => it.type === "withdrawal" && (it.createdAt ?? "").startsWith(todayStr),
+        it =>
+          it.type === "debit" &&
+          it.description?.startsWith("Withdrawal") &&
+          (it.createdAt ?? "").startsWith(todayStr),
       );
       setTodayWithdrawn(todayWithdrawals.reduce((s, it) => s + Number(it.amount), 0));
       setTodayWithdrawCount(todayWithdrawals.length);
@@ -115,28 +120,35 @@ export default function WithdrawModal({
          showing the raw 4xx, and recompute the cap consistently with the
          modal's existing `amt > balance` guard. */
       const amt = Number(amount);
+      /* Sentinel class so we can reliably distinguish our own validation
+         errors from network/5xx failures inside the catch block below,
+         without depending on translated message content (which breaks in
+         non-English locales and is otherwise fragile). */
+      class PreflightValidationError extends Error {
+        constructor(msg: string) { super(msg); this.name = "PreflightValidationError"; }
+      }
       try {
         const [wallet, minBal] = await Promise.all([api.getWallet(), api.getMinBalance()]);
         const w = wallet as { balance?: number | string } | null | undefined;
         const liveBalance = Number(w?.balance ?? balance);
         const liveMin = Number(minBal ?? minPayout);
         if (amt < liveMin) {
-          throw new Error(`${T("minWithdrawalLabel")}: ${fc(liveMin)}`);
+          throw new PreflightValidationError(`${T("minWithdrawalLabel")}: ${fc(liveMin)}`);
         }
         if (amt > liveBalance - liveMin) {
           /* Reject if the request would drop us below the platform min-balance. */
-          throw new Error(T("enterValidAmount"));
+          throw new PreflightValidationError(T("enterValidAmount"));
         }
         if (amt > liveBalance) {
-          throw new Error(T("enterValidAmount"));
+          throw new PreflightValidationError(T("enterValidAmount"));
         }
       } catch (preflightErr) {
         /* If the preflight fetch itself fails (offline, 5xx) we let the
            withdraw submit go through — the server is the source of truth and
            refusing here would block legitimate withdrawals on flaky networks.
-           But if the preflight surfaced a real validation error (Error thrown
-           above), bubble it up to onError. */
-        if (preflightErr instanceof Error && /label|valid/i.test(preflightErr.message)) {
+           But if the preflight surfaced a real validation error (PreflightValidationError
+           thrown above), bubble it up to onError. */
+        if (preflightErr instanceof PreflightValidationError) {
           throw preflightErr;
         }
         /* Otherwise swallow the preflight failure and proceed. */

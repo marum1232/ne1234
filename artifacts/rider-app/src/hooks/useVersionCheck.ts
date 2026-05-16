@@ -83,9 +83,17 @@ export function useVersionCheck() {
       }
       if (Number(storedEpoch) !== epoch) {
         log.debug(`serverEpoch changed (${storedEpoch} → ${epoch}) — scheduling reload`);
+        localStorage.setItem(STORAGE_KEY, String(epoch));
+        /* Do NOT reload while the rider has an active delivery/ride in progress.
+           Reloading mid-trip loses GPS state, offline queue, and the active task UI.
+           Instead mark the reload as pending and let the next poll (when they are
+           no longer on /active) actually trigger it. */
+        if (window.location.pathname.startsWith("/active")) {
+          log.debug("epoch changed but rider is on /active — deferring reload until task is done");
+          return;
+        }
         reloadScheduled.current = true;
         clearInterval(timer);
-        localStorage.setItem(STORAGE_KEY, String(epoch));
         hardReload();
       }
     }

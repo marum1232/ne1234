@@ -151,6 +151,10 @@ export default function Home() {
 
   const TOGGLE_DEBOUNCE_MS = 1000;
   const lastToggleRef = useRef<number>(0);
+  /* Ref kept in sync with the derived totalRequests value (defined after the
+     query hooks below). Using a ref avoids both a forward-reference TypeScript
+     error and a stale closure inside toggleOnline's useCallback. */
+  const totalRequestsRef = useRef(0);
 
   const [showOfflineConfirm, setShowOfflineConfirm] = useState(false);
   const [zoneWarning, setZoneWarning] = useState<string | null>(null);
@@ -191,7 +195,7 @@ export default function Home() {
     if (toggling || now - lastToggleRef.current < TOGGLE_DEBOUNCE_MS) return;
     lastToggleRef.current = now;
 
-    if (effectiveOnline && totalRequests > 0) {
+    if (effectiveOnline && totalRequestsRef.current > 0) {
       setShowOfflineConfirm(true);
       return;
     }
@@ -539,6 +543,7 @@ export default function Home() {
     [allRides, dismissed],
   );
   const totalRequests = orders.length + rides.length;
+  totalRequestsRef.current = totalRequests;
 
   const dismiss = useCallback(
     (id: string) => {

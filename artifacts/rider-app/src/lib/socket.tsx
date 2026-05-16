@@ -140,18 +140,29 @@ export function SocketProvider({ children }: { children: ReactNode }) {
     };
   }, [user?.id]);
 
-  /* Shared battery source for Home.tsx and heartbeat pings */
+  /* Shared battery source for Home.tsx and heartbeat pings.
+     batteryLevelRef is used by the heartbeat interval (no re-render needed there).
+     batteryLevelState drives the context value so consumers actually see updates —
+     reading batteryLevelRef.current directly in the Provider JSX would always
+     yield the initial undefined because refs don't trigger re-renders. */
   const batteryLevelRef = useRef<number | undefined>(undefined);
+  const [batteryLevelState, setBatteryLevelState] = useState<number | undefined>(undefined);
 
   /* Initialize battery listener once at mount */
   useEffect(() => {
     type BatteryManager = { level: number; addEventListener: (event: string, cb: () => void) => void; removeEventListener: (event: string, cb: () => void) => void };
     let batt: BatteryManager | undefined;
-    const onLevelChange = () => { if (batt) batteryLevelRef.current = batt.level; };
+    const onLevelChange = () => {
+      if (batt) {
+        batteryLevelRef.current = batt.level;
+        setBatteryLevelState(batt.level);
+      }
+    };
     (navigator as unknown as { getBattery?: () => Promise<BatteryManager> }).getBattery?.()
       .then((b) => {
         batt = b;
         batteryLevelRef.current = batt.level;
+        setBatteryLevelState(batt.level);
         batt.addEventListener("levelchange", onLevelChange);
       }).catch(() => {});
     return () => { batt?.removeEventListener("levelchange", onLevelChange); };
@@ -194,7 +205,7 @@ export function SocketProvider({ children }: { children: ReactNode }) {
   }, [socket, user?.isOnline]);
 
   return (
-    <SocketContext.Provider value={{ socket, connected, setRiderPosition, batteryLevel: batteryLevelRef.current, setSlowGps }}>
+    <SocketContext.Provider value={{ socket, connected, setRiderPosition, batteryLevel: batteryLevelState, setSlowGps }}>
 
       {children}
     </SocketContext.Provider>
