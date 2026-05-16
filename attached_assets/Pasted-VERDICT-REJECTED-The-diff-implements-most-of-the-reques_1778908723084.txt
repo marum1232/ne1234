@@ -1,0 +1,83 @@
+VERDICT: REJECTED
+The diff implements most of the requested hardening, but it still has a blocking functional gap in the rider registration flow that violates core task requirements.
+
+Critical findings:
+- **Blocking: Register payload still assumes VERDICT: REJECTED
+phone in scenarios where phone is disabled.** In `artifacts/rider-app/src/pages/Register.tThe diff implements most of the requested hardening, but it still has a blocking functional gap in the rider registration flow that violates core task requirements.
+sx`, Step-1 UI/validation is made conditional, but registe
+r/check flows still commonly construct payloads with `phCritical findings:
+one: formatPhoneForApi(phone)` (and related phone-dependent checks). In email-only mode this can submit an empty/invalid phone or trigger gateway mismatch behavior. This directly conflicts with the requirement that registration/login be fully driven by platform flags and that email-only mode works cleanly.
+- This issue is sufficient to fail the stated “Done looks like” outcomes (especially Test Case A: email/phone gateway permutations and dynamic field behavior).
+
+What looks correct (non-blocking positives):
+- Shared auth config context with React Query one-time fetch and long cache appears implemented (`AuthConfigContext` + app provider wiring).
+- Backend gateway guards and `GATEWAY_DISABLED` responses are added in key auth endpoints.
+- OTP skip path (`otpSkipped`) for both-methods-disabled role is implemented server-side.
+- Register upload UX appears significantly improved: compression flow, retry UI, per-slot errors, and Next-button gating.
+- devOtp displays are guarded with `import.meta.env.DEV` patterns in reviewed auth screens.
+
+Security:
+- No serious new security violation observed in reviewed diff segments.
+
+Next actions:
+1. **Fix Register.tsx request construction** so phone is only sent/validated when `phoneEnabled` is true, and email is strictly required only when `emailEnabled` is true.
+2. Re-run the required smoke matrix, especially **phone-off/email-on** and **email-off/phone-on** registration paths, confirming payloads match enabled gateways.
+3. Add/adjust a focused frontend test (or integration assertion) to prevent regressions where hidden auth fields are still included in payloads.
+VERDICT: REJECTED
+The diff implements most of the requested hardening, but it still has a blocking functional gap in the rider registration flow that violates core task requirements.
+
+Critical findings:
+- **Blocking: Register payload still assumes phone in scenarios where phone is disabled.** In `artifacts/rider-app/src/pages/Register.tsx`, Step-1 UI/validation is made conditional, but register/check flows still commonly construct payloads with `phone: formatPhoneForApi(phone)` (and related phone-dependent checks). In email-only mode this can submit an empty/invalid phone or trigger gateway mismatch behavior. This directly conflicts with the requirement that registration/login be fully driven by platform flags and that email-only mode works cleanly.
+- This issue is sufficient to fail the stated “Done looks like” outcomes (especially Test Case A: email/phone gateway permutations and dynamic field behavior).
+
+What looks correct (non-blocking positives):
+- Shared auth config context with React Query one-time fetch and long cache appears implemented (`AuthConfigContext` + app provider wiring).
+- Backend gateway guards and `GATEWAY_DISABLED` responses are added in key auth endpoints.
+- OTP skip path (`otpSkipped`) for both-methods-disabled role is implemented server-side.
+- Register upload UX appears significantly improved: compression flow, retry UI, per-slot errors, and Next-button gating.
+- devOtp displays are guarded with `import.meta.env.DEV` patterns in reviewed auth screens.
+
+Security:
+- No serious new security violation observed in reviewed diff segments.
+
+Next actions:
+1. **Fix Register.tsx request construction** so phone is only sent/validated when `phoneEnabled` is true, and email is strictly required only when `emailEnabled` is true.
+2. Re-run the required smoke matrix, especially **phone-off/email-on** and **email-off/phone-on** registration paths, confirming payloads match enabled gateways.
+3. Add/adjust a focused frontend test (or integration assertion) to prevent regressions where hidden auth fields are still included in payloads.- **Blocking: Register payload still assumes phone in scenarios where phone is disabled.** In `artifacts/rider-app/src/pages/Register.tsx`, Step-1 UI/validation is made conditional, but register/check flows still commonly construct payloads with `phone: formatPhoneForApi(phone)` (and related phone-dependent checks). In email-only mode this can submit an empty/invalid phone or trigger gateway mismatch behavior. This directly conflicts with the requirement that registration/login be fully driven by platform flags and that email-only mode works cleanly.
+- This issue is sufficient to fail the stated “Done looks like” outcomes (especially Test Case A: email/phone gateway permutations and dynamic field behavior).
+
+What looks correct (non-blocking positives):
+- Shared auth config context with React Query one-time fetch and long cache appears implemented (`AuthConfigContext` + app provider wiring).
+- Backend gateway guards and `GATEWAY_DISABLED` responses are added in key auth endpoints.
+- OTP skip path (`otpSkipped`) for both-methods-disabled role is implemented server-side.
+- Register upload UX appears significantly improved: compression flow, retry UI, per-slot errors, and Next-button gating.
+- devOtp displays are guarded with `import.meta.env.DEV` patterns in reviewed auth screens.
+
+Security:
+- No serious new security violation observed in reviewed diff segments.
+
+Next actions:
+1. **Fix Register.tsx request construction** so phone is only sent/validated when `phoneEnabled` is true, and email is strictly required only when `emailEnabled` is true.
+2. Re-run the required smoke matrix, especially **phone-off/email-on** and **email-off/phone-on** registration paths, confirming payloads match enabled gateways.
+3. Add/adjust a focused frontend test (or integration assertion) to prevent regressions where hidden auth fields are still included in payloads.
+VERDICT: REJECTED
+The diff implements most of the requested hardening, but it still has a blocking functional gap in the rider registration flow that violates core task requirements.
+
+Critical findings:
+- **Blocking: Register payload still assumes phone in scenarios where phone is disabled.** In `artifacts/rider-app/src/pages/Register.tsx`, Step-1 UI/validation is made conditional, but register/check flows still commonly construct payloads with `phone: formatPhoneForApi(phone)` (and related phone-dependent checks). In email-only mode this can submit an empty/invalid phone or trigger gateway mismatch behavior. This directly conflicts with the requirement that registration/login be fully driven by platform flags and that email-only mode works cleanly.
+- This issue is sufficient to fail the stated “Done looks like” outcomes (especially Test Case A: email/phone gateway permutations and dynamic field behavior).
+
+What looks correct (non-blocking positives):
+- Shared auth config context with React Query one-time fetch and long cache appears implemented (`AuthConfigContext` + app provider wiring).
+- Backend gateway guards and `GATEWAY_DISABLED` responses are added in key auth endpoints.
+- OTP skip path (`otpSkipped`) for both-methods-disabled role is implemented server-side.
+- Register upload UX appears significantly improved: compression flow, retry UI, per-slot errors, and Next-button gating.
+- devOtp displays are guarded with `import.meta.env.DEV` patterns in reviewed auth screens.
+
+Security:
+- No serious new security violation observed in reviewed diff segments.
+
+Next actions:
+1. **Fix Register.tsx request construction** so phone is only sent/validated when `phoneEnabled` is true, and email is strictly required only when `emailEnabled` is true.
+2. Re-run the required smoke matrix, especially **phone-off/email-on** and **email-off/phone-on** registration paths, confirming payloads match enabled gateways.
+3. Add/adjust a focused frontend test (or integration assertion) to prevent regressions where hidden auth fields are still included in payloads.

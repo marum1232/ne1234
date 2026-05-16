@@ -29,6 +29,11 @@ catalog:
   vite: ^7.3.2
   zod: 3.25.76
 
+ignoredBuiltDependencies:
+  - '@google/genai'
+  - '@scarf/scarf'
+  - better-sqlite3
+
 minimumReleaseAge: 1440
 
 minimumReleaseAgeExclude:
@@ -68,6 +73,10 @@ overrides:
   '@tailwindcss/oxide>@tailwindcss/oxide-linux-x64-musl': '-'
   '@tailwindcss/oxide>@tailwindcss/oxide-win32-arm64-msvc': '-'
   '@tailwindcss/oxide>@tailwindcss/oxide-win32-x64-msvc': '-'
+  '@xmldom/xmldom': ^0.9.0
+  axios: ^1.15.2
+  brace-expansion@^1: ^1.1.13
+  brace-expansion@^2: ^2.0.3
   esbuild: 0.27.3
   esbuild>@esbuild/aix-ppc64: '-'
   esbuild>@esbuild/android-arm: '-'
@@ -94,6 +103,10 @@ overrides:
   esbuild>@esbuild/win32-arm64: '-'
   esbuild>@esbuild/win32-ia32: '-'
   esbuild>@esbuild/win32-x64: '-'
+  fast-uri: ^3.1.2
+  follow-redirects: ^1.16.0
+  http-proxy-agent: ^7.0.2
+  ip-address: ^10.1.1
   lightningcss>lightningcss-android-arm64: '-'
   lightningcss>lightningcss-darwin-arm64: '-'
   lightningcss>lightningcss-darwin-x64: '-'
@@ -104,6 +117,13 @@ overrides:
   lightningcss>lightningcss-linux-x64-musl: '-'
   lightningcss>lightningcss-win32-arm64-msvc: '-'
   lightningcss>lightningcss-win32-x64-msvc: '-'
+  lodash: ^4.18.0
+  node-forge: ^1.4.0
+  path-to-regexp@^8: ^8.4.0
+  picomatch@^2: ^2.3.2
+  picomatch@^4: ^4.0.4
+  postcss: ^8.5.10
+  protocol-buffers-schema: ^3.6.1
   rollup>@rollup/rollup-android-arm-eabi: '-'
   rollup>@rollup/rollup-android-arm64: '-'
   rollup>@rollup/rollup-darwin-arm64: '-'
@@ -128,22 +148,3 @@ overrides:
   rollup>@rollup/rollup-win32-ia32-msvc: '-'
   rollup>@rollup/rollup-win32-x64-gnu: '-'
   rollup>@rollup/rollup-win32-x64-msvc: '-'
-  # --- Security vulnerability overrides (Task #2) ---
-  # Scoped to ^8 so msw's path-to-regexp@^6 is not affected (cross-major safe)
-  'path-to-regexp@^8': ^8.4.0
-  follow-redirects: ^1.16.0
-  ip-address: ^10.1.1
-  fast-uri: ^3.1.2
-  '@xmldom/xmldom': ^0.9.0
-  'picomatch@^2': ^2.3.2
-  'picomatch@^4': ^4.0.4
-  'brace-expansion@^1': ^1.1.13
-  'brace-expansion@^2': ^2.0.3
-  lodash: ^4.18.0
-  postcss: ^8.5.10
-  protocol-buffers-schema: ^3.6.1
-  # GHSA-vpq2-c234-7xj6: @tootallnate/once@2.0.1 — force http-proxy-agent to
-  # v7+ which dropped the @tootallnate/once dependency entirely (Task #7)
-  http-proxy-agent: ^7.0.2
-  axios: ^1.15.2
-  node-forge: ^1.4.0
