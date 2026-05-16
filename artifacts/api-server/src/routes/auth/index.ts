@@ -4554,7 +4554,7 @@ router.post("/magic-link/send", sharedValidateBody(MagicLinkSendSchema), async (
   const settings = await getCachedSettings();
 
   if (!isAuthMethodEnabledStrict(settings, "auth_magic_link_enabled", "auth_magic_link")) {
-    sendForbidden(res, "Magic link login is currently disabled"); return;
+    sendErrorWithData(res, "Magic link login is currently disabled.", { code: "AUTH_METHOD_DISABLED" }, 400); return;
   }
 
   const normalized = email.toLowerCase().trim();
@@ -4580,7 +4580,7 @@ router.post("/magic-link/send", sharedValidateBody(MagicLinkSendSchema), async (
 
   const effectiveMagicRole = user.roles ?? ((req.body?.role === "rider" || req.body?.role === "vendor") ? req.body.role : "customer");
   if (!isAuthMethodEnabledStrict(settings, "auth_magic_link_enabled", "auth_magic_link", effectiveMagicRole)) {
-    sendForbidden(res, "Magic link login is currently disabled for your account type."); return;
+    sendErrorWithData(res, "Magic link login is currently disabled for your account type.", { code: "AUTH_METHOD_DISABLED" }, 400); return;
   }
 
   if (user.isBanned) { sendForbidden(res, "Account suspended"); return; }
@@ -4629,7 +4629,7 @@ router.post("/magic-link/verify", sharedValidateBody(MagicLinkVerifySchema), asy
   const settings = await getCachedSettings();
 
   if (!isAuthMethodEnabledStrict(settings, "auth_magic_link_enabled", "auth_magic_link")) {
-    sendForbidden(res, "Magic link login is currently disabled"); return;
+    sendErrorWithData(res, "Magic link login is currently disabled.", { code: "AUTH_METHOD_DISABLED" }, 400); return;
   }
 
   const allTokens = await db.select().from(magicLinkTokensTable)
@@ -4654,7 +4654,7 @@ router.post("/magic-link/verify", sharedValidateBody(MagicLinkVerifySchema), asy
   if (!user.isActive) { sendForbidden(res, "Account inactive"); return; }
 
   if (!isAuthMethodEnabledStrict(settings, "auth_magic_link_enabled", "auth_magic_link", user.roles ?? "customer")) {
-    sendForbidden(res, "Magic link login is currently disabled for your account type."); return;
+    sendErrorWithData(res, "Magic link login is currently disabled for your account type.", { code: "AUTH_METHOD_DISABLED" }, 400); return;
   }
 
   if (user.totpEnabled && isAuthMethodEnabled(settings, "auth_2fa_enabled", user.roles ?? undefined)) {

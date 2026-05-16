@@ -539,7 +539,7 @@ function makeChStyles(C: typeof Colors.light) {
 export function DevOtpBanner({ otp }: { otp: string }) {
   const { colors: C } = useTheme();
   const devS = useMemo(() => makeDevStyles(C), [C]);
-  if (!otp) return null;
+  if (!__DEV__ || !otp) return null;
   return (
     <View style={devS.box}>
       <Ionicons name="key-outline" size={14} color={C.success} />

@@ -18,10 +18,11 @@ import * as Linking from "expo-linking";
 import Colors, { spacing, radii, shadows, typography } from "@/constants/colors";
 import { useAuth, hasRole, type AppUser } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
-import { usePlatformConfig, isMethodEnabled } from "@/context/PlatformConfigContext";
+import { usePlatformConfig } from "@/context/PlatformConfigContext";
+import { useAuthConfig } from "@/context/AuthConfigContext";
 import { useToast } from "@/context/ToastContext";
 import { tDual, type TranslationKey } from "@workspace/i18n";
-import { normalizePhone, isValidPakistaniPhone, buildPhoneValidator } from "@/utils/phone";
+import { normalizePhone, buildPhoneValidator } from "@/utils/phone";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useOTPBypass } from "@/hooks/useOTPBypass";
 
@@ -65,7 +66,7 @@ export default function AuthScreen() {
   const T = (key: TranslationKey) => tDual(key, language);
   const { config: platformCfg } = usePlatformConfig();
   const { showToast } = useToast();
-  const authCfg = platformCfg.auth;
+  const authConfig = useAuthConfig();
 
   /* Reads the global "OTPs are suspended" flag the admin can flip from the
      OTP Control panel. When `bypassActive` is true, any 6-digit code is
@@ -288,7 +289,7 @@ export default function AuthScreen() {
         return;
       }
       if (res.action === "force_google") {
-        if (isMethodEnabled(authCfg.googleEnabled)) {
+        if (authConfig.allowGoogle) {
           setMethod("google");
           setStep("method");
         } else {
@@ -298,7 +299,7 @@ export default function AuthScreen() {
         return;
       }
       if (res.action === "force_facebook") {
-        if (isMethodEnabled(authCfg.facebookEnabled)) {
+        if (authConfig.allowFacebook) {
           setMethod("facebook");
           setStep("method");
         } else {
@@ -394,15 +395,36 @@ export default function AuthScreen() {
 
   /* authMode from platform_settings — in EMAIL-only mode, hide phone OTP */
   const enabledMethods: { key: LoginMethod; icon: keyof typeof Ionicons.glyphMap; label: string }[] = [];
-  if (isMethodEnabled(authCfg.phoneOtpEnabled) && authCfg.authMode !== "EMAIL") enabledMethods.push({ key: "phone", icon: "call-outline", label: T("phone") });
-  if (isMethodEnabled(authCfg.emailOtpEnabled)) enabledMethods.push({ key: "email", icon: "mail-outline", label: T("email") });
-  if (isMethodEnabled(authCfg.usernamePasswordEnabled)) enabledMethods.push({ key: "username", icon: "person-outline", label: T("username") });
+  if (authConfig.allowPhone && authConfig.authMode !== "EMAIL") enabledMethods.push({ key: "phone", icon: "call-outline", label: T("phone") });
+  if (authConfig.allowEmail) enabledMethods.push({ key: "email", icon: "mail-outline", label: T("email") });
+  if (authConfig.allowUsernamePassword) enabledMethods.push({ key: "username", icon: "person-outline", label: T("username") });
 
   const socialMethods: { key: LoginMethod; icon: keyof typeof Ionicons.glyphMap; label: string; color: string }[] = [];
-  if (isMethodEnabled(authCfg.googleEnabled)) socialMethods.push({ key: "google", icon: "logo-google", label: "Google", color: "#EA4335" });
-  if (isMethodEnabled(authCfg.facebookEnabled)) socialMethods.push({ key: "facebook", icon: "logo-facebook", label: "Facebook", color: "#1877F2" });
-  const showMagicLink = isMethodEnabled(authCfg.magicLinkEnabled);
-  const showBiometric = isMethodEnabled(authCfg.biometricEnabled) && biometricEnabled;
+  if (authConfig.allowGoogle) socialMethods.push({ key: "google", icon: "logo-google", label: "Google", color: "#EA4335" });
+  if (authConfig.allowFacebook) socialMethods.push({ key: "facebook", icon: "logo-facebook", label: "Facebook", color: "#1877F2" });
+  const showMagicLink = authConfig.allowMagicLink;
+  const showBiometric = authConfig.allowBiometric && biometricEnabled;
+
+  if (!authConfig.hasAnyMethod) {
+    return (
+      <LinearGradient colors={[C.primaryDark, C.primary, C.primaryLight]} style={styles.flex}>
+        <View style={[styles.centeredContainer, { paddingTop: topPad + 40 }]}>
+          <View style={styles.pendingCard}>
+            <Ionicons name="lock-closed-outline" size={48} color={C.textMuted} style={{ marginBottom: 16 }} />
+            <Text style={styles.pendingTitle}>Login Unavailable</Text>
+            <Text style={styles.pendingSubtitle}>
+              No login methods are currently enabled. Please contact support.
+            </Text>
+            {platformCfg.platform.supportPhone ? (
+              <Text style={{ fontFamily: "Inter_700Bold", fontSize: 14, color: C.primary, marginTop: 16 }}>
+                {platformCfg.platform.supportPhone}
+              </Text>
+            ) : null}
+          </View>
+        </View>
+      </LinearGradient>
+    );
+  }
 
   const handleSendPhoneOtp = async (preferredChannel?: string) => {
     clearError();
@@ -512,8 +534,8 @@ export default function AuthScreen() {
     try {
       const redirectUri = Linking.createURL("auth/callback");
       const WebBrowser = await import("expo-web-browser");
-      const googleClientId = authCfg.googleClientId || process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
-      const fbAppId = authCfg.facebookAppId || process.env.EXPO_PUBLIC_FB_APP_ID;
+      const googleClientId = authConfig.googleClientId || process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
+      const fbAppId = authConfig.facebookAppId || process.env.EXPO_PUBLIC_FB_APP_ID;
 
       if (provider === "google") {
         if (!googleClientId) {
@@ -987,8 +1009,8 @@ export default function AuthScreen() {
 
                   {socialMethods.map(sm => {
                     const isConfigured = sm.key === "google"
-                      ? !!(authCfg.googleClientId || process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID)
-                      : !!(authCfg.facebookAppId || process.env.EXPO_PUBLIC_FB_APP_ID);
+                      ? !!(authConfig.googleClientId || process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID)
+                      : !!(authConfig.facebookAppId || process.env.EXPO_PUBLIC_FB_APP_ID);
                     return (
                       <SocialButton
                         key={sm.key}
@@ -1271,8 +1293,8 @@ export default function AuthScreen() {
 
                     {socialMethods.map(sm => {
                       const isConfigured = sm.key === "google"
-                        ? !!(authCfg.googleClientId || process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID)
-                        : !!(authCfg.facebookAppId || process.env.EXPO_PUBLIC_FB_APP_ID);
+                        ? !!(authConfig.googleClientId || process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID)
+                        : !!(authConfig.facebookAppId || process.env.EXPO_PUBLIC_FB_APP_ID);
                       return (
                         <SocialButton
                           key={sm.key}

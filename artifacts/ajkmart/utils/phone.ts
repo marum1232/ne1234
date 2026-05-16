@@ -33,15 +33,24 @@ export function isValidPakistaniPhone(raw: string): boolean {
 }
 
 /**
+ * Strict pre-normalization validator for raw user input.
+ * Accepts only `03XXXXXXXXX` (11-digit, leading zero required).
+ * Use this on the raw value from a phone input field before normalization.
+ */
+export function isStrictRawPhone(raw: string): boolean {
+  return /^03\d{9}$/.test(raw.replace(/[\s]/g, ""));
+}
+
+/**
  * Build a phone validator using the regex pattern from platform config.
- * Falls back to `isValidPakistaniPhone` only when no pattern is provided
- * or the provided pattern is an invalid regex. When a valid pattern is
- * supplied it is used exclusively — the Pakistani fallback is not OR'ed in.
+ * Falls back to `isStrictRawPhone` (requires `03XXXXXXXXX`) when no pattern
+ * is provided, or `isValidPakistaniPhone` if the provided regex is invalid.
+ * When a valid pattern is supplied it is used exclusively.
  */
 export function buildPhoneValidator(
   phoneFormat?: string,
 ): (raw: string) => boolean {
-  if (!phoneFormat) return isValidPakistaniPhone;
+  if (!phoneFormat) return isStrictRawPhone;
   try {
     const re = new RegExp(phoneFormat);
     return (raw: string) => re.test(raw);

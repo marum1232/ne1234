@@ -19,7 +19,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { spacing, radii, shadows, typography } from "@/constants/colors";
 import { useAuth, type AppUser } from "@/context/AuthContext";
 import { usePlatformConfig } from "@/context/PlatformConfigContext";
-import { normalizePhone, isValidPakistaniPhone, buildPhoneValidator } from "@/utils/phone";
+import { useAuthConfig } from "@/context/AuthConfigContext";
+import { normalizePhone, buildPhoneValidator } from "@/utils/phone";
 
 import {
   OtpDigitInput,
@@ -62,6 +63,7 @@ export default function RegisterScreen() {
   const insets = useSafeAreaInsets();
   const { login } = useAuth();
   const { config } = usePlatformConfig();
+  const authConfig = useAuthConfig();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const validatePhone = buildPhoneValidator(config.regional?.phoneFormat);
   const phoneHint = config.regional?.phoneHint ?? "03XXXXXXXXX";
@@ -611,6 +613,14 @@ export default function RegisterScreen() {
           ) : null}
           {step === 1 && (
             <>
+              {!authConfig.allowPhone && (
+                <View style={{ backgroundColor: "#FEF3C7", borderRadius: 12, padding: 12, marginBottom: 16, flexDirection: "row", alignItems: "flex-start", gap: 8, borderWidth: 1, borderColor: "#FDE68A" }}>
+                  <Ionicons name="warning-outline" size={16} color="#D97706" style={{ marginTop: 1 }} />
+                  <Text style={{ fontSize: 12, color: "#92400E", fontFamily: "Inter_500Medium", lineHeight: 18, flex: 1 }}>
+                    Phone verification is currently unavailable. Please contact support.
+                  </Text>
+                </View>
+              )}
               {!otpSent ? (
                 <>
                   <Text style={s.fieldLabel}>Phone Number</Text>

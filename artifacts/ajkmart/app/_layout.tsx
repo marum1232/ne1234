@@ -58,6 +58,7 @@ import {
   PlatformConfigProvider,
   usePlatformConfig,
 } from "@/context/PlatformConfigContext";
+import { AuthConfigProvider } from "@/context/AuthConfigContext";
 import { PerformanceProvider } from "@/context/PerformanceContext";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { ToastProvider } from "@/context/ToastContext";
@@ -580,6 +581,7 @@ export default function RootLayout() {
                 <FontSizeProvider>
                   <ThemeProvider>
                     <PlatformConfigProvider>
+                      <AuthConfigProvider>
                       <PerformanceProvider>
                         <LanguageProvider>
                           <AuthProvider>
@@ -592,6 +594,7 @@ export default function RootLayout() {
                           </AuthProvider>
                         </LanguageProvider>
                       </PerformanceProvider>
+                      </AuthConfigProvider>
                     </PlatformConfigProvider>
                   </ThemeProvider>
                 </FontSizeProvider>

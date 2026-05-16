@@ -100,7 +100,7 @@ export default function Login() {
         return (p: string) => re.test(p);
       }
     } catch { /* invalid regex — fall through to hardcoded regex */ }
-    return (p: string) => /^0?3\d{9}$/.test(p.replace(/[\s\-()+]/g, ""));
+    return (p: string) => /^03\d{9}$/.test(p);
   })();
   const [, navigate] = useLocation();
 
