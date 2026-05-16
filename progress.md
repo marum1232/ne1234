@@ -12,7 +12,7 @@
 | T003 | COMPLETE | 2026-05-16 | 2026-05-16 | Remove duplicate schemas & helpers from auth router |
 | T004 | COMPLETE | 2026-05-16 | 2026-05-16 | Session revocation verified, account recovery endpoints, Swagger UI at /api-docs |
 | T005 | COMPLETE | 2026-05-16 | 2026-05-16 | Created @workspace/auth-react package in lib/auth-react/ with tsup build |
-| T006 | PENDING | - | - | - |
+| T006 | COMPLETE | 2026-05-16 | 2026-05-16 | Token storage, auth client with retry/refresh, JWT utils — 14/14 tests passed |
 | T007 | PENDING | - | - | - |
 | T008 | PENDING | - | - | - |
 | T009 | PENDING | - | - | - |
@@ -60,3 +60,13 @@
       ├── index.d.ts    (TypeScript declarations, 785 B)
       └── index.d.cts   (CJS type declarations, 785 B)
 - [2026-05-16] T005 COMPLETE -- @workspace/auth-react package scaffolding created and built successfully. Package exports: version, AuthProvider, useAuth, AuthUser, AuthContextValue, AuthProviderProps.
+- [2026-05-16] T006 IN PROGRESS -- Implementing unified token storage, auth client, and JWT utils.
+- [2026-05-16] T006 Step 1: Created lib/auth-react/src/api/tokenStorage.ts — TokenStorage interface; MemoryStorage (in-process), WebStorage (sessionStorage/localStorage), NativeStorage (expo-secure-store via runtime detection); createTokenStorage(type) factory for 'web' | 'web-local' | 'native' | 'memory'.
+- [2026-05-16] T006 Step 2: Created lib/auth-react/src/api/authClient.ts — createAuthClient({ baseURL, tokenStorage, onUnauthorized, refreshEndpoint }); proactive token refresh before expiry (isTokenExpired check); 401 interceptor with deduped refresh using a promise ref; withRetry (max 3, exponential backoff); get/post/put/patch/delete methods, credentials: include for cookie-based refresh token.
+- [2026-05-16] T006 Step 3: Created lib/auth-react/src/utils/jwtUtils.ts — decodeJwt (safe UTF-8 via decodeURIComponent + base64url padding); isTokenExpired (with leewaySeconds, default 60); getTokenExpiryRemaining.
+- [2026-05-16] T006 Step 4: Updated src/index.ts barrel to export all new modules and types.
+- [2026-05-16] T006 Step 5: Fixed tsconfig.json — added "lib": ["ES2020", "DOM", "DOM.Iterable"] for browser type access.
+- [2026-05-16] T006 VERIFICATION: Created src/utils/verify.mjs smoke-test — ran against dist/index.cjs. Results: 14/14 passed (0 failed).
+  Tests covered: tokenStorage set/get/remove, decodeJwt with Urdu non-ASCII claim (آزاد کشمیر), isTokenExpired (valid + expired), getTokenExpiryRemaining, authClient method shape.
+  Build output: dist/index.cjs (8.48 KB), dist/index.js (7.11 KB), dist/index.d.ts (2.26 KB) — no TypeScript errors.
+- [2026-05-16] T006 COMPLETE -- All three modules implemented, build clean, 14/14 verification tests passing.
