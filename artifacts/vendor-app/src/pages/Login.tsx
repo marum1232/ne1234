@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, type ReactNode } from "react";
-import { Phone, Mail, User, Wrench, AlertCircle, X, Eye, EyeOff, Fingerprint, Loader2 } from "lucide-react";
+import { Phone, Mail, User, Wrench, AlertCircle, X, Eye, EyeOff, Fingerprint, Loader2, Camera, CheckCircle2 } from "lucide-react";
 import {
   isBiometricAvailable,
   isBiometricEnabled,
@@ -19,6 +19,9 @@ import { useOTPBypass } from "../hooks/useOTPBypass";
 
 type LoginMethod = "phone" | "email" | "username" | "google" | "facebook";
 type Step = "continue" | "input" | "otp" | "pending" | "2fa" | "register" | "register-otp" | "register-info" | "register-submitted" | "forgot" | "forgot-otp" | "forgot-reset" | "forgot-done";
+type RegMethod = "phone" | "email" | "none";
+
+interface UploadedDoc { label: string; url: string; preview: string; }
 
 function getDeviceFingerprint(): string {
   const stored = sessionStorage.getItem("_dfp");
@@ -59,7 +62,7 @@ export default function Login() {
         return (ph: string) => re.test(ph);
       }
     } catch { /* invalid regex — fall through to hardcoded regex */ }
-    return (ph: string) => /^0?3\d{9}$/.test(ph.replace(/[\s\-()+]/g, ""));
+    return (ph: string) => /^03\d{9}$/.test(ph.replace(/[\s\-()+]/g, ""));
   })();
   const googleClientId    = config.auth?.googleClientId;
   const facebookAppId     = config.auth?.facebookAppId;
@@ -129,13 +132,24 @@ export default function Login() {
   const [showForgotPwd, setShowForgotPwd] = useState(false);
 
   const [regPhone, setRegPhone] = useState("");
+  const [regPhoneError, setRegPhoneError] = useState("");
+  const [regEmail, setRegEmail] = useState("");
+  const [regEmailError, setRegEmailError] = useState("");
   const [regOtp, setRegOtp]     = useState("");
   const [regDevOtp, setRegDevOtp] = useState("");
+  const [regEmailDevOtp, setRegEmailDevOtp] = useState("");
   const [regForm, setRegForm] = useState({
     storeName: "", storeCategory: "", name: "", cnic: "", address: "", city: "",
     bankName: "", bankAccount: "", bankAccountTitle: "",
   });
   const rf = (k: string, v: string) => setRegForm(p => ({ ...p, [k]: v }));
+
+  const [docStorefront, setDocStorefront] = useState<UploadedDoc | null>(null);
+  const [docCnicFront, setDocCnicFront] = useState<UploadedDoc | null>(null);
+  const [docCnicBack, setDocCnicBack] = useState<UploadedDoc | null>(null);
+  const [optimisingDoc, setOptimisingDoc] = useState("");
+  const [uploadingDoc, setUploadingDoc] = useState("");
+  const [docUploadErrors, setDocUploadErrors] = useState<Record<string, string>>({});
 
   const [regUsername, setRegUsername] = useState("");
   const [regUsernameStatus, setRegUsernameStatus] = useState<"idle" | "checking" | "available" | "taken">("idle");
@@ -581,47 +595,100 @@ export default function Login() {
     setLoading(false);
   };
 
+  /* Registration auth flags — each independent of the other.
+     When both phone and email OTP are enabled, both fields are shown.
+     The OTP channel used is: phone if enabled, else email. */
+  const allowPhone = vendorAuth.phoneOtp;
+  const allowEmail = vendorAuth.emailOtp;
+
+  /* Strict registration phone validator — always ^03\d{9}$ regardless of regional.phoneFormat.
+     The regional format may be more permissive; registration enforces the canonical Pakistani format. */
+  const isValidRegPhone = (ph: string): boolean => /^03\d{9}$/.test(ph.replace(/[\s\-()+]/g, ""));
+
+  /* OTP channel: phone (preferred) → email (fallback when phoneOtp disabled) → none (skip OTP).
+     Both paths use the full register → register-otp → register-info flow.
+     When neither channel is available the OTP step is skipped entirely. */
   const sendRegOtp = async () => {
-    if (!regPhone || !isValidPhone(regPhone)) { setError(`Enter a valid phone number (${phoneHint})`); return; }
-    setLoading(true); clearError();
-    try {
-      const captchaToken = await getCaptchaToken("register_phone_otp");
-      const res = await api.sendOtp(regPhone, undefined, captchaToken);
-      if (res.otpRequired === false) {
-        /* OTP globally disabled — skip OTP step entirely.
-           If no token was returned (new user bypass), call verify-otp immediately
-           with a dummy code to create the provisional user record and get a token.
-           verify-otp global bypass accepts any code. */
-        if (res.token) {
-          api.storeTokens(res.token, res.refreshToken);
-        } else {
-          try {
-            const verifyRes = await api.verifyOtp(regPhone, "000000");
-            if (verifyRes.token) api.storeTokens(verifyRes.token, verifyRes.refreshToken);
-          } catch {
-            /* If verify-otp fails, still proceed — vendor-register will give auth error */
-          }
-        }
-        setStep("register-info");
-        setLoading(false); return;
+    if (allowPhone) {
+      if (!regPhone || !isValidRegPhone(regPhone)) {
+        setError("Enter a valid phone number (03XXXXXXXXX)");
+        return;
       }
-      setRegDevOtp(res.otp || "");
-      setStep("register-otp");
-      startCooldown();
-    } catch (e) { setError(e instanceof Error ? e.message : "Failed to send OTP"); }
-    setLoading(false);
+      setLoading(true); clearError();
+      try {
+        const captchaToken = await getCaptchaToken("register_phone_otp");
+        const res = await api.sendOtp(regPhone, undefined, captchaToken);
+        if (res.otpRequired === false) {
+          if (res.token) {
+            api.storeTokens(res.token, res.refreshToken);
+          } else {
+            try {
+              const verifyRes = await api.verifyOtp(regPhone, "000000");
+              if (verifyRes.token) api.storeTokens(verifyRes.token, verifyRes.refreshToken);
+            } catch { /* proceed anyway */ }
+          }
+          setStep("register-info");
+          setLoading(false); return;
+        }
+        setRegDevOtp(res.otp || "");
+        setStep("register-otp");
+        startCooldown();
+      } catch (e) { setError(e instanceof Error ? e.message : "Failed to send OTP"); }
+      setLoading(false);
+    } else if (allowEmail) {
+      if (!regEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(regEmail)) {
+        setError("Enter a valid email address");
+        return;
+      }
+      setLoading(true); clearError();
+      try {
+        const res = await api.sendEmailOtp(regEmail);
+        setRegEmailDevOtp(res.otp || "");
+        setStep("register-otp");
+        startCooldown();
+      } catch (e) { setError(e instanceof Error ? e.message : "Failed to send OTP"); }
+      setLoading(false);
+    } else {
+      /* No OTP method available — skip OTP step */
+      setStep("register-info");
+    }
   };
 
   const verifyRegOtp = async () => {
     if (!regOtp || regOtp.length < 6) { setError(T("enterOtp")); return; }
     setLoading(true); clearError();
     try {
-      const res = await api.verifyOtp(regPhone, regOtp, getDeviceFingerprint());
-      if (res.token) api.storeTokens(res.token, res.refreshToken);
+      if (allowPhone) {
+        const res = await api.verifyOtp(regPhone, regOtp, getDeviceFingerprint());
+        if (res.token) api.storeTokens(res.token, res.refreshToken);
+      } else {
+        const res = await api.verifyEmailOtp(regEmail, regOtp, getDeviceFingerprint());
+        if (res.token) api.storeTokens(res.token, res.refreshToken);
+      }
       setStep("register-info");
     } catch (e) { setError(e instanceof Error ? e.message : "Verification failed"); }
     setLoading(false);
   };
+
+  const requireDocuments = !!config.vendor.requireDocuments;
+
+  const handleDocUpload = useCallback(async (file: File, field: string, setter: (doc: UploadedDoc) => void) => {
+    const preview = URL.createObjectURL(file);
+    setDocUploadErrors(prev => { const next = { ...prev }; delete next[field]; return next; });
+    setOptimisingDoc(field);
+    try {
+      /* api.uploadRegistrationDoc already compresses the file internally — pass raw file here */
+      setOptimisingDoc("");
+      setUploadingDoc(field);
+      const res = await api.uploadRegistrationDoc(file);
+      setter({ label: file.name, url: res.url, preview });
+    } catch (e) {
+      setDocUploadErrors(prev => ({ ...prev, [field]: e instanceof Error ? e.message : "Upload failed" }));
+    } finally {
+      setOptimisingDoc("");
+      setUploadingDoc("");
+    }
+  }, []);
 
   const submitRegistration = async () => {
     if (!regForm.storeName.trim()) { setError("Store name is required"); return; }
@@ -630,10 +697,29 @@ export default function Login() {
     if (regUsernameStatus === "taken") { setError("Username is already taken"); return; }
     if (regUsernameStatus !== "available") { setError("Please wait for username availability check"); return; }
     if (!regTermsAccepted) { setError("Please accept the Terms & Conditions to continue"); return; }
+    if (requireDocuments) {
+      if (!docStorefront?.url) { setError("Store front photo is required"); return; }
+      if (!docCnicFront?.url) { setError("CNIC front photo is required"); return; }
+      if (!docCnicBack?.url) { setError("CNIC back photo is required"); return; }
+    }
     setLoading(true); clearError();
     try {
       const termsVersion = config.compliance?.termsVersion;
-      const res = await api.vendorRegister({ phone: regPhone, ...regForm, username: regUsername.trim(), ...(termsVersion && { acceptedTermsVersion: termsVersion }) });
+      const docsPayload = requireDocuments || docStorefront?.url || docCnicFront?.url || docCnicBack?.url
+        ? { files: [
+            ...(docStorefront?.url  ? [{ type: "store_front",  url: docStorefront.url,  label: "Store Front" }]  : []),
+            ...(docCnicFront?.url   ? [{ type: "cnic_front",   url: docCnicFront.url,   label: "CNIC Front" }]   : []),
+            ...(docCnicBack?.url    ? [{ type: "cnic_back",    url: docCnicBack.url,    label: "CNIC Back" }]    : []),
+          ]}
+        : undefined;
+      const res = await api.vendorRegister({
+        ...(allowPhone && regPhone ? { phone: regPhone } : {}),
+        ...(allowEmail && regEmail ? { email: regEmail } : {}),
+        ...regForm,
+        username: regUsername.trim(),
+        ...(termsVersion && { acceptedTermsVersion: termsVersion }),
+        ...(docsPayload ? { documents: JSON.stringify(docsPayload) } : {}),
+      });
       if (res.status === "approved") {
         setStep("input");
         setError("Your vendor account is already approved! Please log in.");
@@ -884,15 +970,52 @@ export default function Login() {
 
               {step === "register" && (
                 <>
-                  <h2 className="text-lg font-extrabold text-gray-800 mb-1">Verify Phone Number</h2>
-                  <p className="text-sm text-gray-500 mb-4">We'll send an OTP to verify your number</p>
-                  <label className={LABEL_CLS}>Phone Number</label>
-                  <div className="flex gap-2 mb-4">
-                    <div className="h-12 px-3 bg-gray-100 border border-gray-200 rounded-xl flex items-center text-sm font-bold text-gray-600 flex-shrink-0">🇵🇰 +92</div>
-                    <input type="tel" placeholder="3XX XXXXXXX" value={regPhone} onChange={e => setRegPhone(e.target.value)}
-                      onKeyDown={e => e.key === "Enter" && sendRegOtp()}
-                      className={INPUT_CLS} autoFocus inputMode="tel" />
-                  </div>
+                  <h2 className="text-lg font-extrabold text-gray-800 mb-1">
+                    {allowPhone ? "Verify Phone Number" : allowEmail ? "Verify Email Address" : "Register Your Store"}
+                  </h2>
+                  <p className="text-sm text-gray-500 mb-4">
+                    {(allowPhone || allowEmail) ? "We'll send an OTP to verify your identity" : "Fill in your store details to complete registration"}
+                  </p>
+
+                  {allowPhone && (
+                    <>
+                      <label className={LABEL_CLS}>Phone Number</label>
+                      <div className="flex gap-2 mb-1">
+                        <div className="h-12 px-3 bg-gray-100 border border-gray-200 rounded-xl flex items-center text-sm font-bold text-gray-600 flex-shrink-0">🇵🇰 +92</div>
+                        <input type="tel" placeholder="3XX XXXXXXX" value={regPhone}
+                          onChange={e => { setRegPhone(e.target.value); if (regPhoneError) setRegPhoneError(""); }}
+                          onBlur={() => {
+                            if (regPhone && !isValidRegPhone(regPhone)) setRegPhoneError("Enter a valid Pakistani mobile number (03XXXXXXXXX)");
+                            else setRegPhoneError("");
+                          }}
+                          onKeyDown={e => e.key === "Enter" && sendRegOtp()}
+                          className={`${INPUT_CLS} ${regPhoneError ? "border-red-400 focus:ring-red-400" : ""}`}
+                          autoFocus={!allowEmail} inputMode="tel" />
+                      </div>
+                      {regPhoneError && <p className="text-xs text-red-500 mb-3">{regPhoneError}</p>}
+                      {!regPhoneError && <div className="mb-3" />}
+                    </>
+                  )}
+
+                  {allowEmail && (
+                    <>
+                      <label className={LABEL_CLS}>Email Address{allowPhone ? " (optional)" : ""}</label>
+                      <div className="relative mb-1">
+                        <Mail size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                        <input type="email" placeholder="your@business.com" value={regEmail}
+                          onChange={e => { setRegEmail(e.target.value.trim()); if (regEmailError) setRegEmailError(""); }}
+                          onBlur={() => {
+                            if (regEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(regEmail)) setRegEmailError("Enter a valid email address");
+                            else setRegEmailError("");
+                          }}
+                          onKeyDown={e => e.key === "Enter" && sendRegOtp()}
+                          className={`${INPUT_CLS} pl-10 ${regEmailError ? "border-red-400 focus:ring-red-400" : ""}`}
+                          autoFocus={!allowPhone} autoCapitalize="none" />
+                      </div>
+                      {regEmailError && <p className="text-xs text-red-500 mb-3">{regEmailError}</p>}
+                      {!regEmailError && <div className="mb-3" />}
+                    </>
+                  )}
                 </>
               )}
 
@@ -901,11 +1024,16 @@ export default function Login() {
                   <button onClick={() => { setStep("register"); clearError(); setRegDevOtp(""); }}
                     className="text-orange-600 text-sm font-bold mb-4 flex items-center gap-1.5 hover:text-orange-700 transition-colors">← Back</button>
                   <h2 className="text-lg font-extrabold text-gray-800 mb-1">{T("enterOtp")}</h2>
-                  <p className="text-sm text-gray-500 mb-1">{T("sentTo_")} <strong className="text-gray-700">+92{regPhone}</strong></p>
-                  {regDevOtp && (
+                  <p className="text-sm text-gray-500 mb-1">
+                    {T("sentTo_")}{" "}
+                    <strong className="text-gray-700">
+                      {allowPhone ? `+92${regPhone}` : regEmail}
+                    </strong>
+                  </p>
+                  {import.meta.env.DEV && (regDevOtp || regEmailDevOtp) && (
                     <div className="bg-orange-50 border border-orange-200 rounded-xl px-3 py-2 mb-3">
                       <p className="text-xs text-orange-600 font-bold uppercase tracking-wide mb-0.5">{T("devOtp")}</p>
-                      <p className="text-orange-700 font-extrabold text-xl tracking-[0.4em]">{regDevOtp}</p>
+                      <p className="text-orange-700 font-extrabold text-xl tracking-[0.4em]">{regDevOtp || regEmailDevOtp}</p>
                     </div>
                   )}
                   {/* 6-box OTP */}
@@ -1002,6 +1130,57 @@ export default function Login() {
                         </div>
                       </div>
                     </div>
+
+                    {requireDocuments && (
+                      <div className="border-t border-gray-100 pt-3">
+                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Verification Documents</p>
+                        <p className="text-[11px] text-gray-400 mb-3">Required for account approval. Photos must be clear and readable.</p>
+                        <div className="space-y-3">
+                          {([
+                            { field: "storefront", label: "Store Front Photo", hint: "Photo of your store entrance", doc: docStorefront, setter: setDocStorefront },
+                            { field: "cnicFront",   label: "CNIC Front",         hint: "Front side of your CNIC",        doc: docCnicFront,  setter: setDocCnicFront  },
+                            { field: "cnicBack",    label: "CNIC Back",          hint: "Back side of your CNIC",         doc: docCnicBack,   setter: setDocCnicBack   },
+                          ] as const).map(({ field, label, hint, doc, setter }) => {
+                            const isBusy = optimisingDoc === field || uploadingDoc === field;
+                            const err    = docUploadErrors[field];
+                            return (
+                              <div key={field}>
+                                <label className={LABEL_CLS}>{label} *</label>
+                                <label className={`flex items-center gap-3 h-14 px-4 rounded-xl border-2 cursor-pointer transition-all ${
+                                  doc ? "border-orange-400 bg-orange-50" : err ? "border-red-300 bg-red-50" : "border-dashed border-gray-300 bg-gray-50 hover:border-orange-300 hover:bg-orange-50"
+                                }`}>
+                                  <input type="file" accept="image/*" capture="environment" className="hidden"
+                                    disabled={isBusy}
+                                    onChange={e => {
+                                      const f = e.target.files?.[0];
+                                      if (f) handleDocUpload(f, field, setter as (d: UploadedDoc) => void);
+                                      e.target.value = "";
+                                    }} />
+                                  {isBusy ? (
+                                    <Loader2 size={18} className="text-orange-500 animate-spin flex-shrink-0" />
+                                  ) : doc ? (
+                                    <CheckCircle2 size={18} className="text-orange-500 flex-shrink-0" />
+                                  ) : (
+                                    <Camera size={18} className="text-gray-400 flex-shrink-0" />
+                                  )}
+                                  <div className="flex-1 min-w-0">
+                                    {doc ? (
+                                      <p className="text-xs font-semibold text-orange-700 truncate">{doc.label}</p>
+                                    ) : (
+                                      <p className="text-xs text-gray-500 truncate">{isBusy ? (optimisingDoc === field ? "Optimising…" : "Uploading…") : hint}</p>
+                                    )}
+                                  </div>
+                                  {doc?.preview && (
+                                    <img src={doc.preview} alt="" className="h-9 w-9 object-cover rounded-lg flex-shrink-0 border border-orange-200" />
+                                  )}
+                                </label>
+                                {err && <p className="text-[10px] text-red-500 mt-0.5">{err}</p>}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   <label className="flex items-start gap-3 mt-4 cursor-pointer select-none">
@@ -1036,7 +1215,7 @@ export default function Login() {
               {step === "register" && (
                 <button onClick={sendRegOtp} disabled={loading}
                   className="w-full h-12 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-2xl transition-all disabled:opacity-60 flex items-center justify-center gap-2 text-sm mt-2 shadow-sm shadow-orange-200">
-                  {loading ? <><div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> Please wait...</> : "Send OTP →"}
+                  {loading ? <><div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> Please wait...</> : (allowPhone || allowEmail) ? "Send OTP →" : "Continue →"}
                 </button>
               )}
 
@@ -1305,7 +1484,7 @@ export default function Login() {
                       </button>
                     ))}
                   </div>
-                  {devOtp && (
+                  {import.meta.env.DEV && devOtp && (
                     <div className="bg-orange-50 border border-orange-200 rounded-xl px-3 py-2.5 mb-4">
                       <p className="text-xs text-orange-600 font-bold uppercase tracking-wide mb-0.5">{T("devOtp")}</p>
                       <p className="text-orange-700 font-extrabold text-xl tracking-[0.4em]">{devOtp}</p>
@@ -1350,7 +1529,7 @@ export default function Login() {
                   {otpChannel === "email" && (
                     <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full inline-block mb-4">via ✉️ Email</span>
                   )}
-                  {emailDevOtp && (
+                  {import.meta.env.DEV && emailDevOtp && (
                     <div className="bg-orange-50 border border-orange-200 rounded-xl px-3 py-2.5 mb-4">
                       <p className="text-xs text-orange-600 font-bold uppercase tracking-wide mb-0.5">{T("devOtp")}</p>
                       <p className="text-orange-700 font-extrabold text-xl tracking-[0.4em]">{emailDevOtp}</p>
@@ -1417,7 +1596,7 @@ export default function Login() {
                   <button onClick={() => { setStep("forgot"); clearError(); }} className="text-sm text-orange-600 hover:text-orange-700 font-bold mb-4 flex items-center gap-1.5 transition-colors">← Back</button>
                   <h2 className="text-xl font-extrabold text-gray-800 mb-1">Enter Reset Code</h2>
                   <p className="text-sm text-gray-500 mb-1">A code was sent to your phone or email</p>
-                  {forgotDevOtp && (
+                  {import.meta.env.DEV && forgotDevOtp && (
                     <div className="bg-orange-50 border border-orange-200 rounded-xl px-3 py-2.5 mb-3">
                       <p className="text-xs text-orange-600 font-bold uppercase tracking-wide mb-0.5">DEV OTP</p>
                       <p className="text-orange-700 font-extrabold text-xl tracking-[0.4em]">{forgotDevOtp}</p>

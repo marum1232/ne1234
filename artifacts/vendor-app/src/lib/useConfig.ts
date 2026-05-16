@@ -15,6 +15,7 @@ export interface PlatformConfig {
     promoEnabled: boolean;
     withdrawalEnabled: boolean;
     lowStockThreshold: number;
+    requireDocuments?: boolean;
   };
   platform: {
     appName: string;

@@ -1,6 +1,7 @@
 import { getVendorApiBase } from "./envValidation";
 import { createApiFetcher, RefreshError, createCircuitBreaker, CircuitOpenError } from "@workspace/api-client-react";
 import { createLogger } from "@/lib/logger";
+import { compressImage } from "./imageUtils";
 const log = createLogger("[api]");
 
 const BASE = getVendorApiBase();
@@ -250,7 +251,7 @@ export const api = {
   refreshToken: () => _vendorRefresh(),
   checkAvailable: (data: { phone?: string; email?: string; username?: string }, signal?: AbortSignal) =>
     apiFetch("/auth/check-available", { method: "POST", body: JSON.stringify(data), signal }),
-  vendorRegister: (data: { phone: string; storeName: string; storeCategory?: string; name?: string; cnic?: string; address?: string; city?: string; bankName?: string; bankAccount?: string; bankAccountTitle?: string; username?: string; acceptedTermsVersion?: string }) =>
+  vendorRegister: (data: { phone?: string; email?: string; storeName: string; storeCategory?: string; name?: string; cnic?: string; address?: string; city?: string; bankName?: string; bankAccount?: string; bankAccountTitle?: string; username?: string; acceptedTermsVersion?: string; documents?: string }) =>
     apiFetch("/auth/vendor-register", { method: "POST", body: JSON.stringify(data) }),
   socialGoogle: (data: { idToken: string }) =>
     apiFetch("/auth/social/google", { method: "POST", body: JSON.stringify({ ...data, role: "vendor" }) }),
@@ -337,10 +338,28 @@ export const api = {
 
   /* Image Upload */
   uploadImage: async (file: File): Promise<{ url: string }> => {
+    const compressed = await compressImage(file);
     const formData = new FormData();
-    formData.append("file", file);
+    formData.append("file", compressed);
     const result = await apiFetch("/uploads", { method: "POST", body: formData });
     return { url: result.url };
+  },
+
+  uploadRegistrationDoc: async (file: File): Promise<{ url: string }> => {
+    /* Step 1: obtain a short-lived upload session nonce bound to this onboarding flow. */
+    const tokenRes = await apiFetch("/uploads/register-token", { method: "POST" });
+    const uploadToken: string = tokenRes?.token ?? "";
+    if (!uploadToken) throw new Error("Failed to obtain upload session token");
+    /* Step 2: compress, then upload with the token header. */
+    const compressed = await compressImage(file);
+    const formData = new FormData();
+    formData.append("file", compressed, file.name || "document.jpg");
+    const result = await apiFetch("/uploads/register", {
+      method: "POST",
+      body: formData,
+      headers: { "x-upload-token": uploadToken },
+    });
+    return { url: result.url ?? result.fileUrl ?? result.path ?? "" };
   },
 
   uploadAudio: async (file: File): Promise<{ url: string }> => {

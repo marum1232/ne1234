@@ -247,6 +247,7 @@ router.get("/", async (req, res) => {
       promoEnabled:       (s["vendor_promo_enabled"]                 ?? "on")  === "on",
       withdrawalEnabled:  (s["vendor_withdrawal_enabled"]            ?? "on")  === "on",
       lowStockThreshold:  parseInt(s["low_stock_threshold"]          ?? "10"),
+      requireDocuments:   (s["vendor_require_documents"]             ?? "off") === "on",
     },
     security: {
       gpsTracking:    (s["security_gps_tracking"]   ?? "on")  === "on",
