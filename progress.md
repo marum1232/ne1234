@@ -8,7 +8,7 @@
 | Task | Status | Started | Completed | Summary |
 |------|--------|---------|-----------|---------|
 | T001 | COMPLETE | 2026-05-16 | 2026-05-16 | Critical security & bug fixes |
-| T002 | PENDING | - | - | - |
+| T002 | COMPLETE | 2026-05-16 | 2026-05-16 | Split backend auth router into modules |
 | T003 | PENDING | - | - | - |
 | T004 | PENDING | - | - | - |
 | T005 | PENDING | - | - | - |

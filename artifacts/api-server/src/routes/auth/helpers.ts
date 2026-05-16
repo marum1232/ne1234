@@ -3,8 +3,9 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import rateLimit from "express-rate-limit";
 import crypto, { createHash, randomBytes } from "crypto";
 import { z } from "zod";
+import { encrypt, decrypt, isEncryptionAvailable } from "../../lib/crypto/encryption.js";
 import { db } from "@workspace/db";
-import { usersTable, refreshTokensTable, rateLimitsTable, userSessionsTable, loginHistoryTable } from "@workspace/db/schema";
+import { usersTable, refreshTokensTable, rateLimitsTable, userSessionsTable, loginHistoryTable, userTotpSetupTable } from "@workspace/db/schema";
 import { eq, and, sql, lt } from "drizzle-orm";
 import { generateId } from "../../lib/id.js";
 import {
@@ -182,6 +183,17 @@ export const sendOtpSchema = SendOtpSchema;
 export const verifyOtpSchema = VerifyOtpSchema;
 export const loginSchema = UserLoginSchema;
 
+  export { SendEmailOtpSchema, VerifyEmailOtpSchema, LoginVerifyOtpSchema,
+           CompleteProfileSchema, SetPasswordSchema, SocialGoogleSchema,
+           SocialFacebookSchema, TotpCodeSchema, TwoFaVerifySchema,
+           TwoFaRecoverySchema, TrustDeviceSchema, MagicLinkSendSchema,
+           VerifyResetOtpSchema, ResetPasswordSchema, EmailRegisterSchema,
+           LogoutSchema, ValidateTokenSchema, CheckAvailableSchema,
+           MagicLinkVerifySchema, ChangePhoneRequestSchema, ChangePhoneConfirmSchema,
+           LinkGoogleSchema, LinkFacebookSchema, FirebaseVerifySchema,
+           SendMergeOtpSchema, MergeAccountSchema, VendorRegisterSchema,
+           UserLoginSchema, SendOtpSchema, VerifyOtpSchema } from "../../lib/validation/schemas.js";
+  
 export async function checkAndIncrOtpRateLimit(params: {
   identifier: string;
   ip:         string;
@@ -368,4 +380,62 @@ export function isDeviceTrusted(user: any, deviceFingerprint: string, trustedDay
     logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
     return false;
   }
+}
+
+/** Encrypt a PII string when ENCRYPTION_MASTER_KEY is available; returns null silently if not. */
+export function tryEncrypt(value: string | null | undefined): string | null {
+  if (!value) return null;
+  try {
+    if (!isEncryptionAvailable()) return null;
+    return encrypt(value);
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+    return null;
+  }
+}
+
+/** Resolve a PII field: read from encrypted column first, fall back to plaintext for legacy rows. */
+export function decryptPii(encrypted: string | null | undefined, plaintext: string | null | undefined): string | null {
+  if (encrypted) {
+    try {
+      if (isEncryptionAvailable()) return decrypt(encrypted);
+    } catch (err) {
+      logger.debug({ error: err instanceof Error ? err.message : String(err) }, `[fn] fall through to plaintext on decryption failure`);
+    }
+  }
+  return plaintext ?? null;
+}
+
+
+export const PENDING_TOTP_TTL_MS = 5 * 60 * 1000;
+
+export async function storePendingTotpSecret(userId: string, secret: string, encryptedSecret: string): Promise<void> {
+  await db.insert(userTotpSetupTable).values({
+    id: generateId(),
+    userId,
+    secret,
+    encryptedSecret,
+  }).onConflictDoUpdate({
+    target: userTotpSetupTable.userId,
+    set: { secret, encryptedSecret, createdAt: new Date() },
+  });
+}
+
+export async function getPendingTotpSecret(userId: string): Promise<{ secret: string; encryptedSecret: string } | null> {
+  const [row] = await db
+    .select()
+    .from(userTotpSetupTable)
+    .where(eq(userTotpSetupTable.userId, userId))
+    .limit(1);
+  if (!row) return null;
+  const ageMs = Date.now() - row.createdAt.getTime();
+  if (ageMs > PENDING_TOTP_TTL_MS) {
+    await db.delete(userTotpSetupTable).where(eq(userTotpSetupTable.userId, userId));
+    return null;
+  }
+  return { secret: row.secret, encryptedSecret: row.encryptedSecret };
+}
+
+export async function deletePendingTotpSecret(userId: string): Promise<void> {
+  await db.delete(userTotpSetupTable).where(eq(userTotpSetupTable.userId, userId));
 }
