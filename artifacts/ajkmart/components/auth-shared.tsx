@@ -320,7 +320,7 @@ export function PhoneInput({
         style={phoneS.input}
         value={value}
         onChangeText={onChangeText}
-        placeholder="3XX XXX XXXX"
+        placeholder="03XXXXXXXXX"
         placeholderTextColor={C.textMuted}
         keyboardType="phone-pad"
         maxLength={11}

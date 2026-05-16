@@ -38,13 +38,13 @@ export function isValidPakistaniPhone(raw: string): boolean {
  * Use this on the raw value from a phone input field before normalization.
  */
 export function isStrictRawPhone(raw: string): boolean {
-  return /^03\d{9}$/.test(raw.replace(/[\s]/g, ""));
+  return /^03\d{9}$/.test(raw);
 }
 
 /**
  * Build a phone validator using the regex pattern from platform config.
  * Falls back to `isStrictRawPhone` (requires `03XXXXXXXXX`) when no pattern
- * is provided, or `isValidPakistaniPhone` if the provided regex is invalid.
+ * is provided, or when the provided regex is invalid.
  * When a valid pattern is supplied it is used exclusively.
  */
 export function buildPhoneValidator(
@@ -55,6 +55,6 @@ export function buildPhoneValidator(
     const re = new RegExp(phoneFormat);
     return (raw: string) => re.test(raw);
   } catch {
-    return isValidPakistaniPhone;
+    return isStrictRawPhone;
   }
 }

@@ -25,6 +25,7 @@ import { tDual, type TranslationKey } from "@workspace/i18n";
 import { normalizePhone, buildPhoneValidator } from "@/utils/phone";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useOTPBypass } from "@/hooks/useOTPBypass";
+import { useApiCall } from "@/hooks/useApiCall";
 
 import {
   OtpDigitInput,
@@ -52,7 +53,7 @@ async function authPost(path: string, body: object, extraHeaders?: Record<string
     body: JSON.stringify(body),
   });
   const json = await res.json();
-  if (!res.ok) throw new Error(json.error || json.message || "Request failed");
+  if (!res.ok) throw new Error(`HTTP ${res.status}: ${json.error || json.message || "Request failed"}`);
   return json?.data !== undefined ? json.data : json;
 }
 
@@ -124,6 +125,37 @@ export default function AuthScreen() {
 
   const [resendCooldown, setResendCooldown] = useState(0);
   const [emailResendCooldown, setEmailResendCooldown] = useState(0);
+
+  /* ── Circuit-breaker-backed OTP send/verify calls ─────────────────────── */
+  const lastPhoneOtpErrRef = useRef<string>("");
+  const lastPhoneVerifyErrRef = useRef<string>("");
+
+  const sendOtpApiFn = useCallback(
+    async (normalizedPhone: string, preferredChannel?: string) => {
+      const body: Record<string, string> = { phone: normalizedPhone };
+      if (preferredChannel) body.preferredChannel = preferredChannel;
+      return authPost("/auth/send-otp", body);
+    },
+    [],
+  );
+  const sendPhoneOtpCall = useApiCall(sendOtpApiFn, {
+    circuitBreaker: true,
+    showErrorToast: false,
+    maxRetries: 0,
+    onError: (msg) => { lastPhoneOtpErrRef.current = msg; },
+  });
+
+  const verifyOtpApiFn = useCallback(
+    async (normalizedPhone: string, code: string, fingerprint: string) =>
+      authPost("/auth/verify-otp", { phone: normalizedPhone, otp: code, deviceFingerprint: fingerprint }, { "X-App-Id": "customer" }),
+    [],
+  );
+  const verifyPhoneOtpCall = useApiCall(verifyOtpApiFn, {
+    circuitBreaker: true,
+    showErrorToast: false,
+    maxRetries: 0,
+    onError: (msg) => { lastPhoneVerifyErrRef.current = msg; },
+  });
 
   useEffect(() => {
     if (twoFactorPending) {
@@ -431,46 +463,63 @@ export default function AuthScreen() {
     if (!validatePhone(phone)) { setError(`Please enter a valid phone number (e.g. ${phoneHint})`); return; }
     const normalizedPhone = normalizePhone(phone);
     if (resendCooldown > 0) { setError(`Please wait ${resendCooldown}s before resending.`); return; }
+    if (sendPhoneOtpCall.circuitOpen) {
+      setError("Service temporarily unavailable. Please try again in a moment.");
+      return;
+    }
     setLoading(true);
-    try {
-      const body: Record<string, string> = { phone: normalizedPhone };
-      if (preferredChannel) body.preferredChannel = preferredChannel;
-      const res = await authPost("/auth/send-otp", body);
-      if (res.otpRequired === false) {
-        if (res.token) {
-          await handleLoginResult(res);
-          setLoading(false);
-          return;
-        }
-        /* OTP bypass — silently complete login via verify-otp with a dummy code */
-        const verifyRes = await authPost("/auth/verify-otp", { phone: normalizedPhone, otp: "000000" });
-        await handleLoginResult(verifyRes);
-        setLoading(false);
-        return;
-      }
-      if (res.otp) setDevOtp(res.otp);
-      setOtpChannel(res.channel || "sms");
-      setFallbackChannels(res.fallbackChannels || []);
-      setResendCooldown(60);
-      animateTransition(() => setStep("otp"));
-    } catch (e: unknown) {
-      const msg: string = e instanceof Error ? e.message : "Could not send OTP.";
+    lastPhoneOtpErrRef.current = "";
+    const res = await sendPhoneOtpCall.execute(normalizedPhone, preferredChannel);
+    if (res === null) {
+      const raw = lastPhoneOtpErrRef.current || "Could not send OTP.";
+      const msg = raw.replace(/^HTTP \d+: /, "");
       setError(msg);
       const match = msg.match(/wait (\d+) second/);
       if (match) setResendCooldown(parseInt(match[1]!, 10));
+      setLoading(false);
+      return;
     }
+    if (res.otpRequired === false) {
+      if (res.token) {
+        await handleLoginResult(res);
+        setLoading(false);
+        return;
+      }
+      /* OTP bypass — silently complete login via verify-otp with a dummy code */
+      try {
+        const verifyRes = await authPost("/auth/verify-otp", { phone: normalizedPhone, otp: "000000" });
+        await handleLoginResult(verifyRes);
+      } catch (e: unknown) {
+        setError(e instanceof Error ? e.message.replace(/^HTTP \d+: /, "") : "Auto-login failed. Please try again.");
+      }
+      setLoading(false);
+      return;
+    }
+    if (res.otp) setDevOtp(res.otp);
+    setOtpChannel(res.channel || "sms");
+    setFallbackChannels(res.fallbackChannels || []);
+    setResendCooldown(60);
+    animateTransition(() => setStep("otp"));
     setLoading(false);
   };
 
   const handleVerifyPhoneOtp = async () => {
     clearError();
     if (!otp || otp.length < 6) { setError("Please enter the 6-digit OTP"); return; }
+    if (verifyPhoneOtpCall.circuitOpen) {
+      setError("Service temporarily unavailable. Please try again in a moment.");
+      return;
+    }
     setLoading(true);
-    try {
-      const fingerprint = await getDeviceFingerprint();
-      const res = await authPost("/auth/verify-otp", { phone: normalizePhone(phone), otp, deviceFingerprint: fingerprint }, { "X-App-Id": "customer" });
+    lastPhoneVerifyErrRef.current = "";
+    const fingerprint = await getDeviceFingerprint();
+    const res = await verifyPhoneOtpCall.execute(normalizePhone(phone), otp, fingerprint);
+    if (res === null) {
+      const raw = lastPhoneVerifyErrRef.current || "Invalid OTP.";
+      setError(raw.replace(/^HTTP \d+: /, ""));
+    } else {
       await handleLoginResult(res);
-    } catch (e: unknown) { setError(e instanceof Error ? e.message : "Invalid OTP."); }
+    }
     setLoading(false);
   };
 

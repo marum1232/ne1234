@@ -3,10 +3,12 @@ import { LinearGradient } from "expo-linear-gradient";
 import { createLogger } from "@/utils/logger";
 const log = createLogger("[Register]");
 import * as Location from "expo-location";
+import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Image,
   KeyboardAvoidingView,
   Platform,
   TouchableOpacity,
@@ -21,6 +23,9 @@ import { useAuth, type AppUser } from "@/context/AuthContext";
 import { usePlatformConfig } from "@/context/PlatformConfigContext";
 import { useAuthConfig } from "@/context/AuthConfigContext";
 import { normalizePhone, buildPhoneValidator } from "@/utils/phone";
+import { useApiCall } from "@/hooks/useApiCall";
+import { enqueueRequest, drainQueue } from "@/lib/offline/queue";
+import { compressImage, imageUriToBase64 } from "@/utils/image";
 
 import {
   OtpDigitInput,
@@ -68,16 +73,38 @@ export default function RegisterScreen() {
   const validatePhone = buildPhoneValidator(config.regional?.phoneFormat);
   const phoneHint = config.regional?.phoneHint ?? "03XXXXXXXXX";
 
+  /** Determine registration channel from platform auth config */
+  const regMode: "phone" | "email" | "none" = authConfig.allowPhone
+    ? "phone"
+    : authConfig.allowEmail
+      ? "email"
+      : "none";
+
   const [step, setStep] = useState<RegStep>(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [alreadyExists, setAlreadyExists] = useState(false);
 
+  /* phone-mode OTP state */
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
   const [devOtp, setDevOtp] = useState("");
   const [otpSent, setOtpSent] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
+
+  /* email-mode registration state (used when phone is disabled) */
+  const [emailReg, setEmailReg] = useState("");
+  const [emailRegOtp, setEmailRegOtp] = useState("");
+  const [emailRegDevOtp, setEmailRegDevOtp] = useState("");
+  const [emailRegOtpSent, setEmailRegOtpSent] = useState(false);
+  const [emailRegResendCooldown, setEmailRegResendCooldown] = useState(0);
+
+  /* photo picker */
+  const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [photoLoading, setPhotoLoading] = useState(false);
+
+  /* offline queue flag */
+  const [queuedOffline, setQueuedOffline] = useState(false);
 
   const [authToken, setAuthToken] = useState("");
   const [authRefreshToken, setAuthRefreshToken] = useState("");
@@ -113,6 +140,70 @@ export default function RegisterScreen() {
     const t = setTimeout(() => setResendCooldown(c => c - 1), 1000);
     return () => clearTimeout(t);
   }, [resendCooldown]);
+
+  useEffect(() => {
+    if (emailRegResendCooldown <= 0) return;
+    const t = setTimeout(() => setEmailRegResendCooldown(c => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [emailRegResendCooldown]);
+
+  /* Drain offline queue whenever connectivity is restored */
+  useEffect(() => {
+    let unsubscribe: (() => void) | undefined;
+    import("@react-native-community/netinfo").then(({ default: NetInfo }) => {
+      unsubscribe = NetInfo.addEventListener(state => {
+        if (state.isConnected) {
+          drainQueue(API).catch(() => {});
+        }
+      });
+    }).catch(() => {});
+    return () => { unsubscribe?.(); };
+  }, []);
+
+  /* ── Circuit-breaker-backed OTP send/verify calls ─────────────────────── */
+  const lastSendOtpErrRef = useRef<string>("");
+  const lastVerifyOtpErrRef = useRef<string>("");
+
+  const sendOtpApiFn = useCallback(async (phone: string) => {
+    try {
+      const res = await fetch(`${API}/auth/send-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(`HTTP ${res.status}: ${data.error || "Could not send OTP."}`);
+      return data as Record<string, unknown>;
+    } catch (e) {
+      if (e instanceof TypeError) throw new Error(`OFFLINE: ${e.message}`);
+      throw e;
+    }
+  }, []);
+
+  const sendOtpCall = useApiCall(sendOtpApiFn, {
+    circuitBreaker: true,
+    showErrorToast: false,
+    maxRetries: 0,
+    onError: (msg) => { lastSendOtpErrRef.current = msg; },
+  });
+
+  const verifyOtpApiFn = useCallback(async (phone: string, otp: string) => {
+    const res = await fetch(`${API}/auth/verify-otp`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phone, otp }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(`HTTP ${res.status}: ${data.error || "Invalid OTP."}`);
+    return data as Record<string, unknown>;
+  }, []);
+
+  const verifyOtpCall = useApiCall(verifyOtpApiFn, {
+    circuitBreaker: true,
+    showErrorToast: false,
+    maxRetries: 0,
+    onError: (msg) => { lastVerifyOtpErrRef.current = msg; },
+  });
 
   useEffect(() => {
     import("expo-secure-store").then(async SS => {
@@ -211,124 +302,196 @@ export default function RegisterScreen() {
     clearError();
     if (!validatePhone(phone)) { setError(`Please enter a valid phone number (e.g. ${phoneHint})`); return; }
     if (resendCooldown > 0) return;
+    if (sendOtpCall.circuitOpen) {
+      setError("Service temporarily unavailable. Please try again in a moment.");
+      return;
+    }
     setLoading(true);
-    try {
-      if (!otpSent) {
-        let checkData: any;
-        try {
-          const checkRes = await fetch(`${API}/auth/check-identifier`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ identifier: `0${normalizedPhone}`, role: "customer" }),
-          });
-          checkData = await checkRes.json();
-          if (!checkRes.ok) {
-            setError(checkData?.error || "Could not verify phone number. Please try again.");
-            setLoading(false);
-            return;
-          }
-        } catch {
-          setError("Network error. Please check your connection and try again.");
+    if (!otpSent) {
+      /* pre-flight: check-identifier to catch blocked/locked/closed */
+      try {
+        const checkRes = await fetch(`${API}/auth/check-identifier`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ identifier: `0${normalizedPhone}`, role: "customer" }),
+        });
+        const checkData = await checkRes.json();
+        if (!checkRes.ok) {
+          setError(checkData?.error || "Could not verify phone number. Please try again.");
           setLoading(false);
           return;
         }
-        const action = checkData?.action;
-        if (action === "registration_closed") {
-          setError("New registrations are currently closed. Please try again later.");
-          setLoading(false);
-          return;
-        }
-        if (action === "blocked") {
-          setError("This phone number has been suspended. Please contact support.");
-          setLoading(false);
-          return;
-        }
+        const action: string = checkData?.action ?? "";
+        if (action === "registration_closed") { setError("New registrations are currently closed. Please try again later."); setLoading(false); return; }
+        if (action === "blocked") { setError("This phone number has been suspended. Please contact support."); setLoading(false); return; }
         if (action === "locked") {
           const mins = checkData?.lockedMinutes ?? "";
           setError(`Too many attempts. Please try again${mins ? ` in ${mins} minute(s)` : " later"}.`);
           setLoading(false);
           return;
         }
-        if (action === "no_method") {
-          setError("Phone OTP is currently disabled. Please contact support.");
-          setLoading(false);
-          return;
-        }
+        if (action === "no_method") { setError("Phone OTP is currently disabled. Please contact support."); setLoading(false); return; }
+        if (action === "exists") { setAlreadyExists(true); setLoading(false); return; }
+      } catch {
+        setError("Network error. Please check your connection and try again.");
+        setLoading(false);
+        return;
       }
+    }
 
-      const sendOtpRes = await fetch(`${API}/auth/send-otp`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: normalizedPhone }),
-      });
-      const sendOtpData = await sendOtpRes.json();
-      if (!sendOtpRes.ok) {
-        const msg: string = sendOtpData.error || "Could not send OTP.";
+    lastSendOtpErrRef.current = "";
+    const sendResult = await sendOtpCall.execute(normalizedPhone);
+
+    if (sendResult === null) {
+      const raw = lastSendOtpErrRef.current || "Could not send OTP.";
+      if (raw.startsWith("OFFLINE:")) {
+        await enqueueRequest("otp_send", "/auth/send-otp", "POST", { phone: normalizedPhone });
+        setQueuedOffline(true);
+        setError("You're offline. Your request has been saved and will be sent when you reconnect.");
+      } else {
+        const msg = raw.replace(/^HTTP \d+: /, "");
         setError(msg);
         const match = msg.match(/wait (\d+) second/);
         if (match) setResendCooldown(parseInt(match[1]!, 10));
-        setLoading(false);
-        return;
       }
-      if (sendOtpData.otpRequired === false) {
-        /* OTP is globally disabled by admin — skip OTP step entirely */
-        if (sendOtpData.token) {
-          setAuthToken(sendOtpData.token);
-          if (sendOtpData.refreshToken) setAuthRefreshToken(sendOtpData.refreshToken);
-          if (sendOtpData.user) setAuthUser(sendOtpData.user);
-          try {
-            const SecureStore = await import("expo-secure-store");
-            await SecureStore.setItemAsync("ajkmart_reg_token", sendOtpData.token);
-          // eslint-disable-next-line ajk-local/no-silent-catch -- SecureStore cache for reg token is best-effort; in-memory token still works
-          } catch {}
-        }
-        setStep(2);
-        setLoading(false);
-        return;
-      }
-      if (sendOtpData.otp) setDevOtp(sendOtpData.otp);
-      setResendCooldown(60);
-      setOtpSent(true);
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Could not send OTP.");
+      setLoading(false);
+      return;
     }
+
+    if (sendResult.otpRequired === false) {
+      if (sendResult.token) {
+        setAuthToken(sendResult.token as string);
+        if (sendResult.refreshToken) setAuthRefreshToken(sendResult.refreshToken as string);
+        if (sendResult.user) setAuthUser(sendResult.user as AppUser);
+        try {
+          const SecureStore = await import("expo-secure-store");
+          await SecureStore.setItemAsync("ajkmart_reg_token", sendResult.token as string);
+        // eslint-disable-next-line ajk-local/no-silent-catch -- SecureStore cache for reg token is best-effort; in-memory token still works
+        } catch {}
+      }
+      setStep(2);
+      setLoading(false);
+      return;
+    }
+    if (sendResult.otp) setDevOtp(sendResult.otp as string);
+    setResendCooldown(60);
+    setOtpSent(true);
     setLoading(false);
   };
 
   const handleVerifyOtp = async () => {
     clearError();
     if (!otp || otp.length < 6) { setError("Please enter the 6-digit OTP"); return; }
+    if (verifyOtpCall.circuitOpen) {
+      setError("Service temporarily unavailable. Please try again in a moment.");
+      return;
+    }
+    setLoading(true);
+    lastVerifyOtpErrRef.current = "";
+    const data = await verifyOtpCall.execute(normalizedPhone, otp);
+    if (data === null) {
+      setError((lastVerifyOtpErrRef.current || "Invalid OTP.").replace(/^HTTP \d+: /, ""));
+      setLoading(false);
+      return;
+    }
+    if (data.token) {
+      setAuthToken(data.token as string);
+      try {
+        const SecureStore = await import("expo-secure-store");
+        await SecureStore.setItemAsync("ajkmart_reg_token", data.token as string);
+      // eslint-disable-next-line ajk-local/no-silent-catch -- SecureStore cache is best-effort; in-memory token still works
+      } catch {}
+    }
+    if (data.refreshToken) setAuthRefreshToken(data.refreshToken as string);
+    if (data.user) setAuthUser(data.user as AppUser);
+    if (data.token && (data.user as AppUser | null)?.name && (data.user as AppUser | null)?.id) {
+      const u = data.user as AppUser;
+      await login({ ...u, walletBalance: u.walletBalance ?? 0, isActive: u.isActive ?? true, createdAt: u.createdAt ?? new Date().toISOString() }, data.token as string, (data.refreshToken as string | undefined) || undefined);
+      // eslint-disable-next-line ajk-local/no-silent-catch -- reg token cleanup is best-effort; session is already established
+      try { const SS = await import("expo-secure-store"); await SS.deleteItemAsync("ajkmart_reg_token"); } catch {}
+      router.replace("/(tabs)");
+      return;
+    }
+    setStep(2);
+    setLoading(false);
+  };
+
+  /* Email-mode registration handlers (used when phone OTP is disabled) */
+  const handleSendEmailReg = async () => {
+    clearError();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailReg.trim())) {
+      setError("Please enter a valid email address");
+      return;
+    }
+    if (emailRegResendCooldown > 0) return;
     setLoading(true);
     try {
-      const res = await fetch(`${API}/auth/verify-otp`, {
+      const res = await fetch(`${API}/auth/send-email-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: normalizedPhone, otp }),
+        body: JSON.stringify({ email: emailReg.trim().toLowerCase() }),
       });
       const data = await res.json();
-      if (!res.ok) { setError(data.error || "Invalid OTP."); setLoading(false); return; }
+      if (!res.ok) { setError(data.error || "Could not send verification email."); setLoading(false); return; }
+      if (data.otp) setEmailRegDevOtp(data.otp);
+      setEmailRegResendCooldown(60);
+      setEmailRegOtpSent(true);
+    } catch {
+      setError("Network error. Please check your connection and try again.");
+    }
+    setLoading(false);
+  };
+
+  const handleVerifyEmailReg = async () => {
+    clearError();
+    if (!emailRegOtp || emailRegOtp.length < 6) { setError("Please enter the 6-digit code"); return; }
+    setLoading(true);
+    try {
+      const res = await fetch(`${API}/auth/verify-email-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-App-Id": "customer" },
+        body: JSON.stringify({ email: emailReg.trim().toLowerCase(), otp: emailRegOtp }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error || "Invalid verification code."); setLoading(false); return; }
       if (data.token) {
         setAuthToken(data.token);
         try {
           const SecureStore = await import("expo-secure-store");
           await SecureStore.setItemAsync("ajkmart_reg_token", data.token);
-        // eslint-disable-next-line ajk-local/no-silent-catch -- SecureStore cache for reg token is best-effort; in-memory token still works
+        // eslint-disable-next-line ajk-local/no-silent-catch -- SecureStore cache is best-effort
         } catch {}
       }
       if (data.refreshToken) setAuthRefreshToken(data.refreshToken);
-      if (data.user) setAuthUser(data.user);
-
-      if (data.token && data.user?.name && data.user?.id) {
-        await login({ ...data.user, walletBalance: data.user.walletBalance ?? 0, isActive: data.user.isActive ?? true, createdAt: data.user.createdAt ?? new Date().toISOString() }, data.token, data.refreshToken || undefined);
-        // eslint-disable-next-line ajk-local/no-silent-catch -- reg token cleanup is best-effort; session is already established
-      try { const SS = await import("expo-secure-store"); await SS.deleteItemAsync("ajkmart_reg_token"); } catch {}
-        router.replace("/(tabs)");
-        return;
-      }
-
+      if (data.user) setAuthUser(data.user as AppUser);
+      setEmail(emailReg.trim().toLowerCase()); // pre-fill step 2 email field
       setStep(2);
-    } catch (e: any) { setError(e.message || "Verification fail."); }
+    } catch {
+      setError("Network error. Please check your connection and try again.");
+    }
     setLoading(false);
+  };
+
+  /* Profile photo picker — compresses before storing */
+  const handlePickPhoto = async () => {
+    setPhotoLoading(true);
+    try {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) { setPhotoLoading(false); return; }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 1,
+      });
+      if (!result.canceled && result.assets[0]) {
+        const compressedUri = await compressImage(result.assets[0].uri, { maxWidth: 512, quality: 0.8 });
+        setPhotoUri(compressedUri);
+      }
+    } catch {
+      /* photo pick failure is non-fatal — user proceeds without photo */
+    }
+    setPhotoLoading(false);
   };
 
   const handleStep2 = () => {
@@ -376,6 +539,10 @@ export default function RegisterScreen() {
       }
 
       const termsVersion = config.compliance?.termsVersion || "";
+      let profilePhotoBase64: string | undefined;
+      if (photoUri) {
+        try { profilePhotoBase64 = await imageUriToBase64(photoUri); } catch { /* photo upload is non-fatal */ }
+      }
       const profileRes = await fetch(`${API}/auth/complete-profile`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${activeToken}` },
@@ -390,6 +557,7 @@ export default function RegisterScreen() {
           ...(latitude && { latitude }),
           ...(longitude && { longitude }),
           password,
+          ...(profilePhotoBase64 && { profilePhoto: profilePhotoBase64 }),
           ...(termsVersion && { acceptedTermsVersion: termsVersion }),
         }),
       });
@@ -516,6 +684,32 @@ export default function RegisterScreen() {
     );
   }
 
+  if (regMode === "none") {
+    return (
+      <LinearGradient colors={["#1a1a2e", "#16213e", "#0f3460"]} style={{ flex: 1, justifyContent: "center", alignItems: "center", padding: 24 }}>
+        <View style={{ backgroundColor: "#fff", borderRadius: 24, padding: 32, width: "100%", maxWidth: 360, alignItems: "center", ...Platform.select({ web: { boxShadow: "0 10px 20px rgba(0,0,0,0.2)" }, default: { shadowColor: "#000", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.2, shadowRadius: 20, elevation: 20 } }) }}>
+          <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: "#FEE2E2", justifyContent: "center", alignItems: "center", marginBottom: 20 }}>
+            <Ionicons name="alert-circle-outline" size={40} color="#DC2626" />
+          </View>
+          <Text style={{ fontFamily: "Inter_700Bold", fontSize: 22, color: "#1F2937", marginBottom: 12, textAlign: "center" }}>Registration Unavailable</Text>
+          <Text style={{ fontSize: 14, color: "#6B7280", lineHeight: 22, textAlign: "center", marginBottom: 20 }}>
+            No registration methods are currently enabled. Please contact support.
+          </Text>
+          {(config.platform.supportPhone || config.platform.supportEmail) && (
+            <View style={{ backgroundColor: "#F9FAFB", borderRadius: 12, padding: 14, width: "100%", borderWidth: 1, borderColor: "#E5E7EB", marginBottom: 20 }}>
+              <Text style={{ fontFamily: "Inter_700Bold", fontSize: 11, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 6 }}>Contact Support</Text>
+              {config.platform.supportPhone ? <Text style={{ fontFamily: "Inter_700Bold", fontSize: 14, color: "#374151" }}>{config.platform.supportPhone}</Text> : null}
+              {config.platform.supportEmail ? <Text style={{ fontSize: 12, color: "#6B7280", marginTop: 2 }}>{config.platform.supportEmail}</Text> : null}
+            </View>
+          )}
+          <TouchableOpacity onPress={() => router.replace("/auth")} style={{ width: "100%", backgroundColor: "#1F2937", borderRadius: 14, paddingVertical: 14, alignItems: "center" }}>
+            <Text style={{ fontFamily: "Inter_700Bold", fontSize: 15, color: "#fff" }}>← Back to Login</Text>
+          </TouchableOpacity>
+        </View>
+      </LinearGradient>
+    );
+  }
+
   if (step === 5) {
     return (
       <LinearGradient colors={[C.primaryDark, C.primary, C.primaryLight]} style={s.gradient}>
@@ -568,7 +762,7 @@ export default function RegisterScreen() {
   }
 
   const stepSubtitles: Record<number, string> = {
-    1: "Verify your phone number",
+    1: regMode === "email" ? "Verify your email address" : "Verify your phone number",
     2: "Tell us about yourself",
     3: "Where should we deliver?",
     4: "Secure your account",
@@ -611,16 +805,8 @@ export default function RegisterScreen() {
               <Text style={{ fontSize: 12, color: "#92400E", fontFamily: "Inter_500Medium", lineHeight: 18, flex: 1 }}>{config.content.announcement}</Text>
             </View>
           ) : null}
-          {step === 1 && (
+          {step === 1 && regMode === "phone" && (
             <>
-              {!authConfig.allowPhone && (
-                <View style={{ backgroundColor: "#FEF3C7", borderRadius: 12, padding: 12, marginBottom: 16, flexDirection: "row", alignItems: "flex-start", gap: 8, borderWidth: 1, borderColor: "#FDE68A" }}>
-                  <Ionicons name="warning-outline" size={16} color="#D97706" style={{ marginTop: 1 }} />
-                  <Text style={{ fontSize: 12, color: "#92400E", fontFamily: "Inter_500Medium", lineHeight: 18, flex: 1 }}>
-                    Phone verification is currently unavailable. Please contact support.
-                  </Text>
-                </View>
-              )}
               {!otpSent ? (
                 <>
                   <Text style={s.fieldLabel}>Phone Number</Text>
@@ -662,6 +848,62 @@ export default function RegisterScreen() {
                     <Ionicons name="refresh-outline" size={16} color={resendCooldown > 0 ? C.textMuted : C.primary} />
                     <Text style={[s.resendText, resendCooldown > 0 && { color: C.textMuted }]}>
                       {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : "Resend OTP"}
+                    </Text>
+                  </TouchableOpacity>
+                </>
+              )}
+            </>
+          )}
+
+          {step === 1 && regMode === "email" && (
+            <>
+              {!emailRegOtpSent ? (
+                <>
+                  <Text style={s.fieldLabel}>Email Address</Text>
+                  <InputField
+                    label=""
+                    value={emailReg}
+                    onChangeText={v => { setEmailReg(v); clearError(); }}
+                    placeholder="you@example.com"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    autoFocus
+                    error={!!error}
+                  />
+                </>
+              ) : (
+                <>
+                  <TouchableOpacity activeOpacity={0.7}
+                    onPress={() => { setEmailRegOtpSent(false); setEmailRegOtp(""); clearError(); }}
+                    style={s.changeBtn}
+                    accessibilityRole="button"
+                  >
+                    <Ionicons name="arrow-back" size={14} color={C.primary} />
+                    <Text style={s.changeBtnText}>Change Email</Text>
+                  </TouchableOpacity>
+
+                  <Text style={s.fieldLabel}>Enter Verification Code</Text>
+                  <Text style={s.fieldSub}>Code sent to {emailReg}</Text>
+
+                  <OtpDigitInput
+                    value={emailRegOtp}
+                    onChangeText={v => { setEmailRegOtp(v); clearError(); }}
+                    hasError={!!error}
+                    onComplete={() => handleVerifyEmailReg()}
+                  />
+
+                  <DevOtpBanner otp={emailRegDevOtp} />
+
+                  <TouchableOpacity activeOpacity={0.7}
+                    onPress={handleSendEmailReg}
+                    style={[s.resendBtn, emailRegResendCooldown > 0 && s.resendDisabled]}
+                    disabled={emailRegResendCooldown > 0}
+                    accessibilityRole="button"
+                  >
+                    <Ionicons name="refresh-outline" size={16} color={emailRegResendCooldown > 0 ? C.textMuted : C.primary} />
+                    <Text style={[s.resendText, emailRegResendCooldown > 0 && { color: C.textMuted }]}>
+                      {emailRegResendCooldown > 0 ? `Resend in ${emailRegResendCooldown}s` : "Resend Code"}
                     </Text>
                   </TouchableOpacity>
                 </>
@@ -722,6 +964,35 @@ export default function RegisterScreen() {
                 autoCapitalize="none"
                 error={!!error && !!email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())}
               />
+
+              {/* Profile photo picker */}
+              <Text style={s.fieldLabel}>Profile Photo (Optional)</Text>
+              <TouchableOpacity activeOpacity={0.7}
+                onPress={handlePickPhoto}
+                disabled={photoLoading}
+                style={{ flexDirection: "row", alignItems: "center", gap: 14, marginBottom: 8, padding: 12, backgroundColor: "#F9FAFB", borderRadius: 14, borderWidth: 1, borderColor: "#E5E7EB" }}
+                accessibilityRole="button"
+                accessibilityLabel="Choose profile photo"
+              >
+                {photoLoading ? (
+                  <ActivityIndicator size="small" color={C.primary} />
+                ) : photoUri ? (
+                  <Image source={{ uri: photoUri }} style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: "#E5E7EB" }} />
+                ) : (
+                  <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: "#EEF2FF", alignItems: "center", justifyContent: "center" }}>
+                    <Ionicons name="camera-outline" size={24} color={C.primary} />
+                  </View>
+                )}
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 14, fontFamily: "Inter_500Medium", color: "#374151" }}>
+                    {photoUri ? "Change Photo" : "Add Profile Photo"}
+                  </Text>
+                  <Text style={{ fontSize: 12, color: "#6B7280", marginTop: 2 }}>
+                    {photoUri ? "Looking good!" : "Help others recognize you"}
+                  </Text>
+                </View>
+                {!photoLoading && <Ionicons name="chevron-forward" size={16} color={C.textMuted} />}
+              </TouchableOpacity>
             </>
           )}
 
@@ -903,25 +1174,37 @@ export default function RegisterScreen() {
             </View>
           ) : (
             <>
+              {queuedOffline && step === 1 && (
+                <AlertBox type="info" message="You're offline. Your OTP request will be sent automatically when you reconnect." />
+              )}
               {error ? <AlertBox type="error" message={error} /> : null}
 
               <AuthButton
                 label={
                   step === 1
-                    ? otpSent ? "Verify OTP" : "Send OTP"
+                    ? regMode === "email"
+                      ? emailRegOtpSent ? "Verify Code" : "Send Verification Code"
+                      : otpSent ? "Verify OTP" : "Send OTP"
                     : step === 2 ? "Continue"
                     : step === 3 ? "Continue"
                     : "Create Account"
                 }
                 onPress={
                   step === 1
-                    ? otpSent ? handleVerifyOtp : handleSendOtp
+                    ? regMode === "email"
+                      ? emailRegOtpSent ? handleVerifyEmailReg : handleSendEmailReg
+                      : otpSent ? handleVerifyOtp : handleSendOtp
                     : step === 2 ? handleStep2
                     : step === 3 ? handleStep3
                     : handleStep4
                 }
                 loading={loading}
-                icon={step === 4 ? "shield-checkmark-outline" : step === 1 && !otpSent ? "send-outline" : step === 3 ? "location-outline" : undefined}
+                icon={
+                  step === 4 ? "shield-checkmark-outline"
+                  : step === 1 && (regMode === "email" ? !emailRegOtpSent : !otpSent) ? "send-outline"
+                  : step === 3 ? "location-outline"
+                  : undefined
+                }
               />
 
               {step === 1 && (
