@@ -233,7 +233,7 @@ export default function Register() {
   }, [name]);
 
   useEffect(() => {
-    if (!phone || phone.length < 10 || (auth.emailOtp && (!email || !email.includes("@")))) {
+    if (!phone || phone.length < 10 || (auth.emailEnabled && (!email || !email.includes("@")))) {
       setAvailabilityStatus("idle");
       return;
     }
@@ -278,8 +278,8 @@ export default function Register() {
 
   const validateStep1 = (): boolean => {
     if (!name.trim()) { setError(T("nameRequired")); return false; }
-    if (auth.phoneOtp && (!phone || !isValidPhone(phone))) { setError(`${T("enterValidPhone")} (e.g. ${phoneHint})`); return false; }
-    if (auth.emailOtp && (!email || !email.includes("@"))) { setError(T("enterValidEmail")); return false; }
+    if (auth.phoneEnabled && (!phone || !isValidPhone(phone))) { setError(`${T("enterValidPhone")} (e.g. ${phoneHint})`); return false; }
+    if (auth.emailEnabled && (!email || !email.includes("@"))) { setError(T("enterValidEmail")); return false; }
     if (!address.trim()) { setError(T("homeAddressRequired")); return false; }
     if (!city) { setError(T("selectCity")); return false; }
     if (city === "Other" && !customCity.trim()) { setError(T("enterCityName")); return false; }
@@ -347,8 +347,8 @@ export default function Register() {
           if (!captchaToken) { setError(T("captchaRequired")); setLoading(false); return; }
         }
         const selectedChannel = (() => {
-          if (!auth.phoneOtp && auth.emailOtp) return "email" as const;
-          if (auth.phoneOtp && !auth.emailOtp) return "phone" as const;
+          if (!auth.phoneEnabled && auth.emailEnabled) return "email" as const;
+          if (auth.phoneEnabled && !auth.emailEnabled) return "phone" as const;
           return verifyChannel;
         })();
         setVerifyChannel(selectedChannel);
@@ -617,7 +617,7 @@ export default function Register() {
                 </label>
                 <input value={name} onChange={e => setName(e.target.value)} placeholder={T("fullName")} className={INPUT} autoFocus />
               </div>
-              {auth.phoneOtp && (
+              {auth.phoneEnabled && (
               <div>
                 <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 block flex items-center gap-1">
                   <Phone size={11} /> {T("phoneRequired")}
@@ -629,7 +629,7 @@ export default function Register() {
                 <p className="text-[10px] text-gray-400 mt-1">Format: 03XX-XXXXXXX</p>
               </div>
               )}
-              {auth.emailOtp && (
+              {auth.emailEnabled && (
               <div>
                 <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 block flex items-center gap-1">
                   <Mail size={11} /> {T("emailRequired")}
@@ -697,7 +697,7 @@ export default function Register() {
                 </div>
               )}
 
-              {(auth.google || auth.facebook) && (
+              {(auth.googleEnabled || auth.facebookEnabled) && (
                 <div className="pt-2">
                   <div className="flex items-center gap-3 mb-3">
                     <div className="flex-1 h-px bg-gray-200" />
@@ -705,7 +705,7 @@ export default function Register() {
                     <div className="flex-1 h-px bg-gray-200" />
                   </div>
                   <div className="space-y-2">
-                    {auth.google && (() => {
+                    {auth.googleEnabled && (() => {
                       const hasClientId = !!(auth.googleClientId ?? config.auth?.googleClientId);
                       return (
                         <button onClick={() => handleSocialAutofill("google")} disabled={loading}
@@ -719,7 +719,7 @@ export default function Register() {
                         </button>
                       );
                     })()}
-                    {auth.facebook && (() => {
+                    {auth.facebookEnabled && (() => {
                       const hasAppId = !!(auth.facebookAppId ?? config.auth?.facebookAppId);
                       return (
                         <button onClick={() => handleSocialAutofill("facebook")} disabled={loading}
@@ -904,7 +904,7 @@ export default function Register() {
                   {verifyChannel === "phone" ? `+92${phone}` : email}
                 </p>
               </div>
-              {auth.phoneOtp && auth.emailOtp && (
+              {auth.phoneEnabled && auth.emailEnabled && (
                 <div className="flex gap-2 justify-center mb-2">
                   <button type="button" onClick={async () => {
                     if (verifyChannel === "phone") return;

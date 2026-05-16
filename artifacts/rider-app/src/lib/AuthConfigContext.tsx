@@ -2,33 +2,37 @@ import { createContext, useContext, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 export interface AuthConfig {
-  phoneOtp: boolean;
-  emailOtp: boolean;
-  google: boolean;
-  facebook: boolean;
-  magicLink: boolean;
+  phoneEnabled: boolean;
+  emailEnabled: boolean;
+  googleEnabled: boolean;
+  facebookEnabled: boolean;
+  magicLinkEnabled: boolean;
   usernamePassword: boolean;
   totp: boolean;
   captchaEnabled: boolean;
+  otpProvider: string | null;
   captchaSiteKey?: string;
   googleClientId?: string;
   facebookAppId?: string;
-  otpBypassActive?: boolean;
+  otpBypassActive: boolean;
   otpBypassGlobal?: boolean;
 }
 
 const DEFAULT_AUTH_CONFIG: AuthConfig = {
-  phoneOtp: true,
-  emailOtp: false,
-  google: false,
-  facebook: false,
-  magicLink: false,
+  phoneEnabled: true,
+  emailEnabled: false,
+  googleEnabled: false,
+  facebookEnabled: false,
+  magicLinkEnabled: false,
   usernamePassword: true,
   totp: false,
   captchaEnabled: false,
+  otpProvider: null,
+  otpBypassActive: false,
+  otpBypassGlobal: false,
 };
 
-const AuthConfigContext = createContext<AuthConfig>(DEFAULT_AUTH_CONFIG);
+const AuthConfigContext = createContext<AuthConfig | null>(null);
 
 async function fetchAuthConfig(): Promise<AuthConfig> {
   const res = await fetch("/api/auth/config", { credentials: "include" });
@@ -36,17 +40,18 @@ async function fetchAuthConfig(): Promise<AuthConfig> {
   const json = await res.json();
   const d = json?.data ?? json;
   return {
-    /* Prefer camelCase rider-scoped fields added to /api/auth/config.
+    /* Prefer camelCase rider-scoped fields from /api/auth/config.
        Fall back to legacy snake_case "on"/"off" string fields for servers
-       that haven't yet deployed the extended config endpoint. */
-    phoneOtp:        d.phoneOtp         ?? (d.auth_otp_enabled         === "on" ? true : (d.auth_otp_enabled         === "off" ? false : true)),
-    emailOtp:        d.emailOtp         ?? (d.auth_email_enabled        === "on" ? true : false),
-    google:          d.google           ?? (d.auth_google_enabled       === "on" ? true : false),
-    facebook:        d.facebook         ?? (d.auth_facebook_enabled     === "on" ? true : false),
+       that have not yet deployed the extended config endpoint. */
+    phoneEnabled:    d.phoneOtp         ?? d.phoneEnabled        ?? (d.auth_otp_enabled   === "on" ? true : d.auth_otp_enabled   === "off" ? false : true),
+    emailEnabled:    d.emailOtp         ?? d.emailEnabled        ?? (d.auth_email_enabled  === "on" ? true : false),
+    googleEnabled:   d.google           ?? d.googleEnabled       ?? (d.auth_google_enabled === "on" ? true : false),
+    facebookEnabled: d.facebook         ?? d.facebookEnabled     ?? (d.auth_facebook_enabled === "on" ? true : false),
+    magicLinkEnabled: d.magicLink       ?? d.magicLinkEnabled    ?? false,
     usernamePassword: d.usernamePassword ?? true,
-    magicLink:       d.magicLink        ?? false,
     totp:            d.totp             ?? false,
     captchaEnabled:  d.captchaEnabled   ?? false,
+    otpProvider:     d.otpProvider      ?? null,
     captchaSiteKey:  d.captchaSiteKey   ?? undefined,
     googleClientId:  d.googleClientId   ?? undefined,
     facebookAppId:   d.facebookAppId    ?? undefined,
@@ -74,5 +79,9 @@ export function RiderAuthConfigProvider({ children }: { children: ReactNode }) {
 }
 
 export function useRiderAuthConfig(): AuthConfig {
-  return useContext(AuthConfigContext);
+  const ctx = useContext(AuthConfigContext);
+  if (ctx === null) {
+    throw new Error("useRiderAuthConfig must be used within a <RiderAuthConfigProvider>. Ensure the provider wraps this component.");
+  }
+  return ctx;
 }

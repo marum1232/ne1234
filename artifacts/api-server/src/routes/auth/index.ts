@@ -1187,7 +1187,7 @@ router.post("/verify-otp", otpLimiter, verifyCaptcha, sharedValidateBody(verifyO
   }
 
   if (!isAuthMethodEnabled(settings, "auth_phone_otp_enabled", user.roles ?? undefined)) {
-    sendForbidden(res, "Phone OTP login is currently disabled for your account type.");
+    sendErrorWithData(res, "Phone OTP login is currently disabled for your account type.", { code: "GATEWAY_DISABLED" }, 400);
     return;
   }
 

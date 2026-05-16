@@ -86,13 +86,17 @@ export default function Login() {
 
   /* authMode from platform_settings — in EMAIL-only mode, hide phone OTP */
   const enabledMethods: LoginMethod[] = [];
-  if (auth.phoneOtp && firebaseCfg.authMode !== "EMAIL") enabledMethods.push("phone");
-  if (auth.emailOtp) enabledMethods.push("email");
+  if (auth.phoneEnabled && firebaseCfg.authMode !== "EMAIL") enabledMethods.push("phone");
+  if (auth.emailEnabled) enabledMethods.push("email");
   if (auth.usernamePassword) enabledMethods.push("username");
 
-  const defaultMethod = enabledMethods[0] ?? (auth.google ? "google" : auth.facebook ? "facebook" : auth.magicLink ? "magicLink" : "phone");
+  /* When only one primary method is available, skip the identifier picker and
+     go straight to that method's input screen. */
+  const singleMethodMode = enabledMethods.length === 1;
+
+  const defaultMethod = enabledMethods[0] ?? (auth.googleEnabled ? "google" : auth.facebookEnabled ? "facebook" : auth.magicLinkEnabled ? "magicLink" : "phone");
   const [method, setMethod] = useState<LoginMethod>(defaultMethod);
-  const [step, setStep] = useState<Step>("continue");
+  const [step, setStep] = useState<Step>(singleMethodMode ? "input" : "continue");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>("");
 
@@ -270,7 +274,7 @@ export default function Login() {
         return;
       }
       if (data.action === "force_google") {
-        if (auth.google) {
+        if (auth.googleEnabled) {
           setMethod("google");
           setStep("input");
         } else {
@@ -279,7 +283,7 @@ export default function Login() {
         setLoading(false); return;
       }
       if (data.action === "force_facebook") {
-        if (auth.facebook) {
+        if (auth.facebookEnabled) {
           setMethod("facebook");
           setStep("input");
         } else {
@@ -512,7 +516,7 @@ export default function Login() {
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : T("sendOtpFailed");
       setError(msg);
-      if (auth.emailOtp) setShowEmailFallback(true);
+      if (auth.emailEnabled) setShowEmailFallback(true);
     }
     setLoading(false);
   };
@@ -821,8 +825,8 @@ export default function Login() {
     );
   }
 
-  const hasSocial = auth.google || auth.facebook;
-  const hasMagicLink = auth.magicLink;
+  const hasSocial = auth.googleEnabled || auth.facebookEnabled;
+  const hasMagicLink = auth.magicLinkEnabled;
 
   /* ── Dark input class ──────────────────────────────────────────────────────── */
   const inputCls = "w-full h-12 bg-[#0F1217] border border-[#252836] rounded-xl text-sm text-[#E8E9EF] placeholder-[#3D4251] transition-all focus:outline-none focus:border-[#F0B90B] focus:ring-1 focus:ring-[#F0B90B]/30";
@@ -1023,14 +1027,14 @@ export default function Login() {
                         <div className="flex-1 h-px bg-[#1F2533]" />
                       </div>
                       <div className="space-y-2.5">
-                        {auth.google && (
+                        {auth.googleEnabled && (
                           <button onClick={handleSocialGoogle} disabled={loading || isLockedOut}
                             className="w-full h-11 bg-[#0F1217] border border-[#252836] hover:border-[#F0B90B]/30 rounded-xl text-sm font-semibold text-[#C9CDD8] hover:text-[#E8E9EF] transition-all flex items-center justify-center gap-2.5 disabled:opacity-50">
                             <svg width="15" height="15" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4" /><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" /><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" /><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" /></svg>
                             {T("signInWithGoogle")}
                           </button>
                         )}
-                        {auth.facebook && (
+                        {auth.facebookEnabled && (
                           <button onClick={handleSocialFacebook} disabled={loading || isLockedOut}
                             className="w-full h-11 rounded-xl text-sm font-semibold text-white transition-all flex items-center justify-center gap-2.5 disabled:opacity-50"
                             style={{ background: "linear-gradient(135deg,#1877F2,#0d65dc)" }}>
@@ -1038,7 +1042,7 @@ export default function Login() {
                             {T("signInWithFacebook")}
                           </button>
                         )}
-                        {auth.magicLink && (
+                        {auth.magicLinkEnabled && (
                           <div className="mt-1">
                             <MagicLinkSender onSend={handleMagicLinkSend} title={T("magicLinkLogin")} subtitle={T("enterRegisteredEmail")} />
                           </div>
@@ -1212,7 +1216,7 @@ export default function Login() {
                     {otpCooldown > 0 ? `${T("resendOtp")} (${otpCooldown}s)` : T("resendOtp")}
                   </button>
 
-                  {auth.emailOtp && !showEmailFallback && (
+                  {auth.emailEnabled && !showEmailFallback && (
                     <button onClick={() => setShowEmailFallback(true)} className="w-full text-xs text-[#F0B90B]/70 hover:text-[#F0B90B] py-1 font-semibold transition-colors text-center">
                       Not receiving SMS? Use email OTP instead
                     </button>
@@ -1316,8 +1320,8 @@ export default function Login() {
               {auth.lockoutEnabled && failedAttempts > 0 && !isLockedOut && (step === "input" || step === "otp") && (() => {
                 const remaining = auth.lockoutMaxAttempts - failedAttempts;
                 const alts: { m: LoginMethod; label: string; icon: ReactNode }[] = [];
-                if (method !== "phone" && auth.phoneOtp) alts.push({ m: "phone", label: "Phone OTP", icon: <Phone size={10} /> });
-                if (method !== "email" && auth.emailOtp) alts.push({ m: "email", label: "Email OTP", icon: <Mail size={10} /> });
+                if (method !== "phone" && auth.phoneEnabled) alts.push({ m: "phone", label: "Phone OTP", icon: <Phone size={10} /> });
+                if (method !== "email" && auth.emailEnabled) alts.push({ m: "email", label: "Email OTP", icon: <Mail size={10} /> });
                 if (method !== "username" && auth.usernamePassword) alts.push({ m: "username", label: "Password", icon: <User size={10} /> });
                 return (
                   <div className="bg-[#F0B90B]/5 border border-[#F0B90B]/20 rounded-xl px-3 py-2.5 mb-3">
@@ -1376,14 +1380,14 @@ export default function Login() {
                     </div>
                   )}
                   <div className="space-y-2.5">
-                    {auth.google && (
+                    {auth.googleEnabled && (
                       <button onClick={handleSocialGoogle} disabled={loading || isLockedOut}
                         className="w-full h-11 bg-[#0F1217] border border-[#252836] hover:border-[#F0B90B]/30 rounded-xl text-sm font-semibold text-[#C9CDD8] hover:text-[#E8E9EF] transition-all flex items-center justify-center gap-2.5 disabled:opacity-50">
                         <svg width="15" height="15" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4" /><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" /><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" /><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" /></svg>
                         {T("signInWithGoogle")}
                       </button>
                     )}
-                    {auth.facebook && (
+                    {auth.facebookEnabled && (
                       <button onClick={handleSocialFacebook} disabled={loading || isLockedOut}
                         className="w-full h-11 rounded-xl text-sm font-semibold text-white transition-all flex items-center justify-center gap-2.5 disabled:opacity-50"
                         style={{ background: "linear-gradient(135deg,#1877F2,#0d65dc)" }}>
@@ -1391,7 +1395,7 @@ export default function Login() {
                         {T("signInWithFacebook")}
                       </button>
                     )}
-                    {auth.magicLink && (
+                    {auth.magicLinkEnabled && (
                       <div className="mt-2">
                         <MagicLinkSender onSend={handleMagicLinkSend} title={T("magicLinkLogin")} subtitle={T("enterRegisteredEmail")} />
                       </div>
@@ -1406,7 +1410,7 @@ export default function Login() {
                   <Link href="/register" className="text-sm text-[#6B7280] hover:text-[#E8E9EF] transition-colors">
                     {T("dontHaveAccount")} <span className="text-[#F0B90B] font-bold hover:text-[#D97706]">{T("register")}</span>
                   </Link>
-                  {(auth.phoneOtp || auth.emailOtp || auth.usernamePassword) && (
+                  {(auth.phoneEnabled || auth.emailEnabled || auth.usernamePassword) && (
                     <Link href="/forgot-password" className="text-xs text-[#374151] hover:text-[#6B7280] transition-colors">
                       {T("forgotPassword")}
                     </Link>
