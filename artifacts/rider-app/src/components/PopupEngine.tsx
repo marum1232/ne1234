@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
-import { useAuth } from "../lib/auth";
+import { useAuth } from "../lib/rider-auth";
 import { getRiderApiBase } from "../lib/envValidation";
 import { SafeImage } from "./ui/SafeImage";
 

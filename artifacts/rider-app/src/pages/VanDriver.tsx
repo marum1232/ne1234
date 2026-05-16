@@ -5,7 +5,7 @@ import { ErrorState } from "../components/ui/ErrorState";
 import { enqueueAction, subscribeActionSuccess } from "../lib/offline/queueManager";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useAuth } from "../lib/auth";
+import { useAuth } from "../lib/rider-auth";
 import { MapContainer, TileLayer, Marker, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";

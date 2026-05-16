@@ -2,7 +2,7 @@ import React, { Component, type ReactNode, useEffect, useState, useRef } from "r
 import { useVersionCheck } from "@/hooks/useVersionCheck";
 import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { AuthProvider, useAuth } from "./lib/auth";
+import { AuthProvider, useAuth } from "./lib/vendor-auth";
 import { usePlatformConfig } from "./lib/useConfig";
 import { useLanguage } from "./lib/useLanguage";
 import { registerPush, consumePendingNotificationTap, type PushErrorHandler } from "./lib/push";

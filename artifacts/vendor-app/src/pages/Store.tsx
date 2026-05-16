@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useAuth } from "../lib/auth";
+import { useAuth } from "../lib/vendor-auth";
 import { api } from "../lib/api";
 import { vendorEnv } from "../lib/envValidation";
 import { usePlatformConfig, useCurrency } from "../lib/useConfig";

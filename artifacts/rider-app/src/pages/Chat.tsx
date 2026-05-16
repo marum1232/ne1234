@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useSearch } from "wouter";
 import { Paperclip, MoreVertical, Flag, UserX, X, Bot, Send, Trash2, Sparkles } from "lucide-react";
-import { useAuth } from "../lib/auth";
+import { useAuth } from "../lib/rider-auth";
 import { api } from "../lib/api";
 import { useSocket } from "../lib/socket";
 import { playRequestSound, stopSound } from "../lib/notificationSound";

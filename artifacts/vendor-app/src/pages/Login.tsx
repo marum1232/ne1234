@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useLocation } from "wouter";
-import { OtpInput, PhoneInput, PasswordInput, SocialButtons } from "@workspace/auth-react";
+import { OtpInput, PhoneInput, PasswordInput, SocialButtons, LoginScreen } from "@workspace/auth-react";
 import type { Country } from "@workspace/auth-react";
-import { useAuth } from "../lib/auth";
+import { useAuth } from "../lib/vendor-auth";
 import { api, apiFetch } from "../lib/api";
 import { usePlatformConfig, getVendorAuthConfig } from "../lib/useConfig";
 import { useLanguage } from "../lib/useLanguage";
@@ -838,7 +838,7 @@ export default function Login() {
           </div>
 
           <p className="text-center text-xs text-gray-400 mt-6">
-            Support: {config.platform.supportPhone || "03005000000"}<br />
+            Support: {config.platform.supportPhone || "0300-5000001"}<br />
             Only verified vendors can access this portal
           </p>
         </div>

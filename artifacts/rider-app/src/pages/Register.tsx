@@ -10,7 +10,7 @@ import { useLanguage } from "../lib/useLanguage";
 import { tDual, type TranslationKey } from "@workspace/i18n";
 import { executeCaptcha, loadGoogleGSIToken, loadFacebookAccessToken, decodeGoogleJwtPayload } from "@workspace/auth-utils";
 import { compressImage } from "../lib/imageUtils";
-import { useAuth, type AuthUser } from "../lib/auth";
+import { useAuth, type AuthUser } from "../lib/rider-auth";
 import {
   Bike, ArrowLeft, ArrowRight, Loader2,
   Clock, User, Phone, Mail, FileText, Car, Shield, Lightbulb,

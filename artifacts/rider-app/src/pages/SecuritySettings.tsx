@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import { api, apiFetch } from "../lib/api";
 import { usePlatformConfig } from "../lib/useConfig";
 import { useLanguage } from "../lib/useLanguage";
-import { useAuth } from "../lib/auth";
+import { useAuth } from "../lib/rider-auth";
 import { tDual, type TranslationKey } from "@workspace/i18n";
 import { TwoFactorSetup, TwoFactorVerify } from "@workspace/auth-utils";
 import {

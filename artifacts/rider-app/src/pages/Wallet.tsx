@@ -1,7 +1,7 @@
 import { formatCurrency as _sharedFcW } from "@workspace/api-zod";
 import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { useQuery, useQueryClient, useInfiniteQuery } from "@tanstack/react-query";
-import { useAuth } from "../lib/auth";
+import { useAuth } from "../lib/rider-auth";
 import { api } from "../lib/api";
 import { usePlatformConfig, formatDateTz } from "../lib/useConfig";
 import { useLanguage } from "../lib/useLanguage";

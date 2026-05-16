@@ -5,7 +5,7 @@ import { io, type Socket } from "socket.io-client";
 import { api, apiFetch } from "../lib/api";
 import { usePlatformConfig, useCurrency } from "../lib/useConfig";
 import { useLanguage } from "../lib/useLanguage";
-import { useAuth } from "../lib/auth";
+import { useAuth } from "../lib/vendor-auth";
 import { tDual, type TranslationKey } from "@workspace/i18n";
 import { PageHeader } from "../components/PageHeader";
 import { PullToRefresh } from "../components/PullToRefresh";

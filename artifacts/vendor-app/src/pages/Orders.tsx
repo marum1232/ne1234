@@ -4,7 +4,7 @@ import { api } from "../lib/api";
 import { unlockAudio, playOrderSound, markOrderSeen, wasOrderSeenRecently } from "../lib/notificationSound";
 import { usePlatformConfig, useCurrency } from "../lib/useConfig";
 import { useLanguage } from "../lib/useLanguage";
-import { useAuth } from "../lib/auth";
+import { useAuth } from "../lib/vendor-auth";
 import { tDual, type TranslationKey } from "@workspace/i18n";
 import { PageHeader } from "../components/PageHeader";
 import { PullToRefresh } from "../components/PullToRefresh";

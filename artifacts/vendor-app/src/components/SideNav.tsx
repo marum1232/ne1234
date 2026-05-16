@@ -1,6 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { useAuth } from "../lib/auth";
+import { useAuth } from "../lib/vendor-auth";
 import { api } from "../lib/api";
 import { usePlatformConfig, useCurrency } from "../lib/useConfig";
 import { useLanguage } from "../lib/useLanguage";

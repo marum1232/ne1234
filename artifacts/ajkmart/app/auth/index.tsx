@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import type { LoginScreenProps as LoginScreen } from "@workspace/auth-react"; // auth flow follows LoginScreen contract
 import { LinearGradient } from "expo-linear-gradient";
 import { router, type RelativePathString } from "expo-router";
 import React, { useEffect, useRef, useState, useCallback } from "react";

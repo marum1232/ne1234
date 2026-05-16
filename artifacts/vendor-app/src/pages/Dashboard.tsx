@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
-import { useAuth } from "../lib/auth";
-import type { StoreHours } from "../lib/auth";
+import { useAuth } from "../lib/vendor-auth";
+import type { StoreHours } from "../lib/vendor-auth";
 import { api } from "../lib/api";
 import { usePlatformConfig } from "../lib/useConfig";
 import { useLanguage } from "../lib/useLanguage";

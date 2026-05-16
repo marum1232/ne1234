@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { Link, useLocation } from "wouter";
 import { LoginScreen } from "@workspace/auth-react";
 import type { AuthUser as SDKAuthUser } from "@workspace/auth-react";
-import { useAuth, type AuthUser } from "../lib/auth";
+import { useAuth, type AuthUser } from "../lib/rider-auth";
 import { api } from "../lib/api";
 import { usePlatformConfig } from "../lib/useConfig";
 import { useRiderAuthConfig } from "../lib/AuthConfigContext";

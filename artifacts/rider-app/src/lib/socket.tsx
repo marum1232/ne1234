@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useRef, useState, useCallback, ty
 import { io, type Socket } from "socket.io-client";
 import { api, getApiBase, registerTokenRefreshCallback } from "./api";
 
-import { useAuth } from "./auth";
+import { useAuth } from "./rider-auth";
 import { getRiderSocketOrigin } from "./envValidation";
 import { syncQueue } from "./offline/queueManager";
 import { createLogger } from "@/lib/logger";

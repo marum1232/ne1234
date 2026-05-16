@@ -12,7 +12,7 @@ import {
   Languages, Settings, Moon, Sun,
 } from "lucide-react";
 import { SafeImage } from "../components/ui/SafeImage";
-import { useAuth } from "../lib/auth";
+import { useAuth } from "../lib/rider-auth";
 import { api } from "../lib/api";
 import { usePlatformConfig } from "../lib/useConfig";
 import { useLanguage } from "../lib/useLanguage";

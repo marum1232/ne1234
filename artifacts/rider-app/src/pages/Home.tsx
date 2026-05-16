@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useNetworkQuality, getPollingIntervalForTier } from "../hooks/useNetworkQuality";
 
 import { Link } from "wouter";
-import { useAuth } from "../lib/auth";
+import { useAuth } from "../lib/rider-auth";
 import { api, type Order, type Ride } from "../lib/api";
 import { usePlatformConfig } from "../lib/useConfig";
 import { useLanguage } from "../lib/useLanguage";

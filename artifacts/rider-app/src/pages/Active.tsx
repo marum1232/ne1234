@@ -20,7 +20,7 @@ import { api, apiFetch } from "../lib/api";
 import { logRideEvent } from "../lib/rideUtils";
 import { useState, useRef, useEffect, Component, type ReactNode, type ErrorInfo } from "react";
 import { usePlatformConfig } from "../lib/useConfig";
-import { useAuth } from "../lib/auth";
+import { useAuth } from "../lib/rider-auth";
 import { useLanguage } from "../lib/useLanguage";
 import { useSocket } from "../lib/socket";
 import { tDual, type TranslationKey } from "@workspace/i18n";

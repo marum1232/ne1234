@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useAuth } from "../lib/auth";
+import { useAuth } from "../lib/vendor-auth";
 import { apiFetch, api } from "../lib/api";
 import { io, type Socket } from "socket.io-client";
 import { SafeImage } from "../components/ui/SafeImage";

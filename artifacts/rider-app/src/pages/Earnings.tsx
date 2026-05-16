@@ -7,7 +7,7 @@ import {
   UtensilsCrossed, Package, Car,
 } from "lucide-react";
 import { api } from "../lib/api";
-import { useAuth } from "../lib/auth";
+import { useAuth } from "../lib/rider-auth";
 import { usePlatformConfig } from "../lib/useConfig";
 import { useLanguage } from "../lib/useLanguage";
 import { tDual } from "@workspace/i18n";

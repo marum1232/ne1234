@@ -15,6 +15,8 @@ import {
   setRefreshTokenGetter,
   setOnTokenRefreshed,
 } from "@workspace/api-client-react";
+import type { AuthUser as BaseAuthUser } from "@workspace/auth-react";
+
 import { useLanguage } from "./LanguageContext";
 import { io, type Socket } from "socket.io-client";
 import { API_BASE, SOCKET_BASE } from "@/utils/api";

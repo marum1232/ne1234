@@ -3,7 +3,7 @@ import { Moon, Sun } from "lucide-react";
 import { useTheme } from "../lib/useTheme";
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { useAuth } from "../lib/auth";
+import { useAuth } from "../lib/vendor-auth";
 import { api } from "../lib/api";
 import { usePlatformConfig, useCurrency, useDateFormatter } from "../lib/useConfig";
 import { PageHeader } from "../components/PageHeader";

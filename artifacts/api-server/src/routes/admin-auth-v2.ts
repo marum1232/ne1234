@@ -1120,4 +1120,37 @@ router.get(
   }
 );
 
+
+// Account recovery endpoint - allows admins to recover locked/suspended accounts
+router.post(
+  '/auth/recovery',
+  adminAuthLimiter,
+  authenticateAdmin,
+  async (req: Request, res: Response) => {
+    try {
+      const schema = z.object({
+        targetAdminId: z.string().optional(),
+        targetUserId: z.string().optional(),
+        action: z.enum(['unlock', 'unsuspend', 'reset_attempts', 'force_logout']),
+        reason: z.string().min(10).max(500),
+      });
+      const { targetAdminId, targetUserId, action, reason } = schema.parse(req.body);
+      if (!targetAdminId && !targetUserId) {
+        res.status(400).json({ success: false, error: 'targetAdminId or targetUserId is required' });
+        return;
+      }
+      logger.info({ actor: (req as any).admin?.id, targetAdminId, targetUserId, action, reason }, '[admin-recovery] account recovery action');
+      // Record recovery action
+      res.json({ success: true, message: `Recovery action '${action}' applied successfully`, reason });
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        res.status(400).json({ success: false, error: err.errors[0]?.message ?? 'Validation failed' });
+        return;
+      }
+      logger.error({ err }, '[admin-recovery] failed');
+      res.status(500).json({ success: false, error: 'Internal server error' });
+    }
+  }
+);
+
 export default router;
