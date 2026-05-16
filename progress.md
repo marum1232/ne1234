@@ -11,7 +11,7 @@
 | T002 | COMPLETE | 2026-05-16 | 2026-05-16 | Split backend auth router into modules |
 | T003 | COMPLETE | 2026-05-16 | 2026-05-16 | Remove duplicate schemas & helpers from auth router |
 | T004 | COMPLETE | 2026-05-16 | 2026-05-16 | Session revocation verified, account recovery endpoints, Swagger UI at /api-docs |
-| T005 | PENDING | - | - | - |
+| T005 | COMPLETE | 2026-05-16 | 2026-05-16 | Created @workspace/auth-react package in lib/auth-react/ with tsup build |
 | T006 | PENDING | - | - | - |
 | T007 | PENDING | - | - | - |
 | T008 | PENDING | - | - | - |
@@ -39,3 +39,24 @@
 - [2026-05-16] T004 Step 4: Added POST /api/auth/recovery/reset-password to auth/misc.ts — accepts {token, newPassword}, SHA-256 hash lookup in account_recovery_tokens, validates not-expired/not-used, updates password, bumps tokenVersion, revokes all sessions + refresh tokens, marks token used. JSDoc @openapi block added.
 - [2026-05-16] T004 Step 5: Updated artifacts/api-server/src/docs/swagger.ts — fixed api glob paths to use resolved .js file paths (dist-compatible), improved server URL with /api prefix. Swagger UI confirmed mounted at /api-docs in app.ts (line 746). Added @openapi JSDoc blocks to: POST /auth/login (password.ts), POST /auth/register (register.ts), POST /auth/refresh, POST /auth/logout (refresh.ts), POST /auth/send-otp, POST /auth/verify-otp (otp.ts), POST /auth/sessions/revoke, POST /auth/recovery/reset-password (misc.ts), POST /admin/users/:userId/recovery (users.ts).
 - [2026-05-16] T004 COMPLETE -- lib/db built successfully, no new type errors introduced (existing test file errors pre-existed). Admin recovery response uses project-standard sendSuccess envelope (with userId, email, expiresAt, and recoveryUrl in dev only) — consistent with all other endpoints in the codebase rather than a bare message string.
+- [2026-05-16] T005 IN PROGRESS -- Creating @workspace/auth-react package scaffolding.
+- [2026-05-16] T005 Step 1: Created lib/auth-react/ directory (monorepo convention: lib/* matches pnpm-workspace.yaml, not packages/).
+- [2026-05-16] T005 Step 2: Created lib/auth-react/package.json — name: @workspace/auth-react, version: 0.0.1, main/module/types pointing to dist/, exports map with types-first ordering.
+- [2026-05-16] T005 Step 3: Installed tsup@^8.5.1 at workspace root (hoisted, available to all packages).
+- [2026-05-16] T005 Step 4: Created lib/auth-react/tsconfig.json — extends tsconfig.base.json, jsx: react-jsx, declaration: true, outDir: dist.
+- [2026-05-16] T005 Step 5: Created lib/auth-react/src/index.ts — exports version='0.0.1', AuthProvider, useAuth, and all types.
+- [2026-05-16] T005 Step 6: Created lib/auth-react/src/AuthProvider.tsx — minimal React context stub with AuthUser interface, AuthContextValue, AuthProvider component, and useAuth hook.
+- [2026-05-16] T005 VERIFICATION: Ran `pnpm --filter @workspace/auth-react run build` — clean build, no errors, no warnings.
+  Directory tree:
+  lib/auth-react/
+  ├── package.json
+  ├── tsconfig.json
+  ├── src/
+  │   ├── index.ts
+  │   └── AuthProvider.tsx
+  └── dist/
+      ├── index.js      (ESM, 956 B)
+      ├── index.cjs     (CJS, 2.09 KB)
+      ├── index.d.ts    (TypeScript declarations, 785 B)
+      └── index.d.cts   (CJS type declarations, 785 B)
+- [2026-05-16] T005 COMPLETE -- @workspace/auth-react package scaffolding created and built successfully. Package exports: version, AuthProvider, useAuth, AuthUser, AuthContextValue, AuthProviderProps.
