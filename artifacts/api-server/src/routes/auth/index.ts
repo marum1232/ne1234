@@ -2861,7 +2861,10 @@ router.post("/register", verifyCaptcha, sharedValidateBody(registerSchema), asyn
     return;
   }
 
-  if (!phone && !otpMethodsDisabled) {
+  /* Phone is required only when phone OTP is the active channel.
+     In email-only mode (phoneOtpEnabled=false, emailOtpEnabled=true)
+     phone is optional — riders register via email verification. */
+  if (!phone && phoneOtpEnabledForRole) {
     sendError(res, "Phone number is required", 400);
     return;
   }
@@ -2896,22 +2899,25 @@ router.post("/register", verifyCaptcha, sharedValidateBody(registerSchema), asyn
     if (!businessName && !storeName) { sendError(res, "Business/store name is required for vendor registration", 400); return; }
   }
 
-  const normalizedPhone = canonicalizePhone(phone);
-  const [existingReg] = await db.select().from(usersTable).where(and(eq(usersTable.phone, normalizedPhone), isNull(usersTable.deletedAt))).limit(1);
-  if (existingReg) {
-    /* Allow re-registration only if the account is pending approval AND phone was never OTP-verified.
-       This covers the case where a rider went back during registration and is retrying with the same number. */
-    const canOverwrite = existingReg.approvalStatus === "pending" && !existingReg.phoneVerified;
-    if (!canOverwrite) {
-      /* Verified or approved account — guide user to login instead */
-      const friendly = existingReg.phoneVerified
-        ? "An account with this phone number already exists. Please log in instead."
-        : "An account with this phone number is already pending approval. Please log in to check your status.";
-      sendErrorWithData(res, friendly, { existingAccount: true }, 409);
-      return;
+  /* In email-only mode phone may be absent — canonicalize only when present. */
+  const normalizedPhone = phone ? canonicalizePhone(phone) : "";
+  if (normalizedPhone) {
+    const [existingReg] = await db.select().from(usersTable).where(and(eq(usersTable.phone, normalizedPhone), isNull(usersTable.deletedAt))).limit(1);
+    if (existingReg) {
+      /* Allow re-registration only if the account is pending approval AND phone was never OTP-verified.
+         This covers the case where a rider went back during registration and is retrying with the same number. */
+      const canOverwrite = existingReg.approvalStatus === "pending" && !existingReg.phoneVerified;
+      if (!canOverwrite) {
+        /* Verified or approved account — guide user to login instead */
+        const friendly = existingReg.phoneVerified
+          ? "An account with this phone number already exists. Please log in instead."
+          : "An account with this phone number is already pending approval. Please log in to check your status.";
+        sendErrorWithData(res, friendly, { existingAccount: true }, 409);
+        return;
+      }
+      /* Stale unverified pending record — soft-delete and allow fresh registration */
+      await db.update(usersTable).set({ deletedAt: new Date(), isActive: false, updatedAt: new Date() }).where(eq(usersTable.id, existingReg.id));
     }
-    /* Stale unverified pending record — soft-delete and allow fresh registration */
-    await db.update(usersTable).set({ deletedAt: new Date(), isActive: false, updatedAt: new Date() }).where(eq(usersTable.id, existingReg.id));
   }
 
   if (email) {
@@ -2967,8 +2973,8 @@ router.post("/register", verifyCaptcha, sharedValidateBody(registerSchema), asyn
   const emailForInsert = email ? email.toLowerCase().trim() : null;
   await db.insert(usersTable).values({
     id: userId,
-    phone: normalizedPhone,
-    encryptedPhone: tryEncrypt(normalizedPhone),
+    phone: normalizedPhone || null,
+    encryptedPhone: normalizedPhone ? tryEncrypt(normalizedPhone) : null,
     name: name?.trim() || null,
     email: emailForInsert,
     encryptedEmail: tryEncrypt(emailForInsert),
