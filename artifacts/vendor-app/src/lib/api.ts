@@ -46,6 +46,7 @@ try {
   }
 } catch { /* storage may be blocked — start fresh */ }
 
+export function getTokenStorage() { return _tokenStorage; }
 function getToken(): string  { return _tokenStorage.getAccessToken() ?? ""; }
 function getRefreshToken(): string { return _tokenStorage.getRefreshToken() ?? ""; }
 

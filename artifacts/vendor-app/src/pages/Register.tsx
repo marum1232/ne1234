@@ -60,7 +60,6 @@ export default function Register() {
   const [regPhoneError, setRegPhoneError] = useState("");
   const [regEmail, setRegEmail] = useState("");
   const [regEmailError, setRegEmailError] = useState("");
-  const [regOtp, setRegOtp]     = useState("");
   const [regDevOtp, setRegDevOtp] = useState("");
   const [regEmailDevOtp, setRegEmailDevOtp] = useState("");
   const [regForm, setRegForm] = useState({
@@ -82,13 +81,6 @@ export default function Register() {
   const regUsernameAbort = useRef<AbortController | null>(null);
   const [regTermsAccepted, setRegTermsAccepted] = useState(false);
 
-  const [resendCooldown, setResendCooldown] = useState(0);
-
-  useEffect(() => {
-    if (resendCooldown <= 0) return;
-    const id = setTimeout(() => setResendCooldown(c => Math.max(c - 1, 0)), 1000);
-    return () => clearTimeout(id);
-  }, [resendCooldown]);
 
   useEffect(() => {
     if (!regUsername || regUsername.length < 3) { setRegUsernameStatus("idle"); return; }
@@ -120,8 +112,6 @@ export default function Register() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [regForm.name]);
 
-  const startCooldown = () => setResendCooldown(60);
-
   const allowPhone = vendorAuth.phoneOtp;
   const allowEmail = vendorAuth.emailOtp;
   const requireDocuments = !!config.vendor.requireDocuments;
@@ -150,7 +140,6 @@ export default function Register() {
         }
         setRegDevOtp(res.otp || "");
         setStep("register-otp");
-        startCooldown();
       } catch (e) { setError(e instanceof Error ? e.message : "Failed to send OTP"); }
       setLoading(false);
     } else if (allowEmail) {
@@ -163,7 +152,6 @@ export default function Register() {
         const res = await api.sendEmailOtp(regEmail);
         setRegEmailDevOtp(res.otp || "");
         setStep("register-otp");
-        startCooldown();
       } catch (e) { setError(e instanceof Error ? e.message : "Failed to send OTP"); }
       setLoading(false);
     } else {
@@ -171,15 +159,14 @@ export default function Register() {
     }
   };
 
-  const verifyRegOtp = async () => {
-    if (!regOtp || regOtp.length < 6) { setError(T("enterOtp")); return; }
+  const verifyRegOtp = async (otp: string) => {
     setLoading(true); clearError();
     try {
       if (allowPhone) {
-        const res = await api.verifyOtp(regPhone, regOtp, getDeviceFingerprint());
+        const res = await api.verifyOtp(regPhone, otp, getDeviceFingerprint());
         if (res.token) api.storeTokens(res.token, res.refreshToken);
       } else {
-        const res = await api.verifyEmailOtp(regEmail, regOtp, getDeviceFingerprint());
+        const res = await api.verifyEmailOtp(regEmail, otp, getDeviceFingerprint());
         if (res.token) api.storeTokens(res.token, res.refreshToken);
       }
       setStep("register-info");
@@ -440,13 +427,13 @@ export default function Register() {
                 )}
                 <OtpInput
                   length={6}
-                  value={regOtp}
-                  onChange={setRegOtp}
                   onComplete={verifyRegOtp}
-                  primaryColor="#ea580c"
+                  onResend={sendRegOtp}
+                  resendCooldownSeconds={60}
+                  disabled={loading}
+                  label="Enter your 6-digit code"
                   className="mb-3"
                 />
-                <p className="text-center text-xs text-gray-400 mb-3">Enter your 6-digit code</p>
               </>
             )}
 
@@ -614,18 +601,9 @@ export default function Register() {
             )}
 
             {step === "register-otp" && (
-              <>
-                <button onClick={verifyRegOtp} disabled={loading}
-                  className="w-full h-12 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-2xl transition-all disabled:opacity-60 flex items-center justify-center gap-2 text-sm shadow-sm shadow-orange-200">
-                  {loading ? <><div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> Verifying...</> : "Verify & Continue →"}
-                </button>
-                <button
-                  onClick={() => { if (resendCooldown > 0) return; sendRegOtp(); }}
-                  disabled={resendCooldown > 0}
-                  className="w-full mt-3 text-sm text-gray-400 hover:text-orange-600 font-medium py-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                  {resendCooldown > 0 ? `${T("resendOtp")} (${resendCooldown}s)` : T("resendOtp")}
-                </button>
-              </>
+              <p className="text-center text-xs text-gray-400 mb-3">
+                {loading ? "Verifying..." : "Enter all 6 digits to continue automatically"}
+              </p>
             )}
 
             {step === "register-info" && (

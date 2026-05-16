@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, useRef, useCallback, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { getTokenExpiryRemaining } from "@workspace/auth-react";
-import { api } from "./api";
+import { getTokenExpiryRemaining, AuthProvider as SharedAuthProvider } from "@workspace/auth-react";
+import { api, getTokenStorage } from "./api";
 import { createLogger } from "@/lib/logger";
 const log = createLogger("[auth]");
 
@@ -190,5 +190,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  return <Ctx.Provider value={{ user, token, loading, login, logout, refreshUser }}>{children}</Ctx.Provider>;
+  return (
+    <SharedAuthProvider tokenStorage={getTokenStorage()}>
+      <Ctx.Provider value={{ user, token, loading, login, logout, refreshUser }}>{children}</Ctx.Provider>
+    </SharedAuthProvider>
+  );
 }
