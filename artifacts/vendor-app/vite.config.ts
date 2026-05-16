@@ -51,6 +51,8 @@ export default defineConfig({
       "@": path.resolve(import.meta.dirname, "src"),
       "@assets": path.resolve(import.meta.dirname, "..", "..", "assets"),
       "@workspace/ui": path.resolve(import.meta.dirname, "../../lib/ui/src"),
+      "@workspace/auth-react": path.resolve(import.meta.dirname, "../../lib/auth-react/src/index.ts"),
+      "@workspace/auth-utils": path.resolve(import.meta.dirname, "../../lib/auth-utils/src/index.ts"),
     },
     dedupe: ["react", "react-dom"],
   },
@@ -89,7 +91,7 @@ export default defineConfig({
     fs: {
       strict: true,
       deny: ["**/.*"],
-      allow: [".", "../../lib/ui", "../../lib/i18n"],
+      allow: [".", "../../lib/ui", "../../lib/i18n", "../../lib/auth-react", "../../lib/auth-utils", "../../lib/phone-utils"],
     },
   },
   preview: {
