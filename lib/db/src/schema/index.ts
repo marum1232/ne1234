@@ -92,6 +92,7 @@ export * from "./data_export_logs";
 export * from "./sentry_known_issues";
 export * from "./cart_snapshots";
 export * from "./totp_recovery_codes";
+export * from "./user_totp_setup";
 export * from "./referral_codes";
 export * from "./pharmacy_prescription_refs";
 export * from "./loyalty_campaigns";

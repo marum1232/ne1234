@@ -41,13 +41,13 @@ export async function verifyTokenFamily(req: Request, res: Response, next: NextF
       return;
     }
 
-    const [breachedMember] = await db
+    const familyMembers = await db
       .select({ id: refreshTokensTable.id, revokedReason: refreshTokensTable.revokedReason })
       .from(refreshTokensTable)
-      .where(eq(refreshTokensTable.tokenFamilyId, tokenFamilyId))
-      .limit(1);
+      .where(eq(refreshTokensTable.tokenFamilyId, tokenFamilyId));
 
-    if (breachedMember?.revokedReason === "FAMILY_BREACH_DETECTED") {
+    const breachedMember = familyMembers.find(m => m.revokedReason === "FAMILY_BREACH_DETECTED");
+    if (breachedMember) {
       const ip = getClientIp(req);
 
       logger.warn(

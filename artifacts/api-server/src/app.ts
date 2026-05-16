@@ -28,6 +28,7 @@ import { detectAndNotifyOutOfBandPasswordResets } from "./services/admin-passwor
 import { ensureErrorResolutionTables } from "./routes/error-reports.js";
 import { ensureCartSnapshotTable } from "./services/cartSnapshotMigration.js";
 import { ensureReferralAndPrescriptionTables } from "./services/referralPrescriptionMigration.js";
+import { ensureUserTotpSetupTable } from "./services/userTotpSetupMigration.js";
 import { startHealthMonitor } from "./services/healthAlertMonitor.js";
 import { checkDbOnStartup, startDbMonitor } from "./services/dbConnectivityMonitor.js";
 import { recordResponseTime } from "./lib/metrics/responseTime.js";
@@ -128,6 +129,12 @@ export async function runStartupTasks(): Promise<void> {
     logger.info("[startup] referral_codes, referral_usages, pharmacy_prescription_refs tables ready");
   } catch (err) {
     logger.error({ err }, "[startup] referral/prescription table migration failed (continuing)");
+  }
+  try {
+    await ensureUserTotpSetupTable();
+    logger.info("[startup] user_totp_setup table ready");
+  } catch (err) {
+    logger.error({ err }, "[startup] user_totp_setup table migration failed (continuing)");
   }
   try {
     if (DEFAULT_PLATFORM_SETTINGS.length > 0) {

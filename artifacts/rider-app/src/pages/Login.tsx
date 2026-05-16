@@ -328,11 +328,8 @@ export default function Login() {
           const r = await withRetry(() => api.sendOtp(formatPhoneForApi(normalized), captchaToken, undefined, checkIdentifierAbort.current?.signal ?? undefined));
           if (r.otpRequired === false) {
             if (r.token) { await doLogin(r as AuthResponse); setLoading(false); return; }
-            setStep("otp");
-            setBypassBannerDismissed(false);
-            const bypass = await api.verifyOtp(formatPhoneForApi(normalized), "000000", getDeviceFingerprint());
-            await doLogin(bypass);
-            setLoading(false); return;
+            setLoading(false);
+            return;
           }
           if (r.otp || r.devMode) setDevOtp(r.otp || "");
           setOtpChannel(r.channel || "sms");
@@ -536,11 +533,8 @@ export default function Login() {
       const res = await withRetry(() => api.sendOtp(formatPhoneForApi(phone), captchaToken, channel));
       if (res.otpRequired === false) {
         if (res.token) { await doLogin(res as AuthResponse); setLoading(false); return; }
-        setStep("otp");
-        setBypassBannerDismissed(false);
-        const bypass = await api.verifyOtp(formatPhoneForApi(phone), "000000", getDeviceFingerprint());
-        await doLogin(bypass);
-        setLoading(false); return;
+        setLoading(false);
+        return;
       }
       if (res.otp || res.devMode) setDevOtp(res.otp || "");
       setOtpChannel(res.channel || "sms");

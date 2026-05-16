@@ -41,8 +41,10 @@ function decodeJwtExp(tok: string): number | null {
   try {
     const parts = tok.split(".");
     if (parts.length !== 3) return null;
-    const b64 = (parts[1] ?? "").replace(/-/g, "+").replace(/_/g, "/");
-    const payload = JSON.parse(atob(b64));
+    const base64Url = parts[1]!;
+    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+    const json = decodeURIComponent(escape(atob(base64)));
+    const payload = JSON.parse(json);
     return typeof payload.exp === "number" ? payload.exp : null;
   } catch {
     return null;

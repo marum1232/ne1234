@@ -347,9 +347,8 @@ export default function Login() {
       const res = await api.sendOtp(ph, channel);
       if (res.otpRequired === false) {
         if (res.token) { await doLogin(res as AuthResponse); setLoading(false); return; }
-        const bypass = await api.verifyOtp(ph, "000000", getDeviceFingerprint(), "vendor");
-        await doLogin(bypass);
-        setLoading(false); return;
+        setLoading(false);
+        return;
       }
       setDevOtp(res.otp || "");
       setOtpChannel(res.channel || "sms");
@@ -504,11 +503,8 @@ export default function Login() {
       const res = await api.sendOtp(phone, channel, captchaToken);
       if (res.otpRequired === false) {
         if (res.token) { await doLogin(res as AuthResponse); setLoading(false); return; }
-        setStep("otp");
-        setBypassBannerDismissed(false);
-        const bypass = await api.verifyOtp(phone, "000000", getDeviceFingerprint(), "vendor");
-        await doLogin(bypass);
-        setLoading(false); return;
+        setLoading(false);
+        return;
       }
       setDevOtp(res.otp || "");
       setOtpChannel(res.channel || "sms");
@@ -621,11 +617,6 @@ export default function Login() {
         if (res.otpRequired === false) {
           if (res.token) {
             api.storeTokens(res.token, res.refreshToken);
-          } else {
-            try {
-              const verifyRes = await api.verifyOtp(regPhone, "000000");
-              if (verifyRes.token) api.storeTokens(verifyRes.token, verifyRes.refreshToken);
-            } catch { /* proceed anyway */ }
           }
           setStep("register-info");
           setLoading(false); return;

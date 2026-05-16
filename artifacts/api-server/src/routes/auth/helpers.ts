@@ -261,7 +261,7 @@ export async function findUserByIdentifier(identifier: string) {
 
 export function extractAuthUser(req: Request): { userId: string; phone: string; role: string } | null {
   const authHeader = req.headers["authorization"] as string | undefined;
-  const raw = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : (req.body?.token ?? null);
+  const raw = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
   if (!raw) return null;
   const payload = verifyUserJwt(raw);
   if (!payload) return null;

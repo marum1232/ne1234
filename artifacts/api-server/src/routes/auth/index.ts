@@ -4,7 +4,7 @@ import crypto from "crypto";
 import { rotateRefreshToken, invalidateTokenFamily } from "../../services/auth/tokenRotation.js";
 import { z } from "zod";
 import { db } from "@workspace/db";
-import { usersTable, walletTransactionsTable, notificationsTable, refreshTokensTable, magicLinkTokensTable, rateLimitsTable, pendingOtpsTable, userSessionsTable, loginHistoryTable, vendorProfilesTable, riderProfilesTable, totpRecoveryCodesTable } from "@workspace/db/schema";
+import { usersTable, walletTransactionsTable, notificationsTable, refreshTokensTable, magicLinkTokensTable, rateLimitsTable, pendingOtpsTable, userSessionsTable, loginHistoryTable, vendorProfilesTable, riderProfilesTable, totpRecoveryCodesTable, userTotpSetupTable } from "@workspace/db/schema";
 import { eq, and, sql, lt, or, desc, ilike, isNull } from "drizzle-orm";
 import { generateId } from "../../lib/id.js";
 import { getPlatformSettings } from "../admin.js";
@@ -209,20 +209,51 @@ function decryptPii(encrypted: string | null | undefined, plaintext: string | nu
 
 const router: IRouter = Router();
 
-/* ── Pending TOTP secrets — two-phase setup, NOT written to DB until verified ──
-   When a user calls GET /auth/2fa/setup we generate a secret and store it here
-   in memory (keyed by userId, TTL 10 minutes) instead of immediately persisting
-   it to the database. The DB write only happens after the user successfully
-   verifies their first TOTP code in POST /auth/2fa/verify-setup (or /totp/enable).
-   This prevents a half-initialised secret from sitting in the DB when the user
-   never completes enrollment (e.g. they close the tab mid-setup). */
-const pendingTotpSecrets = new Map<string, { secret: string; encryptedSecret: string; createdAt: number }>();
+/* ── Pending TOTP secrets — two-phase setup, NOT written to users table until verified ──
+   When a user calls GET /auth/2fa/setup we generate a secret and store it in
+   the user_totp_setup table (TTL 10 minutes). The DB write to users.totp_secret
+   only happens after the user successfully verifies their first TOTP code in
+   POST /auth/2fa/verify-setup (or /totp/enable). This prevents a half-initialised
+   secret from persisting on the user record when they abandon setup. */
 const PENDING_TOTP_TTL_MS = 10 * 60 * 1000;
-setInterval(() => {
-  const now = Date.now();
-  for (const [userId, entry] of pendingTotpSecrets.entries()) {
-    if (now - entry.createdAt > PENDING_TOTP_TTL_MS) pendingTotpSecrets.delete(userId);
+
+async function storePendingTotpSecret(userId: string, secret: string, encryptedSecret: string): Promise<void> {
+  await db.insert(userTotpSetupTable).values({
+    id: generateId(),
+    userId,
+    secret,
+    encryptedSecret,
+  }).onConflictDoUpdate({
+    target: userTotpSetupTable.userId,
+    set: { secret, encryptedSecret, createdAt: new Date() },
+  });
+}
+
+async function getPendingTotpSecret(userId: string): Promise<{ secret: string; encryptedSecret: string } | null> {
+  const [row] = await db
+    .select()
+    .from(userTotpSetupTable)
+    .where(eq(userTotpSetupTable.userId, userId))
+    .limit(1);
+  if (!row) return null;
+  const ageMs = Date.now() - row.createdAt.getTime();
+  if (ageMs > PENDING_TOTP_TTL_MS) {
+    await db.delete(userTotpSetupTable).where(eq(userTotpSetupTable.userId, userId));
+    return null;
   }
+  return { secret: row.secret, encryptedSecret: row.encryptedSecret };
+}
+
+async function deletePendingTotpSecret(userId: string): Promise<void> {
+  await db.delete(userTotpSetupTable).where(eq(userTotpSetupTable.userId, userId));
+}
+
+/* Periodic cleanup of expired pending TOTP secrets */
+setInterval(() => {
+  const cutoff = new Date(Date.now() - PENDING_TOTP_TTL_MS);
+  db.delete(userTotpSetupTable).where(sql`${userTotpSetupTable.createdAt} < ${cutoff}`).catch((err) => {
+    logger.error("[pendingTotpCleanup] Failed to prune expired secrets:", err);
+  });
 }, 5 * 60 * 1000);
 
 router.use(authLimiter);
@@ -4078,7 +4109,7 @@ router.get("/2fa/setup", async (req, res) => {
      successfully verifies their first TOTP code. This prevents an unverified
      secret from persisting in the DB when the user abandons setup. */
   const encryptedSecret = encryptTotpSecret(secret);
-  pendingTotpSecrets.set(auth.userId, { secret, encryptedSecret, createdAt: Date.now() });
+  await storePendingTotpSecret(auth.userId, secret, encryptedSecret);
 
   let qrDataUrl: string | null = null;
   try { qrDataUrl = await generateQRCodeDataURL(secret, label); } catch (err) { logger.error("[2fa/setup] QR code generation failed:", err); }
@@ -4113,9 +4144,9 @@ router.post("/2fa/verify-setup", sharedValidateBody(TotpCodeSchema), async (req,
   }
   if (user.totpEnabled) { sendError(res, "2FA is already enabled", 409); return; }
 
-  /* Two-phase setup: read pending secret from the in-memory map (set by /auth/2fa/setup).
+  /* Two-phase setup: read pending secret from the user_totp_setup table (set by /auth/2fa/setup).
      If not found the setup step was never called (or the TTL expired). */
-  const pendingEntry = pendingTotpSecrets.get(auth.userId);
+  const pendingEntry = await getPendingTotpSecret(auth.userId);
   if (!pendingEntry) {
     sendError(res, "Please call /auth/2fa/setup first (setup session expired or not started)", 400); return;
   }
@@ -4127,7 +4158,7 @@ router.post("/2fa/verify-setup", sharedValidateBody(TotpCodeSchema), async (req,
 
   /* Verification succeeded — now write the encrypted secret to the database. */
   await db.update(usersTable).set({ totpSecret: pendingEntry.encryptedSecret, updatedAt: new Date() }).where(eq(usersTable.id, auth.userId));
-  pendingTotpSecrets.delete(auth.userId);
+  await deletePendingTotpSecret(auth.userId);
 
   /* Generate 8 single-use recovery codes and store them as individual rows in
      totp_recovery_codes (bcrypt-hashed). We delete any stale rows from a previous
@@ -4192,10 +4223,10 @@ router.post("/totp/enable", sharedValidateBody(TotpCodeSchema), async (req, res)
   }
   if (user.totpEnabled) { sendError(res, "2FA is already enabled", 409); return; }
 
-  /* Two-phase setup: read pending secret from the in-memory map (set by /auth/2fa/setup).
+  /* Two-phase setup: read pending secret from the user_totp_setup table (set by /auth/2fa/setup).
      This is the canonical enable endpoint — the DB write only happens here after
      the user verifies their first code, never during setup. */
-  const pendingEntryEnable = pendingTotpSecrets.get(auth.userId);
+  const pendingEntryEnable = await getPendingTotpSecret(auth.userId);
   if (!pendingEntryEnable) {
     sendError(res, "Please call /auth/2fa/setup first to obtain a TOTP secret (setup session expired or not started)", 400); return;
   }
@@ -4207,7 +4238,7 @@ router.post("/totp/enable", sharedValidateBody(TotpCodeSchema), async (req, res)
 
   /* Verification succeeded — write encrypted secret to the database now. */
   await db.update(usersTable).set({ totpSecret: pendingEntryEnable.encryptedSecret, updatedAt: new Date() }).where(eq(usersTable.id, auth.userId));
-  pendingTotpSecrets.delete(auth.userId);
+  await deletePendingTotpSecret(auth.userId);
 
   /* Generate 8 single-use recovery codes and store them as individual rows in
      totp_recovery_codes (bcrypt-hashed). Delete any stale rows from a previous
