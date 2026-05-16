@@ -537,6 +537,9 @@ export default function SecurityPage() {
               <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
               <span>After <strong>Max Attempts</strong> failures, the account is locked for <strong>Lockout Duration</strong>. Applies to customer, rider, and vendor logins.</span>
             </div>
+            <div className="mb-3">
+              <T k="security_lockout_enabled" label="Enable Account Lockout" sub="Globally enable / disable login lockout" />
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <N k="security_login_max_attempts" label="Max Failed Login Attempts" placeholder="5"  hint="Before account lockout" />
               <N k="security_lockout_minutes"    label="Lockout Duration"          suffix="min"     placeholder="30" hint="0 = permanent until admin unlocks" />

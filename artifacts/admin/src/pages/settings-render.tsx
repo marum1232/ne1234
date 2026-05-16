@@ -42,6 +42,7 @@ export const TOGGLE_KEYS = new Set([
   "vendor_auto_approve","vendor_promo_enabled","vendor_withdrawal_enabled",
   "feature_weather",
   "feature_chat","feature_live_tracking","feature_reviews","feature_sos",
+  "security_lockout_enabled",
   "security_otp_bypass","security_mfa_required","security_multi_device","security_gps_tracking",
   "security_geo_fence","security_spoof_detection","security_block_tor","security_block_vpn",
   "security_pwd_strong","security_allow_uploads","security_compress_images","security_scan_uploads",

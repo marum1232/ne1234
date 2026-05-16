@@ -113,6 +113,7 @@ export const DEFAULT_PLATFORM_SETTINGS: Array<{ key: string; value: string; cate
   { key: "auth_magic_link_enabled",        value: "off",  category: "auth" },
   { key: "auth_magic_link_ttl_min",        value: "30",   category: "auth" },
   { key: "firebase_enabled",               value: "off",  category: "integrations" },
+  { key: "security_lockout_enabled",       value: "on",   category: "security" },
   { key: "security_login_max_attempts",    value: "5",    category: "security" },
   { key: "security_lockout_minutes",       value: "30",   category: "security" },
   { key: "security_otp_max_per_phone",     value: "5",    category: "security" },
