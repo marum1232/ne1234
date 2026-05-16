@@ -59,19 +59,21 @@ interface UploadedDoc {
   preview: string;
 }
 
-function FileUploadBox({ label, icon, value, onChange, required, uploading, error, onRetry }: {
+function FileUploadBox({ label, icon, value, onChange, required, optimising, uploading, error, onRetry }: {
   label: string; icon: React.ReactNode; value: UploadedDoc | null;
-  onChange: (file: File) => void; required?: boolean; uploading?: boolean; error?: string; onRetry?: () => void;
+  onChange: (file: File) => void; required?: boolean;
+  optimising?: boolean; uploading?: boolean; error?: string; onRetry?: () => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const { language } = useLanguage();
   const T = (key: TranslationKey) => tDual(key, language);
+  const busy = optimising || uploading;
   return (
     <div>
       <div className={`border-2 border-dashed rounded-xl p-3 transition-all ${error ? "border-red-400 bg-red-50/50" : value ? "border-green-300 bg-green-50/50" : "border-gray-200 bg-gray-50/50 hover:border-gray-400"}`}>
         <input ref={inputRef} type="file" accept="image/*" capture="environment" className="hidden"
           onChange={e => { if (e.target.files?.[0]) onChange(e.target.files[0]); }} />
-        {value ? (
+        {value && !busy ? (
           <div className="flex items-center gap-3">
             <SafeImage src={value.preview} alt={label} className="w-14 h-14 rounded-lg object-cover border border-green-200" loading="eager" />
             <div className="flex-1 min-w-0">
@@ -83,11 +85,14 @@ function FileUploadBox({ label, icon, value, onChange, required, uploading, erro
             </button>
           </div>
         ) : (
-          <button onClick={() => inputRef.current?.click()} disabled={uploading}
+          <button onClick={() => inputRef.current?.click()} disabled={busy}
             className="w-full flex flex-col items-center gap-1.5 py-2 disabled:opacity-50">
-            {uploading ? <Loader2 size={20} className="text-gray-500 animate-spin" /> : icon}
+            <Loader2 size={20} className={`animate-spin ${busy ? "text-gray-500" : "hidden"}`} />
+            {!busy && icon}
             <span className={`text-xs font-semibold ${error ? "text-red-600" : "text-gray-600"}`}>{label} {required && <span className="text-red-500">*</span>}</span>
-            <span className="text-[10px] text-gray-400">{T("tapCaptureUpload")}</span>
+            {optimising && <span className="text-[10px] text-amber-600 font-semibold">Optimising…</span>}
+            {uploading && !optimising && <span className="text-[10px] text-gray-400">{T("tapCaptureUpload")}</span>}
+            {!busy && <span className="text-[10px] text-gray-400">{T("tapCaptureUpload")}</span>}
           </button>
         )}
       </div>
@@ -144,6 +149,7 @@ export default function Register() {
   const [cnicBackPhoto, setCnicBackPhoto] = useState<UploadedDoc | null>(null);
   const [licensePhoto, setLicensePhoto] = useState<UploadedDoc | null>(null);
   const [uploadingField, setUploadingField] = useState("");
+  const [optimisingField, setOptimisingField] = useState("");
   const [uploadErrors, setUploadErrors] = useState<Record<string, string>>({});
   const [lastFiles, setLastFiles] = useState<Record<string, File>>({});
   const [registrationNote, setRegistrationNote] = useState("");
@@ -168,7 +174,7 @@ export default function Register() {
 
   const handleFileUpload = useCallback(async (file: File, field: string, setter: (doc: UploadedDoc) => void) => {
     setLastFiles(prev => ({ ...prev, [field]: file }));
-    setUploadingField(field);
+    setOptimisingField(field);
     setUploadErrors(prev => { const next = { ...prev }; delete next[field]; return next; });
     const preview = URL.createObjectURL(file);
     setApiTimeoutMs(90_000);
@@ -176,6 +182,8 @@ export default function Register() {
     let lastErr: Error | null = null;
     try {
       const compressed = await compressImage(file);
+      setOptimisingField("");
+      setUploadingField(field);
       for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
         try {
           const res = await api.uploadRegistrationDoc(compressed);
@@ -197,6 +205,7 @@ export default function Register() {
       setUploadErrors(prev => ({ ...prev, [field]: msg }));
     } finally {
       setApiTimeoutMs(30_000);
+      setOptimisingField("");
       setUploadingField("");
     }
   }, []);
@@ -786,6 +795,7 @@ export default function Register() {
                     value={vehiclePhoto}
                     onChange={f => handleFileUpload(f, "vehicle", setVehiclePhoto)}
                     required
+                    optimising={optimisingField === "vehicle"}
                     uploading={uploadingField === "vehicle"}
                     error={uploadErrors["vehicle"]}
                     onRetry={uploadErrors["vehicle"] && lastFiles["vehicle"] ? () => handleFileUpload(lastFiles["vehicle"], "vehicle", setVehiclePhoto) : undefined}
@@ -796,6 +806,7 @@ export default function Register() {
                     value={cnicPhoto}
                     onChange={f => handleFileUpload(f, "cnic", setCnicPhoto)}
                     required
+                    optimising={optimisingField === "cnic"}
                     uploading={uploadingField === "cnic"}
                     error={uploadErrors["cnic"]}
                     onRetry={uploadErrors["cnic"] && lastFiles["cnic"] ? () => handleFileUpload(lastFiles["cnic"], "cnic", setCnicPhoto) : undefined}
@@ -806,6 +817,7 @@ export default function Register() {
                     value={cnicBackPhoto}
                     onChange={f => handleFileUpload(f, "cnicBack", setCnicBackPhoto)}
                     required
+                    optimising={optimisingField === "cnicBack"}
                     uploading={uploadingField === "cnicBack"}
                     error={uploadErrors["cnicBack"]}
                     onRetry={uploadErrors["cnicBack"] && lastFiles["cnicBack"] ? () => handleFileUpload(lastFiles["cnicBack"], "cnicBack", setCnicBackPhoto) : undefined}
@@ -816,6 +828,7 @@ export default function Register() {
                     value={licensePhoto}
                     onChange={f => handleFileUpload(f, "license", setLicensePhoto)}
                     required
+                    optimising={optimisingField === "license"}
                     uploading={uploadingField === "license"}
                     error={uploadErrors["license"]}
                     onRetry={uploadErrors["license"] && lastFiles["license"] ? () => handleFileUpload(lastFiles["license"], "license", setLicensePhoto) : undefined}
@@ -990,10 +1003,10 @@ export default function Register() {
               </button>
             )}
             {step === 2 && !(!!vehiclePhoto?.url && !!cnicPhoto?.url && !!cnicBackPhoto?.url && !!licensePhoto?.url) && (
-              <p className="text-[11px] text-amber-600 font-medium text-center w-full mb-1">All 4 documents are required to continue</p>
+              <p className="text-[11px] text-amber-600 font-medium text-center w-full mb-1">All documents required to continue</p>
             )}
             <button onClick={goNextStep}
-              disabled={loading || !!uploadingField || (step === 2 && !(!!vehiclePhoto?.url && !!cnicPhoto?.url && !!cnicBackPhoto?.url && !!licensePhoto?.url))}
+              disabled={loading || !!uploadingField || !!optimisingField || (step === 2 && !(!!vehiclePhoto?.url && !!cnicPhoto?.url && !!cnicBackPhoto?.url && !!licensePhoto?.url))}
               className="flex-1 h-12 bg-gray-900 hover:bg-gray-800 text-white font-bold rounded-xl transition-colors disabled:opacity-60 flex items-center justify-center gap-2">
               {loading ? <Loader2 size={18} className="animate-spin" /> : null}
               {loading ? T("pleaseWait") :

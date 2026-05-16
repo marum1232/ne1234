@@ -1,44 +1,46 @@
 import { useEffect, useState } from "react";
+import { useRiderAuthConfig } from "../lib/AuthConfigContext";
 import { createLogger } from "@/lib/logger";
 const log = createLogger("[useOTPBypass]");
 
-export interface AuthConfig {
-  auth_mode: string;
-  firebase_enabled: string;
-  auth_otp_enabled: string;
-  auth_email_enabled: string;
-  auth_google_enabled: string;
-  auth_facebook_enabled: string;
-  otpBypassActive?: boolean;
-  otpBypassExpiresAt?: string | null;
-  bypassReason?: "global_disable" | "maintenance" | null;
-  bypassMessage?: string | null;
-}
-
-const CACHE_TTL_MS = 5 * 60 * 1000;  // 5 minute cache
-const POLL_INTERVAL_MS = 5 * 60 * 1000; // 5 minute poll (was 30s causing 429 errors)
+const POLL_INTERVAL_MS = 5 * 60 * 1000;
+const CACHE_TTL_MS     = 5 * 60 * 1000;
 
 /**
  * useOTPBypass hook for Rider App
  *
- * When `phone` is provided, queries /auth/otp-status?phone= for per-user,
- * global, timed-disable, and whitelist bypass state (in priority order).
- * Without a phone, falls back to /auth/config for global-only state.
- * Polls every 5 minutes (was 30s causing rate limit 429 errors).
- * Skips fetch if cache is fresh to avoid unnecessary requests.
+ * When `phone` is provided, queries /api/auth/otp-status?phone= for per-user,
+ * global, timed-disable, and whitelist bypass state.
+ *
+ * When no phone is provided, bypass state is read directly from the shared
+ * RiderAuthConfigContext (zero extra network calls — auth config is fetched
+ * once at boot and cached via React Query with staleTime: Infinity).
  */
 export const useOTPBypass = (phone?: string) => {
-  const [bypassActive, setBypassActive] = useState(false);
+  const authCtx = useRiderAuthConfig();
+
+  /* Per-phone state — populated only when a phone is supplied */
+  const [bypassActive, setBypassActive]     = useState(false);
   const [bypassExpiresAt, setBypassExpiresAt] = useState<Date | null>(null);
-  const [bypassMessage, setBypassMessage] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [bypassMessage, setBypassMessage]   = useState<string | null>(null);
+  const [loading, setLoading]               = useState(!!phone);
 
   useEffect(() => {
-    let abortController = new AbortController();
-    const cacheKey = phone ? `otpBypassCache_${phone}` : "authConfigCache";
-    const cacheTimeKey = phone ? `otpBypassCacheTime_${phone}` : "authConfigCacheTime";
+    if (!phone) {
+      /* No phone — nothing to fetch; global state comes from context */
+      setLoading(false);
+      return;
+    }
 
-    const applyData = (data: { bypassActive?: boolean; otpBypassActive?: boolean; bypassExpiresAt?: string | null; otpBypassExpiresAt?: string | null; message?: string | null; bypassMessage?: string | null }) => {
+    let abortController = new AbortController();
+    const cacheKey      = `otpBypassCache_${phone}`;
+    const cacheTimeKey  = `otpBypassCacheTime_${phone}`;
+
+    const applyData = (data: {
+      bypassActive?: boolean; otpBypassActive?: boolean;
+      bypassExpiresAt?: string | null; otpBypassExpiresAt?: string | null;
+      message?: string | null; bypassMessage?: string | null;
+    }) => {
       setBypassActive(!!(data.bypassActive ?? data.otpBypassActive));
       const expiresStr = data.bypassExpiresAt ?? data.otpBypassExpiresAt ?? null;
       setBypassExpiresAt(expiresStr ? new Date(expiresStr) : null);
@@ -47,9 +49,7 @@ export const useOTPBypass = (phone?: string) => {
 
     const fetchStatus = async () => {
       if (abortController.signal.aborted) return;
-
       try {
-        // Skip fetch if cache is fresh
         const cacheTime = localStorage.getItem(cacheTimeKey);
         if (cacheTime && Date.now() - parseInt(cacheTime, 10) < CACHE_TTL_MS) {
           const cached = localStorage.getItem(cacheKey);
@@ -61,30 +61,21 @@ export const useOTPBypass = (phone?: string) => {
         }
 
         setLoading(true);
-        const url = phone
-          ? `/api/auth/otp-status?phone=${encodeURIComponent(phone)}`
-          : "/api/auth/config";
-        const response = await fetch(url, { 
-          headers: { "Content-Type": "application/json" },
-          signal: abortController.signal,
-        });
+        const response = await fetch(
+          `/api/auth/otp-status?phone=${encodeURIComponent(phone)}`,
+          { headers: { "Content-Type": "application/json" }, signal: abortController.signal },
+        );
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const data = await response.json();
         applyData(data);
-        if (typeof window !== "undefined" && typeof localStorage !== "undefined") {
-          localStorage.setItem(cacheKey, JSON.stringify(data));
-          localStorage.setItem(cacheTimeKey, Date.now().toString());
-        }
+        localStorage.setItem(cacheKey, JSON.stringify(data));
+        localStorage.setItem(cacheTimeKey, Date.now().toString());
       } catch (error) {
-        log.error("Failed to fetch:", error);
-        if (typeof window !== "undefined" && typeof localStorage !== "undefined") {
-          const cacheTime = localStorage.getItem(cacheTimeKey);
-          if (cacheTime && Date.now() - parseInt(cacheTime, 10) < 5 * 60 * 1000) {
-            const cached = localStorage.getItem(cacheKey);
-            if (cached) {
-              try { applyData(JSON.parse(cached)); } catch {}
-            }
-          }
+        log.error("Failed to fetch otp-status:", error);
+        const cacheTime = localStorage.getItem(cacheTimeKey);
+        if (cacheTime && Date.now() - parseInt(cacheTime, 10) < CACHE_TTL_MS) {
+          const cached = localStorage.getItem(cacheKey);
+          if (cached) { try { applyData(JSON.parse(cached)); } catch {} }
         }
       } finally {
         setLoading(false);
@@ -93,23 +84,24 @@ export const useOTPBypass = (phone?: string) => {
 
     fetchStatus();
     const interval = setInterval(fetchStatus, POLL_INTERVAL_MS);
-    return () => {
-      abortController.abort();
-      clearInterval(interval);
-    };
+    return () => { abortController.abort(); clearInterval(interval); };
   }, [phone]);
 
-  const remainingSeconds = bypassExpiresAt
-    ? Math.max(0, Math.ceil((bypassExpiresAt.getTime() - Date.now()) / 1000))
-    : 0;
+  /* Merge per-phone state (when phone provided) with global context state */
+  const effectiveBypassActive = phone ? bypassActive : authCtx.otpBypassActive;
+  const effectiveMessage      = phone ? bypassMessage : null;
+  const effectiveExpiresAt    = phone ? bypassExpiresAt : null;
 
-  const isExpired = remainingSeconds === 0 && bypassActive && bypassExpiresAt !== null;
+  const remainingSeconds = effectiveExpiresAt
+    ? Math.max(0, Math.ceil((effectiveExpiresAt.getTime() - Date.now()) / 1000))
+    : 0;
+  const isExpired = remainingSeconds === 0 && effectiveBypassActive && effectiveExpiresAt !== null;
 
   return {
-    bypassActive: bypassActive && !isExpired,
-    bypassExpiresAt: isExpired ? null : bypassExpiresAt,
-    bypassMessage,
+    bypassActive:   effectiveBypassActive && !isExpired,
+    bypassExpiresAt: isExpired ? null : effectiveExpiresAt,
+    bypassMessage:  effectiveMessage,
     remainingSeconds,
-    loading,
+    loading:        phone ? loading : false,
   };
 };
