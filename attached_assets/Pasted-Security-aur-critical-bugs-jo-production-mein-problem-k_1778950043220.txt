@@ -1,0 +1,62 @@
+Security aur critical bugs jo production mein problem kar sakte hain
+
+#	Issue	Fix	File
+1	extractAuthUser mein req.body.token fallback – auth bypass risk	Remove body fallback, sirf Authorization header accept karein	api-server/src/routes/auth/helpers.ts:264
+2	Customer/Vendor app mein hardcoded "000000" OTP bypass	Delete bypass logic – production mein block karein. Admin ke liye alag OTP_BYPASS_PHONE env var use karein	ajkmart/app/auth/index.tsx:379, vendor-app/src/pages/Login.tsx (search 000000)
+3	Vendor decodeJwtExp UTF-8 crash	Replace with safe decoder:	
+ts
+const base64Url = token.split('.')[1];
+const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+const json = decodeURIComponent(escape(atob(base64)));
+return JSON.parse(json).exp;
+``` | `vendor-app/src/lib/auth.tsx:45` |
+| 4 | `verifyTokenFamily` LIMIT 1 may miss breach | Query mein `WHERE revokedReason = 'FAMILY_BREACH_DETECTED'` add karein, ya saare tokens check karein | `api-server/src/middleware/auth.ts:44` |
+| 5 | `pendingTotpSecrets` in-memory only → multi-instance fail | Move to Redis or `user_totp_setup` table | `api-server/src/routes/auth/index.ts` (TOTP section) |
+
+**After Phase 0** → System secure ho jayega aur common crashes nahi honge.
+
+---
+
+## 🧩 PHASE 1 – BACKEND REFACTOR (1 week)
+
+### 1.1 Split `auth/index.ts` (5,132 lines → modular)
+
+Current file is unmaintainable. New structure:
+routes/auth/
+├── index.ts (router mount, shared middleware)
+├── config.ts (GET /config, /otp-status)
+├── identifier.ts (POST /check-identifier)
+├── otp.ts (send-otp, verify-otp)
+├── email-otp.ts (send-email-otp, verify-email-otp)
+├── password.ts (login, forgot-password, reset-password)
+├── register.ts (register, vendor-register)
+├── refresh.ts (refresh, logout)
+├── social.ts (google, facebook, link)
+├── two-factor.ts (2fa setup/verify/disable/recovery)
+├── magic-link.ts (send, verify)
+├── merge.ts (account merge)
+└── helpers.ts (already exists – move all shared logic here)
+
+text
+
+**Implementation steps:**  
+- Har file mein sirf uske endpoints honge, `helpers.ts` se imports.  
+- Common middleware (rate limiting, audit) router level pe lagao.
+
+### 1.2 Remove all duplicate schemas & helpers
+
+| Duplicate | Keep in `helpers.ts` | Delete from `auth/index.ts` |
+|-----------|----------------------|-----------------------------|
+| `registerSchema`, `forgotPasswordSchema`, `checkIdentifierSchema`, `phoneSchema` | ✅ | ❌ |
+| `isVendorSession`, `isRiderSession` | ✅ (export) | ❌ (import) |
+| `normalizeVehicleType` | Move to `@workspace/shared` | Remove from both `auth/helpers.ts` & `rider/index.ts` |
+
+**Benefit:** Single source of truth – future changes ek jagah karo.
+
+### 1.3 Add missing backend features
+
+- **Session revocation API** – `POST /api/auth/sessions/revoke` (user apna koi bhi session kill kar sakta hai)  
+- **Account recovery with backup codes** – already 2FA backup hai, but email/phone dono lost ho to admin approval flow  
+- **OpenAPI spec** – generate using `swagger-jsdoc` (all auth endpoints documented)
+
+---
