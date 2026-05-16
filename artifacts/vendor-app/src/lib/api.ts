@@ -1,5 +1,6 @@
 import { getVendorApiBase } from "./envValidation";
 import { createApiFetcher, RefreshError, createCircuitBreaker, CircuitOpenError } from "@workspace/api-client-react";
+import { createTokenStorage } from "@workspace/auth-react";
 import { createLogger } from "@/lib/logger";
 import { compressImage } from "./imageUtils";
 const log = createLogger("[api]");
@@ -21,16 +22,20 @@ const REFRESH_KEY = "ajkmart_vendor_refresh_token";
    sessions alive for the current page session while eliminating persistent
    XSS-accessible storage going forward. */
 
-let _inMemoryAccessToken  = "";
-let _inMemoryRefreshToken = "";
+/* ── Shared token storage (in-memory, via @workspace/auth-react) ────────────
+   createTokenStorage('memory') returns a TokenStorage object backed by
+   module-level variables inside the shared package — semantically identical
+   to the raw variables they replace, but now managed through the shared SDK
+   so all apps share the same storage contract. */
+const _tokenStorage = createTokenStorage('memory');
 
 /* One-time migration from localStorage → in-memory, then purge. */
 try {
   if (typeof localStorage !== "undefined") {
     const legacyAccess  = localStorage.getItem(TOKEN_KEY);
     const legacyRefresh = localStorage.getItem(REFRESH_KEY);
-    if (legacyAccess)  { _inMemoryAccessToken  = legacyAccess;  localStorage.removeItem(TOKEN_KEY); }
-    if (legacyRefresh) { _inMemoryRefreshToken = legacyRefresh; localStorage.removeItem(REFRESH_KEY); }
+    if (legacyAccess)  { _tokenStorage.setAccessToken(legacyAccess);  localStorage.removeItem(TOKEN_KEY); }
+    if (legacyRefresh) { _tokenStorage.setRefreshToken(legacyRefresh); localStorage.removeItem(REFRESH_KEY); }
     /* Sweep any other vendor auth keys left by older bundles. */
     const keysToRemove: string[] = [];
     for (let i = 0; i < localStorage.length; i++) {
@@ -41,23 +46,8 @@ try {
   }
 } catch { /* storage may be blocked — start fresh */ }
 
-/* Refresh token helpers — IN-MEMORY ONLY.
-   The value is also sent as an HttpOnly cookie by the server for
-   /auth/refresh and /auth/logout once task #40 is shipped. The in-memory
-   copy is the POST-body fallback during that rollout window. */
-function localGet(): string { return _inMemoryRefreshToken; }
-function localSet(value: string): void {
-  _inMemoryRefreshToken = value;
-  /* Belt-and-braces: ensure no refresh token lingers in localStorage. */
-  try { localStorage.removeItem(REFRESH_KEY); } catch {}
-}
-function localRemove(): void {
-  _inMemoryRefreshToken = "";
-  try { localStorage.removeItem(REFRESH_KEY); } catch {}
-}
-
-function getToken(): string  { return _inMemoryAccessToken; }
-function getRefreshToken(): string { return localGet(); }
+function getToken(): string  { return _tokenStorage.getAccessToken() ?? ""; }
+function getRefreshToken(): string { return _tokenStorage.getRefreshToken() ?? ""; }
 
 function readCsrfFromCookie(): string {
   try {
@@ -69,9 +59,8 @@ function readCsrfFromCookie(): string {
 }
 
 function clearTokens() {
-  _inMemoryAccessToken  = "";
-  _inMemoryRefreshToken = "";
-  localRemove();
+  _tokenStorage.clear();
+  try { localStorage.removeItem(REFRESH_KEY); } catch {}
 }
 
 /* ── Module-level logout callback ─────────────────────────────────────────────
@@ -113,10 +102,10 @@ const _circuitBreaker = createCircuitBreaker({ failureThreshold: 3, cooldownMs: 
    _vendorRefresh exposes the mutex-guarded refresh for api.refreshToken. */
 const [_vendorFetcher, _vendorRefresh] = createApiFetcher({
   baseUrl: BASE,
-  getToken: () => _inMemoryAccessToken || null,
-  setToken: (token: string) => { _inMemoryAccessToken = token; },
-  getRefreshToken: localGet,
-  setRefreshToken: localSet,
+  getToken: () => _tokenStorage.getAccessToken(),
+  setToken: (token: string) => { _tokenStorage.setAccessToken(token); },
+  getRefreshToken: () => _tokenStorage.getRefreshToken() ?? "",
+  setRefreshToken: (token: string) => { _tokenStorage.setRefreshToken(token); },
   onRefreshFailed: (isTransient: boolean) => {
     if (!isTransient) triggerLogout("session_expired");
   },
@@ -264,8 +253,8 @@ export const api = {
 
   /* Token helpers */
   storeTokens: (token: string, refreshToken?: string) => {
-    _inMemoryAccessToken = token;
-    if (refreshToken) localSet(refreshToken);
+    _tokenStorage.setAccessToken(token);
+    if (refreshToken) _tokenStorage.setRefreshToken(refreshToken);
   },
   clearTokens,
   getToken,

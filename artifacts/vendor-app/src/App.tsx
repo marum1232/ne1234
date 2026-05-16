@@ -23,6 +23,7 @@ import { AnnouncementBar } from "./components/AnnouncementBar";
 import { PopupEngine } from "./components/PopupEngine";
 import { MaintenanceScreen } from "./components/MaintenanceScreen";
 import Login from "./pages/Login";
+import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
 import Orders from "./pages/Orders";
 import Products from "./pages/Products";
@@ -277,6 +278,8 @@ function AppRoutes() {
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
   }, [config.platform.appStatus]);
+
+  if (!loading && !user && location === "/register") return <Register />;
 
   if (loading) return (
     <div className="min-h-screen bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center">

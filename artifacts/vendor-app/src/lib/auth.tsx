@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useRef, useCallback, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { getTokenExpiryRemaining } from "@workspace/auth-react";
 import { api } from "./api";
 import { createLogger } from "@/lib/logger";
 const log = createLogger("[auth]");
@@ -37,20 +38,6 @@ interface AuthCtx {
 const Ctx = createContext<AuthCtx>({} as AuthCtx);
 export const useAuth = () => useContext(Ctx);
 
-function decodeJwtExp(tok: string): number | null {
-  try {
-    const parts = tok.split(".");
-    if (parts.length !== 3) return null;
-    const base64Url = parts[1]!;
-    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
-    const json = decodeURIComponent(escape(atob(base64)));
-    const payload = JSON.parse(json);
-    return typeof payload.exp === "number" ? payload.exp : null;
-  } catch {
-    return null;
-  }
-}
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   const [user, setUser]   = useState<AuthUser | null>(null);
@@ -69,9 +56,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const scheduleProactiveRefresh = useCallback((tok: string) => {
     clearRefreshTimer();
-    const exp = decodeJwtExp(tok);
-    if (!exp) return;
-    const refreshIn = Math.max((exp * 1000 - Date.now()) - 60_000, 10_000);
+    const remaining = getTokenExpiryRemaining(tok);
+    if (remaining <= 0) return;
+    const refreshIn = Math.max(remaining - 60_000, 10_000);
     refreshTimerRef.current = setTimeout(async () => {
       if (refreshingRef.current) return;
       refreshingRef.current = true;

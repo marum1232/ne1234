@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef, useCallback, type ReactNode } from "react";
-import { Phone, Mail, User, Wrench, AlertCircle, X, Eye, EyeOff, Fingerprint, Loader2, Camera, CheckCircle2 } from "lucide-react";
+import { useState, useEffect, useRef, type ReactNode } from "react";
+import { useLocation } from "wouter";
+import { Phone, Mail, User, Wrench, AlertCircle, X, Eye, EyeOff, Fingerprint } from "lucide-react";
 import {
   isBiometricAvailable,
   isBiometricEnabled,
@@ -18,10 +19,7 @@ import { loadGoogleGSIToken, loadFacebookAccessToken, MagicLinkSender, canonical
 import { useOTPBypass } from "../hooks/useOTPBypass";
 
 type LoginMethod = "phone" | "email" | "username" | "google" | "facebook";
-type Step = "continue" | "input" | "otp" | "pending" | "2fa" | "register" | "register-otp" | "register-info" | "register-submitted" | "forgot" | "forgot-otp" | "forgot-reset" | "forgot-done";
-type RegMethod = "phone" | "email" | "none";
-
-interface UploadedDoc { label: string; url: string; preview: string; }
+type Step = "continue" | "input" | "otp" | "pending" | "2fa" | "forgot" | "forgot-otp" | "forgot-reset" | "forgot-done";
 
 function getDeviceFingerprint(): string {
   const stored = sessionStorage.getItem("_dfp");
@@ -40,11 +38,9 @@ function getDeviceFingerprint(): string {
   return id;
 }
 
-const STORE_CATS = ["Grocery","Restaurant","Bakery","Pharmacy","Electronics","Clothing","General Store","Fast Food","Fruits & Vegetables","Dairy","Meat & Poultry","Other"];
-const CITIES = ["Muzaffarabad","Mirpur","Rawalakot","Bagh","Kotli","Bhimber","Jhelum","Rawalpindi","Islamabad","Lahore","Other"];
-const BANKS = ["EasyPaisa","JazzCash","MCB","HBL","UBL","Meezan Bank","Bank Alfalah","NBP","Allied Bank","Other"];
 
 export default function Login() {
+  const [, navigate] = useLocation();
   const { login } = useAuth();
   const { config } = usePlatformConfig();
   const { language } = useLanguage();

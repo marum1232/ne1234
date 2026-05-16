@@ -56,6 +56,7 @@
     "@workspace/admin-timing-shared": "workspace:*",
     "@workspace/api-client-react": "workspace:*",
     "@workspace/api-zod": "workspace:*",
+    "@workspace/auth-react": "workspace:*",
     "@workspace/auth-utils": "workspace:*",
     "@workspace/i18n": "workspace:*",
     "@workspace/logger": "workspace:*",
