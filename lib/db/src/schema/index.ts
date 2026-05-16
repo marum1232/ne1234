@@ -100,3 +100,4 @@ export * from "./loyalty_rewards";
 export * from "./security_events";
 export * from "./whatsapp_delivery_logs";
 export * from "./business_rules";
+export * from "./account_recovery_tokens";

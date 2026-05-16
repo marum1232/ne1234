@@ -367,6 +367,60 @@ router.post("/complete-profile", sharedValidateBody(CompleteProfileSchema), asyn
    Set or change password. Body: { token, password, currentPassword? }
 ══════════════════════════════════════════════════════════════ */
 
+/**
+ * @openapi
+ * /auth/register:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Register a new customer account
+ *     description: Register a new user with phone number, password, and optional profile details. Phone OTP must be verified before or after registration.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [phone, password]
+ *             properties:
+ *               phone:
+ *                 type: string
+ *                 example: "03001234567"
+ *               password:
+ *                 type: string
+ *                 format: password
+ *                 example: "MyStr0ngP@ss"
+ *               name:
+ *                 type: string
+ *                 example: "Ahmed Khan"
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               role:
+ *                 type: string
+ *                 enum: [customer, rider, vendor]
+ *                 default: customer
+ *               captchaToken:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Registration successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     token: { type: string }
+ *                     refreshToken: { type: string }
+ *                     user: { type: object }
+ *       409:
+ *         description: Account already exists with this phone/email
+ *       400:
+ *         description: Validation error (weak password, invalid phone, etc.)
+ */
 router.post("/register", verifyCaptcha, sharedValidateBody(registerSchema), async (req, res) => {
   try {
   const { phone, password, name, role, cnic, nationalId, email, username,

@@ -48,6 +48,51 @@ import {
 
 const router: IRouter = Router();
 
+/**
+ * @openapi
+ * /auth/send-otp:
+ *   post:
+ *     tags: [Auth - OTP]
+ *     summary: Send OTP to a phone number
+ *     description: Send a one-time password via SMS, WhatsApp, or email. Used for login and registration flows.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [phone]
+ *             properties:
+ *               phone:
+ *                 type: string
+ *                 example: "03001234567"
+ *                 description: Pakistani mobile number (03XXXXXXXXX format)
+ *               preferredChannel:
+ *                 type: string
+ *                 enum: [sms, whatsapp, email]
+ *                 description: Preferred delivery channel (optional, uses platform default if omitted)
+ *               captchaToken:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: OTP sent successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     otpRequired: { type: boolean }
+ *                     channel: { type: string, enum: [sms, whatsapp, email, auto_bypass] }
+ *                     fallbackChannels: { type: array, items: { type: string } }
+ *       400:
+ *         description: Invalid phone number or OTP method disabled
+ *       429:
+ *         description: Rate limit or cooldown exceeded
+ */
 router.post("/send-otp", otpLimiter, verifyCaptcha, sharedValidateBody(sendOtpSchema), async (req, res) => {
   try {
   const rawPhone = req.body.phone;
@@ -371,6 +416,51 @@ router.post("/send-otp", otpLimiter, verifyCaptcha, sharedValidateBody(sendOtpSc
    Validates the OTP, checks security settings, returns token.
 ───────────────────────────────────────────────────────────── */
 
+/**
+ * @openapi
+ * /auth/verify-otp:
+ *   post:
+ *     tags: [Auth - OTP]
+ *     summary: Verify OTP and login/register
+ *     description: Verify the OTP received via SMS/WhatsApp/email. On success creates a new account (if first-time) or logs in the existing user and returns JWT tokens.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [phone, otp]
+ *             properties:
+ *               phone:
+ *                 type: string
+ *                 example: "03001234567"
+ *               otp:
+ *                 type: string
+ *                 example: "123456"
+ *                 description: 6-digit one-time password
+ *               captchaToken:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: OTP verified, tokens issued
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     token: { type: string }
+ *                     refreshToken: { type: string }
+ *                     user: { type: object }
+ *                     isNewUser: { type: boolean }
+ *       401:
+ *         description: Invalid or expired OTP
+ *       429:
+ *         description: Too many failed attempts
+ */
 router.post("/verify-otp", otpLimiter, verifyCaptcha, sharedValidateBody(verifyOtpSchema), async (req, res) => {
   try {
   const phone = canonicalizePhone(req.body.phone);

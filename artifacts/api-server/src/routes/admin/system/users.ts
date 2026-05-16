@@ -12,6 +12,7 @@ import {
   vendorProfilesTable,
   riderProfilesTable,
   magicLinkTokensTable,
+  accountRecoveryTokensTable,
 } from "@workspace/db/schema";
 import crypto from "crypto";
 import { eq, desc, count, sum, and, gte, lte, sql, or, ilike, asc, isNull, isNotNull, avg, ne, inArray, type SQL } from "drizzle-orm";
@@ -1543,6 +1544,45 @@ router.post("/users/export", requirePermission("users.view"), async (req, res) =
   }
 });
 
+/**
+ * @openapi
+ * /admin/users/{userId}/recovery:
+ *   post:
+ *     tags: [Admin - Users]
+ *     summary: Initiate account recovery for a user
+ *     description: |
+ *       Admin-only. Generates a cryptographically secure one-time recovery link (1-hour TTL),
+ *       stores a hashed record in account_recovery_tokens, and emails the link to the user's
+ *       registered email address. The user follows the link to set a new password without needing OTP.
+ *     security:
+ *       - adminBearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema: { type: string }
+ *         description: ID of the user to recover
+ *     responses:
+ *       200:
+ *         description: Recovery email sent
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     userId: { type: string }
+ *                     email: { type: string }
+ *                     expiresAt: { type: string, format: date-time }
+ *       400:
+ *         description: User has no registered email
+ *       404:
+ *         description: User not found
+ */
+
 /* ════════════════════════════════════════════════════════════════
    POST /api/admin/users/:userId/recovery
    Admin-only: send a one-time account recovery link to a user's email.
@@ -1575,23 +1615,23 @@ router.post("/users/:userId/recovery", requirePermission("users.edit"), async (r
       return;
     }
 
-    /* Generate a single-use recovery token */
-    const rawToken = randomBytes(32).toString("hex");
-    const tokenHash = hashPassword(rawToken);
-    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); /* 1 hour */
+    /* Generate a single-use cryptographically secure recovery token */
+    const rawToken = crypto.randomBytes(32).toString("hex");
+    const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); /* 1 hour TTL */
 
-    await db.insert(magicLinkTokensTable).values({
+    /* Store hashed token in dedicated account_recovery_tokens table */
+    await db.insert(accountRecoveryTokensTable).values({
       id: generateId(),
       userId: targetUser.id,
       tokenHash,
       expiresAt,
-      createdAt: new Date(),
     });
 
-    /* Build recovery URL */
+    /* Build recovery URL pointing to public reset endpoint */
     const baseUrl = process.env["APP_BASE_URL"]
       ?? (process.env["REPLIT_DEV_DOMAIN"] ? `https://${process.env["REPLIT_DEV_DOMAIN"]}` : "http://localhost:3000");
-    const recoveryUrl = `${baseUrl}/auth/recover?token=${encodeURIComponent(rawToken)}&u=${encodeURIComponent(targetUser.id)}`;
+    const recoveryUrl = `${baseUrl}/recover?token=${encodeURIComponent(rawToken)}`;
 
     /* Send email (fire-and-forget for response speed) */
     const { sendRecoveryEmail } = await import("../../../services/email.js");
@@ -1610,8 +1650,8 @@ router.post("/users/:userId/recovery", requirePermission("users.edit"), async (r
     sendSuccess(res, {
       userId: targetUser.id,
       email: targetUser.email,
-      recoveryUrl, /* returned only for dev / testing; in prod clients should rely on email delivery */
       expiresAt: expiresAt.toISOString(),
+      ...(process.env.NODE_ENV !== "production" ? { recoveryUrl } : {}),
     }, "Recovery link generated and sent to user email");
   } catch (err: unknown) {
     logger.error({ err }, "[admin/users] recovery generation failed");

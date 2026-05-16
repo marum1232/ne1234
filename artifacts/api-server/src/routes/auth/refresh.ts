@@ -90,6 +90,42 @@ router.post("/validate-token", sharedValidateBody(ValidateTokenSchema), async (r
    Refresh tokens are rotated on use (old one revoked, new one issued).
 ───────────────────────────────────────────────────────────── */
 
+/**
+ * @openapi
+ * /auth/refresh:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Refresh the JWT access token
+ *     description: Exchange a valid refresh token for a new access token. The refresh token is rotated on each use.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [refreshToken]
+ *             properties:
+ *               refreshToken:
+ *                 type: string
+ *                 description: The refresh token issued at login or last refresh
+ *     responses:
+ *       200:
+ *         description: New access token issued
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     token: { type: string, description: "New JWT access token" }
+ *                     refreshToken: { type: string, description: "New refresh token (old one is revoked)" }
+ *                     expiresAt: { type: string, format: date-time }
+ *       401:
+ *         description: Invalid or expired refresh token
+ */
 router.post("/refresh", sharedValidateBody(refreshTokenSchema), handleRefreshToken);
 
 router.post("/refresh-token", sharedValidateBody(refreshTokenSchema), handleRefreshToken);
@@ -99,6 +135,32 @@ router.post("/refresh-token", sharedValidateBody(refreshTokenSchema), handleRefr
    Revokes the refresh token and clears OTP. Client must discard tokens.
 ───────────────────────────────────────────────────────────── */
 
+/**
+ * @openapi
+ * /auth/logout:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Logout and revoke tokens
+ *     description: Revokes the provided refresh token and blacklists the current access token. Client must discard all tokens after this call.
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               refreshToken:
+ *                 type: string
+ *                 description: Refresh token to revoke (optional but recommended)
+ *     responses:
+ *       200:
+ *         description: Logged out successfully
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ApiSuccess' }
+ */
 router.post("/logout", sharedValidateBody(LogoutSchema), async (req, res) => {
   try {
   const authHeader = req.headers["authorization"] as string | undefined;

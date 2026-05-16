@@ -48,6 +48,55 @@ import { handleUnifiedLogin } from "./auth-common.js";
 
 const router: IRouter = Router();
 
+/**
+ * @openapi
+ * /auth/login:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Login with phone/email and password
+ *     description: Authenticate with username/email/phone and password. Returns JWT access token and refresh token.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [identifier, password]
+ *             properties:
+ *               identifier:
+ *                 type: string
+ *                 description: Phone number, email, or username
+ *                 example: "03001234567"
+ *               password:
+ *                 type: string
+ *                 format: password
+ *                 example: "MyStr0ngP@ss"
+ *               captchaToken:
+ *                 type: string
+ *                 description: reCAPTCHA v3 token (required when captcha is enabled)
+ *     responses:
+ *       200:
+ *         description: Login successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     token: { type: string, description: "JWT access token" }
+ *                     refreshToken: { type: string }
+ *                     user: { type: object }
+ *       401:
+ *         description: Invalid credentials
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ApiError' }
+ *       429:
+ *         description: Too many login attempts
+ */
 router.post("/login/username", loginLimiter, verifyCaptcha, sharedValidateBody(UserLoginSchema), handleUnifiedLogin);
 
 router.post("/login", loginLimiter, verifyCaptcha, sharedValidateBody(UserLoginSchema), handleUnifiedLogin);
