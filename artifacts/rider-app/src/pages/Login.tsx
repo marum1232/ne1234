@@ -57,6 +57,27 @@ async function getCaptchaToken(enabled: boolean, siteKey: string | undefined, ac
   }
 }
 
+/* withRetry: 1 initial attempt + maxRetries retries with exponential backoff.
+   Default: 4 total attempts, delays 1s → 2s → 4s before each retry.
+   Only retries transient failures — aborts and 4xx client errors are permanent
+   and must never be retried (a wrong OTP must not be re-submitted automatically). */
+async function withRetry<T>(fn: () => Promise<T>, maxRetries = 3, baseDelayMs = 1000): Promise<T> {
+  let lastErr: unknown;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (e: unknown) {
+      lastErr = e;
+      const isAbort = e instanceof Error && e.name === "AbortError";
+      const status = (e as { status?: number })?.status;
+      const is4xx = typeof status === "number" && status >= 400 && status < 500;
+      if (isAbort || is4xx || attempt >= maxRetries) break;
+      await new Promise(r => setTimeout(r, baseDelayMs * Math.pow(2, attempt)));
+    }
+  }
+  throw lastErr;
+}
+
 export default function Login() {
   const { login, setTwoFactorPending: setGlobalTwoFaPending } = useAuth();
   /* A7: Need direct access to clear cached query data before storing new
@@ -233,11 +254,11 @@ export default function Login() {
 
     setLoading(true); clearError();
     try {
-      const data = await apiFetch("/auth/check-identifier", {
+      const data = await withRetry(() => apiFetch("/auth/check-identifier", {
         method: "POST",
         body: JSON.stringify({ identifier: id, role: "rider", deviceId: getDeviceFingerprint() }),
-        signal: checkIdentifierAbort.current.signal,
-      });
+        signal: checkIdentifierAbort.current?.signal,
+      }));
 
       if (data.action === "blocked" || data.isBanned) {
         setError("This account has been suspended. Please contact support.");
@@ -295,9 +316,16 @@ export default function Login() {
         setPhone(normalized);
         setMethod("phone");
         setLoading(true);
+        /* TOTP mode: skip SMS send, go directly to OTP input with authenticator prompt */
+        if (auth.otpProvider === "google_authenticator") {
+          setOtpChannel("totp");
+          setFallbackChannels([]);
+          setStep("otp");
+          setLoading(false); return;
+        }
         try {
           const captchaToken = await getCaptchaToken(auth.captchaEnabled, captchaSiteKey, "login_phone_otp");
-          const r = await api.sendOtp(formatPhoneForApi(normalized), captchaToken, undefined, checkIdentifierAbort.current?.signal ?? undefined);
+          const r = await withRetry(() => api.sendOtp(formatPhoneForApi(normalized), captchaToken, undefined, checkIdentifierAbort.current?.signal ?? undefined));
           if (r.otpRequired === false) {
             if (r.token) { await doLogin(r as AuthResponse); setLoading(false); return; }
             setStep("otp");
@@ -321,7 +349,7 @@ export default function Login() {
         setLoading(true);
         try {
           const captchaToken = await getCaptchaToken(auth.captchaEnabled, captchaSiteKey, "login_email_otp");
-          const r = await api.sendEmailOtp(id, captchaToken);
+          const r = await withRetry(() => api.sendEmailOtp(id, captchaToken));
           if (r.otp || r.devMode) setEmailDevOtp(r.otp || "");
           setOtpChannel("email");
           setFallbackChannels([]);
@@ -494,11 +522,18 @@ export default function Login() {
 
   const sendPhoneOtp = async (channel?: string) => {
     if (!phone || !isValidPhone(phone)) { setError(`${T("enterValidPhone")} (e.g. ${phoneHint})`); return; }
+    /* TOTP mode: no SMS send — go directly to authenticator code entry */
+    if (auth.otpProvider === "google_authenticator") {
+      setOtpChannel("totp");
+      setFallbackChannels([]);
+      setStep("otp");
+      return;
+    }
     setLoading(true); clearError(); setShowEmailFallback(false);
     try {
       const captchaToken = await getCaptchaToken(auth.captchaEnabled, captchaSiteKey, "login_phone_otp");
       if (auth.captchaEnabled && !captchaToken) { setError(T("captchaRequired")); setLoading(false); return; }
-      const res = await api.sendOtp(formatPhoneForApi(phone), captchaToken, channel);
+      const res = await withRetry(() => api.sendOtp(formatPhoneForApi(phone), captchaToken, channel));
       if (res.otpRequired === false) {
         if (res.token) { await doLogin(res as AuthResponse); setLoading(false); return; }
         setStep("otp");
@@ -540,7 +575,9 @@ export default function Login() {
     try {
       const captchaToken = await getCaptchaToken(auth.captchaEnabled, captchaSiteKey, "verify_phone_otp");
       if (auth.captchaEnabled && !captchaToken) { setError(T("captchaRequired")); setLoading(false); return; }
-      const res = await api.verifyOtp(formatPhoneForApi(phone), otp, getDeviceFingerprint(), captchaToken);
+      const res = auth.otpProvider === "google_authenticator"
+        ? await withRetry(() => api.verifyTotpCode(otp, formatPhoneForApi(phone), captchaToken))
+        : await withRetry(() => api.verifyOtp(formatPhoneForApi(phone), otp, getDeviceFingerprint(), captchaToken));
       await doLogin(res);
     } catch (e: unknown) { handleAuthError(e); }
     setLoading(false);
@@ -552,7 +589,7 @@ export default function Login() {
     try {
       const captchaToken = await getCaptchaToken(auth.captchaEnabled, captchaSiteKey, "login_email_otp");
       if (auth.captchaEnabled && !captchaToken) { setError(T("captchaRequired")); setLoading(false); return; }
-      const res = await api.sendEmailOtp(email, captchaToken);
+      const res = await withRetry(() => api.sendEmailOtp(email, captchaToken));
       if (res.otp || res.devMode) setEmailDevOtp(res.otp || "");
       if (res.channel === "console") {
         setError("Email OTP could not be sent — email delivery is not configured. Check server logs for the OTP (dev/staging only).");
@@ -573,7 +610,7 @@ export default function Login() {
     try {
       const captchaToken = await getCaptchaToken(auth.captchaEnabled, captchaSiteKey, "verify_email_otp");
       if (auth.captchaEnabled && !captchaToken) { setError(T("captchaRequired")); setLoading(false); return; }
-      const res = await api.verifyEmailOtp(email, emailOtp, getDeviceFingerprint(), captchaToken);
+      const res = await withRetry(() => api.verifyEmailOtp(email, emailOtp, getDeviceFingerprint(), captchaToken));
       await doLogin(res);
     } catch (e: unknown) { handleAuthError(e); }
     setLoading(false);
@@ -1145,8 +1182,37 @@ export default function Login() {
                 </div>
               )}
 
-              {/* PHONE OTP step */}
-              {method === "phone" && step === "otp" && (
+              {/* PHONE OTP step — TOTP (Google Authenticator) mode */}
+              {method === "phone" && step === "otp" && auth.otpProvider === "google_authenticator" && (
+                <div className="login-step-enter">
+                  <div className="w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-4 border border-[#F0B90B]/30" style={{ background: "rgba(240,185,11,0.08)" }}>
+                    <Shield size={22} className="text-[#F0B90B]" />
+                  </div>
+                  <h3 className="text-base font-bold text-[#E8E9EF] mb-1 text-center">Authenticator Code</h3>
+                  <p className="text-xs text-[#6B7280] mb-5 text-center">Open your authenticator app and enter the 6-digit code for this account.</p>
+
+                  <div className="relative mb-2">
+                    <div className="flex gap-2 justify-center pointer-events-none select-none" aria-hidden>
+                      {Array.from({ length: 6 }).map((_, i) => (
+                        <div key={i} className={`w-10 h-13 rounded-xl border-2 flex items-center justify-center text-xl font-bold transition-all ${
+                          otp[i] ? "border-[#F0B90B] text-[#F0B90B]" : "border-[#252836] text-[#2D3143]"
+                        }`}
+                        style={otp[i] ? { background: "rgba(240,185,11,0.08)" } : { background: "#0F1217" }}>
+                          {otp[i] || "·"}
+                        </div>
+                      ))}
+                    </div>
+                    <input type="text" inputMode="numeric" pattern="[0-9]*" value={otp}
+                      onChange={e => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                      onKeyDown={e => e.key === "Enter" && handleSubmit()}
+                      className="absolute inset-0 opacity-0 w-full cursor-text" maxLength={6} autoFocus aria-label="Enter 6-digit authenticator code" />
+                  </div>
+                  <p className="text-center text-[10px] text-[#374151] mb-4">Code refreshes every 30 seconds</p>
+                </div>
+              )}
+
+              {/* PHONE OTP step — SMS/WhatsApp mode */}
+              {method === "phone" && step === "otp" && auth.otpProvider !== "google_authenticator" && (
                 <div className="login-step-enter">
                   {otpBypassActive && !bypassBannerDismissed && (
                     <div className="bg-[#F0B90B]/8 border border-[#F0B90B]/25 rounded-xl p-3 mb-4 flex items-start gap-2">

@@ -415,7 +415,7 @@ export const api = {
   refreshToken: () => _riderRefresh(),
 
   registerRider: (data: {
-    name: string; phone: string; email: string; cnic: string; vehicleType: string;
+    name: string; phone?: string; email?: string; cnic: string; vehicleType: string;
     vehicleRegistration: string; drivingLicense: string; password: string;
     captchaToken?: string; username?: string;
     address?: string; city?: string; emergencyContact?: string;
@@ -423,13 +423,15 @@ export const api = {
   }) =>
     apiFetch("/auth/register", { method: "POST", body: JSON.stringify({ ...data, role: "rider", vehicleRegNo: data.vehicleRegistration }) }),
   emailRegisterRider: (data: {
-    name: string; phone: string; email: string; cnic: string; vehicleType: string;
+    name: string; phone?: string; email?: string; cnic: string; vehicleType: string;
     vehicleRegistration: string; drivingLicense: string; password: string;
     captchaToken?: string; username?: string;
     address?: string; city?: string; emergencyContact?: string;
     vehiclePlate?: string; vehiclePhoto?: string; documents?: string;
   }) =>
     apiFetch("/auth/email-register", { method: "POST", body: JSON.stringify({ ...data, role: "rider", vehicleRegNo: data.vehicleRegistration }) }),
+  verifyTotpCode: (code: string, phone: string, captchaToken?: string) =>
+    apiFetch("/auth/verify-otp", { method: "POST", body: JSON.stringify({ phone, otp: code, role: "rider", captchaToken }) }),
   uploadFile: (data: { file: string; filename?: string; mimeType?: string }) =>
     apiFetch("/uploads", { method: "POST", body: JSON.stringify(data) }),
   /* Multipart/form-data upload — avoids large base64 payload; used for delivery proof.

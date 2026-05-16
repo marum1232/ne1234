@@ -286,6 +286,7 @@ router.get("/config", async (_req, res) => {
       googleClientId:   settings["google_client_id"]   ?? null,
       facebookAppId:    settings["facebook_app_id"]    ?? null,
       otpBypassGlobal:  (settings["security_otp_bypass"] ?? "off") === "on",
+      otpProvider:      settings["otp_provider"]        ?? null,
     });
   } catch (e) {
     logger.error({ error: e }, "[/auth/config] Failed to get config");
@@ -311,6 +312,7 @@ router.get("/config", async (_req, res) => {
       googleClientId: null,
       facebookAppId: null,
       otpBypassGlobal: false,
+      otpProvider: null,
     });
   }
 });
@@ -772,7 +774,7 @@ router.post("/send-otp", otpLimiter, verifyCaptcha, sharedValidateBody(sendOtpSc
 
   /* ══ OTP DISABLED — return generic "use another method" without revealing account state ══ */
   if (!otpEnabled || !otpEnabledForRole) {
-    sendErrorWithData(res, "Phone OTP is currently disabled. Please use another login method or contact support.", { code: "GATEWAY_DISABLED" }, 400);
+    sendErrorWithData(res, "Phone OTP is currently disabled. Please use another login method or contact support.", { code: "AUTH_METHOD_DISABLED" }, 400);
     return;
   }
   /* ── Per-phone OTP resend cooldown (60 s) — prevents SMS bombing ── */
@@ -1045,7 +1047,7 @@ router.post("/verify-otp", otpLimiter, verifyCaptcha, sharedValidateBody(verifyO
   const settings = await getCachedSettings();
 
   if (!isAuthMethodEnabled(settings, "auth_phone_otp_enabled")) {
-    sendErrorWithData(res, "Phone OTP login is currently disabled.", { code: "GATEWAY_DISABLED" }, 400);
+    sendErrorWithData(res, "Phone OTP login is currently disabled.", { code: "AUTH_METHOD_DISABLED" }, 400);
     return;
   }
 
@@ -1187,7 +1189,7 @@ router.post("/verify-otp", otpLimiter, verifyCaptcha, sharedValidateBody(verifyO
   }
 
   if (!isAuthMethodEnabled(settings, "auth_phone_otp_enabled", user.roles ?? undefined)) {
-    sendErrorWithData(res, "Phone OTP login is currently disabled for your account type.", { code: "GATEWAY_DISABLED" }, 400);
+    sendErrorWithData(res, "Phone OTP login is currently disabled for your account type.", { code: "AUTH_METHOD_DISABLED" }, 400);
     return;
   }
 
@@ -1260,8 +1262,51 @@ router.post("/verify-otp", otpLimiter, verifyCaptcha, sharedValidateBody(verifyO
 
   let isActualFirstLogin = false;
 
+  /* ── TOTP primary auth mode (otp_provider = "google_authenticator") ──────
+     When the platform setting `otp_provider` is set to "google_authenticator",
+     SMS delivery is skipped on the client side and the user enters a time-based
+     code from their authenticator app. We verify it here — before the atomic
+     SMS-OTP UPDATE — so we never touch the OTP hash columns in this path.
+     Bypass flags (per-user, global, whitelist) still take precedence. ─────── */
+  const otpProviderMode = settings["otp_provider"] ?? null;
+  let totpPrimaryVerified = false;
+
+  if (otpProviderMode === "google_authenticator" && !otpBypassActive && !globalOtpBypass) {
+    const whitelistCode = await getWhitelistBypass(phone);
+    if (!whitelistCode) {
+      if (!user.totpEnabled || !user.totpSecret) {
+        addAuditEntry({ action: "verify_totp_not_enrolled", ip, details: `TOTP primary login for ${phone} — user not enrolled`, result: "fail" });
+        sendErrorWithData(res, "Authenticator app is not set up for this account. Please contact your administrator.", { code: "TOTP_NOT_ENROLLED" }, 400);
+        return;
+      }
+      const totpSecret = decryptTotpSecret(user.totpSecret);
+      if (!verifyTotpToken(otp, totpSecret)) {
+        const updated = await recordFailedAttempt(phone, maxAttempts, lockoutMinutes);
+        const remaining = maxAttempts - updated.attempts;
+        addAuditEntry({ action: "verify_totp_failed", ip, details: `Wrong TOTP for ${phone}, attempt ${updated.attempts}/${maxAttempts}`, result: "fail" });
+        writeAuthAuditLog("totp_failed", { userId: user.id, ip, userAgent: req.headers["user-agent"] ?? undefined });
+        if (updated.locked) {
+          addSecurityEvent({ type: "account_locked", ip, userId: user.id, details: `Account locked after ${maxAttempts} failed TOTP attempts`, severity: "high" });
+          sendErrorWithData(res, `Too many failed attempts. Account locked for ${lockoutMinutes} minutes.`, { lockedMinutes: lockoutMinutes }, 429);
+        } else {
+          sendErrorWithData(res, `Invalid authenticator code. ${remaining > 0 ? `${remaining} attempt(s) remaining before lockout.` : ""}`, { attemptsRemaining: Math.max(0, remaining) }, 401);
+        }
+        return;
+      }
+      await db.update(usersTable)
+        .set({ phoneVerified: true, lastLoginAt: now, updatedAt: now })
+        .where(eq(usersTable.phone, phone));
+      addAuditEntry({ action: "user_login_totp_primary", ip, details: `TOTP primary auth success for ${phone} (role: ${user.roles})`, result: "success" });
+      writeAuthAuditLog("totp_primary_login", { userId: user.id, ip, userAgent: req.headers["user-agent"] ?? undefined, metadata: { phone } });
+      totpPrimaryVerified = true;
+    }
+  }
+
   {
     const consumed = await db.transaction(async (tx) => {
+      /* ── TOTP primary: code already verified above — skip all OTP hash checks ── */
+      if (totpPrimaryVerified) return { id: user.id, lastLoginAt: now };
+
       /* ── Per-user bypass path (HIGHEST PRIORITY): skip OTP code check, clear bypass flag (single-use) ── */
       if (otpBypassActive) {
         // no user notification — bypass is silent by admin design
@@ -1395,8 +1440,10 @@ router.post("/verify-otp", otpLimiter, verifyCaptcha, sharedValidateBody(verifyO
     return;
   }
 
-  /* ── 2FA challenge ── */
-  if (u.totpEnabled && isAuthMethodEnabled(settings, "auth_2fa_enabled", u.roles ?? undefined)) {
+  /* ── 2FA challenge ──
+     Skip when TOTP was the primary auth factor — user already proved possession
+     of their authenticator app; issuing a second TOTP challenge would be redundant. ── */
+  if (!totpPrimaryVerified && u.totpEnabled && isAuthMethodEnabled(settings, "auth_2fa_enabled", u.roles ?? undefined)) {
     const deviceFingerprint = req.body.deviceFingerprint ?? "";
     const trustedDays = parseInt(settings["auth_trusted_device_days"] ?? "30", 10);
     if (!isDeviceTrusted(u, deviceFingerprint, trustedDays)) {
@@ -1973,7 +2020,7 @@ router.post("/send-email-otp", otpLimiter, verifyCaptcha, sharedValidateBody(Sen
   const settings = await getCachedSettings();
 
   if (!isAuthMethodEnabled(settings, "auth_email_otp_enabled")) {
-    sendErrorWithData(res, "Email OTP login is currently disabled.", { code: "GATEWAY_DISABLED" }, 400);
+    sendErrorWithData(res, "Email OTP login is currently disabled.", { code: "AUTH_METHOD_DISABLED" }, 400);
     return;
   }
   const normalized = email.toLowerCase().trim();
@@ -1986,7 +2033,7 @@ router.post("/send-email-otp", otpLimiter, verifyCaptcha, sharedValidateBody(Sen
   }
 
   if (!isAuthMethodEnabled(settings, "auth_email_otp_enabled", user.roles ?? "customer")) {
-    sendErrorWithData(res, "Email OTP login is currently disabled for your account type.", { code: "GATEWAY_DISABLED" }, 400);
+    sendErrorWithData(res, "Email OTP login is currently disabled for your account type.", { code: "AUTH_METHOD_DISABLED" }, 400);
     return;
   }
 
@@ -2080,7 +2127,7 @@ router.post("/verify-email-otp", otpLimiter, verifyCaptcha, sharedValidateBody(V
   const settings = await getCachedSettings();
 
   if (!isAuthMethodEnabled(settings, "auth_email_otp_enabled")) {
-    sendErrorWithData(res, "Email OTP login is currently disabled.", { code: "GATEWAY_DISABLED" }, 400);
+    sendErrorWithData(res, "Email OTP login is currently disabled.", { code: "AUTH_METHOD_DISABLED" }, 400);
     return;
   }
   const normalized = email.toLowerCase().trim();
@@ -2097,7 +2144,7 @@ router.post("/verify-email-otp", otpLimiter, verifyCaptcha, sharedValidateBody(V
   if (!user) { sendNotFound(res, "Is email se koi account nahi mila."); return; }
 
   if (!isAuthMethodEnabled(settings, "auth_email_otp_enabled", user.roles ?? "customer")) {
-    sendErrorWithData(res, "Email OTP login is currently disabled for your account type.", { code: "GATEWAY_DISABLED" }, 400);
+    sendErrorWithData(res, "Email OTP login is currently disabled for your account type.", { code: "AUTH_METHOD_DISABLED" }, 400);
     return;
   }
 
@@ -3799,7 +3846,7 @@ router.post("/social/google", sharedValidateBody(SocialGoogleSchema), async (req
   const settings = await getCachedSettings();
 
   if (!isAuthMethodEnabledStrict(settings, "auth_google_enabled", "auth_social_google")) {
-    sendForbidden(res, "Google login is currently disabled"); return;
+    sendErrorWithData(res, "Google login is currently disabled.", { code: "AUTH_METHOD_DISABLED" }, 400); return;
   }
 
   let googlePayload: any;
@@ -3851,7 +3898,7 @@ router.post("/social/google", sharedValidateBody(SocialGoogleSchema), async (req
 
   const googleEffectiveRole = user?.roles ?? "customer";
   if (!isAuthMethodEnabledStrict(settings, "auth_google_enabled", "auth_social_google", googleEffectiveRole)) {
-    sendForbidden(res, "Google login is currently disabled for your account type."); return;
+    sendErrorWithData(res, "Google login is currently disabled for your account type.", { code: "AUTH_METHOD_DISABLED" }, 400); return;
   }
 
   if (!user) {
@@ -3908,7 +3955,7 @@ router.post("/social/facebook", sharedValidateBody(SocialFacebookSchema), async 
   const settings = await getCachedSettings();
 
   if (!isAuthMethodEnabledStrict(settings, "auth_facebook_enabled", "auth_social_facebook")) {
-    sendForbidden(res, "Facebook login is currently disabled"); return;
+    sendErrorWithData(res, "Facebook login is currently disabled.", { code: "AUTH_METHOD_DISABLED" }, 400); return;
   }
 
   let fbPayload: any;
@@ -3960,7 +4007,7 @@ router.post("/social/facebook", sharedValidateBody(SocialFacebookSchema), async 
 
   const fbEffectiveRole = user?.roles ?? "customer";
   if (!isAuthMethodEnabledStrict(settings, "auth_facebook_enabled", "auth_social_facebook", fbEffectiveRole)) {
-    sendForbidden(res, "Facebook login is currently disabled for your account type."); return;
+    sendErrorWithData(res, "Facebook login is currently disabled for your account type.", { code: "AUTH_METHOD_DISABLED" }, 400); return;
   }
 
   if (!user) {

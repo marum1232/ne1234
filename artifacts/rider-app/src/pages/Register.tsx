@@ -242,7 +242,13 @@ export default function Register() {
   }, [name]);
 
   useEffect(() => {
-    if (!phone || phone.length < 10 || (auth.emailEnabled && (!email || !email.includes("@")))) {
+    const phoneReady = !auth.phoneEnabled || (phone && phone.length >= 10);
+    const emailReady = !auth.emailEnabled || (email && email.includes("@"));
+    if (!phoneReady || !emailReady) {
+      setAvailabilityStatus("idle");
+      return;
+    }
+    if (!auth.phoneEnabled && !auth.emailEnabled) {
       setAvailabilityStatus("idle");
       return;
     }
@@ -250,14 +256,17 @@ export default function Register() {
     availabilityTimer.current = setTimeout(async () => {
       setAvailabilityStatus("checking");
       try {
-        await api.checkAvailable({ phone: formatPhoneForApi(phone), email });
+        await api.checkAvailable({
+          ...(auth.phoneEnabled ? { phone: formatPhoneForApi(phone) } : {}),
+          ...(auth.emailEnabled && email ? { email } : {}),
+        });
         setAvailabilityStatus("available");
       } catch {
         setAvailabilityStatus("taken");
       }
     }, 800);
     return () => { if (availabilityTimer.current) clearTimeout(availabilityTimer.current); };
-  }, [phone, email]);
+  }, [phone, email, auth.phoneEnabled, auth.emailEnabled]);
 
   const handleSocialAutofill = async (provider: "google" | "facebook") => {
     const googleClientId = auth.googleClientId ?? config.auth?.googleClientId;
@@ -326,7 +335,11 @@ export default function Register() {
 
   const checkAvailability = async (): Promise<boolean> => {
     try {
-      await api.checkAvailable({ phone: formatPhoneForApi(phone), email, ...(username ? { username } : {}) });
+      await api.checkAvailable({
+        ...(auth.phoneEnabled ? { phone: formatPhoneForApi(phone) } : {}),
+        ...(auth.emailEnabled && email ? { email } : {}),
+        ...(username ? { username } : {}),
+      });
       return true;
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : T("loginFailed"));
@@ -371,8 +384,8 @@ export default function Register() {
 
         const regData = {
           name: name.trim(),
-          phone: formatPhoneForApi(phone),
-          email: email.trim(),
+          ...(auth.phoneEnabled ? { phone: formatPhoneForApi(phone) } : {}),
+          ...(auth.emailEnabled && email.trim() ? { email: email.trim() } : {}),
           cnic: cnic.trim(),
           vehicleType,
           vehicleRegistration: vehicleReg.trim(),
