@@ -1,7 +1,7 @@
 import { createContext, useContext, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 
-interface AuthConfig {
+export interface AuthConfig {
   phoneOtp: boolean;
   emailOtp: boolean;
   google: boolean;
@@ -10,9 +10,11 @@ interface AuthConfig {
   usernamePassword: boolean;
   totp: boolean;
   captchaEnabled: boolean;
+  captchaSiteKey?: string;
   googleClientId?: string;
   facebookAppId?: string;
-  captchaSiteKey?: string;
+  otpBypassActive?: boolean;
+  otpBypassGlobal?: boolean;
 }
 
 const DEFAULT_AUTH_CONFIG: AuthConfig = {
@@ -34,17 +36,22 @@ async function fetchAuthConfig(): Promise<AuthConfig> {
   const json = await res.json();
   const d = json?.data ?? json;
   return {
-    phoneOtp:        d.phoneOtp         ?? true,
-    emailOtp:        d.emailOtp         ?? false,
-    google:          d.google           ?? false,
-    facebook:        d.facebook         ?? false,
-    magicLink:       d.magicLink        ?? false,
+    /* Prefer camelCase rider-scoped fields added to /api/auth/config.
+       Fall back to legacy snake_case "on"/"off" string fields for servers
+       that haven't yet deployed the extended config endpoint. */
+    phoneOtp:        d.phoneOtp         ?? (d.auth_otp_enabled         === "on" ? true : (d.auth_otp_enabled         === "off" ? false : true)),
+    emailOtp:        d.emailOtp         ?? (d.auth_email_enabled        === "on" ? true : false),
+    google:          d.google           ?? (d.auth_google_enabled       === "on" ? true : false),
+    facebook:        d.facebook         ?? (d.auth_facebook_enabled     === "on" ? true : false),
     usernamePassword: d.usernamePassword ?? true,
+    magicLink:       d.magicLink        ?? false,
     totp:            d.totp             ?? false,
     captchaEnabled:  d.captchaEnabled   ?? false,
-    googleClientId:  d.googleClientId,
-    facebookAppId:   d.facebookAppId,
-    captchaSiteKey:  d.captchaSiteKey,
+    captchaSiteKey:  d.captchaSiteKey   ?? undefined,
+    googleClientId:  d.googleClientId   ?? undefined,
+    facebookAppId:   d.facebookAppId    ?? undefined,
+    otpBypassActive: d.otpBypassActive  ?? false,
+    otpBypassGlobal: d.otpBypassGlobal  ?? false,
   };
 }
 

@@ -1,73 +1,83 @@
 const MAX_DIMENSION = 1280;
-const WEBP_QUALITY = 0.82;
-const JPEG_QUALITY = 0.82;
+const TARGET_SIZE_BYTES = 200 * 1024;
+const QUALITY_STEPS = [0.82, 0.72, 0.60, 0.48];
+
+async function blobToFile(blob: Blob, name: string, type: string): Promise<File> {
+  return new File([blob], name, { type });
+}
+
+function drawToCanvas(img: HTMLImageElement): { canvas: HTMLCanvasElement; width: number; height: number } {
+  let { width, height } = img;
+  if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
+    const ratio = Math.min(MAX_DIMENSION / width, MAX_DIMENSION / height);
+    width = Math.round(width * ratio);
+    height = Math.round(height * ratio);
+  }
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d");
+  if (ctx) ctx.drawImage(img, 0, 0, width, height);
+  return { canvas, width, height };
+}
+
+async function tryEncode(canvas: HTMLCanvasElement, mime: "image/webp" | "image/jpeg", quality: number): Promise<Blob | null> {
+  return new Promise<Blob | null>((resolve) => {
+    canvas.toBlob((b) => resolve(b), mime, quality);
+  });
+}
 
 export async function compressImage(file: File): Promise<File> {
   if (!file.type.startsWith("image/")) return file;
-  if (file.size < 200 * 1024) return file;
 
   return new Promise<File>((resolve) => {
     const img = new Image();
     const objectUrl = URL.createObjectURL(file);
-    img.onload = () => {
+
+    img.onload = async () => {
       URL.revokeObjectURL(objectUrl);
-      let { width, height } = img;
-      if (width <= MAX_DIMENSION && height <= MAX_DIMENSION) {
-        resolve(file);
-        return;
+
+      const { canvas } = drawToCanvas(img);
+      const supportsWebP = canvas.toDataURL("image/webp").startsWith("data:image/webp");
+
+      let bestFile: File | null = null;
+
+      for (const quality of QUALITY_STEPS) {
+        /* Try WebP first */
+        if (supportsWebP) {
+          const blob = await tryEncode(canvas, "image/webp", quality);
+          if (blob && blob.size < file.size) {
+            const candidate = await blobToFile(blob, file.name.replace(/\.[^.]+$/, ".webp"), "image/webp");
+            if (import.meta.env.DEV && !bestFile) {
+              console.debug(`[imageUtils] ${file.name}: ${(file.size / 1024).toFixed(1)}KB → ${(blob.size / 1024).toFixed(1)}KB (webp q${quality})`);
+            }
+            if (blob.size <= TARGET_SIZE_BYTES) { resolve(candidate); return; }
+            if (!bestFile || blob.size < bestFile.size) bestFile = candidate;
+          }
+        }
+
+        /* JPEG fallback */
+        const jblob = await tryEncode(canvas, "image/jpeg", quality);
+        if (jblob && jblob.size < file.size) {
+          const candidate = await blobToFile(jblob, file.name.replace(/\.[^.]+$/, ".jpg"), "image/jpeg");
+          if (import.meta.env.DEV && !bestFile) {
+            console.debug(`[imageUtils] ${file.name}: ${(file.size / 1024).toFixed(1)}KB → ${(jblob.size / 1024).toFixed(1)}KB (jpeg q${quality})`);
+          }
+          if (jblob.size <= TARGET_SIZE_BYTES) { resolve(candidate); return; }
+          if (!bestFile || jblob.size < bestFile.size) bestFile = candidate;
+        }
       }
-      const ratio = Math.min(MAX_DIMENSION / width, MAX_DIMENSION / height);
-      width = Math.round(width * ratio);
-      height = Math.round(height * ratio);
 
-      const canvas = document.createElement("canvas");
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) { resolve(file); return; }
-      ctx.drawImage(img, 0, 0, width, height);
-
-      const supportsWebP = !!canvas.toDataURL("image/webp").startsWith("data:image/webp");
-
-      if (supportsWebP) {
-        canvas.toBlob(
-          (webpBlob) => {
-            if (webpBlob && webpBlob.size < file.size) {
-              if (import.meta.env.DEV) {
-                console.debug(`[imageUtils] compressed ${file.name}: ${(file.size / 1024).toFixed(1)}KB → ${(webpBlob.size / 1024).toFixed(1)}KB (webp)`);
-              }
-              resolve(new File([webpBlob], file.name.replace(/\.[^.]+$/, ".webp"), { type: "image/webp" }));
-            } else {
-              canvas.toBlob(
-                (jpegBlob) => {
-                  if (!jpegBlob || jpegBlob.size >= file.size) { resolve(file); return; }
-                  if (import.meta.env.DEV) {
-                    console.debug(`[imageUtils] compressed ${file.name}: ${(file.size / 1024).toFixed(1)}KB → ${(jpegBlob.size / 1024).toFixed(1)}KB (jpeg fallback)`);
-                  }
-                  resolve(new File([jpegBlob], file.name.replace(/\.[^.]+$/, ".jpg"), { type: "image/jpeg" }));
-                },
-                "image/jpeg",
-                JPEG_QUALITY,
-              );
-            }
-          },
-          "image/webp",
-          WEBP_QUALITY,
-        );
+      if (bestFile) {
+        if (import.meta.env.DEV) {
+          console.debug(`[imageUtils] ${file.name}: best effort ${(bestFile.size / 1024).toFixed(1)}KB (target was ${(TARGET_SIZE_BYTES / 1024).toFixed(0)}KB)`);
+        }
+        resolve(bestFile);
       } else {
-        canvas.toBlob(
-          (blob) => {
-            if (!blob || blob.size >= file.size) { resolve(file); return; }
-            if (import.meta.env.DEV) {
-              console.debug(`[imageUtils] compressed ${file.name}: ${(file.size / 1024).toFixed(1)}KB → ${(blob.size / 1024).toFixed(1)}KB (jpeg)`);
-            }
-            resolve(new File([blob], file.name.replace(/\.[^.]+$/, ".jpg"), { type: "image/jpeg" }));
-          },
-          "image/jpeg",
-          JPEG_QUALITY,
-        );
+        resolve(file);
       }
     };
+
     img.onerror = () => { URL.revokeObjectURL(objectUrl); resolve(file); };
     img.src = objectUrl;
   });

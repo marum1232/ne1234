@@ -617,6 +617,7 @@ export default function Register() {
                 </label>
                 <input value={name} onChange={e => setName(e.target.value)} placeholder={T("fullName")} className={INPUT} autoFocus />
               </div>
+              {auth.phoneOtp && (
               <div>
                 <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 block flex items-center gap-1">
                   <Phone size={11} /> {T("phoneRequired")}
@@ -627,6 +628,7 @@ export default function Register() {
                 </div>
                 <p className="text-[10px] text-gray-400 mt-1">Format: 03XX-XXXXXXX</p>
               </div>
+              )}
               {auth.emailOtp && (
               <div>
                 <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 block flex items-center gap-1">
@@ -987,7 +989,11 @@ export default function Register() {
                 <ArrowLeft size={14} /> {T("previousStep")}
               </button>
             )}
-            <button onClick={goNextStep} disabled={loading || !!uploadingField}
+            {step === 2 && !(!!vehiclePhoto?.url && !!cnicPhoto?.url && !!cnicBackPhoto?.url && !!licensePhoto?.url) && (
+              <p className="text-[11px] text-amber-600 font-medium text-center w-full mb-1">All 4 documents are required to continue</p>
+            )}
+            <button onClick={goNextStep}
+              disabled={loading || !!uploadingField || (step === 2 && !(!!vehiclePhoto?.url && !!cnicPhoto?.url && !!cnicBackPhoto?.url && !!licensePhoto?.url))}
               className="flex-1 h-12 bg-gray-900 hover:bg-gray-800 text-white font-bold rounded-xl transition-colors disabled:opacity-60 flex items-center justify-center gap-2">
               {loading ? <Loader2 size={18} className="animate-spin" /> : null}
               {loading ? T("pleaseWait") :

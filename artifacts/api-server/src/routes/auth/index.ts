@@ -257,7 +257,12 @@ router.get("/config", async (_req, res) => {
     
     const bypassMessage = settings["otp_bypass_message"] ?? null;
     
+    /* ── Rider-scoped auth method flags ── */
+    const toRiderBool = (key: string, fallback = "on"): boolean =>
+      (settings[key] ?? fallback) === "on";
+
     sendSuccess(res, {
+      /* Legacy snake_case fields kept for backward compat */
       auth_mode:             settings["auth_mode"]             ?? "OTP",
       firebase_enabled:      settings["firebase_enabled"]      ?? "off",
       auth_otp_enabled:      settings["auth_otp_enabled"]      ?? "on",
@@ -267,6 +272,19 @@ router.get("/config", async (_req, res) => {
       otpBypassActive,
       otpBypassExpiresAt,
       bypassMessage,
+      /* Rider-scoped camelCase fields — consumed by AuthConfigContext */
+      phoneOtp:         toRiderBool("auth_phone_otp_enabled"),
+      emailOtp:         toRiderBool("auth_email_otp_enabled", "off"),
+      google:           toRiderBool("auth_google_enabled"),
+      facebook:         toRiderBool("auth_facebook_enabled", "off"),
+      usernamePassword: toRiderBool("auth_username_password_enabled"),
+      magicLink:        toRiderBool("auth_magic_link_enabled", "off"),
+      totp:             toRiderBool("auth_totp_enabled", "off"),
+      captchaEnabled:   toRiderBool("auth_captcha_enabled", "off"),
+      captchaSiteKey:   settings["recaptcha_site_key"] ?? null,
+      googleClientId:   settings["google_client_id"]   ?? null,
+      facebookAppId:    settings["facebook_app_id"]    ?? null,
+      otpBypassGlobal:  (settings["security_otp_bypass"] ?? "off") === "on",
     });
   } catch (e) {
     logger.error({ error: e }, "[/auth/config] Failed to get config");
@@ -280,6 +298,18 @@ router.get("/config", async (_req, res) => {
       otpBypassActive: false,
       otpBypassExpiresAt: null,
       bypassMessage: null,
+      phoneOtp: true,
+      emailOtp: false,
+      google: true,
+      facebook: false,
+      usernamePassword: true,
+      magicLink: false,
+      totp: false,
+      captchaEnabled: false,
+      captchaSiteKey: null,
+      googleClientId: null,
+      facebookAppId: null,
+      otpBypassGlobal: false,
     });
   }
 });
