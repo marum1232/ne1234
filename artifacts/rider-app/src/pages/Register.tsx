@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Link, useLocation } from "wouter";
-import { api, isApiError } from "../lib/api";
+import { api, isApiError, setApiTimeoutMs } from "../lib/api";
 import { createLogger } from "@/lib/logger";
 const log = createLogger("[Register]");
 import { usePlatformConfig, getRiderAuthConfig, buildPhoneValidator } from "../lib/useConfig";
 import { useLanguage } from "../lib/useLanguage";
 import { tDual, type TranslationKey } from "@workspace/i18n";
 import { executeCaptcha, loadGoogleGSIToken, loadFacebookAccessToken, decodeGoogleJwtPayload, formatPhoneForApi } from "@workspace/auth-utils";
+import { compressImage } from "../lib/imageUtils";
 import { useAuth, type AuthUser } from "../lib/auth";
 import {
   Bike, ArrowLeft, ArrowRight, Loader2, Eye, EyeOff,
@@ -14,13 +15,6 @@ import {
   MapPin, AlertCircle, Camera, Upload, X, CheckCircle2, Image, Wrench, Lock,
 } from "lucide-react";
 import { SafeImage } from "../components/ui/SafeImage";
-
-function formatPhoneForRegister(localDigits: string): string {
-  const digits = localDigits.replace(/\D/g, "");
-  const raw = digits.startsWith("0") ? digits : `0${digits}`;
-  if (raw.length === 11) return `${raw.slice(0, 4)}-${raw.slice(4)}`;
-  return raw;
-}
 
 function getPasswordStrength(pw: string): { level: number; label: TranslationKey; color: string; width: string } {
   let score = 0;
@@ -64,9 +58,9 @@ interface UploadedDoc {
   preview: string;
 }
 
-function FileUploadBox({ label, icon, value, onChange, required, uploading, error }: {
+function FileUploadBox({ label, icon, value, onChange, required, uploading, error, onRetry }: {
   label: string; icon: React.ReactNode; value: UploadedDoc | null;
-  onChange: (file: File) => void; required?: boolean; uploading?: boolean; error?: string;
+  onChange: (file: File) => void; required?: boolean; uploading?: boolean; error?: string; onRetry?: () => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const { language } = useLanguage();
@@ -96,7 +90,16 @@ function FileUploadBox({ label, icon, value, onChange, required, uploading, erro
           </button>
         )}
       </div>
-      {error && <p className="text-[10px] text-red-500 mt-1 font-medium">{error}</p>}
+      {error && (
+        <div className="flex items-center gap-2 mt-1">
+          <p className="text-[10px] text-red-500 font-medium flex-1">{error}</p>
+          {onRetry && (
+            <button onClick={onRetry} className="text-[10px] font-bold text-red-600 hover:text-red-800 px-2 py-0.5 border border-red-200 rounded-lg bg-red-50 hover:bg-red-100">
+              Retry
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -141,6 +144,7 @@ export default function Register() {
   const [licensePhoto, setLicensePhoto] = useState<UploadedDoc | null>(null);
   const [uploadingField, setUploadingField] = useState("");
   const [uploadErrors, setUploadErrors] = useState<Record<string, string>>({});
+  const [lastFiles, setLastFiles] = useState<Record<string, File>>({});
   const [registrationNote, setRegistrationNote] = useState("");
 
   const [password, setPassword] = useState("");
@@ -162,17 +166,38 @@ export default function Register() {
   const clearError = () => { setError(""); setExistingAccountError(false); };
 
   const handleFileUpload = useCallback(async (file: File, field: string, setter: (doc: UploadedDoc) => void) => {
+    setLastFiles(prev => ({ ...prev, [field]: file }));
     setUploadingField(field);
     setUploadErrors(prev => { const next = { ...prev }; delete next[field]; return next; });
+    const preview = URL.createObjectURL(file);
+    setApiTimeoutMs(120_000);
+    const MAX_RETRIES = 3;
+    let lastErr: Error | null = null;
     try {
-      const preview = URL.createObjectURL(file);
-      const res = await api.uploadRegistrationDoc(file);
-      setter({ label: file.name, url: res.url, preview });
+      const compressed = await compressImage(file);
+      for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+        try {
+          const res = await api.uploadRegistrationDoc(compressed);
+          setter({ label: file.name, url: res.url, preview });
+          lastErr = null;
+          break;
+        } catch (e: unknown) {
+          lastErr = e instanceof Error ? e : new Error(T("uploadFailed"));
+          if (attempt < MAX_RETRIES - 1) {
+            await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+          }
+        }
+      }
+      if (lastErr) {
+        setUploadErrors(prev => ({ ...prev, [field]: lastErr!.message }));
+      }
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : T("uploadFailed");
       setUploadErrors(prev => ({ ...prev, [field]: msg }));
+    } finally {
+      setApiTimeoutMs(30_000);
+      setUploadingField("");
     }
-    setUploadingField("");
   }, []);
 
   const usernameAbortRef = useRef<AbortController | null>(null);
@@ -207,7 +232,7 @@ export default function Register() {
   }, [name]);
 
   useEffect(() => {
-    if (!phone || phone.length < 10 || !email || !email.includes("@")) {
+    if (!phone || phone.length < 10 || (auth.emailOtp && (!email || !email.includes("@")))) {
       setAvailabilityStatus("idle");
       return;
     }
@@ -253,7 +278,7 @@ export default function Register() {
   const validateStep1 = (): boolean => {
     if (!name.trim()) { setError(T("nameRequired")); return false; }
     if (!phone || !isValidPhone(phone)) { setError(`${T("enterValidPhone")} (e.g. ${phoneHint})`); return false; }
-    if (!email || !email.includes("@")) { setError(T("enterValidEmail")); return false; }
+    if (auth.emailOtp && (!email || !email.includes("@"))) { setError(T("enterValidEmail")); return false; }
     if (!address.trim()) { setError(T("homeAddressRequired")); return false; }
     if (!city) { setError(T("selectCity")); return false; }
     if (city === "Other" && !customCity.trim()) { setError(T("enterCityName")); return false; }
@@ -336,7 +361,7 @@ export default function Register() {
 
         const regData = {
           name: name.trim(),
-          phone: formatPhoneForRegister(phone),
+          phone: formatPhoneForApi(phone),
           email: email.trim(),
           cnic: cnic.trim(),
           vehicleType,
@@ -387,6 +412,10 @@ export default function Register() {
               setLoading(false); return;
             }
             setDevOtp(res.otp || "");
+            if ((res as Record<string, unknown>).otpSkipped) {
+              setCompleted(true);
+              setLoading(false); return;
+            }
           } catch (e: unknown) {
             const err = e instanceof Error ? e : new Error(T("loginFailed"));
             const apiErr = isApiError(e) ? e : null;
@@ -588,6 +617,7 @@ export default function Register() {
               <div>
                 <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 block flex items-center gap-1">
                   <Mail size={11} /> {T("emailRequired")}
+                  {!auth.emailOtp && <span className="normal-case text-gray-400 font-normal ml-1">(optional)</span>}
                 </label>
                 <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="email@example.com" className={INPUT} />
               </div>
@@ -742,6 +772,7 @@ export default function Register() {
                     required
                     uploading={uploadingField === "vehicle"}
                     error={uploadErrors["vehicle"]}
+                    onRetry={uploadErrors["vehicle"] && lastFiles["vehicle"] ? () => handleFileUpload(lastFiles["vehicle"], "vehicle", setVehiclePhoto) : undefined}
                   />
                   <FileUploadBox
                     label="CNIC Front"
@@ -751,6 +782,7 @@ export default function Register() {
                     required
                     uploading={uploadingField === "cnic"}
                     error={uploadErrors["cnic"]}
+                    onRetry={uploadErrors["cnic"] && lastFiles["cnic"] ? () => handleFileUpload(lastFiles["cnic"], "cnic", setCnicPhoto) : undefined}
                   />
                   <FileUploadBox
                     label="CNIC Back"
@@ -760,6 +792,7 @@ export default function Register() {
                     required
                     uploading={uploadingField === "cnicBack"}
                     error={uploadErrors["cnicBack"]}
+                    onRetry={uploadErrors["cnicBack"] && lastFiles["cnicBack"] ? () => handleFileUpload(lastFiles["cnicBack"], "cnicBack", setCnicBackPhoto) : undefined}
                   />
                   <FileUploadBox
                     label="Driving License Photo"
@@ -769,6 +802,7 @@ export default function Register() {
                     required
                     uploading={uploadingField === "license"}
                     error={uploadErrors["license"]}
+                    onRetry={uploadErrors["license"] && lastFiles["license"] ? () => handleFileUpload(lastFiles["license"], "license", setLicensePhoto) : undefined}
                   />
                 </div>
                 <div className="bg-blue-50 border border-blue-100 rounded-xl p-2.5 mt-2 flex items-start gap-2">
@@ -908,7 +942,7 @@ export default function Register() {
                   </button>
                 </div>
               )}
-              {devOtp && (
+              {import.meta.env.DEV && devOtp && (
                 <div className="bg-orange-50 border border-orange-200 rounded-xl px-3 py-2.5 mb-2">
                   <p className="text-xs text-orange-600 font-bold uppercase tracking-wide mb-0.5">{T("devOtp")}</p>
                   <p className="text-orange-700 font-extrabold text-xl tracking-[0.4em]">{devOtp}</p>

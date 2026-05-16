@@ -741,7 +741,7 @@ router.post("/send-otp", otpLimiter, verifyCaptcha, sharedValidateBody(sendOtpSc
 
   /* ══ OTP DISABLED — return generic "use another method" without revealing account state ══ */
   if (!otpEnabled || !otpEnabledForRole) {
-    sendForbidden(res, "Phone OTP is currently disabled. Please use another login method or contact support.");
+    sendErrorWithData(res, "Phone OTP is currently disabled. Please use another login method or contact support.", { code: "GATEWAY_DISABLED" }, 400);
     return;
   }
   /* ── Per-phone OTP resend cooldown (60 s) — prevents SMS bombing ── */
@@ -1942,7 +1942,7 @@ router.post("/send-email-otp", otpLimiter, verifyCaptcha, sharedValidateBody(Sen
   const settings = await getCachedSettings();
 
   if (!isAuthMethodEnabled(settings, "auth_email_otp_enabled")) {
-    sendForbidden(res, "Email OTP login is currently disabled.");
+    sendErrorWithData(res, "Email OTP login is currently disabled.", { code: "GATEWAY_DISABLED" }, 400);
     return;
   }
   const normalized = email.toLowerCase().trim();
@@ -1955,7 +1955,7 @@ router.post("/send-email-otp", otpLimiter, verifyCaptcha, sharedValidateBody(Sen
   }
 
   if (!isAuthMethodEnabled(settings, "auth_email_otp_enabled", user.roles ?? "customer")) {
-    sendForbidden(res, "Email OTP login is currently disabled for your account type.");
+    sendErrorWithData(res, "Email OTP login is currently disabled for your account type.", { code: "GATEWAY_DISABLED" }, 400);
     return;
   }
 
@@ -2049,7 +2049,7 @@ router.post("/verify-email-otp", otpLimiter, verifyCaptcha, sharedValidateBody(V
   const settings = await getCachedSettings();
 
   if (!isAuthMethodEnabled(settings, "auth_email_otp_enabled")) {
-    sendForbidden(res, "Email OTP login is currently disabled.");
+    sendErrorWithData(res, "Email OTP login is currently disabled.", { code: "GATEWAY_DISABLED" }, 400);
     return;
   }
   const normalized = email.toLowerCase().trim();
@@ -2066,7 +2066,7 @@ router.post("/verify-email-otp", otpLimiter, verifyCaptcha, sharedValidateBody(V
   if (!user) { sendNotFound(res, "Is email se koi account nahi mila."); return; }
 
   if (!isAuthMethodEnabled(settings, "auth_email_otp_enabled", user.roles ?? "customer")) {
-    sendForbidden(res, "Email OTP login is currently disabled for your account type.");
+    sendErrorWithData(res, "Email OTP login is currently disabled for your account type.", { code: "GATEWAY_DISABLED" }, 400);
     return;
   }
 

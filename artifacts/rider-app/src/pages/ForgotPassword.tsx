@@ -273,7 +273,7 @@ export default function ForgotPassword() {
             <div className="space-y-3">
               <h3 className="text-lg font-bold text-gray-800 mb-1">{T("enterResetOtp")}</h3>
               <p className="text-sm text-gray-500">{method === "phone" ? `+92${phone}` : email}</p>
-              {devOtp && (
+              {import.meta.env.DEV && devOtp && (
                 <div className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700">
                   <strong>{T("devOtp")}:</strong> {devOtp}
                 </div>

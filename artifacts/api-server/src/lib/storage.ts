@@ -178,7 +178,8 @@ export async function storageUpload(
 
   await ensureLocalDir();
   await writeFile(path.join(LOCAL_UPLOADS_DIR, key), buffer);
-  return `/api/uploads/${key}`;
+  const baseUrl = (process.env["APP_BASE_URL"] ?? "http://localhost:5000").replace(/\/$/, "");
+  return `${baseUrl}/api/uploads/${key}`;
 }
 
 /* ── Private object storage ───────────────────────────────────────────────

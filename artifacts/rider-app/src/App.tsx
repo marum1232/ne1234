@@ -2,6 +2,7 @@ import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import { createLogger } from "@/lib/logger";
 const log = createLogger("[App]");
+import { RiderAuthConfigProvider } from "./lib/AuthConfigContext";
 import { useVersionCheck } from "@/hooks/useVersionCheck";
 import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { AuthProvider, useAuth } from "./lib/auth";
@@ -564,14 +565,16 @@ function App() {
       <QueryClientProvider client={queryClient}>
         <VersionCheckInit />
         <LanguageProvider>
-          <AuthProvider>
-            <SocketProvider>
-              <WouterRouter base={getRouterBase()}>
-                <AppRoutes />
-              </WouterRouter>
-              <PwaInstallBanner />
-            </SocketProvider>
-          </AuthProvider>
+          <RiderAuthConfigProvider>
+            <AuthProvider>
+              <SocketProvider>
+                <WouterRouter base={getRouterBase()}>
+                  <AppRoutes />
+                </WouterRouter>
+                <PwaInstallBanner />
+              </SocketProvider>
+            </AuthProvider>
+          </RiderAuthConfigProvider>
         </LanguageProvider>
       </QueryClientProvider>
     </ErrorBoundary>

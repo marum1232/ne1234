@@ -1178,7 +1178,7 @@ export default function Login() {
                       </button>
                     ))}
                   </div>
-                  {devOtp && (
+                  {import.meta.env.DEV && devOtp && (
                     <div className="bg-[#F0B90B]/8 border border-[#F0B90B]/25 rounded-xl px-3 py-2.5 mb-4">
                       <p className="text-[10px] text-[#F0B90B] font-bold uppercase tracking-widest mb-0.5">{T("devOtp")}</p>
                       <p className="text-[#F0B90B] font-extrabold text-xl tracking-[0.4em]">{devOtp}</p>
@@ -1256,7 +1256,7 @@ export default function Login() {
                   {otpChannel === "email" && (
                     <span className="text-[10px] font-semibold text-[#F0B90B] bg-[#F0B90B]/10 border border-[#F0B90B]/20 px-2 py-0.5 rounded-full inline-block mb-4">via ✉️ Email</span>
                   )}
-                  {emailDevOtp && (
+                  {import.meta.env.DEV && emailDevOtp && (
                     <div className="bg-[#F0B90B]/8 border border-[#F0B90B]/25 rounded-xl px-3 py-2.5 mb-4">
                       <p className="text-[10px] text-[#F0B90B] font-bold uppercase tracking-widest mb-0.5">{T("devOtp")}</p>
                       <p className="text-[#F0B90B] font-extrabold text-xl tracking-[0.4em]">{emailDevOtp}</p>
