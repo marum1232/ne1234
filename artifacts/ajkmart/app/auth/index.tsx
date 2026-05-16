@@ -26,6 +26,7 @@ import { normalizePhone, buildPhoneValidator } from "@/utils/phone";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useOTPBypass } from "@/hooks/useOTPBypass";
 import { useApiCall } from "@/hooks/useApiCall";
+import { enqueueRequest, drainQueue } from "@/lib/offline/queue";
 
 import {
   OtpDigitInput,
@@ -132,9 +133,14 @@ export default function AuthScreen() {
 
   const sendOtpApiFn = useCallback(
     async (normalizedPhone: string, preferredChannel?: string) => {
-      const body: Record<string, string> = { phone: normalizedPhone };
-      if (preferredChannel) body.preferredChannel = preferredChannel;
-      return authPost("/auth/send-otp", body);
+      try {
+        const body: Record<string, string> = { phone: normalizedPhone };
+        if (preferredChannel) body.preferredChannel = preferredChannel;
+        return await authPost("/auth/send-otp", body);
+      } catch (e) {
+        if (e instanceof TypeError) throw new Error(`OFFLINE: ${e.message}`);
+        throw e;
+      }
     },
     [],
   );
@@ -146,8 +152,14 @@ export default function AuthScreen() {
   });
 
   const verifyOtpApiFn = useCallback(
-    async (normalizedPhone: string, code: string, fingerprint: string) =>
-      authPost("/auth/verify-otp", { phone: normalizedPhone, otp: code, deviceFingerprint: fingerprint }, { "X-App-Id": "customer" }),
+    async (normalizedPhone: string, code: string, fingerprint: string) => {
+      try {
+        return await authPost("/auth/verify-otp", { phone: normalizedPhone, otp: code, deviceFingerprint: fingerprint }, { "X-App-Id": "customer" });
+      } catch (e) {
+        if (e instanceof TypeError) throw new Error(`OFFLINE: ${e.message}`);
+        throw e;
+      }
+    },
     [],
   );
   const verifyPhoneOtpCall = useApiCall(verifyOtpApiFn, {

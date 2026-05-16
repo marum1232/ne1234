@@ -1,6 +1,18 @@
 import React, { createContext, useContext, useMemo } from "react";
 import { usePlatformConfig, isMethodEnabled } from "@/context/PlatformConfigContext";
 
+/** Auth methods that can be checked via `isMethodEnabled()` */
+export type SupportedAuthMethod =
+  | "phone"
+  | "email"
+  | "usernamePassword"
+  | "google"
+  | "facebook"
+  | "magicLink"
+  | "biometric"
+  | "twoFactor"
+  | "emailRegister";
+
 export interface AuthConfig {
   allowPhone: boolean;
   allowEmail: boolean;
@@ -18,9 +30,29 @@ export interface AuthConfig {
   authMode: "OTP" | "EMAIL" | "FIREBASE" | "HYBRID";
   firebaseEnabled: boolean;
   hasAnyMethod: boolean;
+  /** The configured OTP delivery provider (e.g. "twilio", "firebase", "console") */
+  otpProvider: string;
+  /** Check whether a specific auth method is enabled for this client. */
+  isMethodEnabled: (method: SupportedAuthMethod) => boolean;
 }
 
-const AuthConfigContext = createContext<AuthConfig>({
+const _methodMap: Record<SupportedAuthMethod, keyof Pick<AuthConfig, "allowPhone" | "allowEmail" | "allowUsernamePassword" | "allowGoogle" | "allowFacebook" | "allowMagicLink" | "allowBiometric" | "allowTwoFactor" | "allowEmailRegister">> = {
+  phone: "allowPhone",
+  email: "allowEmail",
+  usernamePassword: "allowUsernamePassword",
+  google: "allowGoogle",
+  facebook: "allowFacebook",
+  magicLink: "allowMagicLink",
+  biometric: "allowBiometric",
+  twoFactor: "allowTwoFactor",
+  emailRegister: "allowEmailRegister",
+};
+
+function makeIsMethodEnabled(cfg: Omit<AuthConfig, "isMethodEnabled">) {
+  return (method: SupportedAuthMethod): boolean => !!cfg[_methodMap[method]];
+}
+
+const _defaults = {
   allowPhone: true,
   allowEmail: true,
   allowUsernamePassword: true,
@@ -34,9 +66,15 @@ const AuthConfigContext = createContext<AuthConfig>({
   captchaSiteKey: "",
   googleClientId: "",
   facebookAppId: "",
-  authMode: "OTP",
+  authMode: "OTP" as const,
   firebaseEnabled: false,
   hasAnyMethod: true,
+  otpProvider: "console",
+};
+
+const AuthConfigContext = createContext<AuthConfig>({
+  ..._defaults,
+  isMethodEnabled: makeIsMethodEnabled(_defaults),
 });
 
 /**
@@ -67,7 +105,7 @@ export function AuthConfigProvider({ children }: { children: React.ReactNode }) 
       allowFacebook ||
       allowMagicLink;
 
-    return {
+    const partial = {
       allowPhone,
       allowEmail,
       allowUsernamePassword,
@@ -84,7 +122,10 @@ export function AuthConfigProvider({ children }: { children: React.ReactNode }) 
       authMode: auth.authMode,
       firebaseEnabled: auth.firebaseEnabled,
       hasAnyMethod,
+      otpProvider: (auth as Record<string, unknown>).otpProvider as string ?? "twilio",
     };
+
+    return { ...partial, isMethodEnabled: makeIsMethodEnabled(partial) };
   }, [auth]);
 
   return (

@@ -188,14 +188,19 @@ export default function RegisterScreen() {
   });
 
   const verifyOtpApiFn = useCallback(async (phone: string, otp: string) => {
-    const res = await fetch(`${API}/auth/verify-otp`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ phone, otp }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(`HTTP ${res.status}: ${data.error || "Invalid OTP."}`);
-    return data as Record<string, unknown>;
+    try {
+      const res = await fetch(`${API}/auth/verify-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone, otp }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(`HTTP ${res.status}: ${data.error || "Invalid OTP."}`);
+      return data as Record<string, unknown>;
+    } catch (e) {
+      if (e instanceof TypeError) throw new Error(`OFFLINE: ${e.message}`);
+      throw e;
+    }
   }, []);
 
   const verifyOtpCall = useApiCall(verifyOtpApiFn, {
@@ -485,7 +490,7 @@ export default function RegisterScreen() {
         quality: 1,
       });
       if (!result.canceled && result.assets[0]) {
-        const compressedUri = await compressImage(result.assets[0].uri, { maxWidth: 512, quality: 0.8 });
+        const compressedUri = await compressImage(result.assets[0].uri, { maxWidth: 1200, quality: 0.7 });
         setPhotoUri(compressedUri);
       }
     } catch {
