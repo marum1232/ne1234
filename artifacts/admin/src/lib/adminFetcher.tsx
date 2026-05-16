@@ -198,7 +198,7 @@ export async function fetchAdmin(
   try {
     const res = await _adminScopedFetcher(endpoint, { ...options, signal });
     if (!res.ok) {
-      const errorData = await res.json().catch((parseErr) => { log.debug("[adminFetcher] Failed to parse error response:", parseErr); return {}; });
+      const errorData = await res.json().catch((parseErr: unknown) => { log.debug("[adminFetcher] Failed to parse error response:", parseErr); return {}; });
       throw new AdminFetchError(errorData.error || `HTTP ${res.status}`, res.status);
     }
     return res.json();
@@ -243,7 +243,7 @@ export async function fetchAdminAbsolute(
   try {
     const res = await _adminAbsoluteFetcher(path, { ...options, signal });
     if (!res.ok) {
-      const errorData = await res.json().catch((parseErr) => { log.debug("[adminFetcher] Failed to parse error response:", parseErr); return {}; });
+      const errorData = await res.json().catch((parseErr: unknown) => { log.debug("[adminFetcher] Failed to parse error response:", parseErr); return {}; });
       throw new AdminFetchError(errorData.error || `HTTP ${res.status}`, res.status);
     }
     return res.json();

@@ -114,10 +114,10 @@ const _circuitBreaker = createCircuitBreaker({ failureThreshold: 3, cooldownMs: 
 const [_vendorFetcher, _vendorRefresh] = createApiFetcher({
   baseUrl: BASE,
   getToken: () => _inMemoryAccessToken || null,
-  setToken: (token) => { _inMemoryAccessToken = token; },
+  setToken: (token: string) => { _inMemoryAccessToken = token; },
   getRefreshToken: localGet,
   setRefreshToken: localSet,
-  onRefreshFailed: (isTransient) => {
+  onRefreshFailed: (isTransient: boolean) => {
     if (!isTransient) triggerLogout("session_expired");
   },
   refreshEndpoint: `${BASE}/auth/refresh`,

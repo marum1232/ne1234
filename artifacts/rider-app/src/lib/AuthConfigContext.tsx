@@ -17,6 +17,9 @@ export interface AuthConfig {
   facebookAppId?: string;
   otpBypassActive: boolean;
   otpBypassGlobal?: boolean;
+  lockoutEnabled: boolean;
+  lockoutMaxAttempts: number;
+  lockoutDurationSec: number;
 }
 
 const DEFAULT_AUTH_CONFIG: AuthConfig = {
@@ -32,6 +35,9 @@ const DEFAULT_AUTH_CONFIG: AuthConfig = {
   authMode: "OTP",
   otpBypassActive: false,
   otpBypassGlobal: false,
+  lockoutEnabled: false,
+  lockoutMaxAttempts: 5,
+  lockoutDurationSec: 300,
 };
 
 const AuthConfigContext = createContext<AuthConfig | null>(null);
@@ -60,6 +66,9 @@ async function fetchAuthConfig(): Promise<AuthConfig> {
     authMode:        d.auth_mode         ?? d.authMode        ?? "OTP",
     otpBypassActive: d.otpBypassActive  ?? false,
     otpBypassGlobal: d.otpBypassGlobal  ?? false,
+    lockoutEnabled:     d.lockoutEnabled     ?? false,
+    lockoutMaxAttempts: d.lockoutMaxAttempts ?? 5,
+    lockoutDurationSec: d.lockoutDurationSec ?? 300,
   };
 }
 
