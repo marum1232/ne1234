@@ -1,5 +1,6 @@
 import { getRiderApiBase } from "./envValidation";
 import { createApiFetcher, RefreshError, createCircuitBreaker, CircuitOpenError } from "@workspace/api-client-react";
+import { createAuthClient } from "@workspace/auth-react";
 import { createLogger } from "@/lib/logger";
 const log = createLogger("[api]");
 
@@ -95,6 +96,20 @@ function localRemove(): void {
   _inMemoryRefreshToken = "";
   try { localStorage.removeItem(REFRESH_KEY); } catch {}
 }
+
+/* ── Shared SDK auth client (typed HTTP client from @workspace/auth-react) ── */
+export const authClient = createAuthClient({
+  baseURL: BASE,
+  tokenStorage: {
+    getAccessToken:    sessionGet,
+    setAccessToken:    sessionSet,
+    removeAccessToken: sessionRemove,
+    getRefreshToken:   localGet,
+    setRefreshToken:   localSet,
+    removeRefreshToken: localRemove,
+    clear: () => { sessionRemove(); localRemove(); },
+  },
+});
 
 /* Read the access token from Preferences-backed in-memory cache. */
 function getToken(): string {

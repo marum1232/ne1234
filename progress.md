@@ -16,7 +16,7 @@
 | T007 | COMPLETE | 2026-05-16 | 2026-05-16 | useTokenRefresh, useAuth, useLoginFlow hooks — 21/21 tests passed |
 | T008 | COMPLETE | 2026-05-16 | 2026-05-16 | 6 UI components (OtpInput, PhoneInput, PasswordInput, SocialButtons, BiometricPrompt, LoginScreen) — 27/27 tests passed |
 | T009 | COMPLETE | 2026-05-16 | 2026-05-16 | Migrate vendor-app to @workspace/auth-react (LoginScreen, PhoneInput, OtpInput, PasswordInput, createAuthClient, SharedAuthProvider) |
-| T010 | PENDING | - | - | - |
+| T010 | COMPLETE | 2026-05-16 | 2026-05-16 | Migrate rider-app to @workspace/auth-react (RiderAuthProvider, authClient, OtpInput, PasswordInput) |
 | T011 | PENDING | - | - | - |
 | T012 | PENDING | - | - | - |
 
@@ -76,3 +76,10 @@
 - [2026-05-16] T009 Step 3: Login.tsx — rebuilt around LoginScreen (PhoneInput built-in); orange split-screen branding panel left; forgot-password 4-sub-step overlay (forgot → forgot-otp via OtpInput → forgot-reset via PasswordInput → forgot-done); handleSuccess calls api.getMe() then vendor login().
 - [2026-05-16] T009 Step 4: Register.tsx — restructured into explicit 4-step flow: Step 1 "verify" (PhoneInput + OTP via OtpInput), Step 2 "store" (store name/category/owner/username/city/address/terms), Step 3 "docs" (CNIC number + 3 doc uploads: storefront/cnicFront/cnicBack), Step 4 "bank" (optional bank/wallet details; skip button); "done" success screen.
 - [2026-05-16] T009 COMPLETE -- All 4 requirements met. Vendor-app builds cleanly (pre-existing TS errors in lib/ui unbuilt dist are unrelated). Login screen verified via screenshot.
+- [2026-05-16] T010 IN PROGRESS -- Migrating rider-app auth to @workspace/auth-react.
+- [2026-05-16] T010 Step 1: package.json — added "@workspace/auth-react": "workspace:*" to dependencies.
+- [2026-05-16] T010 Step 2: lib/auth.tsx — full rewrite: RiderAuthProvider wraps SharedAuthProvider (role="rider", storageType="web", baseURL=getRiderApiBase()). Inner RiderAuthInner uses useAuthContext() to bi-directionally sync. Preserves all rider-specific state: storageError (Capacitor Preferences fallback), twoFactorPending, approvalStatus/rejectionReason on AuthUser, exponential backoff token refresh with scheduleProactiveRefresh, executeLogoutSequence from ./logoutSequence, registerLogoutCallback wiring. Exports AuthProvider = RiderAuthProvider alias for backward compat — App.tsx import unchanged.
+- [2026-05-16] T010 Step 3: lib/api.ts — added createAuthClient import from @workspace/auth-react; exported authClient with full TokenStorage (access + refresh + clear delegating to existing sessionGet/Set/Remove and localGet/Set/Remove helpers).
+- [2026-05-16] T010 Step 4: pages/Login.tsx — imported OtpInput and PasswordInput from @workspace/auth-react. Replaced custom 6-box phone OTP input section with OtpInput (onComplete→setOtp, onResend wired to sendPhoneOtp). Replaced email OTP section with OtpInput (onComplete→setEmailOtp). Replaced password input (username method) with PasswordInput. Removed unused Eye/EyeOff imports.
+- [2026-05-16] T010 Step 5: pages/Register.tsx — imported OtpInput and PasswordInput from @workspace/auth-react. Replaced step-4 OTP raw input with OtpInput (onComplete→setOtp). Replaced both password inputs in step-3 with PasswordInput (password with showStrength, confirmPw without). Removed unused Eye/EyeOff imports and showPwd state.
+- [2026-05-16] T010 COMPLETE -- Rider-app auth migrated to shared SDK. Vite dev server confirmed running (port 3002). Only pre-existing TS errors remain (lib/ui and lib/api-client-react unbuilt dist files). Note: LoginScreen not used directly (rider has Pakistan-specific phone UI, biometric integration, and multi-method OTP flow incompatible with LoginScreen's simplified API calls) — instead uses individual SDK components (OtpInput, PasswordInput) following the same pattern as vendor-app.

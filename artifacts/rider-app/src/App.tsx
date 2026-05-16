@@ -5,7 +5,7 @@ const log = createLogger("[App]");
 import { RiderAuthConfigProvider } from "./lib/AuthConfigContext";
 import { useVersionCheck } from "@/hooks/useVersionCheck";
 import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
-import { AuthProvider, useAuth } from "./lib/auth";
+import { RiderAuthProvider, useAuth } from "./lib/auth";
 import { usePlatformConfig, getRiderModules } from "./lib/useConfig";
 import { useLanguage, LanguageProvider } from "./lib/useLanguage";
 import { tDual, type TranslationKey } from "@workspace/i18n";
@@ -566,14 +566,14 @@ function App() {
         <VersionCheckInit />
         <LanguageProvider>
           <RiderAuthConfigProvider>
-            <AuthProvider>
+            <RiderAuthProvider>
               <SocketProvider>
                 <WouterRouter base={getRouterBase()}>
                   <AppRoutes />
                 </WouterRouter>
                 <PwaInstallBanner />
               </SocketProvider>
-            </AuthProvider>
+            </RiderAuthProvider>
           </RiderAuthConfigProvider>
         </LanguageProvider>
       </QueryClientProvider>

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Link, useLocation } from "wouter";
+import { OtpInput, PasswordInput, PhoneInput } from "@workspace/auth-react";
 import { api, isApiError, setApiTimeoutMs } from "../lib/api";
 import { createLogger } from "@/lib/logger";
 const log = createLogger("[Register]");
@@ -7,11 +8,11 @@ import { usePlatformConfig, buildPhoneValidator } from "../lib/useConfig";
 import { useRiderAuthConfig } from "../lib/AuthConfigContext";
 import { useLanguage } from "../lib/useLanguage";
 import { tDual, type TranslationKey } from "@workspace/i18n";
-import { executeCaptcha, loadGoogleGSIToken, loadFacebookAccessToken, decodeGoogleJwtPayload, formatPhoneForApi } from "@workspace/auth-utils";
+import { executeCaptcha, loadGoogleGSIToken, loadFacebookAccessToken, decodeGoogleJwtPayload } from "@workspace/auth-utils";
 import { compressImage } from "../lib/imageUtils";
 import { useAuth, type AuthUser } from "../lib/auth";
 import {
-  Bike, ArrowLeft, ArrowRight, Loader2, Eye, EyeOff,
+  Bike, ArrowLeft, ArrowRight, Loader2,
   Clock, User, Phone, Mail, FileText, Car, Shield, Lightbulb,
   MapPin, AlertCircle, Camera, Upload, X, CheckCircle2, Image, Wrench, Lock,
 } from "lucide-react";
@@ -130,6 +131,7 @@ export default function Register() {
 
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [phoneE164, setPhoneE164] = useState("");
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
   const [usernameStatus, setUsernameStatus] = useState<"idle" | "checking" | "available" | "taken">("idle");
@@ -157,7 +159,6 @@ export default function Register() {
 
   const [password, setPassword] = useState("");
   const [confirmPw, setConfirmPw] = useState("");
-  const [showPwd, setShowPwd] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   const [otp, setOtp] = useState("");
@@ -315,7 +316,7 @@ export default function Register() {
       setAvailabilityStatus("checking");
       try {
         await api.checkAvailable({
-          ...(auth.phoneEnabled ? { phone: formatPhoneForApi(phone) } : {}),
+          ...(auth.phoneEnabled ? { phone: phoneE164 } : {}),
           ...(auth.emailEnabled && email ? { email } : {}),
         });
         setAvailabilityStatus("available");
@@ -394,7 +395,7 @@ export default function Register() {
   const checkAvailability = async (): Promise<boolean> => {
     try {
       await api.checkAvailable({
-        ...(auth.phoneEnabled ? { phone: formatPhoneForApi(phone) } : {}),
+        ...(auth.phoneEnabled ? { phone: phoneE164 } : {}),
         ...(auth.emailEnabled && email ? { email } : {}),
         ...(username ? { username } : {}),
       });
@@ -442,7 +443,7 @@ export default function Register() {
 
         const regData = {
           name: name.trim(),
-          ...(auth.phoneEnabled ? { phone: formatPhoneForApi(phone) } : {}),
+          ...(auth.phoneEnabled ? { phone: phoneE164 } : {}),
           ...(auth.emailEnabled && email.trim() ? { email: email.trim() } : {}),
           cnic: cnic.trim(),
           vehicleType,
@@ -548,7 +549,7 @@ export default function Register() {
         };
         let res: OtpVerifyResponse;
         if (verifyChannel === "phone") {
-          res = await api.verifyOtp(formatPhoneForApi(phone), otp, undefined, captchaToken) as OtpVerifyResponse;
+          res = await api.verifyOtp(phoneE164, otp, undefined, captchaToken) as OtpVerifyResponse;
         } else {
           res = await api.verifyEmailOtp(email, otp, undefined, captchaToken) as OtpVerifyResponse;
         }
@@ -712,11 +713,15 @@ export default function Register() {
                 <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 block flex items-center gap-1">
                   <Phone size={11} /> {T("phoneRequired")}
                 </label>
-                <div className="flex gap-2">
-                  <div className="h-12 px-3 bg-gray-100 border border-gray-200 rounded-xl flex items-center text-sm font-bold text-gray-700 select-none gap-1">🇵🇰 +92</div>
-                  <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="03XX-XXXXXXX" inputMode="numeric" className={`flex-1 ${INPUT}`} />
-                </div>
-                <p className="text-[10px] text-gray-400 mt-1">Format: 03XX-XXXXXXX</p>
+                <PhoneInput
+                  value={phone}
+                  defaultCountryCode="PK"
+                  placeholder="300 1234567"
+                  onChange={(e164, local) => {
+                    setPhoneE164(e164);
+                    setPhone(local);
+                  }}
+                />
               </div>
               )}
               {auth.emailEnabled && (
@@ -943,33 +948,29 @@ export default function Register() {
           {step === 3 && (
             <div className="space-y-3">
               <div>
-                <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 block flex items-center gap-1">
+                <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 flex items-center gap-1">
                   <Shield size={11} /> {T("passwordRequired")}
                 </label>
-                <div className="relative">
-                  <input type={showPwd ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)}
-                    placeholder={T("passwordRequired")} className={`${INPUT} pr-12`} autoFocus />
-                  <button onClick={() => setShowPwd(v => !v)} className="absolute right-3 top-3 text-gray-400 hover:text-gray-600">
-                    {showPwd ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
-                </div>
-                {password && (
-                  <div className="mt-2">
-                    <div className="flex items-center gap-2 mb-1">
-                      <div className="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                        <div className={`h-full rounded-full transition-all ${getPasswordStrength(password).color} ${getPasswordStrength(password).width}`} />
-                      </div>
-                      <span className="text-[10px] font-bold text-gray-500">{T(getPasswordStrength(password).label)}</span>
-                    </div>
-                  </div>
-                )}
+                <PasswordInput
+                  value={password}
+                  onChange={setPassword}
+                  placeholder={T("passwordRequired")}
+                  showStrength
+                  disabled={loading}
+                  autoComplete="new-password"
+                />
               </div>
               <div>
                 <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 block">
                   {T("confirmPassword")}
                 </label>
-                <input type={showPwd ? "text" : "password"} value={confirmPw} onChange={e => setConfirmPw(e.target.value)}
-                  placeholder={T("confirmPassword")} className={INPUT} />
+                <PasswordInput
+                  value={confirmPw}
+                  onChange={setConfirmPw}
+                  placeholder={T("confirmPassword")}
+                  disabled={loading}
+                  autoComplete="new-password"
+                />
                 {confirmPw && password !== confirmPw && (
                   <p className="text-[10px] text-red-500 mt-1">{T("passwordsDoNotMatch")}</p>
                 )}
@@ -1010,7 +1011,7 @@ export default function Register() {
                           const r = await fetch(`/api/auth/send-otp`, {
                             method: "POST",
                             headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ phone: formatPhoneForApi(phone), preferredChannel: ch }),
+                            body: JSON.stringify({ phone: phoneE164, preferredChannel: ch }),
                           });
                           const data = await r.json();
                           if (data.otp) setDevOtp(data.otp);
@@ -1041,7 +1042,7 @@ export default function Register() {
                     if (verifyChannel === "phone") return;
                     setVerifyChannel("phone"); setOtp(""); setDevOtp("");
                     try {
-                      const res = await api.sendOtp(formatPhoneForApi(phone));
+                      const res = await api.sendOtp(phoneE164);
                       if (res.otp) setDevOtp(res.otp);
                     } catch (e: unknown) {
                       setError(e instanceof Error ? e.message : "Failed to send phone OTP. Please try again.");
@@ -1095,10 +1096,12 @@ export default function Register() {
                   <p className="text-orange-700 font-extrabold text-xl tracking-[0.4em]">{devOtp}</p>
                 </div>
               )}
-              <input type="text" inputMode="numeric" pattern="[0-9]*" placeholder={T("enterOtpDigits")} value={otp} onChange={e => setOtp(e.target.value)}
-                onKeyDown={e => e.key === "Enter" && goNextStep()}
-                className="w-full h-14 px-4 bg-gray-50 border border-gray-200 rounded-xl text-center text-2xl font-bold tracking-[0.3em] focus:outline-none focus:ring-2 focus:ring-gray-900"
-                maxLength={6} autoFocus />
+              {/* OTP input — shared SDK component */}
+              <OtpInput
+                onComplete={(val) => setOtp(val)}
+                disabled={loading || resendingOtp}
+                label={T("enterOtpDigits")}
+              />
             </div>
           )}
 
