@@ -25,6 +25,7 @@ import { tDual, type TranslationKey } from "@workspace/i18n";
 import { normalizePhone, buildPhoneValidator } from "@/utils/phone";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useOTPBypass } from "@/hooks/useOTPBypass";
+import { useNetworkQuality } from "@/hooks/useNetworkQuality";
 import { useApiCall } from "@/hooks/useApiCall";
 import { enqueueRequest, drainQueue } from "@/lib/offline/queue";
 
@@ -76,6 +77,9 @@ export default function AuthScreen() {
      otherwise they'd be staring at the input wondering why nothing was
      SMS'd to them. */
   const { bypassActive: otpBypassActive, bypassMessage: otpBypassMessage } = useOTPBypass();
+  const { tier: networkTier } = useNetworkQuality();
+  const isLowBandwidth = networkTier === "slow";
+  const [lowBwDismissed, setLowBwDismissed] = useState(false);
   const appName = platformCfg.platform.appName;
   const appTagline = platformCfg.platform.appTagline;
   const phoneHint = platformCfg.regional?.phoneHint ?? "03XXXXXXXXX";
@@ -1003,6 +1007,17 @@ export default function AuthScreen() {
         </View>
 
         <ScrollView style={styles.cardScroll} contentContainerStyle={styles.cardContent} keyboardShouldPersistTaps="handled">
+          {isLowBandwidth && !lowBwDismissed && (
+            <View style={{ backgroundColor: "#FEF3C7", borderRadius: 12, padding: 10, marginBottom: 12, flexDirection: "row", alignItems: "center", gap: 8, borderWidth: 1, borderColor: "#FDE68A" }}>
+              <Ionicons name="wifi-outline" size={16} color="#D97706" />
+              <Text style={{ fontSize: 11, color: "#92400E", fontFamily: "Inter_500Medium", flex: 1, lineHeight: 16 }}>
+                Slow connection detected. Sign-in may take longer than usual.
+              </Text>
+              <TouchableOpacity onPress={() => setLowBwDismissed(true)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityLabel="Dismiss slow connection notice">
+                <Ionicons name="close" size={16} color="#D97706" />
+              </TouchableOpacity>
+            </View>
+          )}
           {step === "continue" && (
             <>
               <Text style={styles.sectionTitle} accessibilityRole="header">Welcome</Text>

@@ -52,6 +52,7 @@ const AJK_CITIES = [
 
 const INPUT = "w-full h-12 px-4 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:bg-white transition-all";
 const SELECT = "w-full h-12 px-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 appearance-none transition-all";
+const DRAFT_KEY = "rider_reg_draft";
 
 interface UploadedDoc {
   label: string;
@@ -165,7 +166,64 @@ export default function Register() {
   const [otpSendFailed, setOtpSendFailed] = useState(false);
   const [resendingOtp, setResendingOtp] = useState(false);
 
+  const [registrationOtpChannel, setRegistrationOtpChannel] = useState("sms");
+  const [registrationFallbackChannels, setRegistrationFallbackChannels] = useState<string[]>([]);
+  const [channelSwitchMsg, setChannelSwitchMsg] = useState("");
+  const channelMsgTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const [completed, setCompleted] = useState(false);
+
+  /* Restore draft on first mount so riders can continue where they left off */
+  useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem(DRAFT_KEY);
+      if (!saved) return;
+      const draft = JSON.parse(saved) as Record<string, unknown>;
+      if (typeof draft.step === "number" && draft.step > 1) {
+        if (typeof draft.name === "string") setName(draft.name);
+        if (typeof draft.phone === "string") setPhone(draft.phone);
+        if (typeof draft.email === "string") setEmail(draft.email);
+        if (typeof draft.username === "string") setUsername(draft.username);
+        if (typeof draft.address === "string") setAddress(draft.address);
+        if (typeof draft.city === "string") setCity(draft.city);
+        if (typeof draft.customCity === "string") setCustomCity(draft.customCity);
+        if (typeof draft.emergencyContact === "string") setEmergencyContact(draft.emergencyContact);
+        if (typeof draft.cnic === "string") setCnic(draft.cnic);
+        if (typeof draft.vehicleType === "string") setVehicleType(draft.vehicleType);
+        if (typeof draft.vehicleReg === "string") setVehicleReg(draft.vehicleReg);
+        if (typeof draft.drivingLicense === "string") setDrivingLicense(draft.drivingLicense);
+        if (draft.vehiclePhoto && typeof draft.vehiclePhoto === "object") setVehiclePhoto(draft.vehiclePhoto as UploadedDoc);
+        if (draft.cnicPhoto && typeof draft.cnicPhoto === "object") setCnicPhoto(draft.cnicPhoto as UploadedDoc);
+        if (draft.cnicBackPhoto && typeof draft.cnicBackPhoto === "object") setCnicBackPhoto(draft.cnicBackPhoto as UploadedDoc);
+        if (draft.licensePhoto && typeof draft.licensePhoto === "object") setLicensePhoto(draft.licensePhoto as UploadedDoc);
+        /* Do not restore step 4 — OTP is single-use and requires a fresh send */
+        setStep(Math.min(draft.step as number, 3));
+      }
+    } catch {
+      /* ignore corrupt draft */
+    }
+  }, []);
+
+  /* Persist draft whenever step or key form fields change */
+  useEffect(() => {
+    if (step <= 1 || step >= 4) return; /* nothing useful to save at step 1 or OTP step */
+    try {
+      const draft = {
+        step,
+        name, phone, email, username, address, city, customCity, emergencyContact,
+        cnic, vehicleType, vehicleReg, drivingLicense,
+        vehiclePhoto: vehiclePhoto ? { label: vehiclePhoto.label, url: vehiclePhoto.url, preview: vehiclePhoto.url } : null,
+        cnicPhoto: cnicPhoto ? { label: cnicPhoto.label, url: cnicPhoto.url, preview: cnicPhoto.url } : null,
+        cnicBackPhoto: cnicBackPhoto ? { label: cnicBackPhoto.label, url: cnicBackPhoto.url, preview: cnicBackPhoto.url } : null,
+        licensePhoto: licensePhoto ? { label: licensePhoto.label, url: licensePhoto.url, preview: licensePhoto.url } : null,
+      };
+      sessionStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+    } catch {
+      /* ignore quota errors */
+    }
+  }, [step, name, phone, email, username, address, city, customCity, emergencyContact,
+      cnic, vehicleType, vehicleReg, drivingLicense,
+      vehiclePhoto, cnicPhoto, cnicBackPhoto, licensePhoto]);
 
   const availabilityTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [availabilityStatus, setAvailabilityStatus] = useState<"idle" | "checking" | "available" | "taken">("idle");
@@ -418,14 +476,16 @@ export default function Register() {
             if ((res as Record<string, unknown>).otpSkipped) {
               if (res.token) {
                 api.storeTokens(res.token, res.refreshToken);
-                if (res.pendingApproval) { setCompleted(true); setLoading(false); return; }
+                if (res.pendingApproval) { sessionStorage.removeItem(DRAFT_KEY); setCompleted(true); setLoading(false); return; }
                 let profile: AuthUser | null = res.user ?? null;
                 if (!profile) {
-                  try { profile = await api.getMe() as AuthUser; } catch { api.clearTokens(); setCompleted(true); setLoading(false); return; }
+                  try { profile = await api.getMe() as AuthUser; } catch { api.clearTokens(); sessionStorage.removeItem(DRAFT_KEY); setCompleted(true); setLoading(false); return; }
                 }
+                sessionStorage.removeItem(DRAFT_KEY);
                 authLogin(res.token, profile!, res.refreshToken);
                 navigate("/");
               } else {
+                sessionStorage.removeItem(DRAFT_KEY);
                 setCompleted(true);
               }
               setLoading(false); return;
@@ -435,22 +495,27 @@ export default function Register() {
               if (res.token) {
                 api.storeTokens(res.token, res.refreshToken);
                 if (res.pendingApproval) {
+                  sessionStorage.removeItem(DRAFT_KEY);
                   setCompleted(true);
                   setLoading(false); return;
                 }
                 let profile: AuthUser | null = res.user ?? null;
                 if (!profile) {
-                  try { profile = await api.getMe() as AuthUser; } catch { api.clearTokens(); setCompleted(true); setLoading(false); return; }
+                  try { profile = await api.getMe() as AuthUser; } catch { api.clearTokens(); sessionStorage.removeItem(DRAFT_KEY); setCompleted(true); setLoading(false); return; }
                 }
+                sessionStorage.removeItem(DRAFT_KEY);
                 authLogin(res.token, profile!, res.refreshToken);
                 navigate("/");
               } else {
                 /* No token yet — pending OTP-less registration (needs approval) */
+                sessionStorage.removeItem(DRAFT_KEY);
                 setCompleted(true);
               }
               setLoading(false); return;
             }
             setDevOtp(res.otp || "");
+            setRegistrationOtpChannel((res as Record<string, unknown>).channel as string || "sms");
+            setRegistrationFallbackChannels((res as Record<string, unknown>).fallbackChannels as string[] || []);
           } catch (e: unknown) {
             const err = e instanceof Error ? e : new Error(T("loginFailed"));
             const apiErr = isApiError(e) ? e : null;
@@ -499,13 +564,16 @@ export default function Register() {
             } catch (getMeErr: unknown) {
               /* getMe failed after OTP verify — treat as pending to avoid partial login state */
               log.warn("getMe failed after OTP verify:", getMeErr instanceof Error ? getMeErr.message : getMeErr);
+              sessionStorage.removeItem(DRAFT_KEY);
               setCompleted(true);
               return;
             }
           }
+          sessionStorage.removeItem(DRAFT_KEY);
           authLogin(res.token, profile, res.refreshToken);
           navigate("/");
         } else {
+          sessionStorage.removeItem(DRAFT_KEY);
           setCompleted(true);
         }
       } catch (e: unknown) { setError(e instanceof Error ? e.message : T("verificationFailed")); }
@@ -930,6 +998,43 @@ export default function Register() {
                   {verifyChannel === "phone" ? `+92${phone}` : email}
                 </p>
               </div>
+              {registrationFallbackChannels.length > 0 && verifyChannel === "phone" && (
+                <div className="flex gap-2 justify-center flex-wrap mb-2">
+                  {["sms", ...registrationFallbackChannels.filter(c => c !== "sms")].map(ch => (
+                    <button key={ch} type="button"
+                      onClick={async () => {
+                        if (registrationOtpChannel === ch) return;
+                        setRegistrationOtpChannel(ch);
+                        setOtp(""); setDevOtp("");
+                        try {
+                          const r = await fetch(`/api/auth/send-otp`, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ phone: formatPhoneForApi(phone), preferredChannel: ch }),
+                          });
+                          const data = await r.json();
+                          if (data.otp) setDevOtp(data.otp);
+                          if (data.channel) setRegistrationOtpChannel(data.channel as string);
+                          const label = ch === "sms" ? "SMS" : ch === "whatsapp" ? "WhatsApp" : ch.charAt(0).toUpperCase() + ch.slice(1);
+                          if (channelMsgTimer.current) clearTimeout(channelMsgTimer.current);
+                          setChannelSwitchMsg(`OTP sent via ${label}`);
+                          channelMsgTimer.current = setTimeout(() => setChannelSwitchMsg(""), 3500);
+                        } catch {
+                          setError("Could not resend OTP on that channel. Please try again.");
+                        }
+                      }}
+                      className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${registrationOtpChannel === ch ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
+                      {ch === "sms" ? "SMS" : ch === "whatsapp" ? "WhatsApp" : ch.charAt(0).toUpperCase() + ch.slice(1)}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {channelSwitchMsg && (
+                <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-lg px-3 py-2 mb-2">
+                  <CheckCircle2 size={14} className="text-green-600 flex-shrink-0" />
+                  <p className="text-xs text-green-700 font-semibold">{channelSwitchMsg}</p>
+                </div>
+              )}
               {auth.phoneEnabled && auth.emailEnabled && (
                 <div className="flex gap-2 justify-center mb-2">
                   <button type="button" onClick={async () => {

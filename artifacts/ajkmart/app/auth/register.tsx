@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { createLogger } from "@/utils/logger";
 const log = createLogger("[Register]");
+const REG_DRAFT_KEY = "@ajkmart_reg_draft";
 import * as Location from "expo-location";
 import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
@@ -23,9 +24,12 @@ import { useAuth, type AppUser } from "@/context/AuthContext";
 import { usePlatformConfig } from "@/context/PlatformConfigContext";
 import { useAuthConfig } from "@/context/AuthConfigContext";
 import { normalizePhone, buildPhoneValidator } from "@/utils/phone";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useApiCall } from "@/hooks/useApiCall";
+import { useNetworkQuality } from "@/hooks/useNetworkQuality";
 import { enqueueRequest, drainQueue } from "@/lib/offline/queue";
-import { compressImage, imageUriToBase64 } from "@/utils/image";
+import { compressImage } from "@/utils/image";
+import { compressImage as compressImageToDataUrl } from "@/lib/imageUtils";
 
 import {
   OtpDigitInput,
@@ -134,6 +138,40 @@ export default function RegisterScreen() {
   const [termsAccepted, setTermsAccepted] = useState(false);
 
   const signupBonus = config.customer.signupBonus;
+  const { tier: networkTier } = useNetworkQuality();
+  const isLowBandwidth = networkTier === "slow";
+  const [lowBwDismissed, setLowBwDismissed] = useState(false);
+
+  /* Restore draft on mount so users can continue from where they left off */
+  useEffect(() => {
+    AsyncStorage.getItem(REG_DRAFT_KEY).then(saved => {
+      if (!saved) return;
+      try {
+        const draft = JSON.parse(saved) as Record<string, unknown>;
+        if (typeof draft.step === "number" && draft.step > 1) {
+          if (typeof draft.name === "string") setName(draft.name);
+          if (typeof draft.email === "string") setEmail(draft.email);
+          if (typeof draft.username === "string") setUsername(draft.username);
+          if (typeof draft.city === "string") setCity(draft.city);
+          if (typeof draft.area === "string") setArea(draft.area);
+          if (typeof draft.address === "string") setAddress(draft.address);
+          if (typeof draft.cnic === "string") setCnic(draft.cnic);
+          /* Do not restore step 1 OTP state — always requires fresh verification */
+          const restored = Math.min(draft.step as number, 4);
+          setStep(restored as RegStep);
+        }
+      } catch {
+        /* ignore corrupt draft */
+      }
+    }).catch(() => {});
+  }, []);
+
+  /* Persist draft on step/field changes (skip step 1 and success step 5) */
+  useEffect(() => {
+    if (step === 1 || step === 5) return;
+    const draft = { step, name, email, username, city, area, address, cnic };
+    AsyncStorage.setItem(REG_DRAFT_KEY, JSON.stringify(draft)).catch(() => {});
+  }, [step, name, email, username, city, area, address, cnic]);
 
   useEffect(() => {
     if (resendCooldown <= 0) return;
@@ -546,7 +584,7 @@ export default function RegisterScreen() {
       const termsVersion = config.compliance?.termsVersion || "";
       let profilePhotoBase64: string | undefined;
       if (photoUri) {
-        try { profilePhotoBase64 = await imageUriToBase64(photoUri); } catch { /* photo upload is non-fatal */ }
+        try { profilePhotoBase64 = await compressImageToDataUrl(photoUri, 200 * 1024); } catch { /* photo upload is non-fatal */ }
       }
       const profileRes = await fetch(`${API}/auth/complete-profile`, {
         method: "POST",
@@ -609,6 +647,7 @@ export default function RegisterScreen() {
           createdAt: authUser.createdAt ?? new Date().toISOString(),
         };
         await login(userData, finalToken, authRefreshToken || undefined);
+        AsyncStorage.removeItem(REG_DRAFT_KEY).catch(() => {});
         try {
           const SecureStore = await import("expo-secure-store");
           await SecureStore.deleteItemAsync("ajkmart_reg_token");
@@ -616,16 +655,23 @@ export default function RegisterScreen() {
         } catch {}
         router.replace("/(tabs)");
       } else {
-        router.replace("/auth");
+        /* No token — registration incomplete; clear draft so a stale form
+           doesn't restore next time the user opens the registration screen. */
+        goBackToAuth();
       }
     } catch (e: unknown) {
       log.warn("Login after registration failed:", e instanceof Error ? e.message : e);
-      router.replace("/auth");
+      goBackToAuth();
     }
     setLoading(false);
   };
 
   const stepLabels = ["Verify", "Details", "Address", "Security", "Done"];
+
+  const goBackToAuth = useCallback(() => {
+    AsyncStorage.removeItem(REG_DRAFT_KEY).catch(() => {});
+    router.replace("/auth");
+  }, []);
 
   const handleBack = () => {
     clearError();
@@ -681,7 +727,7 @@ export default function RegisterScreen() {
               {config.platform.supportEmail ? <Text style={{ fontSize: 12, color: "#6B7280", marginTop: 2 }}>{config.platform.supportEmail}</Text> : null}
             </View>
           )}
-          <TouchableOpacity onPress={() => router.replace("/auth")} style={{ width: "100%", backgroundColor: "#1F2937", borderRadius: 14, paddingVertical: 14, alignItems: "center" }}>
+          <TouchableOpacity onPress={goBackToAuth} style={{ width: "100%", backgroundColor: "#1F2937", borderRadius: 14, paddingVertical: 14, alignItems: "center" }}>
             <Text style={{ fontFamily: "Inter_700Bold", fontSize: 15, color: "#fff" }}>← Back to Login</Text>
           </TouchableOpacity>
         </View>
@@ -707,7 +753,7 @@ export default function RegisterScreen() {
               {config.platform.supportEmail ? <Text style={{ fontSize: 12, color: "#6B7280", marginTop: 2 }}>{config.platform.supportEmail}</Text> : null}
             </View>
           )}
-          <TouchableOpacity onPress={() => router.replace("/auth")} style={{ width: "100%", backgroundColor: "#1F2937", borderRadius: 14, paddingVertical: 14, alignItems: "center" }}>
+          <TouchableOpacity onPress={goBackToAuth} style={{ width: "100%", backgroundColor: "#1F2937", borderRadius: 14, paddingVertical: 14, alignItems: "center" }}>
             <Text style={{ fontFamily: "Inter_700Bold", fontSize: 15, color: "#fff" }}>← Back to Login</Text>
           </TouchableOpacity>
         </View>
@@ -810,6 +856,19 @@ export default function RegisterScreen() {
               <Text style={{ fontSize: 12, color: "#92400E", fontFamily: "Inter_500Medium", lineHeight: 18, flex: 1 }}>{config.content.announcement}</Text>
             </View>
           ) : null}
+          {isLowBandwidth && !lowBwDismissed && (
+            <View style={{ backgroundColor: "#FEF3C7", borderRadius: 12, padding: 10, marginBottom: 12, borderWidth: 1, borderColor: "#FDE68A" }}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                <Ionicons name="wifi-outline" size={16} color="#D97706" />
+                <Text style={{ fontSize: 11, color: "#92400E", fontFamily: "Inter_500Medium", flex: 1, lineHeight: 16 }}>
+                  Slow connection detected — data saver mode on. Image previews hidden.
+                </Text>
+                <TouchableOpacity onPress={() => setLowBwDismissed(true)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityLabel="Dismiss slow connection notice">
+                  <Ionicons name="close" size={16} color="#D97706" />
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
           {step === 1 && regMode === "phone" && (
             <>
               {!otpSent ? (
@@ -981,8 +1040,12 @@ export default function RegisterScreen() {
               >
                 {photoLoading ? (
                   <ActivityIndicator size="small" color={C.primary} />
-                ) : photoUri ? (
+                ) : photoUri && !isLowBandwidth ? (
                   <Image source={{ uri: photoUri }} style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: "#E5E7EB" }} />
+                ) : photoUri && isLowBandwidth ? (
+                  <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: "#D1FAE5", alignItems: "center", justifyContent: "center" }}>
+                    <Ionicons name="checkmark-circle" size={28} color="#059669" />
+                  </View>
                 ) : (
                   <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: "#EEF2FF", alignItems: "center", justifyContent: "center" }}>
                     <Ionicons name="camera-outline" size={24} color={C.primary} />
@@ -1164,7 +1227,7 @@ export default function RegisterScreen() {
               </View>
               <AuthButton
                 label="Login to Existing Account"
-                onPress={() => router.replace("/auth")}
+                onPress={goBackToAuth}
                 icon="log-in-outline"
               />
               <TouchableOpacity activeOpacity={0.7}
@@ -1214,7 +1277,7 @@ export default function RegisterScreen() {
 
               {step === 1 && (
                 <TouchableOpacity activeOpacity={0.7}
-                  onPress={() => router.replace("/auth")}
+                  onPress={goBackToAuth}
                   style={s.loginLink}
                   accessibilityLabel="Go to login"
                   accessibilityRole="link"

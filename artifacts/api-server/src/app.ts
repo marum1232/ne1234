@@ -6,7 +6,7 @@ import helmet from "helmet";
 import pinoHttp from "pino-http";
 import { pinoInstance, logger } from "./lib/logger.js";
 import { createProxyMiddleware } from "http-proxy-middleware";
-import { readFileSync, existsSync } from "fs";
+import { readFileSync, existsSync, mkdirSync } from "fs";
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
 import { runSqlMigrations } from "./services/sqlMigrationRunner.js";
@@ -504,6 +504,18 @@ export function createServer() {
       });
     }
   }
+
+  /* ── Static /uploads route (dev + production fallback) ──────────────────
+        storage.ts saveFallback() writes files to public/uploads/ whenever
+        S3 credentials are absent and returns an absolute APP_BASE_URL/uploads/<key>
+        URL. Registering /uploads as a static route ensures those URLs are
+        actually reachable regardless of NODE_ENV.
+        In production with S3 configured, this directory is always empty and
+        the route is effectively inert. maxAge:0 prevents stale caches on
+        files that may be overwritten in a no-S3 fallback scenario. ────────── */
+  const publicUploadsDir = resolve(process.cwd(), "public", "uploads");
+  try { mkdirSync(publicUploadsDir, { recursive: true }); } catch { /* dir may already exist */ }
+  app.use("/uploads", express.static(publicUploadsDir, { maxAge: "0", etag: false }));
 
   /* ── Dev-only: proxy sibling apps so the api-server preview can render
         admin / vendor / rider / customer (Expo) at their respective paths.

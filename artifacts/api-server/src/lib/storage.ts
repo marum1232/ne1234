@@ -13,6 +13,7 @@ const STORAGE_REGION = process.env["STORAGE_REGION"] ?? "us-east-1";
 const IS_PROD = process.env["NODE_ENV"] === "production";
 
 export const LOCAL_UPLOADS_DIR = path.resolve(process.cwd(), "uploads");
+export const PUBLIC_UPLOADS_DIR = path.resolve(process.cwd(), "public", "uploads");
 
 let s3Client: S3Client | null = null;
 let resolvedBucketName: string | null = null;
@@ -101,6 +102,19 @@ async function ensureLocalDir(): Promise<void> {
   await mkdir(LOCAL_UPLOADS_DIR, { recursive: true });
 }
 
+/**
+ * Fallback storage: write a file to `public/uploads/` so it is served by the
+ * `/uploads` static route on the API server and can be referenced by an
+ * absolute `APP_BASE_URL/uploads/<key>` URL — the same format S3 returns.
+ * Used in dev and in production when S3 credentials are absent.
+ */
+async function saveFallback(buffer: Buffer, key: string): Promise<string> {
+  await mkdir(PUBLIC_UPLOADS_DIR, { recursive: true });
+  await writeFile(path.join(PUBLIC_UPLOADS_DIR, key), buffer);
+  const baseUrl = (process.env["APP_BASE_URL"] ?? "http://localhost:5000").replace(/\/$/, "");
+  return `${baseUrl}/uploads/${key}`;
+}
+
 export function isS3Enabled(): boolean {
   return s3Client !== null && resolvedBucketName !== null;
 }
@@ -168,18 +182,18 @@ export async function storageUpload(
     return `${resolvedPublicBase}/${key}`;
   }
 
-  /* Guard: local disk must never be used in production */
+  /* In production without S3 credentials, fall back to local disk and log a
+     critical alert. Files written this way will not survive container restarts
+     and are not shared across instances. Operators should set S3 credentials. */
   if (IS_PROD) {
-    throw new Error(
-      "[storage] storageUpload called in production without a working S3 client. " +
+    logger.error(
+      "[storage] storageUpload: S3 not configured in production — " +
+      "falling back to local disk. Files will not persist across deploys. " +
       "Set STORAGE_BUCKET_URL, STORAGE_ACCESS_KEY, and STORAGE_SECRET_KEY.",
     );
   }
 
-  await ensureLocalDir();
-  await writeFile(path.join(LOCAL_UPLOADS_DIR, key), buffer);
-  const baseUrl = (process.env["APP_BASE_URL"] ?? "http://localhost:5000").replace(/\/$/, "");
-  return `${baseUrl}/api/uploads/${key}`;
+  return saveFallback(buffer, key);
 }
 
 /* ── Private object storage ───────────────────────────────────────────────

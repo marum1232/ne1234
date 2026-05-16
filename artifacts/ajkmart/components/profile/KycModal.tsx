@@ -5,7 +5,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
-import * as LegacyFileSystem from "expo-file-system/legacy";
+import { compressImage } from "@/lib/imageUtils";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
 import { useTheme } from "@/context/ThemeContext";
@@ -61,8 +61,6 @@ export function KycModal({ visible, onClose }: { visible: boolean; onClose: () =
     return `${digits.slice(0, 4)}-${digits.slice(4, 6)}-${digits.slice(6)}`;
   };
 
-  const pickerMimeCache = React.useRef<Map<string, string>>(new Map());
-
   const pickPhoto = async (setter: (uri: string) => void, label: string) => {
     try {
       const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -74,41 +72,8 @@ export function KycModal({ visible, onClose }: { visible: boolean; onClose: () =
         base64: false,
       });
       if (result.canceled || !result.assets?.[0]) return;
-      const asset = result.assets[0];
-      if (asset.mimeType) pickerMimeCache.current.set(asset.uri, asset.mimeType);
-      setter(asset.uri);
+      setter(result.assets[0].uri);
     } catch { showToast(`Could not pick ${label}`, "error"); }
-  };
-
-  const detectMimeFromBase64 = (b64: string): string | null => {
-    try {
-      const prefix = b64.slice(0, 8);
-      const chars = atob(prefix);
-      const b = (i: number) => chars.charCodeAt(i);
-      if (b(0) === 0x89 && b(1) === 0x50 && b(2) === 0x4e && b(3) === 0x47) return "image/png";
-      if (b(0) === 0xff && b(1) === 0xd8) return "image/jpeg";
-      if (b(0) === 0x47 && b(1) === 0x49 && b(2) === 0x46) return "image/gif";
-      if (b(0) === 0x52 && b(1) === 0x49 && b(2) === 0x46 && b(3) === 0x46) return "image/webp";
-    // eslint-disable-next-line ajk-local/no-silent-catch -- MIME detection from Base64 magic bytes is best-effort; falls back to image/jpeg
-    } catch {}
-    return null;
-  };
-
-  const uriToBase64DataUrl = async (uri: string): Promise<string> => {
-    const base64 = await LegacyFileSystem.readAsStringAsync(uri, { encoding: "base64" as const });
-    const cached = pickerMimeCache.current.get(uri);
-    let mime: string | null = cached ?? null;
-    if (!mime) {
-      const lower = (uri.toLowerCase().split("?")[0] ?? "").split("#")[0] ?? "";
-      if (lower.endsWith(".png")) mime = "image/png";
-      else if (lower.endsWith(".webp")) mime = "image/webp";
-      else if (lower.endsWith(".gif")) mime = "image/gif";
-      else if (lower.endsWith(".heic") || lower.endsWith(".heif")) mime = "image/heic";
-    }
-    if (!mime) {
-      mime = detectMimeFromBase64(base64);
-    }
-    return `data:${mime ?? "image/jpeg"};base64,${base64}`;
   };
 
   const submit = async () => {
@@ -136,9 +101,9 @@ export function KycModal({ visible, onClose }: { visible: boolean; onClose: () =
 
     setSubmitting(true);
     try {
-      const frontB64 = await uriToBase64DataUrl(frontUri);
-      const backB64 = await uriToBase64DataUrl(backUri);
-      const selfieB64 = await uriToBase64DataUrl(selfieUri);
+      const frontB64 = await compressImage(frontUri, 200 * 1024);
+      const backB64 = await compressImage(backUri, 200 * 1024);
+      const selfieB64 = await compressImage(selfieUri, 200 * 1024);
       const res = await fetch(`${API}/kyc/submit-base64`, {
         method: "POST",
         headers: {
