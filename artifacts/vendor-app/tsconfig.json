@@ -12,7 +12,9 @@
     "types": ["node", "vite/client"],
     "paths": {
       "@/*": ["./src/*"],
-      "@workspace/ui/*": ["../../lib/ui/src/*"]
+      "@workspace/ui/*": ["../../lib/ui/src/*"],
+      "@workspace/auth-react": ["../../lib/auth-react/src/index.ts"],
+      "@workspace/auth-utils": ["../../lib/auth-utils/src/index.ts"]
     }
   },
   "references": [
@@ -21,6 +23,12 @@
     },
     {
       "path": "../../lib/ui"
+    },
+    {
+      "path": "../../lib/auth-react"
+    },
+    {
+      "path": "../../lib/auth-utils"
     }
   ]
 }

@@ -5,6 +5,8 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "jsx": "react-jsx",
+    "composite": true,
+    "declarationMap": true,
     "declaration": true,
     "outDir": "dist",
     "strict": true,

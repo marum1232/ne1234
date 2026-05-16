@@ -23,6 +23,9 @@ export interface LoginScreenProps {
   onRegisterPress?: () => void;
   enableSocial?: boolean;
   enableMagicLink?: boolean;
+  onGoogle?: () => void;
+  onFacebook?: () => void;
+  onMagicLink?: (identifier: string) => void | Promise<void>;
   className?: string;
   title?: string;
 }
@@ -117,6 +120,7 @@ const s = {
     textAlign: 'center' as const,
   }),
   footerRow: { textAlign: 'center' as const, fontSize: '13px', color: '#6b7280' },
+  magicLinkRow: { textAlign: 'center' as const, fontSize: '13px', color: '#6b7280', marginTop: '-8px' },
 };
 
 type Step = 'identifier' | 'otp' | 'password' | 'twoFactor';
@@ -128,7 +132,10 @@ export function LoginScreen({
   onSuccess,
   onRegisterPress,
   enableSocial = false,
-  enableMagicLink: _enableMagicLink = false,
+  enableMagicLink = false,
+  onGoogle,
+  onFacebook,
+  onMagicLink,
   className,
   title,
 }: LoginScreenProps) {
@@ -139,6 +146,8 @@ export function LoginScreen({
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [customValues, setCustomValues] = useState<Record<string, string>>({});
+  const [magicLinkSent, setMagicLinkSent] = useState(false);
+  const [magicLinkLoading, setMagicLinkLoading] = useState(false);
 
   const { initiateLogin, verifyOtp, verifyPassword, twoFactorVerify, loading, error, clearError } =
     useLoginFlow({ baseURL, onSuccess });
@@ -183,6 +192,19 @@ export function LoginScreen({
     }
   }
 
+  async function handleMagicLink() {
+    if (!identifier.trim() || magicLinkLoading) return;
+    setMagicLinkLoading(true);
+    try {
+      await onMagicLink?.(identifier.trim());
+      setMagicLinkSent(true);
+    } catch {
+      /* caller handles errors */
+    } finally {
+      setMagicLinkLoading(false);
+    }
+  }
+
   function renderCustomFields() {
     return customFields.map((field) => {
       if (field === 'vehicleType') {
@@ -200,6 +222,20 @@ export function LoginScreen({
               <option value="van">Van / Pickup</option>
               <option value="truck">Truck</option>
             </select>
+          </div>
+        );
+      }
+      if (field === 'licenseNumber') {
+        return (
+          <div key={field}>
+            <label style={s.label}>License Number</label>
+            <input
+              style={s.input}
+              type="text"
+              placeholder="e.g. LHR-12345"
+              value={customValues['licenseNumber'] ?? ''}
+              onChange={(e) => setCustomValues({ ...customValues, licenseNumber: e.target.value })}
+            />
           </div>
         );
       }
@@ -228,6 +264,26 @@ export function LoginScreen({
               value={customValues['cnic'] ?? ''}
               onChange={(e) => setCustomValues({ ...customValues, cnic: e.target.value })}
             />
+          </div>
+        );
+      }
+      if (field === 'businessType') {
+        return (
+          <div key={field}>
+            <label style={s.label}>Business Type</label>
+            <select
+              style={s.select}
+              value={customValues['businessType'] ?? ''}
+              onChange={(e) => setCustomValues({ ...customValues, businessType: e.target.value })}
+            >
+              <option value="">Select type</option>
+              <option value="retail">Retail</option>
+              <option value="wholesale">Wholesale</option>
+              <option value="restaurant">Restaurant / Food</option>
+              <option value="pharmacy">Pharmacy</option>
+              <option value="grocery">Grocery</option>
+              <option value="other">Other</option>
+            </select>
           </div>
         );
       }
@@ -270,10 +326,26 @@ export function LoginScreen({
             >
               {loading ? 'Checking…' : 'Continue'}
             </button>
+            {enableMagicLink && onMagicLink && (
+              <p style={s.magicLinkRow}>
+                {magicLinkSent ? (
+                  <span>Magic link sent — check your email or SMS.</span>
+                ) : (
+                  <button
+                    type="button"
+                    style={s.link(accent)}
+                    disabled={magicLinkLoading}
+                    onClick={() => void handleMagicLink()}
+                  >
+                    {magicLinkLoading ? 'Sending…' : 'Send magic link instead'}
+                  </button>
+                )}
+              </p>
+            )}
             {enableSocial && (
               <SocialButtons
-                onGoogle={() => {}}
-                onFacebook={() => {}}
+                onGoogle={onGoogle ?? (() => {})}
+                onFacebook={onFacebook ?? (() => {})}
               />
             )}
             {onRegisterPress && (

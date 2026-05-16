@@ -23,6 +23,7 @@ export interface AuthContextValue {
   storageError: string | null;
   tokenStorage: TokenStorage;
   baseURL: string;
+  refreshEndpoint: string;
   login: (user: AuthUser, accessToken: string) => void;
   logout: () => void;
   setTwoFactorPending: (pending: boolean) => void;
@@ -44,6 +45,7 @@ export function AuthProvider({
   baseURL = '',
   storageType = 'web',
   tokenStorage: externalStorage,
+  refreshEndpoint = '/api/auth/refresh',
 }: AuthProviderProps) {
   const [tokenStorage] = useState<TokenStorage>(
     () => externalStorage ?? createTokenStorage(storageType)
@@ -90,6 +92,7 @@ export function AuthProvider({
     storageError,
     tokenStorage,
     baseURL,
+    refreshEndpoint,
     login,
     logout,
     setTwoFactorPending,
