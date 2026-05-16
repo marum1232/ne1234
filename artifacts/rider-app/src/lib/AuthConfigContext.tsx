@@ -11,6 +11,7 @@ export interface AuthConfig {
   totp: boolean;
   captchaEnabled: boolean;
   otpProvider: string | null;
+  authMode: string;
   captchaSiteKey?: string;
   googleClientId?: string;
   facebookAppId?: string;
@@ -28,6 +29,7 @@ const DEFAULT_AUTH_CONFIG: AuthConfig = {
   totp: false,
   captchaEnabled: false,
   otpProvider: null,
+  authMode: "OTP",
   otpBypassActive: false,
   otpBypassGlobal: false,
 };
@@ -55,6 +57,7 @@ async function fetchAuthConfig(): Promise<AuthConfig> {
     captchaSiteKey:  d.captchaSiteKey   ?? undefined,
     googleClientId:  d.googleClientId   ?? undefined,
     facebookAppId:   d.facebookAppId    ?? undefined,
+    authMode:        d.auth_mode         ?? d.authMode        ?? "OTP",
     otpBypassActive: d.otpBypassActive  ?? false,
     otpBypassGlobal: d.otpBypassGlobal  ?? false,
   };

@@ -2855,6 +2855,14 @@ router.post("/register", verifyCaptcha, sharedValidateBody(registerSchema), asyn
      the global OTP bypass, but scoped to the role config). */
   const otpMethodsDisabled = !phoneOtpEnabledForRole && !emailOtpEnabledForRole;
 
+  /* Phone submitted but phone OTP is disabled for this role — reject with GATEWAY_DISABLED.
+     Frontend should not send a phone field when phoneEnabled is false (platform-flag-driven UI).
+     Exception: when both methods are disabled (otpMethodsDisabled), we skip OTP entirely. */
+  if (phone && !phoneOtpEnabledForRole && !otpMethodsDisabled) {
+    sendErrorWithData(res, "Phone OTP registration is currently disabled for your account type.", { code: "GATEWAY_DISABLED" }, 400);
+    return;
+  }
+
   /* Phone OTP is off but email OTP is on — require an email address. */
   if (!phoneOtpEnabledForRole && !otpMethodsDisabled && !email) {
     sendErrorWithData(res, "Phone OTP is disabled. Please register with an email address for verification.", { code: "GATEWAY_DISABLED" }, 400);

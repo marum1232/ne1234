@@ -9,7 +9,7 @@ import { usePlatformConfig } from "../lib/useConfig";
 import { useRiderAuthConfig } from "../lib/AuthConfigContext";
 import { useLanguage } from "../lib/useLanguage";
 import { tDual, type TranslationKey } from "@workspace/i18n";
-import { TwoFactorVerify, MagicLinkSender, executeCaptcha, loadGoogleGSIToken, loadFacebookAccessToken, formatPhoneForApi, canonicalizePhone, useAuthConfig } from "@workspace/auth-utils";
+import { TwoFactorVerify, MagicLinkSender, executeCaptcha, loadGoogleGSIToken, loadFacebookAccessToken, formatPhoneForApi, canonicalizePhone } from "@workspace/auth-utils";
 import {
   Phone, Mail, User, Bike, Clock, Lightbulb, Eye, EyeOff,
   ArrowLeft, Loader2, Shield, Wrench, AlertCircle, X, Fingerprint,
@@ -68,7 +68,6 @@ export default function Login() {
   const { language } = useLanguage();
   const T = (key: TranslationKey) => tDual(key, language);
   const appName = config.platform.appName;
-  const firebaseCfg = useAuthConfig("/api");
   const captchaSiteKey = auth.captchaSiteKey ?? config.auth?.captchaSiteKey;
   const googleClientId = auth.googleClientId ?? config.auth?.googleClientId;
   const facebookAppId = auth.facebookAppId ?? config.auth?.facebookAppId;
@@ -86,7 +85,7 @@ export default function Login() {
 
   /* authMode from platform_settings — in EMAIL-only mode, hide phone OTP */
   const enabledMethods: LoginMethod[] = [];
-  if (auth.phoneEnabled && firebaseCfg.authMode !== "EMAIL") enabledMethods.push("phone");
+  if (auth.phoneEnabled && auth.authMode !== "EMAIL") enabledMethods.push("phone");
   if (auth.emailEnabled) enabledMethods.push("email");
   if (auth.usernamePassword) enabledMethods.push("username");
 

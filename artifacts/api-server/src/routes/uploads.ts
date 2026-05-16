@@ -474,7 +474,10 @@ router.post(
       /* Return an opaque server-relative path AND the download nonce.
          The client must pass the nonce as x-doc-nonce when retrieving the doc.
          Admins can retrieve any doc with an admin JWT (no nonce required). */
-      const opaqueUrl = `/api/uploads/reg/${key}`;
+      const baseUrl = process.env["NODE_ENV"] !== "production"
+        ? (process.env["APP_BASE_URL"] ?? `http://localhost:${process.env["PORT"] ?? "5000"}`)
+        : "";
+      const opaqueUrl = `${baseUrl}/api/uploads/reg/${key}`;
 
       sendCreated(res, {
         url: opaqueUrl,
