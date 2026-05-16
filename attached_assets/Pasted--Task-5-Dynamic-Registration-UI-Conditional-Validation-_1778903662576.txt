@@ -1,0 +1,19 @@
+### Task 5: Dynamic Registration UI & Conditional Validation Rules
+- **Action**: Update `Register.tsx` Step 1. Drive form field visibility directly from the dynamic configuration context. If phone is active, enforce the strict plain phone regex. If email is active, make email strictly **mandatory**. If both are active, validate both. If disabled, remove fields safely from the DOM.
+- **Validation**: Toggle configuration flags and verify fields seamlessly add or drop without introducing runtime React evaluation crashes.
+
+### Task 6: Dynamic Login Screen Refactor & OAuth Handling
+- **Action**: Apply the same context-driven rules to `Login.tsx`. Dynamically show/hide Phone, Email, or Username entry tabs based on configuration. Completely hide the "Sign in with Google" layout if `auth_google_enabled` is inactive.
+- **Validation**: Ensure that when a single provider is enabled, the app skips the login picker state and directly targets the active method input layout.
+
+### Task 7: 2G Optimization Part A – Client-Side Image WebP Compression
+- **Action**: Inject Canvas API-based compression inside `Register.tsx` Step 2 before document submission calls. Downscale large camera photos to a max of 1280px on the longest edge, and transform them to a `.webp` canvas layout at 0.75 quality. Target a threshold of ≤200 KB per file. Show an "Optimising..." UI indicator.
+- **Validation**: Log file upload sizes in the browser console during test runs to ensure heavy images drop safely under the 200 KB network limit.
+
+### Task 8: 2G Optimization Part B – Extended Timeouts & Resilient Upload Retries
+- **Action**: Wrap `api.uploadRegistrationDoc` inside an isolated retry controller (3 attempts utilizing 2s / 4s / 8s exponential backoffs). Inject `setApiTimeoutMs(90_000)` specifically around the document upload array payload, restoring default timeouts instantly afterward. Ensure fresh multi-use tokens are assigned where relevant on retry loops.
+- **Validation**: Mock a network drop on the first attempt and confirm the system performs an automated sequential background retry without crashing the page layout.
+
+### Task 9: Per-Field Inline Upload Errors & Absolute Verification UI Guards
+- **Action**: Remove generic upload error toasts in Step 2. Replace with explicit inline error indicators paired with localized "Retry" actions assigned to each specific document slot (Vehicle Photo, CNIC Front, CNIC Back, License). Disable the "Next" action step until all slots return clean absolute verified asset storage paths.
+- **Validation**: Intentionally fail one document upload. Verify that specific field enters an error state with an enabled retry target while the remaining successful files retain their loaded validation values.

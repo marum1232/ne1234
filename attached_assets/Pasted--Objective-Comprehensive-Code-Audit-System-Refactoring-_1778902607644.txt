@@ -1,0 +1,67 @@
+# Objective: Comprehensive Code Audit, System Refactoring, and End-to-End Testing for Rider Registration & Auth (Dynamic Multi-Service & 2G Network Optimized)
+
+You are tasked with fixing, optimizing, and implementing a highly secure, production-ready, and dynamic authentication/registration flow for the Rider App. The system must act dynamically based on configuration settings controlled by the admin database (e.g., system_settings or auth_providers) and handle slow network conditions (2G Edge) gracefully.
+
+Do not write or overwrite any code blindly. Follow the rigorous execution cycle detailed below.
+
+---
+
+## Phase 1: Deep Inspection & Dependency Analysis
+Before writing any code, analyze all related frontend pages, backend routes, utility modules, and database structures.
+
+1. **Database Schema & State Check**: 
+   - Locate where the admin authentication configurations are stored (e.g., `system_settings`, `auth_providers`, or configuration tables). 
+   - Identify fields managing the status of: `allowEmail`, `allowPhone`, `allowGoogle`, and `otpProvider` (`sms` | `email` | `google_authenticator` | `none`).
+2. **Current Frontend Code Audit**: 
+   - Inspect `artifacts/rider-app/src/pages/Register.tsx`, `Login.tsx`, and state/validation layers.
+   - Look for hardcoded logic, strict client-side validations blocking dynamic conditions, and syntax formatting errors (e.g., dashed vs plain phone formats).
+3. **Backend Auth Routing & Services Audit**: 
+   - Inspect `artifacts/api-server/src/routes/auth/index.ts`, `services/sms.ts`, and file upload endpoints.
+   - Identify how validation handles mixed requirements when certain features are switched on or off by the admin config.
+
+---
+
+## Phase 2: Refactoring & Implementation Rules
+
+Ensure all modifications satisfy the following enterprise-grade constraints:
+
+### 1. Dynamic Authentication Gateway & Dynamic UI
+- **Dynamic Fields**: The Rider Registration and Login screens must completely adapt to the active admin settings fetched via an API call (e.g., `/api/auth/config`). 
+- **Strict Conditional Validation**: 
+  - If `allowEmail` is enabled, Email is **mandatory** (never optional if enabled).
+  - If `allowPhone` is enabled, Phone validation must use a strict, standard plain format regex (`^03\d{9}$`). No dashes (`-`) or inconsistent patterns allowed between client and backend.
+  - If a service is disabled by the admin, its input fields must be securely removed/disabled from the UI, and the backend must throw a `400 Bad Request` if a disabled gateway is hit.
+
+### 2. Multi-Gateway OTP & 2FA Fallback (PrimeXBT Style)
+- **Flexible OTP Dispatching**: Based on the admin configuration (`otpProvider`), the backend must process authentication tokens seamlessly.
+- **Google Authenticator Support**: If `otpProvider` is set to `google_authenticator`, the application must support standard TOTP verification tokens (using secure secret keys saved in the user's database document) instead of fallback SMS systems.
+- **Realistic Sandboxed Flow for Testing**: 
+  - For S3 uploads and third-party APIs: Create a smart dynamic wrapper. If real credentials (`AWS_ACCESS_KEY_ID`, Twilio API keys) are not present in `.env`, the system must mock them realistically.
+  - S3 documents must be saved in a local simulation folder (`public/uploads`) but served back with a fully qualified absolute URL path mimicking a live cloud provider. No silent document upload failures allowed.
+
+### 3. High-Performance Optimization for Extreme Slow Networks (2G Edge)
+- **Axios Resiliency**: Wrap critical API request mechanisms with retry logic and exponential backoffs to prevent crashing on packet drops or 2G network timeouts.
+- **Client-Side Image Optimization**: Implement lightweight image conversions/compressions (e.g., converting heavy document photos to `.webp` or compressed images on the client side) before sending payloads over the network.
+- **Cached Config State**: Cache the initial auth configuration in a Context API provider to eliminate duplicate network calls over flaky infrastructure.
+- **Clean Production Bundling**: Guard all debugging indicators (like devOtp display boxes) using hard `import.meta.env.DEV` conditions so that development utilities are completely tree-shaken and removed during the production build step.
+
+---
+
+## Phase 3: Validation, Verification, and End-to-End Testing
+
+Before completing this task, you must test the updated architecture across multiple logical matrix scenarios.
+
+### Step 1: Run Matrix Sanity Tests
+Simulate the following admin database modifications and test frontend-to-backend alignment:
+- **Test Case A (Phone Only Enabled)**: Verify email fields are hidden, phone registration processes properly, and backend rejects email inputs.
+- **Test Case B (Dynamic Document Validation)**: Attempt to pass step 2 of registration with missing documents (CNIC front/back, license, vehicle photo). Ensure the form prevents progression and alerts user with inline validation blocks.
+- **Test Case C (Authenticator / Custom OTP Selection)**: Confirm OTP routing changes its verification logic accurately depending on the active provider.
+
+### Step 2: Final Verification Check
+Run a complete manual/automated smoke test from registration up to post-registration login redirection:
+1. Register a demo rider profile containing all dynamic valid data structures.
+2. Complete document verification utilizing the sandboxed local storage wrapper.
+3. Authenticate using the active simulated OTP layer.
+4. Execute logout, then log back in via the login screen to ensure accurate session distribution onto the rider dashboard.
+
+Report your initial analysis of the current pages and database structures before finalizing the code alterations.
