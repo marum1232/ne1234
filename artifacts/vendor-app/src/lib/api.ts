@@ -59,8 +59,57 @@ export const authClient = createAuthClient({
   baseURL: BASE,
   tokenStorage: _tokenStorage,
   onUnauthorized: () => triggerLogout("unauthorized"),
-  refreshEndpoint: "/api/auth/refresh",
+  /* refreshEndpoint is relative to baseURL (BASE already includes /api path prefix) */
+  refreshEndpoint: "/auth/refresh",
 });
+
+/* ── authPost ─────────────────────────────────────────────────────────────────
+   Routes core authentication API calls through `authClient` (which provides
+   automatic bearer injection, deduped 401→refresh, and withRetry) while
+   layering the circuit-breaker and server-envelope unwrapping on top.
+   CSRF is intentionally omitted for auth endpoints — they use cookies + OTPs
+   and don't require CSRF tokens.                                              */
+async function authPost(path: string, body?: unknown): Promise<unknown> {
+  /* Circuit breaker guard */
+  try { _circuitBreaker.check(path); } catch (err) {
+    if (err instanceof CircuitOpenError) {
+      const coe = err as CircuitOpenError;
+      const retryS = Math.ceil(coe.retryAfterMs / 1000);
+      throw Object.assign(
+        new Error(`Service temporarily unavailable. Please try again in ${retryS}s.`),
+        { status: 503, transient: true, circuitOpen: true }
+      );
+    }
+    throw err;
+  }
+  try {
+    const raw = await authClient.post<Record<string, unknown>>(path, body);
+    _circuitBreaker.onSuccess(path);
+    /* Unwrap server envelope { data: T } → T, or return raw if no envelope */
+    return raw != null && typeof raw === "object" && "data" in raw ? raw.data : raw;
+  } catch (err: unknown) {
+    _circuitBreaker.onFailure(path);
+    /* authClient throws "HTTP NNN: {body}" — parse into a user-friendly Error */
+    if (err instanceof Error) {
+      const httpMatch = err.message.match(/^HTTP (\d+): ([\s\S]*)$/);
+      if (httpMatch) {
+        const status = parseInt(httpMatch[1], 10);
+        const bodyStr = httpMatch[2];
+        /* pendingApproval / rejected signals must propagate */
+        try {
+          const parsed = JSON.parse(bodyStr) as { error?: string; message?: string; pendingApproval?: boolean; rejected?: boolean; approvalNote?: string };
+          if (parsed.pendingApproval) throw Object.assign(new Error(parsed.error || "Pending approval"), { status, pendingApproval: true });
+          if (parsed.rejected) throw Object.assign(new Error(parsed.error || "Application rejected"), { status, rejected: true, approvalNote: parsed.approvalNote });
+          throw Object.assign(new Error(parsed.error || parsed.message || bodyStr), { status });
+        } catch (inner) {
+          if (inner instanceof Error && ("pendingApproval" in inner || "rejected" in inner || "status" in inner)) throw inner;
+          throw Object.assign(new Error(bodyStr), { status });
+        }
+      }
+    }
+    throw err;
+  }
+}
 
 function readCsrfFromCookie(): string {
   try {
@@ -139,7 +188,8 @@ export async function apiFetch(path: string, opts: RequestInit & { _timeoutMs?: 
       _circuitBreaker.check(path);
     } catch (err) {
       if (err instanceof CircuitOpenError) {
-        const retryS = Math.ceil(err.retryAfterMs / 1000);
+        const coe = err as CircuitOpenError;
+        const retryS = Math.ceil(coe.retryAfterMs / 1000);
         throw Object.assign(
           new Error(`Service temporarily unavailable. Please try again in ${retryS}s.`),
           { status: 503, transient: true, circuitOpen: true }
@@ -167,7 +217,8 @@ export async function apiFetch(path: string, opts: RequestInit & { _timeoutMs?: 
     res = await _vendorFetcher(path, mergedOpts);
   } catch (err: unknown) {
     if (err instanceof RefreshError) {
-      if (err.isTransient) {
+      const re = err as RefreshError;
+      if (re.isTransient) {
         /* Transient refresh failure (network/5xx) — keep tokens, surface recoverable error */
         throw Object.assign(
           new Error("Connection issue. Please check your network and try again."),
@@ -241,28 +292,38 @@ export async function apiFetch(path: string, opts: RequestInit & { _timeoutMs?: 
 }
 
 export const api = {
-  /* Auth */
-  sendOtp:      (phone: string, preferredChannel?: string, captchaToken?: string) => apiFetch("/auth/send-otp", { method: "POST", body: JSON.stringify({ phone, ...(preferredChannel ? { preferredChannel } : {}), ...(captchaToken ? { captchaToken } : {}) }) }),
-  verifyOtp:    (phone: string, otp: string, deviceFingerprint?: string, role?: string) => apiFetch("/auth/verify-otp", { method: "POST", body: JSON.stringify({ phone, otp, ...(role ? { role } : {}), ...(deviceFingerprint ? { deviceFingerprint } : {}) }) }),
-  sendEmailOtp: (email: string, captchaToken?: string) => apiFetch("/auth/send-email-otp", { method: "POST", body: JSON.stringify({ email, ...(captchaToken ? { captchaToken } : {}) }) }),
-  verifyEmailOtp:(email: string, otp: string, deviceFingerprint?: string) => apiFetch("/auth/verify-email-otp", { method: "POST", body: JSON.stringify({ email, otp, role: "vendor", ...(deviceFingerprint ? { deviceFingerprint } : {}) }) }),
-  loginUsername:(identifier: string, password: string, deviceFingerprint?: string, captchaToken?: string) => apiFetch("/auth/login", { method: "POST", body: JSON.stringify({ identifier, password, role: "vendor", ...(deviceFingerprint ? { deviceFingerprint } : {}), ...(captchaToken ? { captchaToken } : {}) }) }),
-  forgotPassword:(data: { phone?: string; email?: string; identifier?: string }) => apiFetch("/auth/forgot-password", { method: "POST", body: JSON.stringify(data) }),
-  resetPassword:(data: { phone?: string; email?: string; identifier?: string; otp: string; newPassword: string; totpCode?: string }) => apiFetch("/auth/reset-password", { method: "POST", body: JSON.stringify(data) }),
+  /* Auth — core auth calls route through authClient (bearer + auto-refresh)
+     with circuit-breaker and envelope-unwrapping via authPost().
+     logout and refreshToken keep their original apiFetch / _vendorRefresh paths
+     because they need the special HttpOnly-cookie / X-App header handling. */
+  sendOtp:      (phone: string, preferredChannel?: string, captchaToken?: string) =>
+    authPost("/auth/send-otp", { phone, ...(preferredChannel ? { preferredChannel } : {}), ...(captchaToken ? { captchaToken } : {}) }),
+  verifyOtp:    (phone: string, otp: string, deviceFingerprint?: string, role?: string) =>
+    authPost("/auth/verify-otp", { phone, otp, ...(role ? { role } : {}), ...(deviceFingerprint ? { deviceFingerprint } : {}) }),
+  sendEmailOtp: (email: string, captchaToken?: string) =>
+    authPost("/auth/send-email-otp", { email, ...(captchaToken ? { captchaToken } : {}) }),
+  verifyEmailOtp:(email: string, otp: string, deviceFingerprint?: string) =>
+    authPost("/auth/verify-email-otp", { email, otp, role: "vendor", ...(deviceFingerprint ? { deviceFingerprint } : {}) }),
+  loginUsername:(identifier: string, password: string, deviceFingerprint?: string, captchaToken?: string) =>
+    authPost("/auth/login", { identifier, password, role: "vendor", ...(deviceFingerprint ? { deviceFingerprint } : {}), ...(captchaToken ? { captchaToken } : {}) }),
+  forgotPassword:(data: { phone?: string; email?: string; identifier?: string }) =>
+    authPost("/auth/forgot-password", data),
+  resetPassword:(data: { phone?: string; email?: string; identifier?: string; otp: string; newPassword: string; totpCode?: string }) =>
+    authPost("/auth/reset-password", data),
   logout:       (refreshToken?: string) => apiFetch("/auth/logout", { method: "POST", headers: { "X-App": "vendor" }, body: JSON.stringify({ refreshToken }) }).finally(clearTokens),
   refreshToken: () => _vendorRefresh(),
   checkAvailable: (data: { phone?: string; email?: string; username?: string }, signal?: AbortSignal) =>
     apiFetch("/auth/check-available", { method: "POST", body: JSON.stringify(data), signal }),
   vendorRegister: (data: { phone?: string; email?: string; storeName: string; storeCategory?: string; name?: string; cnic?: string; address?: string; city?: string; bankName?: string; bankAccount?: string; bankAccountTitle?: string; username?: string; acceptedTermsVersion?: string; documents?: string }) =>
-    apiFetch("/auth/vendor-register", { method: "POST", body: JSON.stringify(data) }),
+    authPost("/auth/vendor-register", data),
   socialGoogle: (data: { idToken: string }) =>
-    apiFetch("/auth/social/google", { method: "POST", body: JSON.stringify({ ...data, role: "vendor" }) }),
+    authPost("/auth/social/google", { ...data, role: "vendor" }),
   socialFacebook: (data: { accessToken: string }) =>
-    apiFetch("/auth/social/facebook", { method: "POST", body: JSON.stringify({ ...data, role: "vendor" }) }),
+    authPost("/auth/social/facebook", { ...data, role: "vendor" }),
   magicLinkSend: (email: string) =>
-    apiFetch("/auth/magic-link/send", { method: "POST", body: JSON.stringify({ email }) }),
+    authPost("/auth/magic-link/send", { email }),
   magicLinkVerify: (data: { token: string }) =>
-    apiFetch("/auth/magic-link/verify", { method: "POST", body: JSON.stringify(data) }),
+    authPost("/auth/magic-link/verify", data),
 
   /* Token helpers */
   storeTokens: (token: string, refreshToken?: string) => {

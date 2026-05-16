@@ -101,7 +101,7 @@ export default function Register() {
       setLoading(true); clearError();
       try {
         const captchaToken = await getCaptchaToken("register_phone_otp");
-        const res = await api.sendOtp(phoneE164, undefined, captchaToken);
+        const res = await api.sendOtp(phoneE164, undefined, captchaToken) as { otp?: string; otpRequired?: boolean };
         if (res.otpRequired === false) { setStep("store"); setLoading(false); return; }
         setDevOtp(res.otp || "");
         setStep("verify-otp");
@@ -113,7 +113,7 @@ export default function Register() {
       }
       setLoading(true); clearError();
       try {
-        const res = await api.sendEmailOtp(email);
+        const res = await api.sendEmailOtp(email) as { otp?: string };
         setDevOtp(res.otp || "");
         setStep("verify-otp");
       } catch (e) { setError(e instanceof Error ? e.message : "Failed to send OTP"); }
@@ -127,10 +127,10 @@ export default function Register() {
     setLoading(true); clearError();
     try {
       if (allowPhone) {
-        const res = await api.verifyOtp(phoneE164, otp, getDeviceFingerprint());
+        const res = await api.verifyOtp(phoneE164, otp, getDeviceFingerprint()) as { token?: string; refreshToken?: string };
         if (res.token) api.storeTokens(res.token, res.refreshToken);
       } else {
-        const res = await api.verifyEmailOtp(email, otp, getDeviceFingerprint());
+        const res = await api.verifyEmailOtp(email, otp, getDeviceFingerprint()) as { token?: string; refreshToken?: string };
         if (res.token) api.storeTokens(res.token, res.refreshToken);
       }
       setStep("store");
@@ -249,7 +249,7 @@ export default function Register() {
         ...(termsVersion && { acceptedTermsVersion: termsVersion }),
         ...(docsPayload  ? { documents: JSON.stringify(docsPayload) } : {}),
       });
-      if (res.status === "approved") {
+      if ((res as { status?: string }).status === "approved") {
         navigate("/");
       } else {
         setStep("done");
