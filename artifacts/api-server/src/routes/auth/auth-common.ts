@@ -117,96 +117,18 @@ import {
 const AUTH_OTP_TTL_MS = 5 * 60 * 1000;
 
 /* ── Auth Zod schemas ─────────────────────────────────────────
-   One schema per key endpoint. Extra/unknown fields are stripped.
-   ──────────────────────────────────────────────────────────── */
-const checkIdentifierSchema = z.object({
-  identifier: z.string().min(3, "Identifier must be at least 3 characters"),
-  role: z.enum(["customer", "rider", "vendor"]).optional(),
-  deviceId: z.string().max(256).optional(),
-}).strip();
-
-const phoneSchema = z
-  .string()
-  .min(7, "Phone number is required")
-  .max(20, "Phone number too long")
-  .regex(/^[\d\s\-()+]{7,20}$/, "Phone number must contain only digits, spaces, dashes, or parentheses");
-
-/* OTP / login schemas — consolidated aliases so all sharedValidateBody()
-   call sites below continue to compile unchanged. */
-const sendOtpSchema = SendOtpSchema;
-const verifyOtpSchema = VerifyOtpSchema;
-
-/* Refresh tokens are carried exclusively as HttpOnly cookies (rider or vendor).
-   Body-submitted refresh tokens are rejected unconditionally by the handler.
-   This schema is kept minimal — the body field is not accepted. */
-const refreshTokenSchema = z.object({}).strip();
-
-function isVendorSession(req: Request, user?: { role?: string | null; roles?: string | null } | null): boolean {
-  const bodyRole: string | undefined = typeof req.body?.role === "string" ? req.body.role : undefined;
-  if (bodyRole === "vendor") return true;
-  const rolesStr = (user?.roles ?? user?.role ?? "") as string;
-  if (!rolesStr) return false;
-  return rolesStr.split(",").map((r) => r.trim()).includes("vendor");
-}
-
-const forgotPasswordSchema = z.object({
-  phone: z.string().min(7).optional(),
-  email: z.string().email("Invalid email address").optional(),
-  identifier: z.string().min(3).optional(),
-}).strip().refine(d => d.phone || d.email || d.identifier, {
-  message: "Phone, email, or username is required",
-  path: ["phone"],
-});
-
-const registerSchema = z.object({
-  phone: z.string().min(7, "Phone number is required"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
-  name: z.string().max(80).optional(),
-  role: z.enum(["customer", "rider", "vendor"]).optional(),
-  email: z.string().email().optional().or(z.literal("")),
-  username: z.string().min(3).max(20).regex(/^[a-z0-9_]+$/, "Username can only contain lowercase letters, numbers, and underscores").optional(),
-  cnic: z.string().regex(/^\d{5}-\d{7}-\d{1}$/, "CNIC format must be XXXXX-XXXXXXX-X").optional().or(z.literal("")),
-  nationalId: z.string().optional(),
-  vehicleType: z.string().optional(),
-  vehicleRegNo: z.string().optional(),
-  drivingLicense: z.string().optional(),
-  address: z.string().max(255).optional(),
-  city: z.string().max(80).optional(),
-  emergencyContact: z.string().optional(),
-  vehiclePlate: z.string().optional(),
-  vehiclePhoto: z.string().optional(),
-  documents: z.string().optional(),
-  businessName: z.string().max(120).optional(),
-  businessType: z.string().optional(),
-  storeAddress: z.string().max(255).optional(),
-  ntn: z.string().optional(),
-  storeName: z.string().max(120).optional(),
-  captchaToken: z.string().optional(),
-}).strip();
-
-/** Encrypt a PII string when ENCRYPTION_MASTER_KEY is available; returns null silently if not. */
-function tryEncrypt(value: string | null | undefined): string | null {
-  if (!value) return null;
-  try {
-    if (!isEncryptionAvailable()) return null;
-    return encrypt(value);
-  } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
-    return null;
-  }
-}
-
-/** Resolve a PII field: read from encrypted column first, fall back to plaintext for legacy rows. */
-function decryptPii(encrypted: string | null | undefined, plaintext: string | null | undefined): string | null {
-  if (encrypted) {
-    try {
-      if (isEncryptionAvailable()) return decrypt(encrypted);
-    } catch (err) {
-      logger.debug({ error: err instanceof Error ? err.message : String(err) }, `[fn] fall through to plaintext on decryption failure`);
-    }
-  }
-  return plaintext ?? null;
-}
+   All schemas are imported from ./helpers.js so only one source
+   of truth exists. Duplicate local definitions were removed. ── */
+import {
+  checkIdentifierSchema,
+  phoneSchema,
+  refreshTokenSchema,
+  forgotPasswordSchema,
+  registerSchema,
+  isVendorSession,
+  tryEncrypt,
+  decryptPii,
+} from "./helpers.js";
 
 
 

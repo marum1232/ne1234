@@ -77,6 +77,9 @@ const otpLimiter = rateLimit({
 const MAX_OTP_ATTEMPTS = 5;
 const OTP_ATTEMPT_TTL_MS = 30 * 60_000;
 
+// TODO: Deduplicate with auth/helpers.ts normalizeVehicleTypeForStorage().
+// Move to shared package (@workspace/service-constants) so both modules
+// import from a single source of truth.
 function normalizeVehicleType(raw: string | null | undefined): string {
   const v = (raw ?? "").trim().toLowerCase();
   if (!v) return "";

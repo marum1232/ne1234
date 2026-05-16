@@ -36,6 +36,8 @@ export function hashOtp(otp: string): string {
   return createHash("sha256").update(otp).digest("hex");
 }
 
+// TODO: Move to shared package (@workspace/service-constants) to avoid
+// duplication with rider/index.ts normalizeVehicleType().
 export function normalizeVehicleTypeForStorage(raw: string): string {
   const v = raw.trim().toLowerCase();
   if (!v) return raw;

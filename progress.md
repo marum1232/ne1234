@@ -9,7 +9,7 @@
 |------|--------|---------|-----------|---------|
 | T001 | COMPLETE | 2026-05-16 | 2026-05-16 | Critical security & bug fixes |
 | T002 | COMPLETE | 2026-05-16 | 2026-05-16 | Split backend auth router into modules |
-| T003 | PENDING | - | - | - |
+| T003 | COMPLETE | 2026-05-16 | 2026-05-16 | Remove duplicate schemas & helpers from auth router |
 | T004 | PENDING | - | - | - |
 | T005 | PENDING | - | - | - |
 | T006 | PENDING | - | - | - |
