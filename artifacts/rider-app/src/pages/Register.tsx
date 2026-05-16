@@ -278,7 +278,7 @@ export default function Register() {
 
   const validateStep1 = (): boolean => {
     if (!name.trim()) { setError(T("nameRequired")); return false; }
-    if (!phone || !isValidPhone(phone)) { setError(`${T("enterValidPhone")} (e.g. ${phoneHint})`); return false; }
+    if (auth.phoneOtp && (!phone || !isValidPhone(phone))) { setError(`${T("enterValidPhone")} (e.g. ${phoneHint})`); return false; }
     if (auth.emailOtp && (!email || !email.includes("@"))) { setError(T("enterValidEmail")); return false; }
     if (!address.trim()) { setError(T("homeAddressRequired")); return false; }
     if (!city) { setError(T("selectCity")); return false; }

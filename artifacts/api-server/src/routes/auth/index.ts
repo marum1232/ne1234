@@ -257,9 +257,10 @@ router.get("/config", async (_req, res) => {
     
     const bypassMessage = settings["otp_bypass_message"] ?? null;
     
-    /* ── Rider-scoped auth method flags ── */
-    const toRiderBool = (key: string, fallback = "on"): boolean =>
-      (settings[key] ?? fallback) === "on";
+    /* ── Rider-scoped auth method flags — use role-aware helper so JSON
+       per-role maps like { "rider": "on" } are parsed correctly ── */
+    const riderFlag = (key: string): boolean =>
+      isAuthMethodEnabled(settings, key, "rider");
 
     sendSuccess(res, {
       /* Legacy snake_case fields kept for backward compat */
@@ -273,14 +274,14 @@ router.get("/config", async (_req, res) => {
       otpBypassExpiresAt,
       bypassMessage,
       /* Rider-scoped camelCase fields — consumed by AuthConfigContext */
-      phoneOtp:         toRiderBool("auth_phone_otp_enabled"),
-      emailOtp:         toRiderBool("auth_email_otp_enabled", "off"),
-      google:           toRiderBool("auth_google_enabled"),
-      facebook:         toRiderBool("auth_facebook_enabled", "off"),
-      usernamePassword: toRiderBool("auth_username_password_enabled"),
-      magicLink:        toRiderBool("auth_magic_link_enabled", "off"),
-      totp:             toRiderBool("auth_totp_enabled", "off"),
-      captchaEnabled:   toRiderBool("auth_captcha_enabled", "off"),
+      phoneOtp:         riderFlag("auth_phone_otp_enabled"),
+      emailOtp:         riderFlag("auth_email_otp_enabled"),
+      google:           riderFlag("auth_google_enabled"),
+      facebook:         riderFlag("auth_facebook_enabled"),
+      usernamePassword: riderFlag("auth_username_password_enabled"),
+      magicLink:        riderFlag("auth_magic_link_enabled"),
+      totp:             riderFlag("auth_totp_enabled"),
+      captchaEnabled:   riderFlag("auth_captcha_enabled"),
       captchaSiteKey:   settings["recaptcha_site_key"] ?? null,
       googleClientId:   settings["google_client_id"]   ?? null,
       facebookAppId:    settings["facebook_app_id"]    ?? null,
@@ -2845,17 +2846,27 @@ router.post("/register", verifyCaptcha, sharedValidateBody(registerSchema), asyn
     return;
   }
 
-  if (!isAuthMethodEnabled(settings, "auth_phone_otp_enabled", userRole)) {
-    sendErrorWithData(res, "Phone registration is currently disabled for this role.", { code: "GATEWAY_DISABLED" }, 400);
+  /* ── Determine which OTP delivery channels are enabled for this role ── */
+  const phoneOtpEnabledForRole = isAuthMethodEnabled(settings, "auth_phone_otp_enabled", userRole);
+  const emailOtpEnabledForRole = isAuthMethodEnabled(settings, "auth_email_otp_enabled", userRole);
+
+  /* When BOTH phone OTP and email OTP are disabled for this role, skip OTP verification
+     entirely rather than hard-failing — the account is created as verified (same as
+     the global OTP bypass, but scoped to the role config). */
+  const otpMethodsDisabled = !phoneOtpEnabledForRole && !emailOtpEnabledForRole;
+
+  /* Phone OTP is off but email OTP is on — require an email address. */
+  if (!phoneOtpEnabledForRole && !otpMethodsDisabled && !email) {
+    sendErrorWithData(res, "Phone OTP is disabled. Please register with an email address for verification.", { code: "GATEWAY_DISABLED" }, 400);
     return;
   }
 
-  if (!phone) {
+  if (!phone && !otpMethodsDisabled) {
     sendError(res, "Phone number is required", 400);
     return;
   }
-  const cleanedPhone = phone.replace(/[\s\-()]/g, "");
-  if (!PHONE_REGEX.test(cleanedPhone)) {
+  const cleanedPhone = phone ? phone.replace(/[\s\-()]/g, "") : "";
+  if (cleanedPhone && !PHONE_REGEX.test(cleanedPhone)) {
     sendError(res, "Invalid phone number. Use format: 03XXXXXXXXX", 400);
     return;
   }
@@ -2968,8 +2979,9 @@ router.post("/register", verifyCaptcha, sharedValidateBody(registerSchema), asyn
     otpCode: hashOtp(otp),
     otpExpiry,
     otpUsed: false,
-    /* When OTP is bypassed, mark the phone as verified immediately */
-    phoneVerified: otpBypassed,
+    /* Mark phone as verified immediately when OTP is globally bypassed OR when
+       both phone+email OTP are disabled for this role (config-driven skip). */
+    phoneVerified: otpBypassed || otpMethodsDisabled,
     walletBalance: "0",
     isActive: !needsApproval,
     approvalStatus: needsApproval ? "pending" : "approved",
@@ -3050,50 +3062,43 @@ router.post("/register", verifyCaptcha, sharedValidateBody(registerSchema), asyn
     return;
   }
 
-  /* ── Both OTP channels disabled for this role: skip OTP, return otpSkipped ── */
-  const emailOtpEnabledForRole = isAuthMethodEnabled(settings, "auth_email_otp_enabled", userRole);
-  if (!emailOtpEnabledForRole) {
-    /* Phone OTP is enabled (passed gateway check above) but email OTP is off for
-       this role. If no SMS provider is configured, riders would be stuck in OTP limbo.
-       Detect that scenario: if SMS sending later fails we fall through; here we
-       opportunistically mark the phone verified and skip OTP for riders when
-       both delivery channels are unavailable in dev/no-provider mode. */
-    const noSmsProvider = !settings["twilio_account_sid"] && !settings["integration_sms_provider"];
-    if (noSmsProvider) {
-      await db.update(usersTable).set({ phoneVerified: true, updatedAt: new Date() }).where(eq(usersTable.id, userId));
-      writeAuthAuditLog("register_otp_skipped", { ip, userAgent: req.headers["user-agent"] ?? undefined, metadata: { phone: normalizedPhone, role: userRole, reason: "no_otp_channels" } });
-      if (!needsApproval) {
-        const accessToken = signAccessToken(userId, normalizedPhone, userRole, userRole, 0);
-        const { raw: refreshRaw, hash: refreshHash } = generateRefreshToken();
-        await db.insert(refreshTokensTable).values({
-          id: generateId(), userId, tokenHash: refreshHash, authMethod: "register_otp_skipped",
-          expiresAt: new Date(Date.now() + getRefreshTokenTtlDays() * 24 * 60 * 60 * 1000),
-        });
-        setRiderRefreshCookie(req, res, refreshRaw, { roles: userRole });
-        setVendorRefreshCookie(req, res, refreshRaw, { roles: userRole });
-        sendSuccess(res, {
-          message: "Registration successful.",
-          userId, role: userRole,
-          pendingApproval: false,
-          otpRequired: true,
-          otpSkipped: true,
-          channel: "skipped",
-          token: accessToken,
-          refreshToken: refreshRaw,
-          expiresAt: new Date(Date.now() + getAccessTokenTtlSec() * 1000).toISOString(),
-        }, undefined, 201);
-      } else {
-        sendSuccess(res, {
-          message: "Registration submitted. Your account is pending admin approval.",
-          userId, role: userRole,
-          pendingApproval: true,
-          otpRequired: true,
-          otpSkipped: true,
-          channel: "skipped",
-        }, undefined, 201);
-      }
-      return;
+  /* ── Both OTP channels disabled for this role: skip OTP, return otpSkipped ──
+     otpMethodsDisabled was computed above (both phoneOtpEnabledForRole and
+     emailOtpEnabledForRole are false). phoneVerified was already set to true
+     in the insert. Issue tokens and return early. */
+  if (otpMethodsDisabled) {
+    writeAuthAuditLog("register_otp_skipped", { ip, userAgent: req.headers["user-agent"] ?? undefined, metadata: { phone: normalizedPhone, role: userRole, reason: "otp_disabled_for_role" } });
+    if (!needsApproval) {
+      const accessToken = signAccessToken(userId, normalizedPhone, userRole, userRole, 0);
+      const { raw: refreshRaw, hash: refreshHash } = generateRefreshToken();
+      await db.insert(refreshTokensTable).values({
+        id: generateId(), userId, tokenHash: refreshHash, authMethod: "register_otp_skipped",
+        expiresAt: new Date(Date.now() + getRefreshTokenTtlDays() * 24 * 60 * 60 * 1000),
+      });
+      setRiderRefreshCookie(req, res, refreshRaw, { roles: userRole });
+      setVendorRefreshCookie(req, res, refreshRaw, { roles: userRole });
+      sendSuccess(res, {
+        message: "Registration successful.",
+        userId, role: userRole,
+        pendingApproval: false,
+        otpRequired: false,
+        otpSkipped: true,
+        channel: "skipped",
+        token: accessToken,
+        refreshToken: refreshRaw,
+        expiresAt: new Date(Date.now() + getAccessTokenTtlSec() * 1000).toISOString(),
+      }, undefined, 201);
+    } else {
+      sendSuccess(res, {
+        message: "Registration submitted. Your account is pending admin approval.",
+        userId, role: userRole,
+        pendingApproval: true,
+        otpRequired: false,
+        otpSkipped: true,
+        channel: "skipped",
+      }, undefined, 201);
     }
+    return;
   }
 
   const registerLang = await getUserLanguage(userId);
