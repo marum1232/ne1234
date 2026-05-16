@@ -13,7 +13,7 @@
 | T004 | COMPLETE | 2026-05-16 | 2026-05-16 | Session revocation verified, account recovery endpoints, Swagger UI at /api-docs |
 | T005 | COMPLETE | 2026-05-16 | 2026-05-16 | Created @workspace/auth-react package in lib/auth-react/ with tsup build |
 | T006 | COMPLETE | 2026-05-16 | 2026-05-16 | Token storage, auth client with retry/refresh, JWT utils — 14/14 tests passed |
-| T007 | PENDING | - | - | - |
+| T007 | COMPLETE | 2026-05-16 | 2026-05-16 | useTokenRefresh, useAuth, useLoginFlow hooks — 21/21 tests passed |
 | T008 | PENDING | - | - | - |
 | T009 | PENDING | - | - | - |
 | T010 | PENDING | - | - | - |
