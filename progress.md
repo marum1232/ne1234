@@ -15,7 +15,7 @@
 | T006 | COMPLETE | 2026-05-16 | 2026-05-16 | Token storage, auth client with retry/refresh, JWT utils — 14/14 tests passed |
 | T007 | COMPLETE | 2026-05-16 | 2026-05-16 | useTokenRefresh, useAuth, useLoginFlow hooks — 21/21 tests passed |
 | T008 | COMPLETE | 2026-05-16 | 2026-05-16 | 6 UI components (OtpInput, PhoneInput, PasswordInput, SocialButtons, BiometricPrompt, LoginScreen) — 27/27 tests passed |
-| T009 | PENDING | - | - | - |
+| T009 | COMPLETE | 2026-05-16 | 2026-05-16 | Migrate vendor-app to @workspace/auth-react (LoginScreen, PhoneInput, OtpInput, PasswordInput, createAuthClient, SharedAuthProvider) |
 | T010 | PENDING | - | - | - |
 | T011 | PENDING | - | - | - |
 | T012 | PENDING | - | - | - |
@@ -70,3 +70,9 @@
   Tests covered: tokenStorage set/get/remove, decodeJwt with Urdu non-ASCII claim (آزاد کشمیر), isTokenExpired (valid + expired), getTokenExpiryRemaining, authClient method shape.
   Build output: dist/index.cjs (8.48 KB), dist/index.js (7.11 KB), dist/index.d.ts (2.26 KB) — no TypeScript errors.
 - [2026-05-16] T006 COMPLETE -- All three modules implemented, build clean, 14/14 verification tests passing.
+- [2026-05-16] T009 IN PROGRESS -- Migrating vendor-app auth to @workspace/auth-react.
+- [2026-05-16] T009 Step 1: api.ts — added createAuthClient import; instantiated and exported authClient (shared _tokenStorage, BASE URL, onUnauthorized → triggerLogout, refreshEndpoint).
+- [2026-05-16] T009 Step 2: auth.tsx — AuthProvider wraps SharedAuthProvider (baseURL, role, tokenStorage); VendorAuthInner inner component calls useAuthContext() to bi-directionally sync vendor login/logout state with shared SDK context. Proactive refresh timer retained.
+- [2026-05-16] T009 Step 3: Login.tsx — rebuilt around LoginScreen (PhoneInput built-in); orange split-screen branding panel left; forgot-password 4-sub-step overlay (forgot → forgot-otp via OtpInput → forgot-reset via PasswordInput → forgot-done); handleSuccess calls api.getMe() then vendor login().
+- [2026-05-16] T009 Step 4: Register.tsx — restructured into explicit 4-step flow: Step 1 "verify" (PhoneInput + OTP via OtpInput), Step 2 "store" (store name/category/owner/username/city/address/terms), Step 3 "docs" (CNIC number + 3 doc uploads: storefront/cnicFront/cnicBack), Step 4 "bank" (optional bank/wallet details; skip button); "done" success screen.
+- [2026-05-16] T009 COMPLETE -- All 4 requirements met. Vendor-app builds cleanly (pre-existing TS errors in lib/ui unbuilt dist are unrelated). Login screen verified via screenshot.

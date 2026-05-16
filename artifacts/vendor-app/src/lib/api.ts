@@ -1,6 +1,6 @@
 import { getVendorApiBase } from "./envValidation";
 import { createApiFetcher, RefreshError, createCircuitBreaker, CircuitOpenError } from "@workspace/api-client-react";
-import { createTokenStorage } from "@workspace/auth-react";
+import { createTokenStorage, createAuthClient } from "@workspace/auth-react";
 import { createLogger } from "@/lib/logger";
 import { compressImage } from "./imageUtils";
 const log = createLogger("[api]");
@@ -49,6 +49,18 @@ try {
 export function getTokenStorage() { return _tokenStorage; }
 function getToken(): string  { return _tokenStorage.getAccessToken() ?? ""; }
 function getRefreshToken(): string { return _tokenStorage.getRefreshToken() ?? ""; }
+
+/* ── Shared auth client (createAuthClient from @workspace/auth-react) ─────────
+   Provides a typed HTTP client with automatic bearer-injection and token
+   refresh, consumed by LoginScreen / useLoginFlow via the shared AuthContext.
+   The bespoke apiFetch below is kept for vendor-specific flows (CSRF, circuit
+   breaker, 5xx retry). Both clients share the same _tokenStorage instance.    */
+export const authClient = createAuthClient({
+  baseURL: BASE,
+  tokenStorage: _tokenStorage,
+  onUnauthorized: () => triggerLogout("unauthorized"),
+  refreshEndpoint: "/api/auth/refresh",
+});
 
 function readCsrfFromCookie(): string {
   try {
