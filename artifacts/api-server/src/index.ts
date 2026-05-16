@@ -339,7 +339,7 @@ async function main() {
     logger.warn({ err: e }, "[runtime-config] Seed failed — env var fallback will be used");
   }
 
-  const server = createServer();
+  const server = await createServer();
 
   // Open the port FIRST so the platform's port detector sees a live listener
   // quickly. Migrations + RBAC seeding run immediately after; if they fail,

@@ -296,7 +296,7 @@ function validateCORS(): string[] {
   return fallback;
 }
 
-export function createServer() {
+export async function createServer() {
   const app = express();
   
   // Trust proxy (for proper IP detection behind reverse proxy/load balancer)
