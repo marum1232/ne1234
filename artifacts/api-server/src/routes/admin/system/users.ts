@@ -11,7 +11,9 @@ import {
   refreshTokensTable,
   vendorProfilesTable,
   riderProfilesTable,
+  magicLinkTokensTable,
 } from "@workspace/db/schema";
+import crypto from "crypto";
 import { eq, desc, count, sum, and, gte, lte, sql, or, ilike, asc, isNull, isNotNull, avg, ne, inArray, type SQL } from "drizzle-orm";
 import {
   stripUser, generateId, getUserLanguage, t,
@@ -1538,6 +1540,82 @@ router.post("/users/export", requirePermission("users.view"), async (req, res) =
   } catch (err: unknown) {
     logger.error({ err }, "[admin/users] export failed");
     sendError(res, "An internal error occurred during export", 500);
+  }
+});
+
+/* ════════════════════════════════════════════════════════════════
+   POST /api/admin/users/:userId/recovery
+   Admin-only: send a one-time account recovery link to a user's email.
+   The link expires in 1 hour and lets the user set a new password without OTP.
+════════════════════════════════════════════════════════════════ */
+
+router.post("/users/:userId/recovery", requirePermission("users.edit"), async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const adminReq = req as AdminRequest;
+    const ip = getClientIp(req);
+
+    const [targetUser] = await db
+      .select({
+        id: usersTable.id,
+        email: usersTable.email,
+        phone: usersTable.phone,
+        name: usersTable.name,
+        isActive: usersTable.isActive,
+        isBanned: usersTable.isBanned,
+        roles: usersTable.roles,
+      })
+      .from(usersTable)
+      .where(eq(usersTable.id, userId!))
+      .limit(1);
+
+    if (!targetUser) { sendNotFound(res, "User not found"); return; }
+    if (!targetUser.email) {
+      sendError(res, "User does not have a registered email address. Recovery link cannot be sent.", 400);
+      return;
+    }
+
+    /* Generate a single-use recovery token */
+    const rawToken = randomBytes(32).toString("hex");
+    const tokenHash = hashPassword(rawToken);
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); /* 1 hour */
+
+    await db.insert(magicLinkTokensTable).values({
+      id: generateId(),
+      userId: targetUser.id,
+      tokenHash,
+      expiresAt,
+      createdAt: new Date(),
+    });
+
+    /* Build recovery URL */
+    const baseUrl = process.env["APP_BASE_URL"]
+      ?? (process.env["REPLIT_DEV_DOMAIN"] ? `https://${process.env["REPLIT_DEV_DOMAIN"]}` : "http://localhost:3000");
+    const recoveryUrl = `${baseUrl}/auth/recover?token=${encodeURIComponent(rawToken)}&u=${encodeURIComponent(targetUser.id)}`;
+
+    /* Send email (fire-and-forget for response speed) */
+    const { sendRecoveryEmail } = await import("../../../services/email.js");
+    sendRecoveryEmail(targetUser.email, recoveryUrl, targetUser.name || undefined).catch((err: unknown) => {
+      logger.warn({ err: err instanceof Error ? err.message : String(err) }, "[admin/users] recovery email send failed");
+    });
+
+    /* Audit trail */
+    addAuditEntry({
+      action: "account_recovery_initiated",
+      ip,
+      details: `Admin ${adminReq.adminId ?? "unknown"} initiated recovery for user ${targetUser.id} (${targetUser.email}). Link expires at ${expiresAt.toISOString()}.`,
+      result: "success",
+    });
+
+    sendSuccess(res, {
+      userId: targetUser.id,
+      email: targetUser.email,
+      recoveryUrl, /* returned only for dev / testing; in prod clients should rely on email delivery */
+      expiresAt: expiresAt.toISOString(),
+    }, "Recovery link generated and sent to user email");
+  } catch (err: unknown) {
+    logger.error({ err }, "[admin/users] recovery generation failed");
+    sendError(res, "Internal server error", 500);
   }
 });
 

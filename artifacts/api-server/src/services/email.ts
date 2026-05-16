@@ -282,6 +282,55 @@ export type AdminAlertType =
   | "sentry_new_issue"
   | "schema_drift";
 
+export async function sendRecoveryEmail(
+  email: string,
+  recoveryUrl: string,
+  name?: string,
+  language?: string,
+): Promise<{ sent: boolean; reason?: string }> {
+  const lang = resolveLanguage(language);
+  const dir = lang === "ur" ? "rtl" : "ltr";
+  const greeting = name ? `Hello ${name}` : "Hello";
+  const appName = "AJKMart";
+
+  const subject = "Account Recovery — Reset Your Password";
+  const defaultHtml = `
+    <div dir="${dir}" style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto;">
+      <h2 style="color: #2563eb;">${appName}</h2>
+      <p>${greeting},</p>
+      <p>An administrator has initiated an account recovery for your account. Click the button below to set a new password. This link is valid for <strong>1 hour</strong> and can only be used once.</p>
+      <div style="text-align: center; margin: 24px 0;">
+        <a href="${recoveryUrl}" style="background: #2563eb; color: #fff; padding: 12px 32px; border-radius: 8px; text-decoration: none; font-weight: bold;">
+          Reset Password
+        </a>
+      </div>
+      <p style="color: #6b7280; font-size: 13px;">If you did not request this, contact support immediately.</p>
+      <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
+      <p style="color: #9ca3af; font-size: 12px;">— ${appName} Support</p>
+    </div>
+  `;
+
+  const transport = getEnvTransporter();
+  if (!transport) {
+    logger.info(`[EMAIL] Recovery link for ${email}: ${recoveryUrl}`);
+    return { sent: false, reason: "SMTP not configured" };
+  }
+
+  try {
+    await transport.sendMail({
+      from: resolveFrom(),
+      to: email,
+      subject,
+      html: defaultHtml,
+      text: `${greeting},\n\nAn administrator initiated account recovery for your AJKMart account.\nReset your password here:\n${recoveryUrl}\n\nThis link is valid for 1 hour and can only be used once.\n\nIf you did not request this, contact support immediately.\n\n— AJKMart Support`,
+    });
+    return { sent: true };
+  } catch (err: any) {
+    logger.error(`[EMAIL] Failed to send recovery email to ${email}:`, err?.message);
+    return { sent: false, reason: err?.message };
+  }
+}
+
 export async function sendAdminAlert(
   alertType: AdminAlertType,
   subject: string,

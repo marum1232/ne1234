@@ -79,7 +79,87 @@ router.delete("/sessions/:id", async (req, res) => {
 });
 
 /* ══════════════════════════════════════════════════════════════
-   DELETE /auth/sessions — revoke ALL sessions (remote logout everywhere)
+   POST /auth/sessions/revoke
+   Revoke a specific session by ID, or revoke all except current.
+   Body: { sessionId: string } | { revokeAllExceptCurrent: true }
 ══════════════════════════════════════════════════════════════ */
+
+const RevokeSessionSchema = z.union([
+  z.object({ sessionId: z.string().min(1) }).strict(),
+  z.object({ revokeAllExceptCurrent: z.literal(true) }).strict(),
+]);
+
+router.post("/sessions/revoke", async (req, res) => {
+  try {
+    const auth = extractAuthUser(req);
+    if (!auth) { sendUnauthorized(res, "Authentication required"); return; }
+
+    const parse = RevokeSessionSchema.safeParse(req.body);
+    if (!parse.success) { sendError(res, "Invalid body: provide sessionId or revokeAllExceptCurrent", 400); return; }
+
+    const body = parse.data;
+    const ip = getClientIp(req);
+
+    if ("revokeAllExceptCurrent" in body) {
+      /* Revoke every non-current session for this user */
+      const userSessions = await db
+        .select()
+        .from(userSessionsTable)
+        .where(and(eq(userSessionsTable.userId, auth.userId), isNull(userSessionsTable.revokedAt)))
+        .orderBy(desc(userSessionsTable.lastActiveAt));
+
+      if (userSessions.length === 0) {
+        /* Fallback: if user_sessions table is empty (legacy login path didn't
+           insert rows), bump tokenVersion to invalidate all outstanding JWTs. */
+        await db.update(usersTable)
+          .set({ tokenVersion: sql`token_version + 1`, updatedAt: new Date() })
+          .where(eq(usersTable.id, auth.userId));
+        await revokeAllUserRefreshTokens(auth.userId);
+        writeAuthAuditLog("all_sessions_revoked", { userId: auth.userId, ip, metadata: { fallback: "tokenVersion_bump" } });
+        sendSuccess(res, undefined, "All other sessions invalidated");
+        return;
+      }
+
+      const currentSession = userSessions[0]!;
+      const toRevoke = userSessions.slice(1);
+
+      for (const s of toRevoke) {
+        await db.update(userSessionsTable).set({ revokedAt: new Date() }).where(eq(userSessionsTable.id, s.id));
+        if (s.refreshTokenId) {
+          await db.update(refreshTokensTable).set({ revokedAt: new Date() }).where(eq(refreshTokensTable.id, s.refreshTokenId));
+        }
+      }
+
+      writeAuthAuditLog("sessions_revoked_except_current", {
+        userId: auth.userId,
+        ip,
+        metadata: { keptSessionId: currentSession.id, revokedCount: toRevoke.length },
+      });
+      sendSuccess(res, undefined, `${toRevoke.length} other session(s) revoked`);
+      return;
+    }
+
+    /* Revoke a specific session */
+    const { sessionId } = body;
+    const [session] = await db
+      .select()
+      .from(userSessionsTable)
+      .where(and(eq(userSessionsTable.id, sessionId), eq(userSessionsTable.userId, auth.userId)))
+      .limit(1);
+
+    if (!session) { sendNotFound(res, "Session not found or not owned by you"); return; }
+
+    await db.update(userSessionsTable).set({ revokedAt: new Date() }).where(eq(userSessionsTable.id, sessionId));
+    if (session.refreshTokenId) {
+      await db.update(refreshTokensTable).set({ revokedAt: new Date() }).where(eq(refreshTokensTable.id, session.refreshTokenId));
+    }
+
+    writeAuthAuditLog("session_revoked", { userId: auth.userId, ip, metadata: { sessionId } });
+    sendSuccess(res, undefined, "Session revoked");
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+    res.status(500).json({ success: false, error: "Internal server error" });
+  }
+});
 
 export default router;

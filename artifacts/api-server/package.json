@@ -16,6 +16,7 @@
     "@aws-sdk/client-s3": "^3.1045.0",
     "@google/genai": "^1.44.0",
     "@sentry/node": "^8.55.2",
+    "@types/swagger-jsdoc": "^6.0.4",
     "@workspace/api-zod": "workspace:*",
     "@workspace/auth-utils": "workspace:*",
     "@workspace/db": "workspace:*",
@@ -47,6 +48,7 @@
     "rate-limit-redis": "^4.3.1",
     "sharp": "^0.34.5",
     "socket.io": "^4.8.3",
+    "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1",
     "twilio": "^5.13.1",
     "web-push": "^3.6.7",
@@ -55,6 +57,7 @@
   },
   "devDependencies": {
     "@types/bcryptjs": "^3.0.0",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/compression": "^1.7.5",
     "@types/cookie-parser": "^1.4.10",
     "@types/cors": "^2.8.19",
@@ -77,8 +80,7 @@
     "supertest": "^7.2.2",
     "thread-stream": "3.1.0",
     "tsx": "catalog:",
-    "vitest": "^4.1.5",
-    "@types/better-sqlite3": "^7.6.13"
+    "vitest": "^4.1.5"
   },
   "optionalDependencies": {
     "better-sqlite3": "^11.10.0"

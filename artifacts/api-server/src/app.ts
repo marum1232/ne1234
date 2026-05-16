@@ -739,6 +739,12 @@ export function createServer() {
   app.use("/api", suspiciousPatternDetector);
   app.use("/api", router);
 
+  /* ── API documentation (Swagger UI) ────────────────────────────────────
+     Available in all environments. Protected behind basic auth or admin-gated
+     in production if needed; for now serves read-only docs openly. */
+  const swaggerDocs = (await import("./docs/swagger.js")).default;
+  app.use("/api-docs", swaggerDocs);
+
   /* ── JSON 404 for unmatched /api/* routes ─────────────────────────────── */
   app.use("/api/*path", (req: express.Request, res: express.Response) => {
     res.status(404).json({
