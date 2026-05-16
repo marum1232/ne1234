@@ -22,6 +22,13 @@ export { useTokenRefresh } from './hooks/useTokenRefresh';
 export type { UseTokenRefreshOptions } from './hooks/useTokenRefresh';
 export { useLoginFlow } from './hooks/useLoginFlow';
 export type { UseLoginFlowOptions, LoginMethod, IdentifierCheckResult } from './hooks/useLoginFlow';
+export { useSessionManager } from './hooks/useSessionManager';
+export type {
+  UseSessionManagerOptions,
+  UseSessionManagerResult,
+  Session,
+  LoginHistoryEntry,
+} from './hooks/useSessionManager';
 
 // Components
 export { OtpInput } from './components/OtpInput';
