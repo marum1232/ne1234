@@ -1,4 +1,13 @@
 import { Ionicons } from "@expo/vector-icons";
+/**
+ * This screen is the React Native equivalent of LoginScreen from @workspace/auth-react.
+ * We import only the LoginScreenProps *type* (not the component itself) because
+ * LoginScreen uses HTML elements (div/form/button/input) and cannot render in
+ * React Native. This screen manually implements the same contract using RN
+ * primitives (View/Text/TouchableOpacity/TextInput), keeping full Expo-native
+ * features: biometric, safe-area insets, Ionicons, Expo Router navigation,
+ * offline queue, and OTP bypass support.
+ */
 import type { LoginScreenProps as LoginScreen } from "@workspace/auth-react"; // auth flow follows LoginScreen contract
 import { LinearGradient } from "expo-linear-gradient";
 import { router, type RelativePathString } from "expo-router";

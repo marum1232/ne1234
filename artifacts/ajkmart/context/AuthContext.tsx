@@ -15,6 +15,10 @@ import {
   setRefreshTokenGetter,
   setOnTokenRefreshed,
 } from "@workspace/api-client-react";
+import {
+  decodeJwt as sdkDecodeJwt,
+  AuthProvider as SdkAuthProvider,
+} from "@workspace/auth-react";
 import type { AuthUser as BaseAuthUser } from "@workspace/auth-react";
 
 import { useLanguage } from "./LanguageContext";
@@ -25,6 +29,7 @@ import {
   bootstrapSdkAuth,
   syncAccessToken,
   clearSdkTokens,
+  syncedStorage,
 } from "@/lib/sdkAuthClient";
 
 const log = createLogger("[AuthContext]");
@@ -185,51 +190,19 @@ async function migrateLegacyInsecureTokens(): Promise<boolean> {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-interface JwtClaims {
-  exp: number;
-  iat: number;
-}
-
-function decodeJwtClaims(tok: string): JwtClaims | null {
-  try {
-    const parts = tok.split(".");
-    if (parts.length !== 3) return null;
-
-    const b64Padded = (parts[1] ?? "")
-      .replace(/-/g, "+")
-      .replace(/_/g, "/")
-      .padEnd(
-        (parts[1]?.length ?? 0) + ((4 - ((parts[1]?.length ?? 0) % 4)) % 4),
-        "=",
-      );
-
-    let jsonStr: string;
-    if (typeof atob === "function") {
-      const bytes = new Uint8Array(
-        atob(b64Padded)
-          .split("")
-          .map((c) => c.charCodeAt(0)),
-      );
-      jsonStr = new TextDecoder().decode(bytes);
-    } else {
-      // Node environment - Buffer is available
-      jsonStr = (globalThis as any).Buffer.from(b64Padded, "base64").toString(
-        "utf8",
-      );
-    }
-
-    const payload = JSON.parse(jsonStr);
-    if (typeof payload.exp !== "number" || typeof payload.iat !== "number")
-      return null;
-    return { exp: payload.exp, iat: payload.iat };
-  } catch {
-    return null;
-  }
+/**
+ * Decode exp + iat from a JWT using the shared SDK utility.
+ * Returns null if the token is malformed or missing required claims.
+ */
+function decodeJwtClaims(tok: string): { exp: number; iat: number } | null {
+  const payload = sdkDecodeJwt(tok);
+  if (!payload || typeof payload.exp !== "number" || typeof payload.iat !== "number") return null;
+  return { exp: payload.exp, iat: payload.iat };
 }
 
 /** Decode only the exp claim (for expiry checks). */
 function decodeJwtExp(tok: string): number | null {
-  return decodeJwtClaims(tok)?.exp ?? null;
+  return sdkDecodeJwt(tok)?.exp ?? null;
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -874,30 +847,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const isCustomer = hasRole(user, "customer");
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        token,
-        isLoading,
-        isSuspended,
-        suspendedMessage,
-        biometricEnabled,
-        twoFactorPending,
-        isCustomer,
-        login,
-        logout,
-        updateUser,
-        clearSuspended,
-        setBiometricEnabled,
-        setTwoFactorPending,
-        completeTwoFactorLogin,
-        attemptBiometricLogin,
-        refreshToken,
-        socket: socketState,
-      }}
+    <SdkAuthProvider
+      baseURL={API_BASE}
+      tokenStorage={syncedStorage}
+      refreshEndpoint={`${API_BASE}/auth/refresh`}
     >
-      {children}
-    </AuthContext.Provider>
+      <AuthContext.Provider
+        value={{
+          user,
+          token,
+          isLoading,
+          isSuspended,
+          suspendedMessage,
+          biometricEnabled,
+          twoFactorPending,
+          isCustomer,
+          login,
+          logout,
+          updateUser,
+          clearSuspended,
+          setBiometricEnabled,
+          setTwoFactorPending,
+          completeTwoFactorLogin,
+          attemptBiometricLogin,
+          refreshToken,
+          socket: socketState,
+        }}
+      >
+        {children}
+      </AuthContext.Provider>
+    </SdkAuthProvider>
   );
 }
 

@@ -52,7 +52,7 @@ const CUSTOMER_REFRESH_KEY = 'ajkmart_refresh_token';
 let _accessToken: string | null = null;
 let _refreshToken: string | null = null;
 
-const syncedStorage: TokenStorage = {
+export const syncedStorage: TokenStorage = {
   getAccessToken: () => _accessToken,
   setAccessToken: (t) => { _accessToken = t; },
   removeAccessToken: () => { _accessToken = null; },

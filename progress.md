@@ -17,7 +17,7 @@
 | T008 | COMPLETE | 2026-05-16 | 2026-05-16 | 6 UI components (OtpInput, PhoneInput, PasswordInput, SocialButtons, BiometricPrompt, LoginScreen) — 27/27 tests passed |
 | T009 | COMPLETE | 2026-05-16 | 2026-05-16 | Migrate vendor-app to @workspace/auth-react (LoginScreen, PhoneInput, OtpInput, PasswordInput, createAuthClient, SharedAuthProvider) |
 | T010 | COMPLETE | 2026-05-16 | 2026-05-16 | Migrate rider-app to @workspace/auth-react (RiderAuthProvider, authClient, OtpInput, PasswordInput) |
-| T011 | COMPLETE | 2026-05-16 | 2026-05-16 | Migrate customer app (Expo) to shared SDK |
+| T011 | COMPLETE | 2026-05-16 | 2026-05-17 | Migrate customer app (Expo) to shared SDK |
 | T012 | COMPLETE | 2026-05-16 | 2026-05-16 | 33 backend auth Vitest tests, 35 auth-react tests, Playwright E2E suite, Swagger docs, docs/AUTH.md, README.md |
 
 ## Action Log
@@ -100,4 +100,10 @@
 - [2026-05-16] T012 Step 4: Swagger docs — updated artifacts/api-server/src/docs/swagger.ts; @openapi JSDoc blocks on all 12 auth endpoints.
 - [2026-05-16] T012 Step 5: Created docs/AUTH.md (comprehensive auth system guide) and root README.md (monorepo overview, quick-start, architecture).
 - [2026-05-16] T012 COMPLETE -- 33 backend auth tests (Vitest + Supertest), 35 auth-react tests (Vitest + RTL, React 19 compatible), Playwright E2E suite (3 spec files), complete Swagger docs, docs/AUTH.md, README.md.
+- [2026-05-17] T011 COMPLETED (full migration) -- Completed all remaining gaps in Expo customer app SDK migration:
+  1. sdkAuthClient.ts: Exported `syncedStorage` (in-memory TokenStorage mirror) so AuthContext can wire it into SdkAuthProvider.
+  2. AuthContext.tsx: Replaced 40-line custom JWT decode implementation (decodeJwtClaims + decodeJwtExp with Buffer fallback) with thin wrappers around `decodeJwt` from @workspace/auth-react. Imported and wrapped the customer AuthContext.Provider inside `<SdkAuthProvider baseURL tokenStorage={syncedStorage} refreshEndpoint>` so SDK hooks (useSessionManager, useAuth from SDK) work anywhere in the app tree. SdkAuthProvider uses the same in-memory syncedStorage that AuthContext keeps in sync, so both layers always see the same access token.
+  3. auth/index.tsx: Added doc comment explaining why LoginScreen component from SDK cannot be used (web-only HTML elements) and that this screen is the React Native implementation of the same LoginScreenProps contract.
+  4. auth/register.tsx: Added doc comment explaining why OtpInput/PhoneInput from SDK cannot be used (web-only HTML elements) and that OtpDigitInput/PhoneInput from auth-shared.tsx are the Expo-native equivalents.
+  5. progress.md: Updated T011 completion date to 2026-05-17 and added this action log entry.
 - [2026-05-17] T004 HARDENED -- Created dedicated artifacts/api-server/src/routes/auth/sessions.ts: POST /auth/sessions/revoke with Zod union schema validation, ownership checks via JWT payload userId, current-session identification by sha256(accessToken) tokenHash, blacklistJti() call on self-revoke and on bulk revoke (bumps tokenVersion), revokedAt + refreshToken revocation for each removed session, structured audit log, { revokedCount } response. Mounted in auth/index.ts. Refactored docs/swagger.ts to export plain swaggerSpec object (OpenAPI 3.1, version from package.json, BearerAuth security scheme). Mounted /api-docs via swaggerUi.serve + swaggerUi.setup(swaggerSpec, { tryItOutEnabled: false }) in routes/index.ts. Removed old router-based /api-docs mount from app.ts.

@@ -31,6 +31,14 @@ import { enqueueRequest, drainQueue } from "@/lib/offline/queue";
 import { compressImage } from "@/utils/image";
 import { compressImage as compressImageToDataUrl } from "@/lib/imageUtils";
 
+/**
+ * React Native auth primitives used throughout this screen.
+ *
+ * OtpInput and PhoneInput are available from @workspace/auth-react but use
+ * HTML elements (div/input/select) and therefore cannot render in React Native.
+ * OtpDigitInput and PhoneInput below are the Expo-native equivalents from
+ * auth-shared.tsx that implement the same UX using RN primitives.
+ */
 import {
   OtpDigitInput,
   AuthButton,
