@@ -133,9 +133,13 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
     catch (e: unknown) { setLoginError(e instanceof Error ? e.message : "Facebook sign-in failed"); }
   }, [doLogin]);
 
-  const handleMagicLink = useCallback(async (_identifier: string) => {
-    /* vendor app magic link is handled by the SDK LoginScreen */
-  }, []);
+  const handleMagicLink = useCallback(async (identifier: string) => {
+    try {
+      await api.magicLinkSend(identifier);
+    } catch (e: unknown) {
+      setLoginError(e instanceof Error ? e.message : T("loginFailed"));
+    }
+  }, [T]);
 
   /* ── Overlays ── */
   if (maintenance) return <MaintenanceOverlay message={maintenanceMsg} supportPhone={supportPhone} supportEmail={supportEmail} />;

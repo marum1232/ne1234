@@ -33,7 +33,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
   const { state } = useAdminAuth();
   const { toast } = useToast();
 
-  const [username, setUsername] = useState("superadmin");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [totp, setTotp] = useState("");
@@ -246,12 +246,12 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
           )}
         </div>
 
-        {/* Default creds notice */}
+        {/* Help notice */}
         <div style={{ marginTop: 20, display: "flex", alignItems: "flex-start", gap: 10, borderRadius: 12, border: "1px solid rgba(255,255,255,0.06)", background: "rgba(255,255,255,0.02)", padding: "12px 16px" }}>
           <KeyRound style={{ width: 14, height: 14, color: "rgba(255,255,255,0.25)", flexShrink: 0, marginTop: 2 }} />
           <p style={{ color: "rgba(255,255,255,0.3)", fontSize: 11.5, lineHeight: 1.5, margin: 0 }}>
             {step === "credentials"
-              ? <>Default super-admin — <span style={{ fontWeight: 600, color: "rgba(255,255,255,0.45)" }}>superadmin</span> / <span style={{ fontWeight: 600, color: "rgba(255,255,255,0.45)" }}>Admin@123</span>. Update from the post-login security prompt.</>
+              ? "Contact your administrator if you don't have access."
               : "Don't have your authenticator code? Contact your administrator."}
           </p>
         </div>

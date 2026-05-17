@@ -106,15 +106,17 @@ export function useAuth() {
       try {
         const { getBiometricToken } = await import("../biometric").catch(() => ({} as never));
         if (!getBiometricToken) throw new Error("Biometric not available");
-        const refreshToken = await getBiometricToken();
-        const res = await fetch(`${window.location.origin}/api/auth/refresh`, {
+        const storedRefreshToken = await getBiometricToken();
+        const res = await fetch("/api/auth/refresh", {
           method: "POST", credentials: "include",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ refreshToken }),
+          body: JSON.stringify({ refreshToken: storedRefreshToken }),
         });
         if (!res.ok) throw new Error("Biometric login failed");
         const data = await res.json() as Record<string, unknown>;
-        return { success: true, data: { token: data.token as string, refreshToken } };
+        const token = (data.token ?? data.accessToken) as string | undefined;
+        if (!token) throw new Error("Biometric login failed — no token in response");
+        return { success: true, data: { token, refreshToken: storedRefreshToken } };
       } catch (err: unknown) {
         await captureException(err);
         return { success: false, error: networkError(err) };
@@ -125,14 +127,16 @@ export function useAuth() {
   async function refreshToken(storedRefresh: string): Promise<AuthResult<TokenPair>> {
     return wrap(async () => {
       try {
-        const res = await fetch(`${window.location.origin}/api/auth/refresh`, {
+        const res = await fetch("/api/auth/refresh", {
           method: "POST", credentials: "include",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ refreshToken: storedRefresh }),
         });
-        if (!res.ok) throw new Error("Refresh failed");
+        if (!res.ok) throw new Error("Token refresh failed");
         const data = await res.json() as Record<string, unknown>;
-        return { success: true, data: { token: data.token as string, refreshToken: data.refreshToken as string | undefined } };
+        const token = (data.token ?? data.accessToken) as string | undefined;
+        if (!token) throw new Error("Refresh failed — no token in response");
+        return { success: true, data: { token, refreshToken: data.refreshToken as string | undefined } };
       } catch (err: unknown) {
         await captureException(err);
         return { success: false, error: networkError(err) };
