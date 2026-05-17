@@ -14,6 +14,10 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Linking from "expo-linking";
 import * as WebBrowser from "expo-web-browser";
+import * as Google from "expo-auth-session/providers/google";
+import * as Facebook from "expo-auth-session/providers/facebook";
+
+WebBrowser.maybeCompleteAuthSession();
 
 import Colors, { spacing, radii, shadows, typography } from "@/constants/colors";
 import { useAuth, type AppUser } from "@/context/AuthContext";
@@ -258,27 +262,51 @@ export default function AuthScreen() {
 
   const showBiometric = authConfig.allowBiometric && biometricEnabled;
 
-  /* Social login — OAuth via expo-web-browser, delegated to host app so
-     LoginScreen.native.tsx stays free of OAuth/deep-link dependencies. */
+  /* ── Social login via expo-auth-session (token-exchange with backend) ──────
+     Hooks run at component level; handleSocialLogin calls promptAsync to start
+     the OAuth flow. Responses are processed in useEffect → POSTed to the
+     backend token-exchange endpoints (/api/auth/social/google|facebook). */
+  const [, googleResponse, promptGoogleAsync] = Google.useAuthRequest({
+    clientId: authConfig.googleClientId,
+    iosClientId: authConfig.googleClientId,
+    androidClientId: authConfig.googleClientId,
+    scopes: ["openid", "profile", "email"],
+  });
+  const [, fbResponse, promptFacebookAsync] = Facebook.useAuthRequest({
+    clientId: authConfig.facebookAppId,
+    scopes: ["email", "public_profile"],
+  });
+
+  useEffect(() => {
+    if (googleResponse?.type !== "success") return;
+    const idToken = googleResponse.authentication?.idToken;
+    const accessToken = googleResponse.authentication?.accessToken;
+    if (!idToken && !accessToken) { setError("Google sign-in failed. Try again."); return; }
+    setLoading(true);
+    authPost("/auth/social/google", { idToken: idToken ?? accessToken, role: "customer" })
+      .then((res) => handleLoginResult(res))
+      .catch((e: unknown) => setError(e instanceof Error ? e.message : "Google login failed."))
+      .finally(() => setLoading(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [googleResponse]);
+
+  useEffect(() => {
+    if (fbResponse?.type !== "success") return;
+    const accessToken = fbResponse.authentication?.accessToken;
+    if (!accessToken) { setError("Facebook sign-in failed. Try again."); return; }
+    setLoading(true);
+    authPost("/auth/social/facebook", { accessToken, role: "customer" })
+      .then((res) => handleLoginResult(res))
+      .catch((e: unknown) => setError(e instanceof Error ? e.message : "Facebook login failed."))
+      .finally(() => setLoading(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fbResponse]);
+
   const handleSocialLogin = async (provider: "google" | "facebook") => {
+    clearError();
     try {
-      const callbackUrl = Linking.createURL("/auth/callback");
-      const oauthUrl = `${API}/auth/oauth/${provider}/mobile?role=customer&redirectUri=${encodeURIComponent(callbackUrl)}`;
-      const result = await WebBrowser.openAuthSessionAsync(oauthUrl, callbackUrl);
-      if (result.type !== "success") return;
-      const parsed = Linking.parse(result.url);
-      const token = parsed.queryParams?.token as string | undefined;
-      const refreshToken = parsed.queryParams?.refreshToken as string | undefined;
-      const errorMsg = parsed.queryParams?.error as string | undefined;
-      if (errorMsg) { setError(decodeURIComponent(errorMsg)); return; }
-      if (!token) { setError("Social login failed. Please try again."); return; }
-      const rawUser = await fetch(`${API}/auth/me`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const userJson = await rawUser.json();
-      const user: AppUser | null = userJson?.data ?? userJson?.user ?? null;
-      if (!user) { setError("Could not retrieve user after social login."); return; }
-      await handleLoginResult({ user, token, refreshToken });
+      if (provider === "google") await promptGoogleAsync();
+      else await promptFacebookAsync();
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Social login failed.");
     }
@@ -286,10 +314,10 @@ export default function AuthScreen() {
 
   /* Social method buttons derived from platform config — only show enabled providers */
   const socialMethods = [
-    ...(authConfig.allowGoogle
+    ...(authConfig.allowGoogle && authConfig.googleClientId
       ? [{ key: "google", label: "Google", color: "#4285F4" }]
       : []),
-    ...(authConfig.allowFacebook
+    ...(authConfig.allowFacebook && authConfig.facebookAppId
       ? [{ key: "facebook", label: "Facebook", color: "#1877F2" }]
       : []),
   ];
