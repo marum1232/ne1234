@@ -18,7 +18,7 @@
 | T009 | COMPLETE | 2026-05-16 | 2026-05-16 | Migrate vendor-app to @workspace/auth-react (LoginScreen, PhoneInput, OtpInput, PasswordInput, createAuthClient, SharedAuthProvider) |
 | T010 | COMPLETE | 2026-05-16 | 2026-05-16 | Migrate rider-app to @workspace/auth-react (RiderAuthProvider, authClient, OtpInput, PasswordInput) |
 | T011 | COMPLETE | 2026-05-16 | 2026-05-16 | Migrate customer app (Expo) to shared SDK |
-| T012 | PENDING | - | - | - |
+| T012 | COMPLETE | 2026-05-16 | 2026-05-16 | 33 backend auth Vitest tests, 35 auth-react tests, Playwright E2E suite, Swagger docs, docs/AUTH.md, README.md |
 
 ## Action Log
 
@@ -93,3 +93,10 @@
 - [2026-05-16] T011 Step 5: Updated artifacts/ajkmart/context/AuthContext.tsx — added import of bootstrapSdkAuth, syncAccessToken, clearSdkTokens from @/lib/sdkAuthClient; added useEffect that syncs token state → syncAccessToken(token) on every token change; added bootstrapSdkAuth() call at top of loadAuth() effect; added clearSdkTokens() to doLogout() before SecureStore wipe.
 - [2026-05-16] T011 Step 6: Fixed lib/auth-react/tsconfig.json — changed include to ["src/**/*.ts","src/**/*.tsx"] for tsup DTS compatibility. Added tsconfig.build.json (composite: false) used by tsup so project references (composite: true) and DTS build don't conflict. Updated build/dev scripts to use --tsconfig tsconfig.build.json. Build verified: dist/index.cjs 71.89 KB, dist/index.js 65.94 KB, dist/index.d.ts 12.22 KB — no TS errors.
 - [2026-05-16] T011 COMPLETE -- @workspace/auth-react fully wired into Expo customer app. AuthContext keeps SDK token cache in sync. useSessionManager available for profile/settings screens via import from @/lib/sdkAuthClient. LoginScreen/OtpInput/etc. from shared SDK intentionally not used in React Native (they are web-HTML-only; customer app uses its own native auth UI components from @/components/auth-shared which are already production-quality). getAuthClient() available for future API modules that want the shared retry/backoff client.
+- [2026-05-16] T012 IN PROGRESS -- Comprehensive tests & documentation.
+- [2026-05-16] T012 Step 1: Backend auth route tests (artifacts/api-server/tests/auth/) — 4 test files (identifier.test.ts 8 tests, otp.test.ts 9 tests, refresh.test.ts 8 tests, two-factor.test.ts 8 tests). All 33 pass. Uses Vitest + Supertest with a full mock layer for DB, Redis, and shared helpers.
+- [2026-05-16] T012 Step 2: auth-react library tests (lib/auth-react/tests/) — 35 tests across useLoginFlow.test.ts (11), LoginScreen.test.tsx (10), OtpInput.test.tsx (13+1 new). Fixed React 19 + @testing-library/react compatibility (inline deps, IS_REACT_ACT_ENVIRONMENT, development resolve conditions). Fixed fake-timer + waitFor deadlock in OtpInput resend test.
+- [2026-05-16] T012 Step 3: Playwright E2E suite (e2e/) — playwright.config.ts, auth.spec.ts (login flow), vendor-auth.spec.ts, rider-auth.spec.ts.
+- [2026-05-16] T012 Step 4: Swagger docs — updated artifacts/api-server/src/docs/swagger.ts; @openapi JSDoc blocks on all 12 auth endpoints.
+- [2026-05-16] T012 Step 5: Created docs/AUTH.md (comprehensive auth system guide) and root README.md (monorepo overview, quick-start, architecture).
+- [2026-05-16] T012 COMPLETE -- 33 backend auth tests (Vitest + Supertest), 35 auth-react tests (Vitest + RTL, React 19 compatible), Playwright E2E suite (3 spec files), complete Swagger docs, docs/AUTH.md, README.md.

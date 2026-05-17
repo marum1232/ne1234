@@ -13,7 +13,8 @@ export default defineConfig({
     environment: "node",
     testTimeout: 20000,
     hookTimeout: 30000,
-    include: ["src/tests/**/*.test.ts"],
+    include: ["src/tests/**/*.test.ts", "tests/**/*.test.ts"],
+    setupFiles: ["tests/setup.ts"],
     reporters: ["verbose"],
     // Override NODE_ENV so production-fatal guards (process.exit calls) are
     // skipped during test runs — Replit sets NODE_ENV=production globally.
