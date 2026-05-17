@@ -239,14 +239,14 @@ export default function AuthMethodsPage() {
   /* Super admin MFA toggle — reads/writes security_super_admin_mfa_required */
   const superAdminMfaOn = localValues["security_super_admin_mfa_required"] === "on";
 
-  /* Rotate Master Secret — calls POST /api/admin/system/rotate-secret */
+  /* Rotate Master Secret — calls POST /api/admin/auth/rotate-secret */
   const handleRotateSecret = useCallback(async () => {
     if (!window.confirm(
       "This will immediately rotate the master admin secret and notify all active admins by email.\n\nYou will need to use the new secret for your next login. Continue?"
     )) return;
     setRotatingSecret(true);
     try {
-      const data = await adminFetch("/system/rotate-secret", { method: "POST" });
+      const data = await adminFetch("/auth/rotate-secret", { method: "POST" });
       toast({
         title: "Master secret rotated",
         description: data?.message ?? "New secret is now active. All admins notified.",

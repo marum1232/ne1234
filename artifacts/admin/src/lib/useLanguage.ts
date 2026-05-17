@@ -48,7 +48,7 @@ export function useLanguage() {
       }
 
       try {
-        const data = await adminFetch("/me/language");
+        const data = await adminFetch("/auth/me/language");
         const serverLang: string | null = data?.language ?? null;
         if (serverLang && VALID_LANGS.has(serverLang)) {
           setLang(serverLang as Language);
@@ -91,7 +91,7 @@ export function useLanguage() {
     applyRTL(lang);
     safeLocalSet(STORAGE_KEY, lang);
     try {
-      await adminFetch("/me/language", { method: "PUT", body: JSON.stringify({ language: lang }) });
+      await adminFetch("/auth/me/language", { method: "PUT", body: JSON.stringify({ language: lang }) });
     } catch (err) {
       log.error("/me/language PUT failed:", err);
     }

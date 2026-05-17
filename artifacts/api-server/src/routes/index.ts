@@ -104,11 +104,11 @@ router.use("/admin/system", systemRouter);
 // Sentry webhook is public (HMAC-verified) — must be mounted BEFORE adminRouter
 // so it is NOT intercepted by adminAuth. The route is POST /admin/sentry-webhook.
 router.use(sentryWebhookRouter);
-// admin-auth-v2 owns the public /api/admin/auth/* surface (forgot-password,
-// reset-password, reset-password/validate). Mount it BEFORE the legacy
-// adminRouter so its public endpoints are not shadowed by adminRouter's
-// blanket `adminAuth` middleware.
-router.use("/admin", adminAuthV2Router);
+// admin-auth-v2 owns the entire /api/admin/auth/* surface. Mount it BEFORE
+// the resource adminRouter so its public endpoints (forgot-password,
+// reset-password, login) are not shadowed by adminRouter's blanket
+// `adminAuth` middleware. The more-specific prefix wins in Express.
+router.use("/admin/auth", adminAuthV2Router);
 router.use("/admin", adminRouter);
 router.use("/platform-config", platformConfigRouter);
 router.use("/rider", riderRouter);

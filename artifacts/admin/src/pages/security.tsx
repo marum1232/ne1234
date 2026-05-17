@@ -204,7 +204,7 @@ export default function SecurityPage() {
   /* ── Load MFA status ── */
   const fetchMfaStatus = useCallback(async () => {
     try {
-      const data = await fetchAdminAbsolute(`/api/admin/mfa/status`);
+      const data = await fetchAdminAbsolute(`/api/admin/auth/mfa/status`);
       setMfaStatus(data);
     } catch (err) {
       toast({ title: "Could not load MFA status", description: "Auth settings may be unavailable.", variant: "destructive" });
@@ -362,7 +362,7 @@ export default function SecurityPage() {
   const startMfaSetup = async () => {
     setMfaLoading(true);
     try {
-      const data = await fetchAdminAbsolute(`/api/admin/mfa/setup`, { method: "POST" });
+      const data = await fetchAdminAbsolute(`/api/admin/auth/mfa/setup`, { method: "POST" });
       if (data.secret) { setMfaSetupData(data); setMfaToken(""); }
       else toast({ title: "Error", description: data.error ?? "Failed to start MFA setup", variant: "destructive" });
     } catch {
@@ -378,7 +378,7 @@ export default function SecurityPage() {
     }
     setMfaLoading(true);
     try {
-      const data = await fetchAdminAbsolute(`/api/admin/mfa/verify`, {
+      const data = await fetchAdminAbsolute(`/api/admin/auth/mfa/verify`, {
         method: "POST", body: JSON.stringify({ token: mfaToken }),
       });
       if (data.success) {
@@ -400,7 +400,7 @@ export default function SecurityPage() {
     }
     setMfaLoading(true);
     try {
-      const data = await fetchAdminAbsolute(`/api/admin/mfa/disable`, {
+      const data = await fetchAdminAbsolute(`/api/admin/auth/mfa/disable`, {
         method: "DELETE", body: JSON.stringify({ token: disableToken }),
       });
       if (data.success) {

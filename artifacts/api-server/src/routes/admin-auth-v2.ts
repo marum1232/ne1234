@@ -17,7 +17,7 @@ import { logger } from '../lib/logger.js';
 import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
 import { db } from '@workspace/db';
-import { adminAccountsTable, usersTable, ordersTable, walletTransactionsTable, productsTable } from '@workspace/db/schema';
+import { adminAccountsTable, usersTable, ordersTable, walletTransactionsTable, productsTable, platformSettingsTable } from '@workspace/db/schema';
 import { eq, count, and, sql } from 'drizzle-orm';
 import {
   adminLogin,
@@ -46,6 +46,18 @@ import {
 import { verify2faChallengeToken } from '../utils/admin-jwt.js';
 import { verifyRefreshToken } from '../utils/admin-jwt.js';
 import { adminAuthLimiter } from '../middleware/rate-limit.js';
+import {
+  adminAuth,
+  addAuditEntry,
+  generateTotpSecret,
+  generateQRCodeDataURL,
+  getTotpUri,
+  verifyTotpToken,
+  invalidateSettingsCache,
+  getAdminSecret,
+  type AdminRequest,
+} from './admin-shared.js';
+import { writeAuthAuditLog } from '../middleware/security.js';
 
 const router = Router();
 
@@ -161,7 +173,7 @@ function buildAdminResetUrl(rawToken: string): string {
  * combination of rate-limiting + password verification provides equivalent
  * protection against CSRF-based credential-stuffing.
  */
-router.post('/auth/login', adminAuthLimiter, loginLimiter, async (req: Request, res: Response) => {
+router.post('/login', adminAuthLimiter, loginLimiter, async (req: Request, res: Response) => {
   try {
   const ip = getClientIp(req);
   const userAgent = req.headers['user-agent'];
@@ -268,7 +280,7 @@ router.post('/auth/login', adminAuthLimiter, loginLimiter, async (req: Request, 
  * tempToken (not a session cookie), so no CSRF token can have been issued yet.
  * The tempToken itself acts as a bound proof-of-login-attempt.
  */
-router.post('/auth/2fa', adminAuthLimiter, verifyTotpLimiter, async (req: Request, res: Response) => {
+router.post('/2fa', adminAuthLimiter, verifyTotpLimiter, async (req: Request, res: Response) => {
   try {
   const ip = getClientIp(req);
   const userAgent = req.headers['user-agent'];
@@ -377,7 +389,7 @@ router.post('/auth/2fa', adminAuthLimiter, verifyTotpLimiter, async (req: Reques
  * No JSON body parameters carry any privileged side effects — the only input is the
  * HttpOnly cookie which browsers will not attach from a third-party context.
  */
-router.post('/auth/refresh', async (req: Request, res: Response) => {
+router.post('/refresh', async (req: Request, res: Response) => {
   try {
   const ip = getClientIp(req);
   const userAgent = req.headers['user-agent'];
@@ -463,7 +475,7 @@ router.post('/auth/refresh', async (req: Request, res: Response) => {
  * Return the authenticated admin's profile (used by the SPA to learn whether
  * the must-change-password flag is set on the current session).
  */
-router.get('/auth/me', authenticateAdmin, async (req: Request, res: Response) => {
+router.get('/me', authenticateAdmin, async (req: Request, res: Response) => {
   try {
   const adminId = req.admin?.sub;
   if (!adminId) { res.status(401).json({ error: 'Unauthorized' }); return; }
@@ -501,7 +513,7 @@ router.get('/auth/me', authenticateAdmin, async (req: Request, res: Response) =>
  * Logout and revoke current session
  */
 router.post(
-  '/auth/logout',
+  '/logout',
   authenticateAdmin,
   csrfProtection,
   async (req: Request, res: Response) => {
@@ -553,7 +565,7 @@ router.post(
  * making a CSRF attack against this endpoint entirely useless.
  */
 router.post(
-  '/auth/forgot-password',
+  '/forgot-password',
   adminAuthLimiter,
   forgotPasswordLimiter,
   async (req: Request, res: Response) => {
@@ -662,7 +674,7 @@ router.post(
  * consumed by this endpoint.
  */
 router.get(
-  '/auth/reset-password/validate',
+  '/reset-password/validate',
   adminAuthLimiter,
   resetPasswordLimiter,
   async (req: Request, res: Response) => {
@@ -720,7 +732,7 @@ router.get(
  * email) to call this endpoint with any effect. CSRF protection would add nothing.
  */
 router.post(
-  '/auth/reset-password',
+  '/reset-password',
   adminAuthLimiter,
   resetPasswordLimiter,
   async (req: Request, res: Response) => {
@@ -797,7 +809,7 @@ router.post(
  * even when the access token carries the `mpc` claim.
  */
 router.post(
-  '/auth/change-password',
+  '/change-password',
   changePasswordLimiter,
   authenticateAdmin,
   csrfProtection,
@@ -902,7 +914,7 @@ router.post(
  * Requires valid access token
  */
 router.get(
-  '/auth/sessions',
+  '/sessions',
   authenticateAdmin,
   async (req: Request, res: Response) => {
     try {
@@ -937,7 +949,7 @@ router.get(
  * Revoke a specific session
  */
 router.delete(
-  '/auth/sessions/:sessionId',
+  '/sessions/:sessionId',
   authenticateAdmin,
   csrfProtection,
   async (req: Request, res: Response) => {
@@ -975,7 +987,7 @@ router.delete(
  * Returns 200 on success, 401 on wrong password.
  */
 router.post(
-  '/auth/verify-password',
+  '/verify-password',
   authenticateAdmin,
   csrfProtection,
   async (req: Request, res: Response) => {
@@ -1041,7 +1053,7 @@ router.post(
  * (Logout from all devices)
  */
 router.delete(
-  '/auth/sessions',
+  '/sessions',
   authenticateAdmin,
   csrfProtection,
   async (req: Request, res: Response) => {
@@ -1066,64 +1078,11 @@ router.delete(
   }
 );
 
-/**
- * GET /api/admin/pending-counts
- * Returns sidebar badge counts for pending riders, orders, withdrawals, and deposits.
- * Single DB round-trip using parallel queries.
- */
-router.get(
-  '/pending-counts',
-  authenticateAdmin,
-  async (_req: Request, res: Response) => {
-    try {
-      const [[pendingRiders], [pendingOrders], [pendingWithdrawals], [pendingDeposits], [pendingProducts]] =
-        await Promise.all([
-          db.select({ count: count() })
-            .from(usersTable)
-            .where(and(
-              eq(usersTable.approvalStatus, 'pending'),
-              sql`roles LIKE '%rider%'`,
-            )),
-          db.select({ count: count() })
-            .from(ordersTable)
-            .where(eq(ordersTable.status, 'pending')),
-          db.select({ count: count() })
-            .from(walletTransactionsTable)
-            .where(and(
-              eq(walletTransactionsTable.type, 'withdrawal'),
-              eq(walletTransactionsTable.reference, 'pending'),
-            )),
-          db.select({ count: count() })
-            .from(walletTransactionsTable)
-            .where(and(
-              sql`type IN ('topup', 'deposit')`,
-              eq(walletTransactionsTable.reference, 'pending'),
-            )),
-          db.select({ count: count() })
-            .from(productsTable)
-            .where(and(
-              eq(productsTable.approvalStatus, 'pending'),
-              sql`deleted_at IS NULL`,
-            )),
-        ]);
-      res.json({
-        pendingRiders:     Number(pendingRiders?.count     ?? 0),
-        pendingOrders:     Number(pendingOrders?.count     ?? 0),
-        pendingWithdrawals: Number(pendingWithdrawals?.count ?? 0),
-        pendingDeposits:   Number(pendingDeposits?.count   ?? 0),
-        pendingProducts:   Number(pendingProducts?.count   ?? 0),
-      });
-    } catch (err) {
-      logger.warn({ err }, '[pending-counts] query failed');
-      res.json({ pendingRiders: 0, pendingOrders: 0, pendingWithdrawals: 0, pendingDeposits: 0, pendingProducts: 0 });
-    }
-  }
-);
 
 
 // Account recovery endpoint - allows admins to recover locked/suspended accounts
 router.post(
-  '/auth/recovery',
+  '/recovery',
   adminAuthLimiter,
   authenticateAdmin,
   async (req: Request, res: Response) => {
@@ -1152,5 +1111,308 @@ router.post(
     }
   }
 );
+
+/* ── Account-management routes moved from legacy admin/system/auth.ts ──── */
+
+/**
+ * POST /api/admin/auth/rotate-secret
+ * Super admin only. Rotates the master admin secret at runtime without restart.
+ */
+router.post("/rotate-secret", adminAuth, csrfProtection, async (req, res) => {
+  const adminReq = req as AdminRequest;
+  const adminRole = adminReq.adminRole;
+  if (adminRole !== "super") {
+    res.status(403).json({ error: "Only super admin can rotate the master secret." });
+    return;
+  }
+
+  const { newSecret } = req.body as { newSecret?: string };
+  if (!newSecret || newSecret.length < 32) {
+    res.status(400).json({ error: "New secret must be at least 32 characters." });
+    return;
+  }
+
+  const ip = getClientIp(req);
+
+  const { randomBytes } = await import("crypto");
+  const rotatedSecret = randomBytes(48).toString("hex");
+
+  const { setAdminSecretRuntime } = await import("../lib/runtime-config.js");
+  setAdminSecretRuntime(rotatedSecret);
+
+  try {
+    await db
+      .insert(platformSettingsTable)
+      .values({ key: "admin_secret_override", value: rotatedSecret, category: "security", label: "Admin Secret Override" })
+      .onConflictDoUpdate({ target: platformSettingsTable.key, set: { value: rotatedSecret, updatedAt: new Date() } });
+    invalidateSettingsCache();
+  } catch (persistErr) {
+    logger.warn({ err: persistErr }, "[rotate-secret] Failed to persist new secret to DB — in-memory only until restart");
+  }
+
+  try {
+    const { sendEmail } = await import("../services/email.js");
+    const activeAdmins = await db
+      .select({ email: adminAccountsTable.email, name: adminAccountsTable.name })
+      .from(adminAccountsTable)
+      .where(eq(adminAccountsTable.isActive, true));
+    const rotatedAt = new Date().toISOString();
+    await Promise.allSettled(
+      activeAdmins.filter(a => a.email).map(a =>
+        sendEmail({
+          to: a.email!,
+          subject: "Security Alert: Admin Master Secret Rotated",
+          html: `<p>Hello ${a.name},</p><p>The AJKMart admin master secret has been <strong>rotated</strong> by a super-admin on ${rotatedAt} from IP <code>${ip}</code>.</p><p>If you did not authorise this action, please investigate immediately.</p>`,
+        })
+      )
+    );
+  } catch (emailErr) {
+    logger.warn({ err: emailErr }, "[rotate-secret] Email notification failed — rotation still applied");
+  }
+
+  await addAuditEntry({
+    action: "admin_secret_rotated",
+    ip,
+    details: "Master admin secret rotated at runtime — in-memory and DB updated",
+    result: "success",
+  });
+  writeAuthAuditLog("admin_secret_rotation", {
+    ip,
+    metadata: { note: "Secret rotated in-memory and persisted to platform_settings" },
+  });
+
+  res.json({
+    success: true,
+    message: "Master secret rotated successfully. All active admins have been notified by email. No restart required.",
+    rotatedAt: new Date().toISOString(),
+  });
+});
+
+/**
+ * GET /api/admin/auth/me/language
+ * Return the authenticated admin's saved language preference.
+ */
+router.get("/me/language", adminAuth, async (req, res) => {
+  const adminReq = req as AdminRequest;
+  const adminId = adminReq.adminId;
+  if (!adminId) {
+    res.json({ language: null });
+    return;
+  }
+  const [admin] = await db
+    .select({ language: adminAccountsTable.language })
+    .from(adminAccountsTable)
+    .where(eq(adminAccountsTable.id, adminId))
+    .limit(1);
+  res.json({ language: admin?.language ?? null });
+});
+
+/**
+ * PUT /api/admin/auth/me/language
+ * Save the authenticated admin's language preference.
+ */
+router.put("/me/language", adminAuth, csrfProtection, async (req, res) => {
+  const adminReq = req as AdminRequest;
+  const adminId = adminReq.adminId;
+  if (!adminId) {
+    res.json({ success: false, note: "Super admin language is managed locally" });
+    return;
+  }
+  const { language } = req.body as { language?: string };
+  if (!language) {
+    res.status(400).json({ error: "language required" });
+    return;
+  }
+  const VALID = new Set(["en", "ur", "roman", "en_roman", "en_ur"]);
+  if (!VALID.has(language)) {
+    res.status(400).json({ error: "Invalid language" });
+    return;
+  }
+  await db
+    .update(adminAccountsTable)
+    .set({ language })
+    .where(eq(adminAccountsTable.id, adminId));
+  res.json({ success: true, language });
+});
+
+/**
+ * GET /api/admin/auth/mfa/status
+ * Check if MFA is set up for the current sub-admin.
+ */
+router.get("/mfa/status", adminAuth, async (req, res) => {
+  const adminReq = req as AdminRequest;
+  const adminId = adminReq.adminId;
+  if (!adminId) {
+    res.json({ mfaEnabled: false, note: "Super admin does not use TOTP." });
+    return;
+  }
+  const [admin] = await db
+    .select()
+    .from(adminAccountsTable)
+    .where(eq(adminAccountsTable.id, adminId))
+    .limit(1);
+  if (!admin) {
+    res.status(404).json({ error: "Admin account not found" });
+    return;
+  }
+  res.json({
+    mfaEnabled: admin.totpEnabled,
+    totpConfigured: !!admin.totpSecret,
+  });
+});
+
+/**
+ * POST /api/admin/auth/mfa/setup
+ * Generate a TOTP secret and QR code (step 1 of MFA setup).
+ */
+router.post("/mfa/setup", adminAuth, csrfProtection, async (req, res) => {
+  const adminReq = req as AdminRequest;
+  const adminId = adminReq.adminId;
+  const adminName = adminReq.adminName ?? "Admin";
+  if (!adminId) {
+    res.status(400).json({ error: "Super admin does not need TOTP setup." });
+    return;
+  }
+
+  const secret = generateTotpSecret();
+  const qrCodeUrl = await generateQRCodeDataURL(secret, adminName);
+  const otpUri = getTotpUri(secret, adminName);
+
+  await db
+    .update(adminAccountsTable)
+    .set({ totpSecret: secret, totpEnabled: false })
+    .where(eq(adminAccountsTable.id, adminId));
+
+  await addAuditEntry({
+    action: "mfa_setup_initiated",
+    ip: adminReq.adminIp ?? getClientIp(req),
+    adminId,
+    details: `MFA setup started for ${adminName}`,
+    result: "success",
+  });
+
+  res.json({
+    secret,
+    otpUri,
+    qrCodeDataUrl: qrCodeUrl,
+    instructions: "Scan the QR code with Google Authenticator or Authy. Then call POST /api/admin/auth/mfa/verify with a valid token to activate MFA.",
+  });
+});
+
+/**
+ * POST /api/admin/auth/mfa/verify
+ * Verify a TOTP token to activate MFA (step 2 of MFA setup).
+ */
+router.post("/mfa/verify", adminAuth, csrfProtection, async (req, res) => {
+  const adminReq = req as AdminRequest;
+  const adminId = adminReq.adminId;
+  const adminName = adminReq.adminName ?? "Admin";
+  if (!adminId) {
+    res.status(400).json({ error: "Super admin does not use TOTP." });
+    return;
+  }
+
+  const { token } = req.body as { token?: string };
+  if (!token) {
+    res.status(400).json({ error: "token is required" });
+    return;
+  }
+
+  const [admin] = await db
+    .select()
+    .from(adminAccountsTable)
+    .where(eq(adminAccountsTable.id, adminId))
+    .limit(1);
+  if (!admin || !admin.totpSecret) {
+    res.status(400).json({ error: "TOTP not set up yet. Call POST /api/admin/auth/mfa/setup first." });
+    return;
+  }
+
+  if (admin.totpEnabled) {
+    res.json({ success: true, message: "MFA is already active." });
+    return;
+  }
+
+  const valid = await verifyTotpToken(token, admin.totpSecret);
+  if (!valid) {
+    await addAuditEntry({
+      action: "mfa_verify_failed",
+      ip: adminReq.adminIp ?? getClientIp(req),
+      adminId,
+      details: `MFA verify failed for ${adminName}`,
+      result: "fail",
+    });
+    res.status(401).json({ error: "Invalid TOTP token. Please try again." });
+    return;
+  }
+
+  await db
+    .update(adminAccountsTable)
+    .set({ totpEnabled: true })
+    .where(eq(adminAccountsTable.id, adminId));
+
+  await addAuditEntry({
+    action: "mfa_activated",
+    ip: adminReq.adminIp ?? getClientIp(req),
+    adminId,
+    details: `MFA activated for ${adminName}`,
+    result: "success",
+  });
+
+  res.json({
+    success: true,
+    message: "MFA successfully activated. You must now provide x-admin-totp with every request when global MFA is enabled.",
+  });
+});
+
+/**
+ * DELETE /api/admin/auth/mfa/disable
+ * Disable MFA (requires current valid TOTP or super admin).
+ */
+router.delete("/mfa/disable", adminAuth, csrfProtection, async (req, res) => {
+  const adminReq = req as AdminRequest;
+  const adminId = adminReq.adminId;
+  const adminName = adminReq.adminName ?? "Admin";
+  if (!adminId) {
+    res.status(400).json({ error: "Super admin does not use TOTP." });
+    return;
+  }
+
+  const { token } = req.body as { token?: string };
+  const [admin] = await db
+    .select()
+    .from(adminAccountsTable)
+    .where(eq(adminAccountsTable.id, adminId))
+    .limit(1);
+  if (!admin) {
+    res.status(404).json({ error: "Admin not found" });
+    return;
+  }
+
+  if (admin.totpEnabled && admin.totpSecret) {
+    if (!token || !(await verifyTotpToken(token, admin.totpSecret))) {
+      res.status(401).json({ error: "Valid TOTP token required to disable MFA." });
+      return;
+    }
+  }
+
+  await db
+    .update(adminAccountsTable)
+    .set({ totpSecret: null, totpEnabled: false })
+    .where(eq(adminAccountsTable.id, adminId));
+
+  await addAuditEntry({
+    action: "mfa_disabled",
+    ip: adminReq.adminIp ?? getClientIp(req),
+    adminId,
+    details: `MFA disabled for ${adminName}`,
+    result: "warn",
+  });
+
+  res.json({
+    success: true,
+    message: "MFA has been disabled for your account.",
+  });
+});
 
 export default router;

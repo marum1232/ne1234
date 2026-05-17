@@ -1,7 +1,10 @@
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type Request, type Response } from "express";
 import { adminAuth } from "./admin-shared.js";
 import { csrfProtection } from "../middleware/admin-auth.js";
-import authRoutes from "./admin/system/auth.js";
+import { db } from "@workspace/db";
+import { usersTable, ordersTable, walletTransactionsTable, productsTable } from "@workspace/db/schema";
+import { count, and, eq, sql } from "drizzle-orm";
+import { logger } from "../lib/logger.js";
 import usersRoutes from "./admin/system/users.js";
 import rbacRoutes from "./admin/system/rbac.js";
 import ordersRoutes from "./admin/orders.js";
@@ -64,8 +67,6 @@ export { ensureLaunchData };
 
 const router: IRouter = Router();
 
-router.use(authRoutes);
-
 router.use(adminAuth);
 router.use(csrfProtection);
 
@@ -105,5 +106,55 @@ router.use("/whitelist", whitelistRoutes);
 router.use(inventorySettingsRoutes);
 router.use(securityRoutes);
 router.use(broadcastsRoutes);
+
+/**
+ * GET /api/admin/pending-counts
+ * Returns sidebar badge counts for pending riders, orders, withdrawals, and deposits.
+ * Protected by the blanket adminAuth middleware above.
+ */
+router.get("/pending-counts", async (_req: Request, res: Response) => {
+  try {
+    const [[pendingRiders], [pendingOrders], [pendingWithdrawals], [pendingDeposits], [pendingProducts]] =
+      await Promise.all([
+        db.select({ count: count() })
+          .from(usersTable)
+          .where(and(
+            eq(usersTable.approvalStatus, "pending"),
+            sql`roles LIKE '%rider%'`,
+          )),
+        db.select({ count: count() })
+          .from(ordersTable)
+          .where(eq(ordersTable.status, "pending")),
+        db.select({ count: count() })
+          .from(walletTransactionsTable)
+          .where(and(
+            eq(walletTransactionsTable.type, "withdrawal"),
+            eq(walletTransactionsTable.reference, "pending"),
+          )),
+        db.select({ count: count() })
+          .from(walletTransactionsTable)
+          .where(and(
+            sql`type IN ('topup', 'deposit')`,
+            eq(walletTransactionsTable.reference, "pending"),
+          )),
+        db.select({ count: count() })
+          .from(productsTable)
+          .where(and(
+            eq(productsTable.approvalStatus, "pending"),
+            sql`deleted_at IS NULL`,
+          )),
+      ]);
+    res.json({
+      pendingRiders:      Number(pendingRiders?.count      ?? 0),
+      pendingOrders:      Number(pendingOrders?.count      ?? 0),
+      pendingWithdrawals: Number(pendingWithdrawals?.count  ?? 0),
+      pendingDeposits:    Number(pendingDeposits?.count    ?? 0),
+      pendingProducts:    Number(pendingProducts?.count    ?? 0),
+    });
+  } catch (err) {
+    logger.warn({ err }, "[pending-counts] query failed");
+    res.json({ pendingRiders: 0, pendingOrders: 0, pendingWithdrawals: 0, pendingDeposits: 0, pendingProducts: 0 });
+  }
+});
 
 export default router;
