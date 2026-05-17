@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 
 export interface SocialButtonsProps {
   onGoogle?: () => void;
@@ -49,6 +49,17 @@ const s = {
   },
 };
 
+let _spinKeyframeInjected = false;
+
+function ensureSpinKeyframe() {
+  if (_spinKeyframeInjected) return;
+  if (typeof document === 'undefined') return;
+  const style = document.createElement('style');
+  style.textContent = '@keyframes spin { to { transform: rotate(360deg); } }';
+  document.head.appendChild(style);
+  _spinKeyframeInjected = true;
+}
+
 function GoogleIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
@@ -81,11 +92,14 @@ export function SocialButtons({
   className,
   label = 'Or continue with',
 }: SocialButtonsProps) {
+  useEffect(() => {
+    ensureSpinKeyframe();
+  }, []);
+
   const isDisabled = disabled || googleLoading || facebookLoading;
 
   return (
     <div style={s.wrapper} className={className}>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       <div style={s.dividerRow}>
         <span style={s.dividerLine} />
         <span style={s.dividerText}>{label}</span>

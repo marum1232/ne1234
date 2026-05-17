@@ -1,4 +1,4 @@
-import React, { useState, type ChangeEvent } from 'react';
+import React, { useState, useEffect, type ChangeEvent } from 'react';
 
 export interface Country {
   code: string;   // e.g. 'PK'
@@ -76,10 +76,12 @@ export function PhoneInput({
   placeholder = '300 1234567',
   className,
 }: PhoneInputProps) {
-  const [selectedCode, setSelectedCode] = useState(
-    defaultCountryCode
-  );
+  const [selectedCode, setSelectedCode] = useState(defaultCountryCode);
   const [localNumber, setLocalNumber] = useState(value ?? '');
+
+  useEffect(() => {
+    setLocalNumber(value ?? '');
+  }, [value]);
 
   const country = countries.find((c) => c.code === selectedCode) ?? countries[0];
 

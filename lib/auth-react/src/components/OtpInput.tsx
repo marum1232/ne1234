@@ -118,11 +118,17 @@ export function OtpInput({
       const otp = next.join('');
       if (otp.length === length && next.every((v) => v !== '')) {
         if (autoSubmit) onComplete(otp);
-        else onComplete(otp);
       }
     },
     [length, autoSubmit, onComplete]
   );
+
+  function handleManualSubmit() {
+    const otp = values.join('');
+    if (otp.length === length && values.every((v) => v !== '')) {
+      onComplete(otp);
+    }
+  }
 
   function handleChange(idx: number, e: ChangeEvent<HTMLInputElement>) {
     const char = e.target.value.replace(/\D/g, '').slice(-1);
@@ -196,6 +202,26 @@ export function OtpInput({
           />
         ))}
       </div>
+      {!autoSubmit && (
+        <button
+          type="button"
+          style={{
+            padding: '10px 24px',
+            borderRadius: '8px',
+            border: 'none',
+            background: '#f59e0b',
+            color: '#fff',
+            fontWeight: 700,
+            fontSize: '14px',
+            cursor: values.every((v) => v !== '') ? 'pointer' : 'not-allowed',
+            opacity: values.every((v) => v !== '') ? 1 : 0.55,
+          }}
+          onClick={handleManualSubmit}
+          disabled={disabled || !values.every((v) => v !== '')}
+        >
+          Submit
+        </button>
+      )}
       {onResend && (
         <div style={s.footer}>
           {cooldown > 0 ? (

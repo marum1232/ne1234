@@ -4,6 +4,13 @@ export interface BiometricPromptProps {
   /** Called when biometric auth succeeds — receives the stored refresh token */
   onSuccess: (refreshToken: string) => void;
   onDismiss?: () => void;
+  /**
+   * Called when no stored token is found after biometric auth.
+   * Receives a `storeToken` function so the caller can supply and persist
+   * a token (e.g. after a password login). If not provided, the component
+   * shows a "Set up biometrics" CTA with instructions.
+   */
+  onEnroll?: (storeToken: (token: string) => Promise<void>) => Promise<void>;
   label?: string;
   className?: string;
   storageKey?: string;
@@ -12,43 +19,48 @@ export interface BiometricPromptProps {
 type BiometricState =
   | 'checking'
   | 'unavailable'
+  | 'web-unsupported'
   | 'not-enrolled'
+  | 'enrolling'
   | 'ready'
   | 'prompting'
   | 'success'
   | 'error';
 
-function isBiometricAvailable(): boolean {
-  // WebAuthn (browser)
-  if (typeof window !== 'undefined' && 'PublicKeyCredential' in window) return true;
-  // Expo / React Native (runtime detection via globalThis)
+function isNativeBiometricAvailable(): boolean {
   const g = globalThis as Record<string, unknown>;
-  if (g['__ExpoLocalAuthentication'] || g['ExpoModulesCore']) return true;
-  return false;
+  return !!(g['__ExpoLocalAuthentication'] || g['ExpoModulesCore']);
 }
 
-async function enrollAndAuthenticate(storageKey: string): Promise<string | null> {
-  // Native path — expo-local-authentication
+function isWebAuthnAvailable(): boolean {
+  return typeof window !== 'undefined' && 'PublicKeyCredential' in window;
+}
+
+async function storeTokenInSecureStore(key: string, token: string): Promise<void> {
+  const g = globalThis as Record<string, unknown>;
+  const SecureStore = g['__ExpoSecureStore'] as
+    | { setItemAsync: (k: string, v: string) => Promise<void> }
+    | undefined;
+  if (SecureStore) await SecureStore.setItemAsync(key, token);
+}
+
+async function authenticateNative(storageKey: string): Promise<string | null> {
   const g = globalThis as Record<string, unknown>;
   const LocalAuth = g['__ExpoLocalAuthentication'] as
     | { authenticateAsync: (opts: { promptMessage: string }) => Promise<{ success: boolean }> }
     | undefined;
 
-  if (LocalAuth) {
-    const result = await LocalAuth.authenticateAsync({
-      promptMessage: 'Authenticate to sign in',
-    });
-    if (!result.success) return null;
-    // Retrieve stored token from secure store
-    const SecureStore = g['__ExpoSecureStore'] as
-      | { getItemAsync: (k: string) => Promise<string | null> }
-      | undefined;
-    return SecureStore ? SecureStore.getItemAsync(storageKey) : null;
-  }
+  if (!LocalAuth) return null;
 
-  // Web — WebAuthn get() stub; in a real app you would integrate with your server's
-  // WebAuthn challenge flow. Here we surface availability only.
-  return null;
+  const result = await LocalAuth.authenticateAsync({
+    promptMessage: 'Authenticate to sign in',
+  });
+  if (!result.success) return null;
+
+  const SecureStore = g['__ExpoSecureStore'] as
+    | { getItemAsync: (k: string) => Promise<string | null> }
+    | undefined;
+  return SecureStore ? SecureStore.getItemAsync(storageKey) : null;
 }
 
 const s = {
@@ -93,6 +105,7 @@ const s = {
 export function BiometricPrompt({
   onSuccess,
   onDismiss,
+  onEnroll,
   label = 'Sign in with biometrics',
   className,
   storageKey = 'ajk_refresh_token_biometric',
@@ -101,20 +114,38 @@ export function BiometricPrompt({
   const [errorMsg, setErrorMsg] = useState('');
 
   useEffect(() => {
-    setState(isBiometricAvailable() ? 'ready' : 'unavailable');
+    if (isNativeBiometricAvailable()) {
+      setState('ready');
+    } else if (isWebAuthnAvailable()) {
+      // WebAuthn is present but full server-challenge integration is not yet
+      // implemented — surface a clear "not supported in this browser" message
+      // instead of silently returning null.
+      setState('web-unsupported');
+    } else {
+      setState('unavailable');
+    }
   }, []);
 
   async function handlePrompt() {
     setState('prompting');
     setErrorMsg('');
     try {
-      const token = await enrollAndAuthenticate(storageKey);
+      const token = await authenticateNative(storageKey);
       if (token) {
         setState('success');
         onSuccess(token);
       } else {
-        setState('error');
-        setErrorMsg('Biometric authentication failed or no stored token found.');
+        // Biometric auth succeeded but no stored token found — enrollment path
+        if (onEnroll) {
+          setState('enrolling');
+          const storeToken = async (newToken: string) => {
+            await storeTokenInSecureStore(storageKey, newToken);
+          };
+          await onEnroll(storeToken);
+          setState('ready');
+        } else {
+          setState('not-enrolled');
+        }
       }
     } catch (err) {
       setState('error');
@@ -128,6 +159,7 @@ export function BiometricPrompt({
     return (
       <div style={s.card} className={className}>
         <span style={s.icon}>🔒</span>
+        <p style={s.title}>Biometrics unavailable</p>
         <p style={s.subtitle}>Biometric authentication is not available on this device.</p>
         {onDismiss && (
           <button type="button" style={s.btnSecondary} onClick={onDismiss}>
@@ -138,13 +170,51 @@ export function BiometricPrompt({
     );
   }
 
+  if (state === 'web-unsupported') {
+    return (
+      <div style={s.card} className={className}>
+        <span style={s.icon}>🌐</span>
+        <p style={s.title}>Not supported in this browser</p>
+        <p style={s.subtitle}>
+          Biometric sign-in requires the native app. Use the AJKMart app on your phone to enable fingerprint or face login.
+        </p>
+        {onDismiss && (
+          <button type="button" style={s.btnSecondary} onClick={onDismiss}>
+            Use password instead
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  if (state === 'not-enrolled') {
+    return (
+      <div style={s.card} className={className}>
+        <span style={s.icon}>🫆</span>
+        <p style={s.title}>Set up biometrics</p>
+        <p style={s.subtitle}>
+          No biometric credential is stored yet. Sign in with your password first, then enable biometric login from your profile settings.
+        </p>
+        {onDismiss && (
+          <button type="button" style={s.btnSecondary} onClick={onDismiss}>
+            Use password instead
+          </button>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div style={s.card} className={className}>
-      <span style={s.icon}>{state === 'success' ? '✅' : '🫆'}</span>
+      <span style={s.icon}>
+        {state === 'success' ? '✅' : state === 'enrolling' ? '⏳' : '🫆'}
+      </span>
       <p style={s.title}>{label}</p>
       <p style={s.subtitle}>
         {state === 'prompting'
           ? 'Waiting for biometric…'
+          : state === 'enrolling'
+          ? 'Setting up biometrics…'
           : state === 'success'
           ? 'Authenticated!'
           : 'Use fingerprint or face recognition to sign in quickly.'}
@@ -159,7 +229,7 @@ export function BiometricPrompt({
           {state === 'error' ? 'Try again' : 'Authenticate'}
         </button>
       )}
-      {onDismiss && state !== 'prompting' && state !== 'success' && (
+      {onDismiss && state !== 'prompting' && state !== 'enrolling' && state !== 'success' && (
         <button type="button" style={s.btnSecondary} onClick={onDismiss}>
           Use password instead
         </button>

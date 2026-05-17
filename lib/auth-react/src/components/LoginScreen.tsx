@@ -1,10 +1,11 @@
-import React, { useState, type FormEvent } from 'react';
+import React, { useState, useEffect, type FormEvent } from 'react';
 import type { AuthUser } from '../AuthProvider';
 import { useLoginFlow } from '../hooks/useLoginFlow';
 import { OtpInput } from './OtpInput';
 import { PasswordInput } from './PasswordInput';
 import { SocialButtons } from './SocialButtons';
 import { PhoneInput } from './PhoneInput';
+import { BiometricPrompt } from './BiometricPrompt';
 
 export type AppRole = 'customer' | 'rider' | 'vendor' | 'admin';
 
@@ -23,9 +24,11 @@ export interface LoginScreenProps {
   onRegisterPress?: () => void;
   enableSocial?: boolean;
   enableMagicLink?: boolean;
+  enableBiometric?: boolean;
   onGoogle?: () => void;
   onFacebook?: () => void;
   onMagicLink?: (identifier: string) => void | Promise<void>;
+  onBiometricSuccess?: (refreshToken: string) => void;
   className?: string;
   title?: string;
 }
@@ -133,9 +136,11 @@ export function LoginScreen({
   onRegisterPress,
   enableSocial = false,
   enableMagicLink = false,
+  enableBiometric = false,
   onGoogle,
   onFacebook,
   onMagicLink,
+  onBiometricSuccess,
   className,
   title,
 }: LoginScreenProps) {
@@ -149,8 +154,15 @@ export function LoginScreen({
   const [magicLinkSent, setMagicLinkSent] = useState(false);
   const [magicLinkLoading, setMagicLinkLoading] = useState(false);
 
-  const { initiateLogin, verifyOtp, verifyPassword, twoFactorVerify, loading, error, clearError } =
+  const { initiateLogin, verifyOtp, verifyPassword, twoFactorVerify, loading, error, twoFactorPending, clearError } =
     useLoginFlow({ baseURL, onSuccess });
+
+  // Automatically transition to 2FA step when the hook signals it
+  useEffect(() => {
+    if (twoFactorPending) {
+      setStep('twoFactor');
+    }
+  }, [twoFactorPending]);
 
   async function handleIdentifierSubmit(e: FormEvent) {
     e.preventDefault();
@@ -341,6 +353,15 @@ export function LoginScreen({
                   </button>
                 )}
               </p>
+            )}
+            {enableBiometric && (
+              <BiometricPrompt
+                onSuccess={(token) => {
+                  onBiometricSuccess?.(token);
+                }}
+                onDismiss={undefined}
+                label="Sign in with biometrics"
+              />
             )}
             {enableSocial && (
               <SocialButtons
