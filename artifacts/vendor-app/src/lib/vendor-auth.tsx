@@ -1,9 +1,10 @@
-import { createContext, useContext, useState, useEffect, useRef, useCallback, type ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useRef, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
-  getTokenExpiryRemaining,
   AuthProvider as SharedAuthProvider,
   useAuthContext,
+  useTokenRefresh,
+  getTokenExpiryRemaining,
   type AuthUser as SharedAuthUser,
 } from "@workspace/auth-react";
 import { api, getTokenStorage } from "./api";
@@ -67,41 +68,39 @@ function VendorAuthInner({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const logoutCallbackRef = useRef<(() => void) | null>(null);
-  const refreshTimerRef   = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const refreshingRef     = useRef(false);
 
-  const clearRefreshTimer = useCallback(() => {
-    if (refreshTimerRef.current) {
-      clearTimeout(refreshTimerRef.current);
-      refreshTimerRef.current = null;
-    }
-  }, []);
+  /* ── Proactive token refresh via shared SDK hook ────────────────────────
+     useTokenRefresh handles scheduling, retry (up to 5 attempts, exponential
+     backoff), and calls onLogout when all attempts are exhausted.            */
+  const handleSdkLogout = () => {
+    api.clearTokens();
+    setToken(null); setUser(null);
+    sharedAuth.logout();
+  };
 
-  const scheduleProactiveRefresh = useCallback((tok: string) => {
-    clearRefreshTimer();
-    const remaining = getTokenExpiryRemaining(tok);
+  const { refreshToken: sdkRefreshToken } = useTokenRefresh({
+    tokenStorage: getTokenStorage(),
+    baseURL: getVendorApiBase(),
+    refreshEndpoint: "/auth/refresh",
+    leewaySeconds: 60,
+    onLogout: handleSdkLogout,
+    onRefresh: (newTok) => { setToken(newTok); },
+  });
+
+  /* Re-schedule proactive refresh whenever the access token changes (e.g. after
+     login). useTokenRefresh only schedules from the token present on mount, so
+     for post-login tokens we trigger it here. A small 100 ms delay lets the
+     token propagate to storage before the hook reads it.                        */
+  useEffect(() => {
+    if (!token) return;
+    const remaining = getTokenExpiryRemaining(token);
     if (remaining <= 0) return;
-    const refreshIn = Math.max(remaining - 60_000, 10_000);
-    refreshTimerRef.current = setTimeout(async () => {
-      if (refreshingRef.current) return;
-      refreshingRef.current = true;
-      try {
-        const result = await api.refreshToken();
-        if (result === "refreshed") {
-          const newToken = api.getToken();
-          if (newToken) { setToken(newToken); scheduleProactiveRefresh(newToken); }
-        } else if (result === "auth_failed") {
-          api.clearTokens();
-          setToken(null); setUser(null);
-          sharedAuth.logout();
-        }
-      } catch {
-        const currentToken = api.getToken();
-        if (currentToken) scheduleProactiveRefresh(currentToken);
-      } finally { refreshingRef.current = false; }
-    }, refreshIn);
-  }, [clearRefreshTimer, sharedAuth]);
+    const delayMs = Math.max((remaining - 60) * 1_000, 10_000);
+    const id = setTimeout(() => { sdkRefreshToken(); }, delayMs);
+    return () => clearTimeout(id);
+  }, [token, sdkRefreshToken]);
 
+  /* ── Initial auth bootstrap ── */
   useEffect((): (() => void) | void => {
     const controller = new AbortController();
 
@@ -128,13 +127,11 @@ function VendorAuthInner({ children }: { children: ReactNode }) {
         if (roles.length > 0 && !roles.includes("vendor")) {
           api.clearTokens(); setToken(null); sharedAuth.logout(); return;
         }
-        /* Sync vendor user into the shared SDK context */
         sharedAuth.login(
           { id: u.id, phone: u.phone, email: u.email, role: "vendor" } satisfies SharedAuthUser,
           activeToken
         );
         setUser(u);
-        scheduleProactiveRefresh(activeToken);
       } catch (err: unknown) {
         if (err instanceof Error && err.name === "AbortError") return;
         api.clearTokens(); setToken(null); setUser(null); sharedAuth.logout();
@@ -142,9 +139,11 @@ function VendorAuthInner({ children }: { children: ReactNode }) {
     };
 
     initAuth();
-    return () => { controller.abort(); clearRefreshTimer(); };
-  }, [scheduleProactiveRefresh, clearRefreshTimer, sharedAuth]);
+    return () => { controller.abort(); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
+  /* ── Register logout callback + DOM event ── */
   useEffect(() => {
     const clearAuth = () => { setToken(null); setUser(null); sharedAuth.logout(); };
     logoutCallbackRef.current = clearAuth;
@@ -168,18 +167,15 @@ function VendorAuthInner({ children }: { children: ReactNode }) {
     }
     queryClient.clear();
     api.storeTokens(t, refreshToken);
-    /* Synchronise the shared SDK auth context so LoginScreen / useLoginFlow stay consistent */
     sharedAuth.login(
       { id: u.id, phone: u.phone, email: u.email, role: "vendor" } satisfies SharedAuthUser,
       t
     );
     setToken(t);
     setUser(u);
-    scheduleProactiveRefresh(t);
   };
 
   const logout = () => {
-    clearRefreshTimer();
     const refreshTok = api.getRefreshToken();
     api.logout(refreshTok || undefined).catch(() => {});
     sharedAuth.logout();

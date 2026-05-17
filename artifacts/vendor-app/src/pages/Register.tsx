@@ -7,29 +7,13 @@ import { useLanguage } from "../lib/useLanguage";
 import { tDual, type TranslationKey } from "@workspace/i18n";
 import { executeCaptcha } from "@workspace/auth-utils";
 import { OtpInput, PhoneInput } from "@workspace/auth-react";
+import { getDeviceFingerprint } from "../lib/deviceFingerprint";
 
 interface UploadedDoc { label: string; url: string; preview: string; }
 
 const STORE_CATS = ["Grocery","Restaurant","Bakery","Pharmacy","Electronics","Clothing","General Store","Fast Food","Fruits & Vegetables","Dairy","Meat & Poultry","Other"];
 const CITIES = ["Muzaffarabad","Mirpur","Rawalakot","Bagh","Kotli","Bhimber","Jhelum","Rawalpindi","Islamabad","Lahore","Other"];
 const BANKS = ["EasyPaisa","JazzCash","MCB","HBL","UBL","Meezan Bank","Bank Alfalah","NBP","Allied Bank","Other"];
-
-function getDeviceFingerprint(): string {
-  const stored = sessionStorage.getItem("_dfp");
-  if (stored) return stored;
-  const fp = [
-    navigator.userAgent,
-    navigator.language,
-    screen.width + "x" + screen.height,
-    Intl.DateTimeFormat().resolvedOptions().timeZone,
-    navigator.hardwareConcurrency ?? "",
-  ].filter(Boolean).join("|");
-  let hash = 0;
-  for (let i = 0; i < fp.length; i++) { hash = ((hash << 5) - hash + fp.charCodeAt(i)) | 0; }
-  const id = "web_" + Math.abs(hash).toString(36);
-  sessionStorage.setItem("_dfp", id);
-  return id;
-}
 
 /* ── 4 explicit registration steps ──────────────────────────────────────────
    Step 1: "verify"  — phone/email entry + OTP confirmation
