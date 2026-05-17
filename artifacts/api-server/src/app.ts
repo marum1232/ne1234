@@ -569,7 +569,7 @@ export async function createServer() {
           target: p.target,
           changeOrigin: true,
           ws: p.ws,
-          xfwd: true,
+          xfwd: p.prefix !== "/customer",
           logger: undefined,
           pathFilter: (pathname) =>
             pathname === p.prefix ||
@@ -815,7 +815,7 @@ export async function createServer() {
       target: expoTarget,
       changeOrigin: true,
       ws: true,
-      xfwd: true,
+      xfwd: false,
       logger: undefined,
       pathFilter: (pathname) =>
         pathname !== "/" &&
