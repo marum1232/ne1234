@@ -21,10 +21,11 @@ interface ApiResponse<T> {
 
 export interface UseLoginFlowOptions {
   baseURL?: string;
+  role?: 'customer' | 'rider' | 'vendor' | 'admin';
   onSuccess?: (user: AuthUser, accessToken: string) => void;
 }
 
-export function useLoginFlow({ baseURL = '', onSuccess }: UseLoginFlowOptions = {}) {
+export function useLoginFlow({ baseURL = '', role, onSuccess }: UseLoginFlowOptions = {}) {
   const ctx = useContext(AuthContext);
 
   const [loading, setLoading] = useState(false);
@@ -59,8 +60,9 @@ export function useLoginFlow({ baseURL = '', onSuccess }: UseLoginFlowOptions = 
   }
 
   /**
-   * Step 1 — Check whether the identifier (phone/email/username) exists
-   * and which login method the server recommends.
+   * Step 1 — Check whether the identifier (phone/email/username) exists,
+   * which login method the server recommends, then trigger OTP delivery
+   * when the action is phone/email OTP.
    */
   const initiateLogin = useCallback(
     async (id: string): Promise<IdentifierCheckResult> => {
@@ -68,11 +70,15 @@ export function useLoginFlow({ baseURL = '', onSuccess }: UseLoginFlowOptions = 
       setError(null);
       setIdentifier(id);
       try {
+        const checkBody: Record<string, unknown> = { identifier: id };
+        if (role && role !== 'admin') checkBody.role = role;
+
         const res = await apiFetch<IdentifierCheckResult & { action?: string; availableMethods?: string[] }>(
           '/api/auth/check-identifier',
-          { identifier: id }
+          checkBody
         );
         const raw = res.data as any ?? {};
+
         /* Map the API's action/availableMethods format to the method field
            the LoginScreen step-switcher expects */
         const actionToMethod = (action: string | undefined): LoginMethod => {
@@ -84,36 +90,66 @@ export function useLoginFlow({ baseURL = '', onSuccess }: UseLoginFlowOptions = 
           raw.method ??
           actionToMethod(raw.action) ??
           (raw.availableMethods?.includes('password') && !raw.availableMethods?.includes('phone_otp') ? 'password' : 'otp');
+
         const result: IdentifierCheckResult = {
           ...raw,
           method: derivedMethod,
           exists: raw.exists ?? false,
         };
         setMethod(result.method);
+
+        /* ── Trigger OTP delivery ──────────────────────────────────────────
+           check-identifier only tells us WHAT to do — it does NOT send the
+           OTP.  We must call /auth/send-otp ourselves when the action is a
+           phone-OTP flow.  Without this the user would see an OTP input but
+           receive nothing on their phone.
+        ─────────────────────────────────────────────────────────────────── */
+        const action: string = raw.action ?? '';
+        if (action === 'send_phone_otp' || derivedMethod === 'otp') {
+          const looksLikePhone = /^[\d\s\-+()]{7,15}$/.test(id.trim());
+          if (looksLikePhone) {
+            const sendBody: Record<string, unknown> = { phone: id };
+            if (role && role !== 'admin') sendBody.role = role;
+            // Fire-and-forget: errors here are surfaced in verifyOtp if OTP wasn't sent
+            try {
+              await apiFetch('/api/auth/send-otp', sendBody);
+            } catch (sendErr) {
+              const msg = sendErr instanceof Error ? sendErr.message : 'Failed to send OTP';
+              setError(msg);
+              throw sendErr;
+            }
+          }
+        }
+
         return result;
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Failed to check identifier';
-        setError(msg);
+        // Only set error if not already set (send-otp errors set it above)
+        setError(prev => prev ?? msg);
         throw err;
       } finally {
         setLoading(false);
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [baseURL]
+    [baseURL, role]
   );
 
   /**
    * Step 2a — Verify OTP (sent via SMS/email).
+   * Server expects { phone, otp } — NOT { identifier, otp }.
    */
   const verifyOtp = useCallback(
     async (otp: string): Promise<void> => {
       setLoading(true);
       setError(null);
       try {
+        const body: Record<string, unknown> = { phone: identifier, otp };
+        if (role && role !== 'admin') body.role = role;
+
         const res = await apiFetch<{ user: AuthUser; accessToken: string; twoFactorRequired?: boolean }>(
           '/api/auth/verify-otp',
-          { identifier, otp }
+          body
         );
         const data = res.data!;
         if (data.twoFactorRequired) {
@@ -132,7 +168,7 @@ export function useLoginFlow({ baseURL = '', onSuccess }: UseLoginFlowOptions = 
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [identifier, baseURL, onSuccess]
+    [identifier, baseURL, role, onSuccess]
   );
 
   /**

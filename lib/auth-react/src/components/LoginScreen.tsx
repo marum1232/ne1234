@@ -81,7 +81,7 @@ export function LoginScreen({
   }, []);
 
   const { initiateLogin, verifyOtp, verifyPassword, twoFactorVerify, loading, error, setError, twoFactorPending, clearError } =
-    useLoginFlow({ baseURL, onSuccess });
+    useLoginFlow({ baseURL, role: role === 'admin' ? undefined : role, onSuccess });
 
   useEffect(() => {
     if (twoFactorPending) {
