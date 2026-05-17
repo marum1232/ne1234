@@ -6,8 +6,13 @@ export interface UseTokenRefreshOptions {
   tokenStorage: TokenStorage;
   baseURL: string;
   refreshEndpoint?: string;
-  /** How many seconds before expiry to proactively refresh (default 60) */
+  /**
+   * How many seconds before expiry to proactively refresh (default 60).
+   * Alias: `refreshIntervalSeconds` (spec-compatible name; takes precedence when set).
+   */
   leewaySeconds?: number;
+  /** Alias for leewaySeconds — seconds before token expiry to trigger proactive refresh */
+  refreshIntervalSeconds?: number;
   /** Called when all refresh attempts fail — should trigger logout */
   onLogout?: () => void;
   /** Called when a new token has been obtained */
@@ -36,9 +41,12 @@ export function useTokenRefresh({
   baseURL,
   refreshEndpoint = '/api/auth/refresh',
   leewaySeconds = 60,
+  refreshIntervalSeconds,
   onLogout,
   onRefresh,
 }: UseTokenRefreshOptions) {
+  // refreshIntervalSeconds takes precedence when provided
+  const effectiveLeeway = refreshIntervalSeconds ?? leewaySeconds;
   const isRefreshingRef = useRef(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const attemptsRef = useRef(0);
@@ -47,14 +55,14 @@ export function useTokenRefresh({
     (token: string) => {
       if (timerRef.current) clearTimeout(timerRef.current);
       const remaining = getTokenExpiryRemaining(token);
-      const delaySeconds = Math.max(0, remaining - leewaySeconds);
+      const delaySeconds = Math.max(0, remaining - effectiveLeeway);
       timerRef.current = setTimeout(
         () => void refreshToken(),
         delaySeconds * 1000
       );
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [leewaySeconds]
+    [effectiveLeeway]
   );
 
   const refreshToken = useCallback(async (): Promise<void> => {
