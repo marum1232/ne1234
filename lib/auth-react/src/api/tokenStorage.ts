@@ -91,6 +91,20 @@ type ExpoSecureStoreApi = {
   deleteItemAsync: (k: string) => Promise<void>;
 };
 
+type CapacitorPreferencesApi = {
+  get: (opts: { key: string }) => Promise<{ value: string | null }>;
+  set: (opts: { key: string; value: string }) => Promise<void>;
+  remove: (opts: { key: string }) => Promise<void>;
+};
+
+function getCapacitorPreferences(): CapacitorPreferencesApi | undefined {
+  if (typeof globalThis === 'undefined') return undefined;
+  const cap = (globalThis as Record<string, unknown>)['Capacitor'] as
+    | { Plugins?: { Preferences?: CapacitorPreferencesApi } }
+    | undefined;
+  return cap?.Plugins?.Preferences;
+}
+
 function getSecureStore(): ExpoSecureStoreApi | undefined {
   if (typeof globalThis === 'undefined') return undefined;
   return (globalThis as Record<string, unknown>)[
@@ -102,15 +116,36 @@ class NativeStorage implements TokenStorage {
   private mem = new MemoryStorage();
 
   /**
-   * Restore tokens from expo-secure-store into the in-memory cache.
-   * Call this once at app startup (e.g. inside the AuthProvider's useEffect)
-   * before any getAccessToken / getRefreshToken calls, so the synchronous
-   * getters return the persisted values rather than null.
+   * Restore tokens from the available secure store (Capacitor Preferences or
+   * expo-secure-store) into the in-memory cache.
    *
-   * Safe to call multiple times — subsequent calls are no-ops if tokens
-   * are already cached in memory.
+   * Detection order:
+   *   1. Capacitor Preferences (web/hybrid Capacitor apps)
+   *   2. expo-secure-store (Expo native apps via `globalThis.__ExpoSecureStore`)
+   *   3. Memory-only fallback (test environments, unsupported platforms)
+   *
+   * Call this once at app startup before any synchronous getAccessToken /
+   * getRefreshToken calls so the in-memory cache is pre-populated.
+   * Safe to call multiple times — no-op if tokens are already cached.
    */
   async restoreFromSecureStore(): Promise<void> {
+    const cap = getCapacitorPreferences();
+    if (cap) {
+      try {
+        const [accessResult, refreshResult] = await Promise.all([
+          cap.get({ key: ACCESS_TOKEN_KEY }).catch(() => ({ value: null })),
+          cap.get({ key: REFRESH_TOKEN_KEY }).catch(() => ({ value: null })),
+        ]);
+        if (accessResult.value && !this.mem.getAccessToken())
+          this.mem.setAccessToken(accessResult.value);
+        if (refreshResult.value && !this.mem.getRefreshToken())
+          this.mem.setRefreshToken(refreshResult.value);
+      } catch {
+        // Capacitor Preferences unavailable — fall through to memory
+      }
+      return;
+    }
+
     const ss = getSecureStore();
     if (!ss) return;
     try {
@@ -131,11 +166,21 @@ class NativeStorage implements TokenStorage {
 
   setAccessToken(token: string): void {
     this.mem.setAccessToken(token);
+    const cap = getCapacitorPreferences();
+    if (cap) {
+      cap.set({ key: ACCESS_TOKEN_KEY, value: token }).catch(() => {});
+      return;
+    }
     getSecureStore()?.setItemAsync(ACCESS_TOKEN_KEY, token).catch(() => {});
   }
 
   removeAccessToken(): void {
     this.mem.removeAccessToken();
+    const cap = getCapacitorPreferences();
+    if (cap) {
+      cap.remove({ key: ACCESS_TOKEN_KEY }).catch(() => {});
+      return;
+    }
     getSecureStore()?.deleteItemAsync(ACCESS_TOKEN_KEY).catch(() => {});
   }
 
@@ -145,16 +190,32 @@ class NativeStorage implements TokenStorage {
 
   setRefreshToken(token: string): void {
     this.mem.setRefreshToken(token);
+    const cap = getCapacitorPreferences();
+    if (cap) {
+      cap.set({ key: REFRESH_TOKEN_KEY, value: token }).catch(() => {});
+      return;
+    }
     getSecureStore()?.setItemAsync(REFRESH_TOKEN_KEY, token).catch(() => {});
   }
 
   removeRefreshToken(): void {
     this.mem.removeRefreshToken();
+    const cap = getCapacitorPreferences();
+    if (cap) {
+      cap.remove({ key: REFRESH_TOKEN_KEY }).catch(() => {});
+      return;
+    }
     getSecureStore()?.deleteItemAsync(REFRESH_TOKEN_KEY).catch(() => {});
   }
 
   clear(): void {
     this.mem.clear();
+    const cap = getCapacitorPreferences();
+    if (cap) {
+      cap.remove({ key: ACCESS_TOKEN_KEY }).catch(() => {});
+      cap.remove({ key: REFRESH_TOKEN_KEY }).catch(() => {});
+      return;
+    }
     getSecureStore()?.deleteItemAsync(ACCESS_TOKEN_KEY).catch(() => {});
     getSecureStore()?.deleteItemAsync(REFRESH_TOKEN_KEY).catch(() => {});
   }
@@ -178,11 +239,12 @@ export function createTokenStorage(type: StorageType = 'web'): TokenStorage {
 
 /**
  * Create a NativeStorage instance and immediately restore persisted tokens
- * from expo-secure-store into the in-memory cache.
+ * from the available secure store (Capacitor Preferences or expo-secure-store)
+ * into the in-memory cache.
  *
- * Use this in the Expo app instead of `createTokenStorage('native')` so that
- * synchronous `getAccessToken()` / `getRefreshToken()` calls return the
- * correct values from the very first render.
+ * Use this in Expo / Capacitor apps instead of `createTokenStorage('native')`
+ * so that synchronous `getAccessToken()` / `getRefreshToken()` calls return
+ * the correct values from the very first render.
  *
  * @example
  *   const storage = await createNativeTokenStorage();

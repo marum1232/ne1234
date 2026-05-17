@@ -3,24 +3,36 @@
 ## Status: Complete
 
 All deliverables from Task 6 (Unified Token Storage & API Client) are implemented and verified.
+The two gaps identified in the Task 6 follow-up review are now closed.
 
 ## Files Implemented
 
 | File | Purpose |
 |---|---|
-| `src/api/tokenStorage.ts` | `TokenStorage` interface, `MemoryStorage`, `WebStorage`, `NativeStorage` (+ `SecureStorage` alias), `createTokenStorage`, `createNativeTokenStorage`, `getTokenStorage` |
+| `src/api/tokenStorage.ts` | `TokenStorage` interface, `MemoryStorage`, `WebStorage`, `NativeStorage` (+ `SecureStorage` alias), `createTokenStorage`, `createNativeTokenStorage`, `getTokenStorage`. Now includes Capacitor Preferences support alongside expo-secure-store. |
 | `src/api/authClient.ts` | `createAuthClient` with Bearer token injection, 401-triggered refresh, `withRetry` exponential backoff |
 | `src/utils/jwtUtils.ts` | `decodeJwt`, `isTokenExpired`, `getTokenExpiryRemaining` — handles non-ASCII payloads (Urdu) |
 | `src/utils/verify.mjs` | Smoke-test script; run with `node src/utils/verify.mjs` after build |
+| `tests/jwtUtils.test.ts` | Vitest tests for all three jwtUtils functions, including Urdu non-ASCII round-trip |
 
 ## Exports Confirmed
 
 - `createTokenStorage(type)` — factory for all storage backends
-- `createNativeTokenStorage()` — async factory with SecureStore restore
+- `createNativeTokenStorage()` — async factory with SecureStore/Capacitor restore
 - `getTokenStorage(type?)` — convenience alias for `createTokenStorage` (default: `'web'`)
 - `SecureStorage` — export alias for `NativeStorage` (satisfies original spec name)
 - `createAuthClient(options)` — authenticated HTTP client with refresh interceptor
 - `decodeJwt`, `isTokenExpired`, `getTokenExpiryRemaining`
+
+## Capacitor Preferences Detection Strategy
+
+`NativeStorage` now detects the available secure persistence layer at runtime in this order:
+
+1. **Capacitor Preferences** — detected via `globalThis.Capacitor?.Plugins?.Preferences`. Used in web/hybrid Capacitor apps. API: `{ get, set, remove }` with `{ key, value }` objects.
+2. **expo-secure-store** — detected via `globalThis.__ExpoSecureStore`. Used in Expo native apps.
+3. **Memory-only fallback** — used when neither is available (test environments, unsupported platforms).
+
+`@capacitor/preferences` is NOT a hard dependency — it is purely optional peer-detected at runtime, so the package does not pull in Capacitor for non-Capacitor projects.
 
 ## Build
 
@@ -36,10 +48,13 @@ Produces `dist/index.js` (ESM), `dist/index.cjs` (CJS), `dist/index.d.ts` (DTS) 
 pnpm --filter @workspace/auth-react test
 ```
 
+**8 test files, 110 tests — all passing.**
+
 | Test file | Coverage |
 |---|---|
 | `tests/tokenStorage.test.ts` | MemoryStorage CRUD, WebStorage session/local, factory, SecureStorage alias |
 | `tests/authClient.test.ts` | Bearer token injection, POST body, 401 refresh flow, withRetry backoff |
+| `tests/jwtUtils.test.ts` | `decodeJwt` happy path, Urdu non-ASCII round-trip, malformed/empty tokens, `isTokenExpired` valid/expired/no-exp/leeway, `getTokenExpiryRemaining` valid/expired/no-exp |
 | `tests/components.test.tsx` | All component and hook exports |
 | `tests/OtpInput.test.tsx` | OtpInput interaction, paste, resend cooldown |
 | `tests/LoginScreen.test.tsx` | Role-based titles, OTP transition, error/loading states |
