@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "{ [ -d ../../node_modules/.pnpm ] || (cd ../.. && pnpm install --no-frozen-lockfile); }; fuser -k ${VENDOR_DEV_PORT:-3003}/tcp 2>/dev/null || true; NODE_ENV=development ../../node_modules/.bin/vite --config vite.config.ts --host 0.0.0.0",
+    "dev": "{ [ -f ../../node_modules/.bin/vite ] || (cd ../.. && pnpm install --no-frozen-lockfile); }; fuser -k ${VENDOR_DEV_PORT:-3003}/tcp 2>/dev/null || true; NODE_ENV=development ../../node_modules/.bin/vite --config vite.config.ts --host 0.0.0.0",
     "build": "vite build --config vite.config.ts",
     "build:cap": "BASE_PATH=/ VITE_CAPACITOR=true vite build --config vite.config.ts",
     "cap:sync": "cap sync android",

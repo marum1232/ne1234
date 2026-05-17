@@ -1,0 +1,98 @@
+## Context
+I have a monorepo with four applications:
+- `rider-app` (React web)
+- `vendor-app` (React web)
+- `admin-app` (React web)
+- `customer-mobile` (React Native / Expo)
+
+Each app already has its own **color theme** (primary, background, text, etc.) defined either in Tailwind config, CSS variables, or a theme object.
+
+## Task
+Create a **professional‑grade authentication system** (login + registration) that works exactly the same way across all four apps, but **automatically uses each app’s existing colors**.  
+
+Follow the same standards that large companies (Uber, Amazon, Careem) use:  
+- One shared logic for OTP, password login, biometric, etc.  
+- Theme injection so each app looks like its own brand.  
+- Role‑specific registration steps (Rider, Vendor, Customer).  
+- Consistent overlay states (pending, rejected, maintenance) for web apps.
+
+## What I want you to do (step by step)
+
+### 1. Detect existing colors & themes automatically
+- Scan each app’s codebase (look at `tailwind.config.js`, CSS files, or any `theme.js` / `colors.js`).  
+- Extract the **primary**, **background**, **text**, **border**, and **overlay** colors that are currently used.  
+- If nothing is explicitly defined, assume sensible defaults:
+  - Rider: green (#10b981)
+  - Vendor: orange (#ea580c)
+  - Admin: dark charcoal + amber (#0f1117 / #f59e0b)
+  - Customer: blue (#2563eb)
+
+### 2. Build a shared theme provider
+- Create a `ThemeContext.js` (or `.tsx`) that accepts a theme object and makes it available to all components.  
+- This file will be **copied into each app** (no monorepo package needed – just identical code).  
+
+### 3. Create a common `useAuth` hook (same for all apps)
+Implement the following functions (using the existing backend endpoints `/api/auth/*`):
+- `sendOTP(phone)`
+- `verifyOTP(phone, otp)`
+- `loginWithPassword(identifier, password)`
+- `register(formData)`
+- `biometricLogin()` (for web use WebAuthn, for mobile use `expo-local-authentication`)
+
+All functions must return `{ success, data, error }` and handle loading states.
+
+### 4. Build a reusable `RegisterWizard` component
+This component should:
+- Accept a `stepsConfig` array (each step has `id`, `title`, `component`).
+- Accept a `role` parameter (rider / vendor / customer / admin – but admin has no public registration).
+- Use the current app’s theme (from `ThemeContext`) for all colors.
+- Manage step transitions, OTP verification when step id is `'otp'`, and final registration.
+- Show the step indicator with the theme’s primary color.
+
+**Provide example step configurations for each role:**
+- **Rider:** Phone → OTP → CNIC → Vehicle → Password  
+- **Vendor:** Store Info → Documents → Bank/Wallet → OTP → Done  
+- **Customer:** Phone → OTP → Full Name → City → Password  
+
+### 5. Create a common `LoginScreen` component
+- Two‑panel layout for web (Rider, Vendor, Admin) – left panel uses theme’s primary gradient, right panel contains the login form.  
+- Single‑column layout for mobile (Customer).  
+- Support:  
+  - Password login  
+  - “Send OTP” (then OTP screen)  
+  - “Forgot password” (same UI across apps)  
+  - Biometric button (if enabled for that role).  
+
+### 6. Overlay states (pending / rejected / maintenance)
+Wrap the login/registration screens with overlays that show:
+- **Pending approval** (for Rider and Vendor when status = `'pending'`) – use theme’s `pendingOverlay` color.
+- **Rejected** (with reason from backend) – use `rejectedOverlay`.
+- **Maintenance** (when `usePlatformConfig` returns `maintenance: true`) – use `maintenanceOverlay`.
+
+For Admin, only maintenance overlay; for Customer, no pending/rejected.
+
+### 7. Update each app to use the new system
+- Replace existing login/register pages with the new components.  
+- Inject the detected theme into `<ThemeProvider>` at the app root.  
+- Keep all existing backend API calls unchanged – just refactor frontend.
+
+### 8. Ensure parity with professional standards
+- Loading buttons with spinners (same design everywhere).  
+- Form validation with same error styles.  
+- Rate‑limited OTP requests (show timer).  
+- Save registration form drafts in `localStorage` (web) or `AsyncStorage` (mobile) so users can resume.  
+- For web apps, add a service worker for offline login form.  
+- For all apps, add Sentry error tracking (if keys exist in env).
+
+## Output format
+Give me:
+1. The **detected color themes** for each app (in a table).  
+2. The **exact code** for `ThemeContext.js`, `useAuth.js`, `RegisterWizard.jsx`, `LoginScreen.jsx`, and `Overlay.jsx`.  
+3. The **modified files** for each app (e.g., `rider-app/src/pages/Register.jsx`).  
+4. Instructions on how to run and test.
+
+## Important notes
+- Do **not** create a monorepo package – just copy the shared files into each app’s `src/lib` folder.  
+- For the React Native app (`customer-mobile`), provide the same components using `react-native` primitives (`View`, `Text`, `TextInput`, `Modal`).  
+- Make sure colors are **taken from existing code**, not hardcoded again.  
+- The final result must look as if each app was built by a separate team but shares the same auth engine – that’s the professional standard.
