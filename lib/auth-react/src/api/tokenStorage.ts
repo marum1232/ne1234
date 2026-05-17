@@ -197,3 +197,5 @@ export async function createNativeTokenStorage(): Promise<TokenStorage> {
 export function getTokenStorage(type: StorageType = 'web'): TokenStorage {
   return createTokenStorage(type);
 }
+
+export { NativeStorage as SecureStorage };
