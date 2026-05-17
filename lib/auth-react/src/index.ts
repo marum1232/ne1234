@@ -5,7 +5,7 @@ export { AuthProvider, useAuthContext, AuthContext } from './AuthProvider';
 export type { AuthContextValue, AuthProviderProps, AuthUser } from './AuthProvider';
 
 // Token storage
-export { createTokenStorage, createNativeTokenStorage } from './api/tokenStorage';
+export { createTokenStorage, createNativeTokenStorage, getTokenStorage } from './api/tokenStorage';
 export type { TokenStorage, StorageType } from './api/tokenStorage';
 
 // Auth client

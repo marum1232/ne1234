@@ -193,3 +193,7 @@ export async function createNativeTokenStorage(): Promise<TokenStorage> {
   await storage.restoreFromSecureStore();
   return storage;
 }
+
+export function getTokenStorage(type: StorageType = 'web'): TokenStorage {
+  return createTokenStorage(type);
+}
