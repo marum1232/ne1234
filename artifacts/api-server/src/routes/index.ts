@@ -57,7 +57,7 @@ import businessRulesRouter from "./business-rules.js";
 import loyaltyFullRouter from "./loyalty-full.js";
 import { adminAuth } from "./admin-shared.js";
 import { userApiLimiter, publicLimiter } from "../middleware/rate-limit.js";
-import { verifyTokenFamily } from "../middleware/auth.js";
+import { verifyTokenFamily, checkSessionRevocation } from "../middleware/auth.js";
 import type { Request, Response, NextFunction } from "express";
 
 /**
@@ -84,18 +84,18 @@ router.use("/health", healthRouter);
 if (process.env["ADMIN_LEGACY_AUTH_DISABLED"] !== "1") {
   router.use("/auth", authRouter);
 }
-router.use("/users", verifyTokenFamily, usersRouter);
+router.use("/users", checkSessionRevocation, verifyTokenFamily, usersRouter);
 router.use("/products", publicGetLimiter, productsRouter);
-router.use("/orders", verifyTokenFamily, userApiLimiter, ordersRouter);
-router.use("/cart", verifyTokenFamily, userApiLimiter, cartRouter);
-router.use("/wallet", verifyTokenFamily, userApiLimiter, walletRouter);
-router.use("/rides", verifyTokenFamily, userApiLimiter, ridesRouter);
+router.use("/orders", checkSessionRevocation, verifyTokenFamily, userApiLimiter, ordersRouter);
+router.use("/cart", checkSessionRevocation, verifyTokenFamily, userApiLimiter, cartRouter);
+router.use("/wallet", checkSessionRevocation, verifyTokenFamily, userApiLimiter, walletRouter);
+router.use("/rides", checkSessionRevocation, verifyTokenFamily, userApiLimiter, ridesRouter);
 router.use("/locations", locationsRouter);
 router.use("/categories", publicGetLimiter, categoriesRouter);
-router.use("/pharmacy-orders", verifyTokenFamily, userApiLimiter, pharmacyRouter);
-router.use("/parcel-bookings", verifyTokenFamily, userApiLimiter, parcelRouter);
-router.use("/notifications", verifyTokenFamily, userApiLimiter, notificationsRouter);
-router.use("/addresses", verifyTokenFamily, userApiLimiter, addressesRouter);
+router.use("/pharmacy-orders", checkSessionRevocation, verifyTokenFamily, userApiLimiter, pharmacyRouter);
+router.use("/parcel-bookings", checkSessionRevocation, verifyTokenFamily, userApiLimiter, parcelRouter);
+router.use("/notifications", checkSessionRevocation, verifyTokenFamily, userApiLimiter, notificationsRouter);
+router.use("/addresses", checkSessionRevocation, verifyTokenFamily, userApiLimiter, addressesRouter);
 router.use("/settings", settingsRouter);
 if (process.env["NODE_ENV"] !== "production") {
   router.use("/seed", seedRouter);
@@ -122,7 +122,7 @@ router.use("/maps", mapsRouter);
 router.use("/admin/maps", adminMapsRouter);
 router.use("/school", schoolRouter);
 router.use("/uploads", uploadsRouter);
-router.use("/sos", verifyTokenFamily, userApiLimiter, sosRouter);
+router.use("/sos", checkSessionRevocation, verifyTokenFamily, userApiLimiter, sosRouter);
 router.use("/recommendations", publicGetLimiter, userApiLimiter, recommendationsRouter);
 router.use("/banners", publicGetLimiter, bannersRouter);
 router.use("/variants", variantsRouter);

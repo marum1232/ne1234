@@ -37,6 +37,8 @@ import { checkMigrationGuard } from "./services/migrationGuard.service.js";
 import router from "./routes/index.js";
 import { globalLimiter } from "./middleware/rate-limit.js";
 import { suspiciousPatternDetector } from "./middleware/suspiciousPatternDetector.js";
+import swaggerUi from "swagger-ui-express";
+import { swaggerSpec } from "./docs/swagger.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -735,15 +737,41 @@ export async function createServer() {
     next();
   });
 
+  /* ── Public Swagger UI at /api-docs (read-only, tryItOut disabled) ─────
+     Mounted at the root level so the URL is /api-docs, NOT /api/api-docs.
+     The admin-gated /api/docs (docs.ts YAML route) is left untouched. */
+  app.use(
+    "/api-docs",
+    swaggerUi.serve,
+    swaggerUi.setup(swaggerSpec, {
+      customSiteTitle: "AJKMart API Docs",
+      customCss: `
+        .swagger-ui .topbar { background: #1e293b; border-bottom: 1px solid #334155; }
+        .swagger-ui .topbar-wrapper img { display: none; }
+        .swagger-ui .topbar-wrapper::before {
+          content: "AJKMart API Docs";
+          color: #a5b4fc;
+          font-weight: 700;
+          font-size: 1.1rem;
+          font-family: system-ui, sans-serif;
+          margin-left: 4px;
+        }
+        .swagger-ui { font-family: system-ui, sans-serif; }
+        body { background: #0f172a; }
+      `,
+      swaggerOptions: {
+        persistAuthorization: true,
+        displayRequestDuration: true,
+        filter: true,
+        tryItOutEnabled: false,
+        deepLinking: true,
+      },
+    }),
+  );
+
   app.use("/api", globalLimiter);
   app.use("/api", suspiciousPatternDetector);
   app.use("/api", router);
-
-  /* ── API documentation (Swagger UI) ────────────────────────────────────
-     Available in all environments. Protected behind basic auth or admin-gated
-     in production if needed; for now serves read-only docs openly. */
-  const swaggerDocs = (await import("./docs/swagger.js")).default;
-  app.use("/api-docs", swaggerDocs);
 
   /* ── JSON 404 for unmatched /api/* routes ─────────────────────────────── */
   app.use("/api/*path", (req: express.Request, res: express.Response) => {

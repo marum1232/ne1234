@@ -10,7 +10,7 @@
 | T001 | COMPLETE | 2026-05-16 | 2026-05-16 | Critical security & bug fixes |
 | T002 | COMPLETE | 2026-05-16 | 2026-05-16 | Split backend auth router into modules |
 | T003 | COMPLETE | 2026-05-16 | 2026-05-16 | Remove duplicate schemas & helpers from auth router |
-| T004 | COMPLETE | 2026-05-16 | 2026-05-16 | Session revocation verified, account recovery endpoints, Swagger UI at /api-docs |
+| T004 | COMPLETE | 2026-05-16 | 2026-05-17 | Session revocation API (sessions.ts), account recovery endpoints, Swagger UI at /api-docs |
 | T005 | COMPLETE | 2026-05-16 | 2026-05-16 | Created @workspace/auth-react package in lib/auth-react/ with tsup build |
 | T006 | COMPLETE | 2026-05-16 | 2026-05-16 | Token storage, auth client with retry/refresh, JWT utils — 14/14 tests passed |
 | T007 | COMPLETE | 2026-05-16 | 2026-05-16 | useTokenRefresh, useAuth, useLoginFlow hooks — 21/21 tests passed |
@@ -100,3 +100,4 @@
 - [2026-05-16] T012 Step 4: Swagger docs — updated artifacts/api-server/src/docs/swagger.ts; @openapi JSDoc blocks on all 12 auth endpoints.
 - [2026-05-16] T012 Step 5: Created docs/AUTH.md (comprehensive auth system guide) and root README.md (monorepo overview, quick-start, architecture).
 - [2026-05-16] T012 COMPLETE -- 33 backend auth tests (Vitest + Supertest), 35 auth-react tests (Vitest + RTL, React 19 compatible), Playwright E2E suite (3 spec files), complete Swagger docs, docs/AUTH.md, README.md.
+- [2026-05-17] T004 HARDENED -- Created dedicated artifacts/api-server/src/routes/auth/sessions.ts: POST /auth/sessions/revoke with Zod union schema validation, ownership checks via JWT payload userId, current-session identification by sha256(accessToken) tokenHash, blacklistJti() call on self-revoke and on bulk revoke (bumps tokenVersion), revokedAt + refreshToken revocation for each removed session, structured audit log, { revokedCount } response. Mounted in auth/index.ts. Refactored docs/swagger.ts to export plain swaggerSpec object (OpenAPI 3.1, version from package.json, BearerAuth security scheme). Mounted /api-docs via swaggerUi.serve + swaggerUi.setup(swaggerSpec, { tryItOutEnabled: false }) in routes/index.ts. Removed old router-based /api-docs mount from app.ts.

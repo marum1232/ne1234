@@ -16,6 +16,7 @@ import twoFactorRouter from "./two-factor.js";
 import magicLinkRouter from "./magic-link.js";
 import mergeRouter from "./merge.js";
 import miscRouter from "./misc.js";
+import sessionsRouter from "./sessions.js";
 import phoneAccountRouter from "./phone-account.js";
 
 const router: IRouter = Router();
@@ -35,6 +36,7 @@ router.use(twoFactorRouter);
 router.use(magicLinkRouter);
 router.use(mergeRouter);
 router.use(miscRouter);
+router.use(sessionsRouter);
 router.use(phoneAccountRouter);
 
 export default router;

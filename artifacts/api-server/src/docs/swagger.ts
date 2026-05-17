@@ -1,59 +1,81 @@
+/**
+ * OpenAPI spec built from inline JSDoc @openapi / @swagger comments.
+ *
+ * Exports a plain spec object so callers can pass it directly to
+ * swaggerUi.setup() or serve it as JSON.  The router is NOT exported here —
+ * mounting decisions live in routes/index.ts.
+ */
 import swaggerJsdoc from "swagger-jsdoc";
-import swaggerUi from "swagger-ui-express";
-import { Router } from "express";
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
+import { createRequire } from "module";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const router = Router();
+/* Read version from the local package.json without a top-level await */
+const _require = createRequire(import.meta.url);
+const pkgVersion: string = (() => {
+  try {
+    /* Works whether running from src/ (dev) or dist/ (prod) */
+    const candidates = [
+      resolve(__dirname, "..", "..", "package.json"),     // src/docs -> root
+      resolve(__dirname, "..", "package.json"),           // dist -> root
+      resolve(process.cwd(), "package.json"),
+    ];
+    for (const c of candidates) {
+      try {
+        const pkg = _require(c) as { version?: string };
+        if (pkg.version) return pkg.version;
+      } catch { /* try next */ }
+    }
+  } catch { /* swallow */ }
+  return "1.0.0";
+})();
 
-/* swagger-jsdoc reads STATIC JSDoc comments — always point at the TypeScript
-   source files regardless of whether we're in dev (tsx, __filename ends in .ts)
-   or bundled prod (esbuild, __filename is dist/index.mjs with __dirname=dist/).
+/* swagger-jsdoc scans STATIC JSDoc comments — always point at .ts source files
+   regardless of whether we're in dev (tsx) or a compiled bundle.
 
-   Resolution:
-   - Dev (tsx):  __dirname === …/src/docs/   → ../routes  === …/src/routes
-   - Bundled:    __dirname === …/dist/        → ../src/routes === …/src/routes ✓ */
+   Dev  (tsx):  __dirname === …/src/docs/    → resolve("../routes") === …/src/routes
+   Prod (esbuild): __dirname === …/dist/     → resolve("../src/routes") === …/src/routes */
 const srcRoutesDir = __filename.endsWith(".ts")
-  ? resolve(__dirname, "..", "routes")          // dev: src/docs → src/routes
-  : resolve(__dirname, "..", "src", "routes");  // prod bundle: dist → src/routes
+  ? resolve(__dirname, "..", "routes")
+  : resolve(__dirname, "..", "src", "routes");
 
-/* Always use .ts source files — swagger-jsdoc reads static comments only */
-const ext = ".ts";
+const ext = ".ts"; /* swagger-jsdoc reads comments from source files only */
 
 const options: swaggerJsdoc.Options = {
   definition: {
-    openapi: "3.0.0",
+    openapi: "3.1.0",
     info: {
       title: "AJKMart API",
-      version: "1.0.0",
-      description: "AJKMart super-app API server — authentication, e-commerce, food delivery, ride-hailing, pharmacy, parcels, inter-city transport, and admin operations.",
-      contact: {
-        name: "AJKMart Support",
-        email: "support@ajkmart.com",
-      },
+      version: pkgVersion,
+      description:
+        "AJKMart super-app API — authentication, e-commerce, food delivery, ride-hailing, pharmacy, parcels, inter-city transport, and admin operations.",
+      contact: { name: "AJKMart Support", email: "support@ajkmart.com" },
     },
     servers: [
       {
-        url: process.env["APP_BASE_URL"] ? `${process.env["APP_BASE_URL"]}/api` : `https://${process.env["REPLIT_DEV_DOMAIN"] ?? "localhost:5000"}/api`,
+        url:
+          process.env["APP_BASE_URL"]
+            ? `${process.env["APP_BASE_URL"]}/api`
+            : `/api`,
         description: "Current environment",
       },
     ],
     components: {
       securitySchemes: {
-        bearerAuth: {
+        BearerAuth: {
           type: "http",
           scheme: "bearer",
           bearerFormat: "JWT",
-          description: "Customer / user JWT access token",
+          description: "Customer / user JWT access token (Authorization: Bearer <token>)",
         },
-        adminBearerAuth: {
+        AdminBearerAuth: {
           type: "http",
           scheme: "bearer",
           bearerFormat: "JWT",
-          description: "Admin JWT access token (requires admin-auth-v2 flow)",
+          description: "Admin JWT access token (admin-auth-v2 flow)",
         },
       },
       schemas: {
@@ -61,7 +83,7 @@ const options: swaggerJsdoc.Options = {
           type: "object",
           properties: {
             success: { type: "boolean", example: true },
-            data: { type: "object", example: {} },
+            data: { type: "object" },
             message: { type: "string", example: "OK" },
           },
         },
@@ -89,18 +111,18 @@ const options: swaggerJsdoc.Options = {
     },
   },
   apis: [
-    resolve(srcRoutesDir, "auth", `identifier${ext}`),
-    resolve(srcRoutesDir, "auth", `otp${ext}`),
-    resolve(srcRoutesDir, "auth", `email-otp${ext}`),
-    resolve(srcRoutesDir, "auth", `password${ext}`),
-    resolve(srcRoutesDir, "auth", `register${ext}`),
-    resolve(srcRoutesDir, "auth", `refresh${ext}`),
+    /* Auth endpoints — the five required + extras that are already annotated */
+    resolve(srcRoutesDir, "auth", `otp${ext}`),           /* POST /auth/send-otp, /auth/verify-otp */
+    resolve(srcRoutesDir, "auth", `password${ext}`),      /* POST /auth/login */
+    resolve(srcRoutesDir, "auth", `register${ext}`),      /* POST /auth/register */
+    resolve(srcRoutesDir, "auth", `refresh${ext}`),       /* POST /auth/refresh, /auth/logout */
+    resolve(srcRoutesDir, "auth", `sessions${ext}`),      /* POST /auth/sessions/revoke */
+    resolve(srcRoutesDir, "auth", `misc${ext}`),          /* POST /auth/recovery/reset-password */
     resolve(srcRoutesDir, "auth", `two-factor${ext}`),
     resolve(srcRoutesDir, "auth", `magic-link${ext}`),
     resolve(srcRoutesDir, "auth", `social${ext}`),
-    resolve(srcRoutesDir, "auth", `merge${ext}`),
-    resolve(srcRoutesDir, "auth", `config${ext}`),
-    resolve(srcRoutesDir, "auth", `misc${ext}`),
+    resolve(srcRoutesDir, "auth", `email-otp${ext}`),
+    resolve(srcRoutesDir, "auth", `identifier${ext}`),
     resolve(srcRoutesDir, "admin", "system", `users${ext}`),
     resolve(srcRoutesDir, `health${ext}`),
     resolve(srcRoutesDir, `users${ext}`),
@@ -109,36 +131,6 @@ const options: swaggerJsdoc.Options = {
   ],
 };
 
-const specs = swaggerJsdoc(options);
+export const swaggerSpec = swaggerJsdoc(options);
 
-router.use(swaggerUi.serve, swaggerUi.setup(specs, {
-  explorer: true,
-  customSiteTitle: "AJKMart API Docs",
-  customCss: `
-    .swagger-ui .topbar { background: #1e293b; border-bottom: 1px solid #334155; }
-    .swagger-ui .topbar-wrapper img { display: none; }
-    .swagger-ui .topbar-wrapper::before {
-      content: "AJKMart API Docs";
-      color: #a5b4fc;
-      font-weight: 700;
-      font-size: 1.1rem;
-      font-family: system-ui, sans-serif;
-      margin-left: 4px;
-    }
-    .swagger-ui { font-family: system-ui, sans-serif; }
-    body { background: #0f172a; }
-  `,
-  swaggerOptions: {
-    persistAuthorization: true,
-    displayRequestDuration: true,
-    filter: true,
-    tryItOutEnabled: true,
-    deepLinking: true,
-  },
-}));
-
-router.get("/spec.json", (_req, res) => {
-  res.json(specs);
-});
-
-export default router;
+export default swaggerSpec;

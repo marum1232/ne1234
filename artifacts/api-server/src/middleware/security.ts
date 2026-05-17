@@ -550,6 +550,39 @@ export async function blacklistJti(jti: string, expiresAt: number): Promise<void
 }
 
 /**
+ * Blacklist a session by its token hash (sha256 of the access token).
+ * Used when revoking a session whose JTI is not known (non-current session).
+ * TTL defaults to the access-token lifetime so the key auto-expires when the
+ * token would have expired anyway.
+ */
+export async function blacklistSessionHash(tokenHash: string, ttlSec?: number): Promise<void> {
+  try {
+    const { redisClient } = await import("../lib/redis.js");
+    if (!redisClient) return;
+    const expiry = ttlSec ?? getAccessTokenTtlSec();
+    await redisClient.set(`session:bl:${tokenHash}`, "1", "EX", Math.max(1, expiry));
+  } catch (err) {
+    logger.warn({ tokenHash: tokenHash.slice(0, 8), err: err instanceof Error ? err.message : String(err) }, "[auth] blacklistSessionHash Redis error");
+  }
+}
+
+/**
+ * Check if a session token hash is blacklisted.
+ * Returns false (allow) when Redis is unavailable.
+ */
+export async function isSessionHashBlacklisted(tokenHash: string): Promise<boolean> {
+  try {
+    const { redisClient } = await import("../lib/redis.js");
+    if (!redisClient) return false;
+    const result = await redisClient.exists(`session:bl:${tokenHash}`);
+    return result === 1;
+  } catch (err) {
+    logger.warn({ err: err instanceof Error ? err.message : String(err) }, "[auth] isSessionHashBlacklisted Redis error");
+    return false;
+  }
+}
+
+/**
  * Check if a JWT jti is blacklisted.
  * Returns false (allow) when Redis is unavailable so a Redis outage never blocks auth.
  */

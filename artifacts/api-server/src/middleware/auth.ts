@@ -1,9 +1,57 @@
 import type { Request, Response, NextFunction } from "express";
+import crypto from "crypto";
 import { db } from "@workspace/db";
 import { refreshTokensTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
 import { logger } from "../lib/logger.js";
-import { addSecurityEvent, getClientIp, verifyUserJwt, writeAuthAuditLog } from "./security.js";
+import { addSecurityEvent, getClientIp, verifyUserJwt, writeAuthAuditLog, isSessionHashBlacklisted } from "./security.js";
+
+/**
+ * checkSessionRevocation — Express middleware that checks whether the incoming
+ * access token's session has been explicitly revoked by the user.
+ *
+ * When a user calls POST /auth/sessions/revoke, we write session:bl:<sha256(token)>
+ * to Redis. This middleware computes the same hash and rejects any request whose
+ * token appears in the blacklist — providing immediate revocation even before
+ * the access token expires.
+ *
+ * Fail-open: if Redis is unavailable, the request passes through so a Redis
+ * outage never blocks legitimate users.
+ */
+export async function checkSessionRevocation(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const authHeader = req.headers["authorization"] as string | undefined;
+    const tokenHeader = req.headers["x-auth-token"] as string | undefined;
+    const raw = tokenHeader || authHeader?.replace(/^Bearer\s+/i, "");
+
+    if (!raw) { next(); return; }
+
+    const tokenHash = crypto.createHash("sha256").update(raw).digest("hex");
+    const revoked = await isSessionHashBlacklisted(tokenHash);
+
+    if (revoked) {
+      const payload = verifyUserJwt(raw);
+      const ip = getClientIp(req);
+      logger.warn(
+        { userId: payload?.userId ?? "unknown", tokenHashPrefix: tokenHash.slice(0, 8), ip, url: req.url },
+        "[SECURITY] Revoked session access attempt blocked.",
+      );
+      writeAuthAuditLog("revoked_session_access_attempt", {
+        userId: payload?.userId ?? "unknown",
+        ip,
+        metadata: { tokenHashPrefix: tokenHash.slice(0, 8), url: req.url },
+      }).catch(() => {/* non-fatal */});
+
+      res.status(401).json({ success: false, error: "Session has been revoked. Please log in again." });
+      return;
+    }
+
+    next();
+  } catch (err) {
+    logger.warn({ err }, "[checkSessionRevocation] Check failed — passing through");
+    next();
+  }
+}
 
 /**
  * verifyTokenFamily — Express middleware that checks whether the authenticated
