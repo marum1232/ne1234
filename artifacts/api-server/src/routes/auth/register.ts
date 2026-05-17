@@ -105,9 +105,11 @@ router.post("/vendor-register", sharedValidateBody(VendorRegisterSchema), async 
   if (existingRoles.includes("rider")) {
     const vendorSettings = await getCachedSettings();
     if (vendorSettings["allow_dual_role"] !== "on") {
+      writeAuthAuditLog("dual_role_denied", { userId: user.id, ip, userAgent: req.headers["user-agent"] ?? undefined, metadata: { existingRole: "rider", requestedRole: "vendor", policy: "allow_dual_role=off" } });
       sendError(res, "Rider accounts cannot register as vendors. Please create a separate vendor account or contact support.", 409);
       return;
     }
+    writeAuthAuditLog("dual_role_allowed", { userId: user.id, ip, userAgent: req.headers["user-agent"] ?? undefined, metadata: { existingRole: "rider", requestedRole: "vendor", policy: "allow_dual_role=on" } });
   }
 
   const newRoles = existingRoles.includes("vendor") ? existingRoles : [...existingRoles, "vendor"];

@@ -328,6 +328,12 @@ function readCsrfFromCookie(): string {
 }
 
 export async function apiFetch(path: string, opts: RequestInit = {}, _returnEnvelope = false, _5xxRetries = CB_DEFAULT_RETRIES): Promise<any> {
+  /* Ensure the token store has been seeded from Preferences before any request fires.
+     tokenStoreReady is a one-time async boot step that moves legacy localStorage tokens
+     into Preferences and loads the persisted access token into _inMemoryAccessToken.
+     Without this guard, the first request after a cold restart may be sent without
+     an access token because the async load hasn't resolved yet. */
+  await tokenStoreReady;
   /* Guard: reject immediately if this endpoint's circuit is open.
      Only checked on the initial call — recursive retries bypass this so they
      can attempt the back-off sequence before the circuit actually records a

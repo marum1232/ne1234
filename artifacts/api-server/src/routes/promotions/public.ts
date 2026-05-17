@@ -381,57 +381,8 @@ router.post("/validate", customerAuth, async (req: Request, res) => {
   }
 });
 
-router.get("/vendor/campaigns", requireRole("vendor"), async (req: Request, res) => {
-  try {
-    const vendorId = req.vendorId as string;
-    const now = nowIso();
-
-    const campaigns = await db
-      .select()
-      .from(campaignsTable)
-      .where(and(eq(campaignsTable.status, "live"), gte(campaignsTable.endDate, now)))
-      .orderBy(asc(campaignsTable.priority));
-
-    const participations = await db.select().from(campaignParticipationsTable)
-      .where(eq(campaignParticipationsTable.vendorId, vendorId));
-
-    const partMap = Object.fromEntries(participations.map(p => [p.campaignId, p]));
-
-    sendSuccess(res, {
-      campaigns: campaigns.map(c => ({
-        ...mapCampaign(c),
-        participation: partMap[c.id] ?? null,
-      })),
-    });
-  } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
-    res.status(500).json({ error: "Server error" });
-  }
-});
-
-router.post("/vendor/campaigns/:id/participate", requireRole("vendor"), async (req: Request, res) => {
-  try {
-    const vendorId = req.vendorId as string;
-    const campaignId = req.params["id"]!;
-    const { notes } = req.body;
-
-    const [existing] = await db.select().from(campaignParticipationsTable)
-      .where(and(eq(campaignParticipationsTable.campaignId, campaignId), eq(campaignParticipationsTable.vendorId, vendorId)))
-      .limit(1);
-    if (existing) { sendError(res, "Already requested participation", 409); return; }
-
-    const [participation] = await db.insert(campaignParticipationsTable).values({
-      id: generateId(),
-      campaignId,
-      vendorId,
-      status: "pending",
-      notes: notes || null,
-    }).returning();
-    sendCreated(res, participation);
-  } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
-    res.status(500).json({ error: "Server error" });
-  }
-});
+/* NOTE: vendor campaign routes (GET /vendor/campaigns, POST /vendor/campaigns/:id/participate)
+   are owned by campaigns.ts and mounted under the promotions router with adminAuth.
+   They must NOT be duplicated here — campaigns.ts is the single source of truth. */
 
 export default router;

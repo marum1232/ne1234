@@ -73,7 +73,29 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
     if (approvalStatus === "pending") { setOverlay("pending"); return; }
     if (approvalStatus === "rejected") { setRejectionReason(rejReason ?? null); setOverlay("rejected"); return; }
 
-    /* Biometric enrollment prompt — first-time only */
+    /* If biometric is already enrolled and hardware is available, verify the user
+       before completing login (step-up auth on return sessions). */
+    if (biometricEnabled && Platform.OS !== "web") {
+      try {
+        const result = await LocalAuthentication.authenticateAsync({
+          promptMessage: "Confirm it's you to log in",
+          fallbackLabel: "Use password",
+          cancelLabel: "Cancel",
+          disableDeviceFallback: false,
+        });
+        if (!result.success) {
+          /* User cancelled or hardware failed — fall through to password login */
+          completeLogin(token, sdkUser);
+          return;
+        }
+      } catch {
+        /* authenticateAsync not available — fall through */
+      }
+      completeLogin(token, sdkUser);
+      return;
+    }
+
+    /* First-time login — offer to enroll biometrics */
     if (!biometricEnabled && Platform.OS !== "web") {
       pendingTokenRef.current = token;
       pendingUserRef.current = sdkUser;

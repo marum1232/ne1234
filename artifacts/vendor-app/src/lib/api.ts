@@ -64,11 +64,14 @@ export const authClient = createAuthClient({
 });
 
 /* ── authPost ─────────────────────────────────────────────────────────────────
-   Routes core authentication API calls through `authClient` (which provides
-   automatic bearer injection, deduped 401→refresh, and withRetry) while
-   layering the circuit-breaker and server-envelope unwrapping on top.
-   CSRF is intentionally omitted for auth endpoints — they use cookies + OTPs
-   and don't require CSRF tokens.                                              */
+   Routes authentication API calls (login, register, OTP, social login) through
+   a direct fetch() rather than authClient, because:
+     1. Auth endpoints never return 401 — they ARE the auth endpoints, so they
+        don't need 401→refresh handling.
+     2. This makes _vendorFetcher the sole owner of token refresh, eliminating
+        the race condition between authClient and _vendorFetcher both attempting
+        a concurrent /auth/refresh call when a session expires.
+   CSRF is intentionally omitted — auth endpoints use cookies + OTPs.          */
 async function authPost(path: string, body?: unknown): Promise<unknown> {
   /* Circuit breaker guard */
   try { _circuitBreaker.check(path); } catch (err) {
@@ -82,33 +85,33 @@ async function authPost(path: string, body?: unknown): Promise<unknown> {
     }
     throw err;
   }
+  let res: Response;
   try {
-    const raw = await authClient.post<Record<string, unknown>>(path, body);
+    res = await fetch(`${BASE}${path}`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    });
     _circuitBreaker.onSuccess(path);
-    /* Unwrap server envelope { data: T } → T, or return raw if no envelope */
-    return raw != null && typeof raw === "object" && "data" in raw ? raw.data : raw;
   } catch (err: unknown) {
     _circuitBreaker.onFailure(path);
-    /* authClient throws "HTTP NNN: {body}" — parse into a user-friendly Error */
-    if (err instanceof Error) {
-      const httpMatch = err.message.match(/^HTTP (\d+): ([\s\S]*)$/);
-      if (httpMatch) {
-        const status = parseInt(httpMatch[1], 10);
-        const bodyStr = httpMatch[2];
-        /* pendingApproval / rejected signals must propagate */
-        try {
-          const parsed = JSON.parse(bodyStr) as { error?: string; message?: string; pendingApproval?: boolean; rejected?: boolean; approvalNote?: string };
-          if (parsed.pendingApproval) throw Object.assign(new Error(parsed.error || "Pending approval"), { status, pendingApproval: true });
-          if (parsed.rejected) throw Object.assign(new Error(parsed.error || "Application rejected"), { status, rejected: true, approvalNote: parsed.approvalNote });
-          throw Object.assign(new Error(parsed.error || parsed.message || bodyStr), { status });
-        } catch (inner) {
-          if (inner instanceof Error && ("pendingApproval" in inner || "rejected" in inner || "status" in inner)) throw inner;
-          throw Object.assign(new Error(bodyStr), { status });
-        }
-      }
-    }
-    throw err;
+    throw Object.assign(new Error("Network error — please check your connection"), { status: 0, transient: true });
   }
+
+  /* Parse the JSON response body regardless of status */
+  let parsed: { data?: unknown; error?: string; message?: string; pendingApproval?: boolean; rejected?: boolean; approvalNote?: string } = {};
+  try { parsed = await res.json() as typeof parsed; } catch { /* non-JSON body */ }
+
+  if (!res.ok) {
+    const status = res.status;
+    if (parsed.pendingApproval) throw Object.assign(new Error(parsed.error || "Pending approval"), { status, pendingApproval: true });
+    if (parsed.rejected)        throw Object.assign(new Error(parsed.error || "Application rejected"), { status, rejected: true, approvalNote: parsed.approvalNote });
+    throw Object.assign(new Error(parsed.error || parsed.message || `Request failed (${status})`), { status });
+  }
+
+  /* Unwrap server envelope { data: T } → T, or return the raw parsed body */
+  return parsed != null && typeof parsed === "object" && "data" in parsed ? parsed.data : parsed;
 }
 
 function readCsrfFromCookie(): string {
@@ -312,7 +315,7 @@ export const api = {
   refreshToken: () => _vendorRefresh(),
   checkAvailable: (data: { phone?: string; email?: string; username?: string }, signal?: AbortSignal) =>
     apiFetch("/auth/check-available", { method: "POST", body: JSON.stringify(data), signal }),
-  vendorRegister: (data: { phone?: string; email?: string; storeName: string; storeCategory?: string; name?: string; cnic?: string; address?: string; city?: string; bankName?: string; bankAccount?: string; bankAccountTitle?: string; username?: string; acceptedTermsVersion?: string; documents?: string }) =>
+  vendorRegister: (data: { phone?: string; email?: string; storeName: string; storeCategory?: string; name?: string; cnic?: string; address?: string; city?: string; bankName?: string; bankAccount?: string; bankAccountTitle?: string; username?: string; acceptedTermsVersion?: string; documents?: string; otp?: string; password?: string }) =>
     authPost("/auth/vendor-register", data),
   socialGoogle: (data: { idToken: string }) =>
     authPost("/auth/social/google", { ...data, role: "vendor" }),

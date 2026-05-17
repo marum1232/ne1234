@@ -366,7 +366,8 @@ export function RegisterWizard({ onDone }: RegisterWizardProps) {
         bankName: data.bankName as string | undefined,
         bankAccount: data.bankAccount as string | undefined,
         bankAccountTitle: data.bankAccountTitle as string | undefined,
-        ...(data.otp ? { otp: data.otp as string } : {}),
+        ...(data.otp      ? { otp:      data.otp      as string } : {}),
+        ...(data.password ? { password: data.password as string } : {}),
       }) as { token?: string; user?: unknown };
       localStorage.removeItem(DRAFT_KEY);
       return { success: true, data: res };

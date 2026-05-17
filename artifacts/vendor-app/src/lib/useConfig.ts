@@ -223,6 +223,8 @@ export interface VendorAuthConfig {
   lockoutEnabled: boolean;
   lockoutMaxAttempts: number;
   lockoutDurationSec: number;
+  googleClientId?: string;
+  facebookAppId?: string;
 }
 
 export function getVendorAuthConfig(config: PlatformConfig): VendorAuthConfig {
@@ -240,6 +242,8 @@ export function getVendorAuthConfig(config: PlatformConfig): VendorAuthConfig {
     lockoutEnabled: a.lockoutEnabled ?? false,
     lockoutMaxAttempts: a.lockoutMaxAttempts ?? 5,
     lockoutDurationSec: a.lockoutDurationSec ?? 300,
+    googleClientId: a.googleClientId,
+    facebookAppId: a.facebookAppId,
   };
 }
 
