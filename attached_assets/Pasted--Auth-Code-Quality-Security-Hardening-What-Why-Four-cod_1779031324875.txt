@@ -1,0 +1,55 @@
+ Auth Code Quality & Security Hardening
+What & Why
+Four code-quality and security issues were found in the auth and audit layer:
+
+Unsafe as any / as unknown as casts bypass TypeScript's type checker in critical auth paths, hiding potential runtime errors.
+Two parallel audit systems exist (addAuditEntry() in security.ts and AuditService in admin-audit.service.ts), causing split and inconsistent audit coverage.
+The admin login page hard-codes and visually displays superadmin / Admin@123, leaking default credentials to anyone who opens the browser.
+Rider-app and vendor-app monkey-patch window.fetch to rename token → accessToken because the API returns token but the SDK expects accessToken. This is fragile and hides a contract mismatch.
+Done looks like
+No as any or unsafe as unknown as casts remain in auth middleware, admin auth routes, or the rider/vendor LoginScreen auth paths. Proper typed interfaces are used instead.
+All audit calls go through a single path. Either every caller uses AuditService.executeWithAudit() / a unified helper, or AuditService is simplified down to addAuditEntry() directly — but not both co-existing without a clear wrapper boundary.
+Admin login page shows no username hint, no password hint, and no "Default super-admin" notice. The useState("superadmin") default is replaced with "".
+window.fetch monkey-patches are removed from rider-app and vendor-app. The API server auth endpoints (/api/auth/verify-otp, /api/auth/login, /api/auth/2fa/verify, and the rider/vendor equivalents) return accessToken in their JSON response alongside or instead of token, so the SDK receives the field it expects natively.
+Out of scope
+Migrating addAuditEntry audit data to a new DB schema or table structure.
+Fixing as any casts in non-auth areas (e.g. app.ts proxy handlers, test files, _archive/ routes).
+Changing the authentication flow logic or token TTLs.
+Steps
+Define typed interfaces for auth request properties — In artifacts/api-server/src/middleware/auth.ts, replace (payload as unknown as Record<string, unknown>)["tokenFamilyId"] with a typed JwtPayloadExtended interface that extends the JWT payload type with tokenFamilyId, jti, and other custom claims. In admin/system/auth.ts, replace (payload as unknown as { role? }) casts with the same or a dedicated AdminJwtPayload interface.
+
+Fix req as any / req as unknown as AdminRequest casts — In admin/system/users.ts (lines 1057, 1084) and admin-auth-v2.ts, add or extend the Express Request type (using declaration merging or a typed AdminRequest interface) so admin-populated fields like adminId, adminName, adminRole, and admin are typed on the request object directly, removing the need to cast req.
+
+Fix UserService as unknown as { authenticateAdmin } cast — In admin/system/auth.ts line 162, add the authenticateAdmin method signature to the UserService class or its type declaration so the cast is not needed.
+
+Fix sdkUser as unknown as Record<string, unknown> in rider/vendor LoginScreen — The SDKAuthUser type from @workspace/auth-react is missing approvalStatus and rejectionReason fields. Extend the SDKAuthUser type (or the local usage type) to include these optional fields, removing the cast.
+
+Unify the audit system — AuditService.executeWithAudit() currently wraps addAuditEntry() internally — so both systems ultimately write to the same sink. The fix is to make AuditService the canonical entry point for all new audit writes, and update the direct addAuditEntry() call sites in wallet.ts, orders.ts, legal.ts, and all auth route files (otp.ts, social.ts, two-factor.ts, identifier.ts, etc.) to call the appropriate AuditService method or a thin AuditService.log() helper instead. Do not remove addAuditEntry() from security.ts yet — keep it as the internal implementation detail called only by AuditService.
+
+Remove hardcoded credential hints from admin login UI — In artifacts/admin/src/lib/auth/LoginScreen.tsx: change useState("superadmin") to useState(""), and remove the "Default super-admin — superadmin / Admin@123" notice block entirely (lines 249–257). In FirstLoginCredentialsDialog.tsx, remove or blank out DOCUMENTED_DEFAULT_PASSWORD = "Admin@123" — it should not display or reference the default password anywhere.
+
+Fix the server to return accessToken — In all customer auth response payloads (/api/auth/verify-otp, /api/auth/login, /api/auth/2fa/verify inside otp.ts, identifier.ts, social.ts, two-factor.ts, magic-link.ts, refresh.ts): rename the response key from token to accessToken (or add accessToken as an alias). Do the same for rider-auth and vendor-auth endpoints if they have separate routes.
+
+Remove window.fetch monkey-patches — Once step 7 is done, delete the useEffect fetch-interceptor blocks from artifacts/rider-app/src/lib/auth/LoginScreen.tsx (lines 46–69) and artifacts/vendor-app/src/lib/auth/LoginScreen.tsx (lines 47–68). Also remove the (res.token ?? res.accessToken) fallback in artifacts/rider-app/src/lib/auth/useAuth.ts line 79 — it can become a plain res.accessToken.
+
+Relevant files
+artifacts/api-server/src/middleware/auth.ts
+artifacts/api-server/src/middleware/security.ts:419-460
+artifacts/api-server/src/services/admin-audit.service.ts
+artifacts/api-server/src/routes/admin/system/auth.ts
+artifacts/api-server/src/routes/admin/system/users.ts
+artifacts/api-server/src/routes/admin-auth-v2.ts
+artifacts/api-server/src/routes/auth/otp.ts
+artifacts/api-server/src/routes/auth/social.ts
+artifacts/api-server/src/routes/auth/two-factor.ts
+artifacts/api-server/src/routes/auth/identifier.ts
+artifacts/api-server/src/routes/auth/magic-link.ts
+artifacts/api-server/src/routes/auth/refresh.ts
+artifacts/api-server/src/routes/wallet.ts
+artifacts/api-server/src/routes/orders.ts
+artifacts/api-server/src/routes/legal.ts
+artifacts/admin/src/lib/auth/LoginScreen.tsx
+artifacts/admin/src/components/FirstLoginCredentialsDialog.tsx
+artifacts/rider-app/src/lib/auth/LoginScreen.tsx:46-69
+artifacts/rider-app/src/lib/auth/useAuth.ts
+artifacts/vendor-app/src/lib/auth/LoginScreen.tsx:47-68
