@@ -53,9 +53,17 @@ async function prefRemove(key: string): Promise<void> {
 
 function isNative(): boolean {
   try {
-    const { Capacitor } = require("@capacitor/core") as typeof import("@capacitor/core");
-    return Capacitor.isNativePlatform();
-  } catch (err) { console.warn('[artifacts/rider-app/src/lib/biometric.ts]', err); } // eslint-disable-line no-console
+    // Capacitor injects window.Capacitor on native platforms at runtime.
+    // Using the global avoids require() which is not available in browser ESM.
+    const cap = (
+      typeof window !== "undefined"
+        ? (window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor
+        : undefined
+    );
+    return cap?.isNativePlatform?.() ?? false;
+  } catch {
+    return false;
+  }
 }
 
 /* ── Public API ── */

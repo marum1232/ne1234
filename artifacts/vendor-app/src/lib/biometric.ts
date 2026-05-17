@@ -53,9 +53,15 @@ async function prefRemove(key: string): Promise<void> {
 
 function isNative(): boolean {
   try {
-    const { Capacitor } = require("@capacitor/core") as typeof import("@capacitor/core");
-    return Capacitor.isNativePlatform();
-  } catch (err) { console.warn('[artifacts/vendor-app/src/lib/biometric.ts]', err); } // eslint-disable-line no-console
+    const cap = (
+      typeof window !== "undefined"
+        ? (window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor
+        : undefined
+    );
+    return cap?.isNativePlatform?.() ?? false;
+  } catch {
+    return false;
+  }
 }
 
 /* ── Public API ── */
