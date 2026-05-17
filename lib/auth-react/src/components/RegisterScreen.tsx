@@ -42,9 +42,9 @@ export interface RegisterScreenProps {
 }
 
 const ROLE_ACCENT: Record<RegisterRole, string> = {
-  customer: '#f59e0b',
-  rider:    '#3b82f6',
-  vendor:   '#8b5cf6',
+  customer: '#0066ff',
+  rider:    '#22c55e',
+  vendor:   '#f97316',
 };
 
 const ROLE_LABELS: Record<RegisterRole, string> = {

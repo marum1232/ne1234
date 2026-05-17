@@ -31,6 +31,7 @@ export interface AuthUser {
   cnic?: string; city?: string; address?: string; businessType?: string;
   bankName?: string; bankAccount?: string; bankAccountTitle?: string;
   isVerified?: boolean; status?: string;
+  approvalStatus?: string; rejectionReason?: string | null;
 }
 
 interface AuthCtx {

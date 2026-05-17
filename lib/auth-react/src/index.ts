@@ -50,3 +50,7 @@ export { RegisterScreen } from './components/RegisterScreen';
 export type { RegisterScreenProps, RegisterRole, FieldConfig, StepConfig, StepComponentProps } from './components/RegisterScreen';
 export { SessionManagerScreen } from './components/SessionManagerScreen';
 export type { SessionManagerScreenProps } from './components/SessionManagerScreen';
+
+// Theme context — inject per-app brand colors into auth components
+export { ThemeProvider, useAuthTheme, DEFAULT_THEMES, ThemeContext } from './context/ThemeContext';
+export type { AuthTheme, ThemeProviderProps } from './context/ThemeContext';

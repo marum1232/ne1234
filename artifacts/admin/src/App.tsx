@@ -482,6 +482,57 @@ function IntegrationsInit() {
   return null;
 }
 
+/**
+ * AdminMaintenanceGuard — shows a dismissible maintenance overlay when the
+ * platform is in maintenance mode.  Admins are NOT blocked (they need access
+ * to turn maintenance off via LaunchControl), but the overlay makes the status
+ * obvious and requires an explicit "Continue as Admin" click to proceed.
+ *
+ * Only renders for authenticated admins so the login page is always reachable.
+ */
+function AdminMaintenanceGuard() {
+  const { state } = useAdminAuth();
+  const [msg, setMsg] = useState<string | null>(null);
+  const [dismissed, setDismissed] = useState(false);
+
+  useEffect(() => {
+    if (!state.accessToken) return;
+    fetch('/api/platform-config')
+      .then(r => r.ok ? r.json() : null)
+      .then((raw: unknown) => {
+        if (!raw) return;
+        const d = ((raw as Record<string, unknown>)?.data ?? raw) as Record<string, unknown>;
+        const platform = d?.platform as Record<string, unknown> | undefined;
+        if (platform?.appStatus === 'maintenance') {
+          const content = d?.content as Record<string, unknown> | undefined;
+          setMsg((content?.maintenanceMsg as string | undefined) || 'The platform is currently under maintenance.');
+        }
+      })
+      .catch(() => {});
+  }, [state.accessToken]);
+
+  if (!msg || dismissed) return null;
+
+  return (
+    <div className="fixed inset-0 z-[9999] bg-amber-500/90 backdrop-blur-sm flex items-center justify-center p-6">
+      <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl">
+        <div className="text-5xl mb-4">🔧</div>
+        <h2 className="text-xl font-bold text-gray-800 mb-2">Maintenance Mode Active</h2>
+        <p className="text-gray-500 text-sm leading-relaxed mb-6">{msg}</p>
+        <p className="text-xs text-amber-600 font-semibold mb-5 bg-amber-50 rounded-xl py-2 px-3">
+          Customers cannot access the platform. Use LaunchControl to disable maintenance mode.
+        </p>
+        <button
+          onClick={() => setDismissed(true)}
+          className="w-full h-11 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-sm transition-colors"
+        >
+          Continue as Admin →
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function App() {
   return (
     <ErrorBoundary>
@@ -493,6 +544,7 @@ function App() {
               <LanguageInit />
               <IntegrationsInit />
               <Router />
+              <AdminMaintenanceGuard />
             </WouterRouter>
             <Toaster />
             <PwaInstallBanner />

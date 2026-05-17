@@ -75,7 +75,7 @@ const queryClient = new QueryClient({
 const MAINTENANCE_GRACE_MS = 5 * 60 * 1000; /* 5-minute grace period */
 
 function AppRoutes() {
-  const { user, loading } = useAuth();
+  const { user, loading, logout } = useAuth();
   const { config } = usePlatformConfig();
   useLanguage(); /* initialises RTL + language from API on mount */
 
@@ -293,6 +293,49 @@ function AppRoutes() {
   );
 
   if (!user) return <Login />;
+
+  /* ── Approval status guards — shown after session rehydration ── */
+  const supportPhone = (config.platform as Record<string, unknown>)?.supportPhone as string | undefined
+    || (config.content as Record<string, unknown>)?.supportPhone as string | undefined;
+
+  if (user.approvalStatus === "pending") return (
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-100 flex items-center justify-center p-6">
+      <div className="bg-white rounded-3xl shadow-xl p-8 max-w-sm w-full text-center">
+        <div className="text-5xl mb-4">⏳</div>
+        <h2 className="text-xl font-bold text-gray-800 mb-2">Application Pending</h2>
+        <p className="text-gray-500 text-sm leading-relaxed mb-6">Your vendor account is pending admin approval. You will be notified once your account is approved.</p>
+        {supportPhone && (
+          <a href={`tel:${supportPhone}`} className="block w-full py-3 mb-2 rounded-2xl bg-orange-600 text-white font-semibold text-sm hover:bg-orange-700 transition-colors">
+            Contact Support
+          </a>
+        )}
+        <button onClick={() => { try { logout(); } finally { window.location.reload(); } }}
+          className="w-full py-3 rounded-2xl bg-gray-100 text-gray-700 font-semibold text-sm hover:bg-gray-200 transition-colors">
+          Sign Out
+        </button>
+      </div>
+    </div>
+  );
+
+  if (user.approvalStatus === "rejected") return (
+    <div className="min-h-screen bg-gradient-to-br from-red-50 to-rose-100 flex items-center justify-center p-6">
+      <div className="bg-white rounded-3xl shadow-xl p-8 max-w-sm w-full text-center">
+        <div className="text-5xl mb-4">❌</div>
+        <h2 className="text-xl font-bold text-gray-800 mb-2">Application Rejected</h2>
+        <p className="text-gray-500 text-sm leading-relaxed mb-2">Your vendor account application was not approved.</p>
+        {user.rejectionReason && <p className="text-red-600 text-sm font-medium mb-6">Reason: {user.rejectionReason}</p>}
+        {supportPhone && (
+          <a href={`tel:${supportPhone}`} className="block w-full py-3 mb-2 rounded-2xl bg-orange-600 text-white font-semibold text-sm hover:bg-orange-700 transition-colors">
+            Contact Support
+          </a>
+        )}
+        <button onClick={() => { try { logout(); } finally { window.location.reload(); } }}
+          className="w-full py-3 rounded-2xl bg-gray-100 text-gray-700 font-semibold text-sm hover:bg-gray-200 transition-colors">
+          Sign Out
+        </button>
+      </div>
+    </div>
+  );
 
   return (
     <div className="h-screen bg-gray-100 flex flex-col overflow-hidden">
