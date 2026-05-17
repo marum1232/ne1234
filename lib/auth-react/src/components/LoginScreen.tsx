@@ -6,6 +6,7 @@ import { PasswordInput } from './PasswordInput';
 import { SocialButtons } from './SocialButtons';
 import { PhoneInput } from './PhoneInput';
 import { BiometricPrompt } from './BiometricPrompt';
+import { useAuthTheme } from '../context/ThemeContext';
 
 export type AppRole = 'customer' | 'rider' | 'vendor' | 'admin';
 
@@ -40,92 +41,6 @@ const ROLE_LABELS: Record<AppRole, string> = {
   admin:    'Admin Panel',
 };
 
-const ROLE_ACCENT: Record<AppRole, string> = {
-  customer: '#0066ff',
-  rider:    '#22c55e',
-  vendor:   '#f97316',
-  admin:    '#6366f1',
-};
-
-const s = {
-  screen: {
-    minHeight: '100vh',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    background: '#f9fafb',
-    padding: '24px 16px',
-  },
-  card: {
-    width: '100%',
-    maxWidth: '400px',
-    background: '#fff',
-    borderRadius: '16px',
-    padding: '32px 28px',
-    boxShadow: '0 4px 24px rgba(0,0,0,0.08)',
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: '20px',
-  },
-  header: { textAlign: 'center' as const },
-  title: { fontSize: '22px', fontWeight: 800, color: '#111827', margin: '0 0 4px' },
-  subtitle: { fontSize: '14px', color: '#6b7280', margin: 0 },
-  label: { fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: '4px', display: 'block' },
-  input: {
-    width: '100%',
-    padding: '12px',
-    border: '2px solid #d1d5db',
-    borderRadius: '8px',
-    fontSize: '15px',
-    outline: 'none',
-    boxSizing: 'border-box' as const,
-    transition: 'border-color 0.15s',
-  },
-  select: {
-    width: '100%',
-    padding: '12px',
-    border: '2px solid #d1d5db',
-    borderRadius: '8px',
-    fontSize: '15px',
-    outline: 'none',
-    boxSizing: 'border-box' as const,
-    background: '#fff',
-  },
-  btnPrimary: (accent: string) => ({
-    width: '100%',
-    padding: '13px',
-    borderRadius: '8px',
-    border: 'none',
-    background: accent,
-    color: '#fff',
-    fontWeight: 700,
-    fontSize: '15px',
-    cursor: 'pointer',
-    transition: 'opacity 0.15s',
-  }),
-  btnDisabled: { opacity: 0.55, cursor: 'not-allowed' },
-  errorBox: {
-    background: '#fef2f2',
-    border: '1px solid #fca5a5',
-    borderRadius: '8px',
-    padding: '10px 12px',
-    color: '#b91c1c',
-    fontSize: '13px',
-  },
-  link: (accent: string) => ({
-    background: 'none',
-    border: 'none',
-    color: accent,
-    cursor: 'pointer',
-    fontSize: '13px',
-    fontWeight: 600,
-    padding: '0',
-    textAlign: 'center' as const,
-  }),
-  footerRow: { textAlign: 'center' as const, fontSize: '13px', color: '#6b7280' },
-  magicLinkRow: { textAlign: 'center' as const, fontSize: '13px', color: '#6b7280', marginTop: '-8px' },
-};
-
 type Step = 'identifier' | 'otp' | 'password' | 'twoFactor';
 
 export function LoginScreen({
@@ -144,7 +59,7 @@ export function LoginScreen({
   className,
   title,
 }: LoginScreenProps) {
-  const accent = ROLE_ACCENT[role];
+  const theme = useAuthTheme();
   const displayTitle = title ?? ROLE_LABELS[role];
 
   const [step, setStep] = useState<Step>('identifier');
@@ -153,11 +68,21 @@ export function LoginScreen({
   const [customValues, setCustomValues] = useState<Record<string, string>>({});
   const [magicLinkSent, setMagicLinkSent] = useState(false);
   const [magicLinkLoading, setMagicLinkLoading] = useState(false);
+  const [isWide, setIsWide] = useState(
+    typeof window !== 'undefined' ? window.innerWidth >= 768 : false
+  );
+
+  useEffect(() => {
+    function onResize() {
+      setIsWide(window.innerWidth >= 768);
+    }
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   const { initiateLogin, verifyOtp, verifyPassword, twoFactorVerify, loading, error, twoFactorPending, clearError } =
     useLoginFlow({ baseURL, onSuccess });
 
-  // Automatically transition to 2FA step when the hook signals it
   useEffect(() => {
     if (twoFactorPending) {
       setStep('twoFactor');
@@ -216,6 +141,118 @@ export function LoginScreen({
       setMagicLinkLoading(false);
     }
   }
+
+  const s = {
+    outer: {
+      minHeight: '100vh',
+      display: 'flex',
+      flexDirection: 'row' as const,
+    },
+    leftPanel: {
+      display: isWide ? 'flex' : 'none',
+      flexDirection: 'column' as const,
+      justifyContent: 'center',
+      alignItems: 'center',
+      flex: '0 0 42%',
+      background: `linear-gradient(135deg, ${theme.primary} 0%, ${theme.primaryDark} 100%)`,
+      padding: '48px 40px',
+      gap: '16px',
+    },
+    leftTitle: {
+      fontSize: '32px',
+      fontWeight: 800,
+      color: theme.onPrimary,
+      textAlign: 'center' as const,
+      margin: 0,
+    },
+    leftSubtitle: {
+      fontSize: '16px',
+      color: theme.onPrimary,
+      opacity: 0.82,
+      textAlign: 'center' as const,
+      margin: 0,
+      lineHeight: '1.5',
+    },
+    rightPanel: {
+      flex: 1,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: theme.background,
+      padding: '24px 16px',
+    },
+    card: {
+      width: '100%',
+      maxWidth: '400px',
+      background: theme.surface,
+      borderRadius: '16px',
+      padding: '32px 28px',
+      boxShadow: '0 4px 24px rgba(0,0,0,0.08)',
+      display: 'flex',
+      flexDirection: 'column' as const,
+      gap: '20px',
+    },
+    header: { textAlign: 'center' as const },
+    title: { fontSize: '22px', fontWeight: 800, color: theme.text, margin: '0 0 4px' },
+    subtitle: { fontSize: '14px', color: theme.textMuted, margin: 0 },
+    label: { fontSize: '13px', fontWeight: 600, color: theme.text, marginBottom: '4px', display: 'block' },
+    input: {
+      width: '100%',
+      padding: '12px',
+      border: `2px solid ${theme.border}`,
+      borderRadius: '8px',
+      fontSize: '15px',
+      outline: 'none',
+      boxSizing: 'border-box' as const,
+      transition: 'border-color 0.15s',
+      background: theme.background,
+      color: theme.text,
+    },
+    select: {
+      width: '100%',
+      padding: '12px',
+      border: `2px solid ${theme.border}`,
+      borderRadius: '8px',
+      fontSize: '15px',
+      outline: 'none',
+      boxSizing: 'border-box' as const,
+      background: theme.surface,
+      color: theme.text,
+    },
+    btnPrimary: {
+      width: '100%',
+      padding: '13px',
+      borderRadius: '8px',
+      border: 'none',
+      background: theme.primary,
+      color: theme.onPrimary,
+      fontWeight: 700,
+      fontSize: '15px',
+      cursor: 'pointer',
+      transition: 'opacity 0.15s',
+    },
+    btnDisabled: { opacity: 0.55, cursor: 'not-allowed' },
+    errorBox: {
+      background: theme.errorBackground,
+      border: `1px solid ${theme.errorBorder}`,
+      borderRadius: '8px',
+      padding: '10px 12px',
+      color: theme.error,
+      fontSize: '13px',
+    },
+    link: {
+      background: 'none',
+      border: 'none',
+      color: theme.primary,
+      cursor: 'pointer',
+      fontSize: '13px',
+      fontWeight: 600,
+      padding: '0',
+      textAlign: 'center' as const,
+    },
+    footerRow: { textAlign: 'center' as const, fontSize: '13px', color: theme.textMuted },
+    magicLinkRow: { textAlign: 'center' as const, fontSize: '13px', color: theme.textMuted, marginTop: '-8px' },
+  } as const;
 
   function renderCustomFields() {
     return customFields.map((field) => {
@@ -304,137 +341,151 @@ export function LoginScreen({
   }
 
   return (
-    <div style={s.screen} className={className}>
-      <div style={s.card}>
-        {/* Header */}
-        <div style={s.header}>
-          <h1 style={s.title}>{displayTitle}</h1>
-          <p style={s.subtitle}>
-            {step === 'identifier' && 'Sign in or create an account'}
-            {step === 'otp' && 'Enter the OTP sent to your number'}
-            {step === 'password' && 'Enter your password'}
-            {step === 'twoFactor' && 'Two-factor authentication'}
-          </p>
-        </div>
+    <div style={s.outer} className={className}>
+      {/* Left brand panel — visible only on wide screens */}
+      <div style={s.leftPanel}>
+        <p style={s.leftTitle}>{displayTitle}</p>
+        <p style={s.leftSubtitle}>
+          {role === 'customer' && 'Shop, eat, ride — all in one app'}
+          {role === 'rider' && 'Manage deliveries and rides on the go'}
+          {role === 'vendor' && 'Grow your business with AJKMart'}
+          {role === 'admin' && 'Platform administration & control'}
+        </p>
+      </div>
 
-        {/* Error */}
-        {error && <div style={s.errorBox}>{error}</div>}
+      {/* Right panel — form */}
+      <div style={s.rightPanel}>
+        <div style={s.card}>
+          {/* Header */}
+          <div style={s.header}>
+            <h1 style={s.title}>{displayTitle}</h1>
+            <p style={s.subtitle}>
+              {step === 'identifier' && 'Sign in or create an account'}
+              {step === 'otp' && 'Enter the OTP sent to your number'}
+              {step === 'password' && 'Enter your password'}
+              {step === 'twoFactor' && 'Two-factor authentication'}
+            </p>
+          </div>
 
-        {/* Step: Identifier */}
-        {step === 'identifier' && (
-          <form onSubmit={(e) => void handleIdentifierSubmit(e)} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div>
-              <label style={s.label}>Phone number</label>
-              <PhoneInput
-                value={identifier}
-                onChange={(e164) => { setIdentifier(e164); }}
+          {/* Error */}
+          {error && <div style={s.errorBox}>{error}</div>}
+
+          {/* Step: Identifier */}
+          {step === 'identifier' && (
+            <form onSubmit={(e) => void handleIdentifierSubmit(e)} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div>
+                <label style={s.label}>Phone number</label>
+                <PhoneInput
+                  value={identifier}
+                  onChange={(e164) => { setIdentifier(e164); }}
+                />
+              </div>
+              {renderCustomFields()}
+              <button
+                type="submit"
+                style={{ ...s.btnPrimary, ...(loading ? s.btnDisabled : {}) }}
+                disabled={loading}
+              >
+                {loading ? 'Checking…' : 'Continue'}
+              </button>
+              {enableMagicLink && onMagicLink && (
+                <p style={s.magicLinkRow}>
+                  {magicLinkSent ? (
+                    <span>Magic link sent — check your email or SMS.</span>
+                  ) : (
+                    <button
+                      type="button"
+                      style={s.link}
+                      disabled={magicLinkLoading}
+                      onClick={() => void handleMagicLink()}
+                    >
+                      {magicLinkLoading ? 'Sending…' : 'Send magic link instead'}
+                    </button>
+                  )}
+                </p>
+              )}
+              {enableBiometric && (
+                <BiometricPrompt
+                  onSuccess={(token) => {
+                    onBiometricSuccess?.(token);
+                  }}
+                  onDismiss={undefined}
+                  label="Sign in with biometrics"
+                />
+              )}
+              {enableSocial && (
+                <SocialButtons
+                  onGoogle={onGoogle ?? (() => {})}
+                  onFacebook={onFacebook ?? (() => {})}
+                />
+              )}
+              {onRegisterPress && (
+                <p style={s.footerRow}>
+                  New here?{' '}
+                  <button type="button" style={s.link} onClick={onRegisterPress}>
+                    Create account
+                  </button>
+                </p>
+              )}
+            </form>
+          )}
+
+          {/* Step: OTP */}
+          {step === 'otp' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <OtpInput
+                onComplete={(otp) => void handleOtpComplete(otp)}
+                onResend={() => void initiateLogin(identifier)}
+                autoSubmit
+              />
+              <button
+                type="button"
+                style={s.link}
+                onClick={() => { clearError(); setStep('identifier'); }}
+              >
+                ← Change number
+              </button>
+            </div>
+          )}
+
+          {/* Step: Password */}
+          {step === 'password' && (
+            <form onSubmit={(e) => void handlePasswordSubmit(e)} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <PasswordInput
+                value={password}
+                onChange={setPassword}
+                label="Password"
+                showStrength={false}
+                autoComplete="current-password"
+              />
+              <button
+                type="submit"
+                style={{ ...s.btnPrimary, ...(loading ? s.btnDisabled : {}) }}
+                disabled={loading}
+              >
+                {loading ? 'Signing in…' : 'Sign in'}
+              </button>
+              <button
+                type="button"
+                style={s.link}
+                onClick={() => { clearError(); setStep('identifier'); }}
+              >
+                ← Back
+              </button>
+            </form>
+          )}
+
+          {/* Step: 2FA */}
+          {step === 'twoFactor' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <OtpInput
+                label="Enter your authenticator code"
+                onComplete={(code) => void handleTwoFactor(code)}
+                autoSubmit
               />
             </div>
-            {renderCustomFields()}
-            <button
-              type="submit"
-              style={{ ...s.btnPrimary(accent), ...(loading ? s.btnDisabled : {}) }}
-              disabled={loading}
-            >
-              {loading ? 'Checking…' : 'Continue'}
-            </button>
-            {enableMagicLink && onMagicLink && (
-              <p style={s.magicLinkRow}>
-                {magicLinkSent ? (
-                  <span>Magic link sent — check your email or SMS.</span>
-                ) : (
-                  <button
-                    type="button"
-                    style={s.link(accent)}
-                    disabled={magicLinkLoading}
-                    onClick={() => void handleMagicLink()}
-                  >
-                    {magicLinkLoading ? 'Sending…' : 'Send magic link instead'}
-                  </button>
-                )}
-              </p>
-            )}
-            {enableBiometric && (
-              <BiometricPrompt
-                onSuccess={(token) => {
-                  onBiometricSuccess?.(token);
-                }}
-                onDismiss={undefined}
-                label="Sign in with biometrics"
-              />
-            )}
-            {enableSocial && (
-              <SocialButtons
-                onGoogle={onGoogle ?? (() => {})}
-                onFacebook={onFacebook ?? (() => {})}
-              />
-            )}
-            {onRegisterPress && (
-              <p style={s.footerRow}>
-                New here?{' '}
-                <button type="button" style={s.link(accent)} onClick={onRegisterPress}>
-                  Create account
-                </button>
-              </p>
-            )}
-          </form>
-        )}
-
-        {/* Step: OTP */}
-        {step === 'otp' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <OtpInput
-              onComplete={(otp) => void handleOtpComplete(otp)}
-              onResend={() => void initiateLogin(identifier)}
-              autoSubmit
-            />
-            <button
-              type="button"
-              style={{ ...s.link(accent) }}
-              onClick={() => { clearError(); setStep('identifier'); }}
-            >
-              ← Change number
-            </button>
-          </div>
-        )}
-
-        {/* Step: Password */}
-        {step === 'password' && (
-          <form onSubmit={(e) => void handlePasswordSubmit(e)} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <PasswordInput
-              value={password}
-              onChange={setPassword}
-              label="Password"
-              showStrength={false}
-              autoComplete="current-password"
-            />
-            <button
-              type="submit"
-              style={{ ...s.btnPrimary(accent), ...(loading ? s.btnDisabled : {}) }}
-              disabled={loading}
-            >
-              {loading ? 'Signing in…' : 'Sign in'}
-            </button>
-            <button
-              type="button"
-              style={s.link(accent)}
-              onClick={() => { clearError(); setStep('identifier'); }}
-            >
-              ← Back
-            </button>
-          </form>
-        )}
-
-        {/* Step: 2FA */}
-        {step === 'twoFactor' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <OtpInput
-              label="Enter your authenticator code"
-              onComplete={(code) => void handleTwoFactor(code)}
-              autoSubmit
-            />
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );

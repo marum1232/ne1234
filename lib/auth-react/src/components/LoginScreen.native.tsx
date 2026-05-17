@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,8 @@ import {
 
 import { OtpInput } from './OtpInput.native';
 import { PhoneInput } from './PhoneInput.native';
+import { useAuthTheme } from '../context/ThemeContext';
+import type { AuthTheme } from '../context/ThemeContext';
 
 export type AppRole = 'customer' | 'vendor' | 'rider' | 'admin';
 
@@ -82,6 +84,147 @@ async function apiPost(
   return (json.data as Record<string, unknown>) ?? json;
 }
 
+function makeStyles(theme: AuthTheme) {
+  return StyleSheet.create({
+    flex: { flex: 1 },
+    scrollContent: { flexGrow: 1, paddingBottom: 32 },
+    header: {
+      alignItems: 'center',
+      paddingTop: 32,
+      paddingBottom: 24,
+      paddingHorizontal: 24,
+    },
+    title: {
+      fontSize: 28,
+      fontWeight: '700',
+      color: theme.onPrimary,
+      textAlign: 'center',
+    },
+    subtitle: {
+      fontSize: 14,
+      color: theme.onPrimary,
+      opacity: 0.85,
+      marginTop: 6,
+      textAlign: 'center',
+    },
+    card: {
+      backgroundColor: theme.surface,
+      borderTopLeftRadius: 28,
+      borderTopRightRadius: 28,
+      flex: 1,
+      padding: 24,
+      paddingBottom: 40,
+    },
+    label: { fontSize: 13, fontWeight: '500', color: theme.textMuted, marginBottom: 8 },
+    input: {
+      borderWidth: 1.5,
+      borderColor: theme.border,
+      borderRadius: 10,
+      paddingHorizontal: 14,
+      paddingVertical: 13,
+      fontSize: 15,
+      color: theme.text,
+      backgroundColor: theme.background,
+      marginBottom: 12,
+    },
+    pwdRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 0 },
+    eyeBtn: { padding: 10 },
+    eyeText: { fontSize: 18 },
+    primaryBtn: {
+      backgroundColor: theme.primary,
+      borderRadius: 12,
+      paddingVertical: 14,
+      alignItems: 'center',
+      marginTop: 4,
+      marginBottom: 12,
+    },
+    primaryBtnDisabled: { opacity: 0.7 },
+    primaryBtnText: { color: theme.onPrimary, fontSize: 16, fontWeight: '600' },
+    biometricBtn: {
+      borderWidth: 1.5,
+      borderColor: theme.primary,
+      borderRadius: 12,
+      paddingVertical: 14,
+      alignItems: 'center',
+      marginBottom: 12,
+      backgroundColor: theme.primaryLight,
+    },
+    biometricBtnText: { color: theme.primary, fontSize: 15, fontWeight: '600' },
+    socialBtn: {
+      borderWidth: 1.5,
+      borderRadius: 12,
+      paddingVertical: 14,
+      alignItems: 'center',
+      marginBottom: 10,
+      backgroundColor: theme.surface,
+    },
+    socialBtnText: { fontSize: 15, fontWeight: '600' },
+    dividerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginVertical: 12,
+      gap: 8,
+    },
+    dividerLine: { flex: 1, height: 1, backgroundColor: theme.border },
+    dividerText: { fontSize: 12, color: theme.textMuted, fontWeight: '500' },
+    linkBtn: { alignItems: 'center', marginTop: 12, paddingVertical: 6 },
+    linkBtnText: { fontSize: 14, color: theme.textMuted },
+    linkBtnBold: { fontWeight: '700', color: theme.primary },
+    errorBox: {
+      backgroundColor: theme.errorBackground,
+      borderRadius: 8,
+      padding: 12,
+      marginBottom: 12,
+      borderWidth: 1,
+      borderColor: theme.errorBorder,
+    },
+    errorText: { color: theme.error, fontSize: 13, fontWeight: '500' },
+    successBox: {
+      backgroundColor: theme.primaryLight,
+      borderRadius: 8,
+      padding: 16,
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
+    successText: { color: theme.primary, fontSize: 14, fontWeight: '600' },
+    backRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
+    backText: { fontSize: 14, fontWeight: '600', color: theme.primary },
+    sectionTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: theme.text,
+      marginBottom: 4,
+    },
+    sectionSub: { fontSize: 13, color: theme.textMuted, marginBottom: 16 },
+    centerCol: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 40,
+      gap: 16,
+    },
+    sendingText: { fontSize: 14, color: theme.textMuted },
+    forgotBtn: { alignSelf: 'flex-end', marginTop: 4, marginBottom: 8 },
+    forgotText: { fontSize: 13, fontWeight: '600', color: theme.primary },
+    footer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 24,
+      paddingTop: 16,
+      flexWrap: 'wrap',
+      gap: 4,
+    },
+    footerLink: {
+      fontSize: 12,
+      color: theme.primary,
+      textDecorationLine: 'underline',
+    },
+    footerSep: { fontSize: 12, color: theme.textMuted },
+    footerText: { fontSize: 12, color: theme.textMuted, textAlign: 'center' },
+  });
+}
+
 export function LoginScreen({
   role = 'customer',
   baseURL = '',
@@ -102,6 +245,9 @@ export function LoginScreen({
   onMagicLinkRequest,
   onForgotPasswordPress,
 }: LoginScreenProps) {
+  const theme = useAuthTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
+
   const [step, setStep] = useState<InternalStep>('identifier');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -193,8 +339,6 @@ export function LoginScreen({
         setLoading(false);
         return;
       }
-      /* Social-forced: account is linked to a social provider exclusively.
-         Delegate to the host app's social login handler (it owns OAuth WebBrowser). */
       if (res.action === 'force_google') {
         setLoading(false);
         await onSocialPress?.('google');
@@ -428,7 +572,7 @@ export function LoginScreen({
                   clearError();
                 }}
                 placeholder="+923001234567, email, or username"
-                placeholderTextColor="#9ca3af"
+                placeholderTextColor={theme.textMuted}
                 autoCapitalize="none"
                 autoCorrect={false}
                 autoFocus={!enableBiometric}
@@ -437,11 +581,11 @@ export function LoginScreen({
                 editable={!loading}
               />
 
-              <Btn label="Continue" onPress={checkIdentifier} loading={loading} />
+              <Btn label="Continue" onPress={checkIdentifier} loading={loading} styles={styles} />
 
               {enableBiometric && onBiometricPress ? (
                 <>
-                  <DividerRow text="or" />
+                  <DividerRow text="or" styles={styles} />
                   <TouchableOpacity
                     style={styles.biometricBtn}
                     onPress={onBiometricPress}
@@ -450,7 +594,7 @@ export function LoginScreen({
                     accessibilityRole="button"
                   >
                     {biometricLoading ? (
-                      <ActivityIndicator size="small" color="#f59e0b" />
+                      <ActivityIndicator size="small" color={theme.primary} />
                     ) : (
                       <Text style={styles.biometricBtnText}>
                         Login with Biometrics
@@ -463,13 +607,13 @@ export function LoginScreen({
               {/* Social login buttons */}
               {hasSocial ? (
                 <>
-                  <DividerRow text="or continue with" />
+                  <DividerRow text="or continue with" styles={styles} />
                   {socialMethods.map((sm) => (
                     <TouchableOpacity
                       key={sm.key}
                       style={[
                         styles.socialBtn,
-                        { borderColor: sm.color ?? '#e5e7eb' },
+                        { borderColor: sm.color ?? theme.border },
                       ]}
                       onPress={() =>
                         handleSocialLogin(sm.key as 'google' | 'facebook')
@@ -481,13 +625,13 @@ export function LoginScreen({
                       {socialLoading === sm.key ? (
                         <ActivityIndicator
                           size="small"
-                          color={sm.color ?? '#111827'}
+                          color={sm.color ?? theme.text}
                         />
                       ) : (
                         <Text
                           style={[
                             styles.socialBtnText,
-                            { color: sm.color ?? '#111827' },
+                            { color: sm.color ?? theme.text },
                           ]}
                         >
                           Continue with {sm.label}
@@ -501,7 +645,7 @@ export function LoginScreen({
               {/* Magic link section */}
               {showMagicLink ? (
                 <>
-                  <DividerRow text="or magic link" />
+                  <DividerRow text="or magic link" styles={styles} />
                   {!magicSent ? (
                     <>
                       <TextInput
@@ -509,7 +653,7 @@ export function LoginScreen({
                         value={magicEmail}
                         onChangeText={setMagicEmail}
                         placeholder="Email for magic link"
-                        placeholderTextColor="#9ca3af"
+                        placeholderTextColor={theme.textMuted}
                         keyboardType="email-address"
                         autoCapitalize="none"
                         editable={!loading}
@@ -518,7 +662,8 @@ export function LoginScreen({
                         label="Send Magic Link"
                         onPress={handleMagicLink}
                         loading={loading}
-                        style={{ backgroundColor: '#6b7280' }}
+                        style={{ backgroundColor: theme.textMuted }}
+                        styles={styles}
                       />
                     </>
                   ) : (
@@ -549,7 +694,7 @@ export function LoginScreen({
           {/* ── Sending OTP spinner ──────────────────────────────────── */}
           {(step === 'phone-send' || step === 'email-send') && (
             <View style={styles.centerCol}>
-              <ActivityIndicator size="large" color="#f59e0b" />
+              <ActivityIndicator size="large" color={theme.primary} />
               <Text style={styles.sendingText}>Sending OTP…</Text>
             </View>
           )}
@@ -577,7 +722,7 @@ export function LoginScreen({
                 onResend={resendCooldown === 0 ? otpOnResend : undefined}
                 resendCooldownSeconds={60}
               />
-              <Btn label="Verify" onPress={otpOnVerify} loading={loading} />
+              <Btn label="Verify" onPress={otpOnVerify} loading={loading} styles={styles} />
             </Animated.View>
           )}
 
@@ -602,7 +747,7 @@ export function LoginScreen({
                     clearError();
                   }}
                   placeholder="Password"
-                  placeholderTextColor="#9ca3af"
+                  placeholderTextColor={theme.textMuted}
                   secureTextEntry={!showPwd}
                   autoFocus
                   returnKeyType="go"
@@ -631,6 +776,7 @@ export function LoginScreen({
                 onPress={handlePasswordLogin}
                 loading={loading}
                 style={{ marginTop: 12 }}
+                styles={styles}
               />
             </Animated.View>
           )}
@@ -656,7 +802,7 @@ export function LoginScreen({
                     value={magicEmail}
                     onChangeText={setMagicEmail}
                     placeholder="your@email.com"
-                    placeholderTextColor="#9ca3af"
+                    placeholderTextColor={theme.textMuted}
                     keyboardType="email-address"
                     autoCapitalize="none"
                     autoFocus
@@ -666,6 +812,7 @@ export function LoginScreen({
                     label="Send Magic Link"
                     onPress={handleMagicLink}
                     loading={loading}
+                    styles={styles}
                   />
                 </>
               ) : (
@@ -707,16 +854,20 @@ export function LoginScreen({
   );
 }
 
+type StylesType = ReturnType<typeof makeStyles>;
+
 function Btn({
   label,
   onPress,
   loading,
   style,
+  styles,
 }: {
   label: string;
   onPress: () => void;
   loading?: boolean;
   style?: object;
+  styles: StylesType;
 }) {
   return (
     <TouchableOpacity
@@ -735,7 +886,7 @@ function Btn({
   );
 }
 
-function DividerRow({ text }: { text: string }) {
+function DividerRow({ text, styles }: { text: string; styles: StylesType }) {
   return (
     <View style={styles.dividerRow}>
       <View style={styles.dividerLine} />
@@ -744,141 +895,3 @@ function DividerRow({ text }: { text: string }) {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  flex: { flex: 1 },
-  scrollContent: { flexGrow: 1, paddingBottom: 32 },
-  header: {
-    alignItems: 'center',
-    paddingTop: 32,
-    paddingBottom: 24,
-    paddingHorizontal: 24,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#fff',
-    textAlign: 'center',
-  },
-  subtitle: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.85)',
-    marginTop: 6,
-    textAlign: 'center',
-  },
-  card: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    flex: 1,
-    padding: 24,
-    paddingBottom: 40,
-  },
-  label: { fontSize: 13, fontWeight: '500', color: '#6b7280', marginBottom: 8 },
-  input: {
-    borderWidth: 1.5,
-    borderColor: '#e5e7eb',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 13,
-    fontSize: 15,
-    color: '#111827',
-    backgroundColor: '#f9fafb',
-    marginBottom: 12,
-  },
-  pwdRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 0 },
-  eyeBtn: { padding: 10 },
-  eyeText: { fontSize: 18 },
-  primaryBtn: {
-    backgroundColor: '#f59e0b',
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 4,
-    marginBottom: 12,
-  },
-  primaryBtnDisabled: { opacity: 0.7 },
-  primaryBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  biometricBtn: {
-    borderWidth: 1.5,
-    borderColor: '#f59e0b',
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginBottom: 12,
-    backgroundColor: 'rgba(245,158,11,0.07)',
-  },
-  biometricBtnText: { color: '#f59e0b', fontSize: 15, fontWeight: '600' },
-  socialBtn: {
-    borderWidth: 1.5,
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginBottom: 10,
-    backgroundColor: '#fff',
-  },
-  socialBtnText: { fontSize: 15, fontWeight: '600' },
-  dividerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 12,
-    gap: 8,
-  },
-  dividerLine: { flex: 1, height: 1, backgroundColor: '#e5e7eb' },
-  dividerText: { fontSize: 12, color: '#9ca3af', fontWeight: '500' },
-  linkBtn: { alignItems: 'center', marginTop: 12, paddingVertical: 6 },
-  linkBtnText: { fontSize: 14, color: '#6b7280' },
-  linkBtnBold: { fontWeight: '700', color: '#f59e0b' },
-  errorBox: {
-    backgroundColor: '#fef2f2',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#fecaca',
-  },
-  errorText: { color: '#ef4444', fontSize: 13, fontWeight: '500' },
-  successBox: {
-    backgroundColor: '#f0fdf4',
-    borderRadius: 8,
-    padding: 16,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#bbf7d0',
-  },
-  successText: { color: '#10b981', fontSize: 14, fontWeight: '600' },
-  backRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
-  backText: { fontSize: 14, fontWeight: '600', color: '#f59e0b' },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 4,
-  },
-  sectionSub: { fontSize: 13, color: '#6b7280', marginBottom: 16 },
-  centerCol: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 40,
-    gap: 16,
-  },
-  sendingText: { fontSize: 14, color: '#6b7280' },
-  forgotBtn: { alignSelf: 'flex-end', marginTop: 4, marginBottom: 8 },
-  forgotText: { fontSize: 13, fontWeight: '600', color: '#f59e0b' },
-  footer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 24,
-    paddingTop: 16,
-    flexWrap: 'wrap',
-    gap: 4,
-  },
-  footerLink: {
-    fontSize: 12,
-    color: '#f59e0b',
-    textDecorationLine: 'underline',
-  },
-  footerSep: { fontSize: 12, color: '#9ca3af' },
-  footerText: { fontSize: 12, color: '#9ca3af', textAlign: 'center' },
-});

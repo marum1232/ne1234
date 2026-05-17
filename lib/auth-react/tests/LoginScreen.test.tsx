@@ -47,22 +47,22 @@ describe("LoginScreen", () => {
   describe("role-based rendering", () => {
     it("renders AJKMart title for customer role", () => {
       renderWithProvider(<LoginScreen role="customer" />);
-      expect(screen.getByText("AJKMart")).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "AJKMart" })).toBeInTheDocument();
     });
 
     it("renders Rider Portal title for rider role", () => {
       renderWithProvider(<LoginScreen role="rider" />);
-      expect(screen.getByText("Rider Portal")).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "Rider Portal" })).toBeInTheDocument();
     });
 
     it("renders Vendor Portal title for vendor role", () => {
       renderWithProvider(<LoginScreen role="vendor" />);
-      expect(screen.getByText("Vendor Portal")).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "Vendor Portal" })).toBeInTheDocument();
     });
 
     it("renders Admin Panel title for admin role", () => {
       renderWithProvider(<LoginScreen role="admin" />);
-      expect(screen.getByText("Admin Panel")).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "Admin Panel" })).toBeInTheDocument();
     });
   });
 
@@ -75,7 +75,7 @@ describe("LoginScreen", () => {
 
     it("shows custom title when title prop is provided", () => {
       renderWithProvider(<LoginScreen role="customer" title="Custom Login Title" />);
-      expect(screen.getByText("Custom Login Title")).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "Custom Login Title" })).toBeInTheDocument();
     });
 
     it("calls initiateLogin when user submits identifier", async () => {

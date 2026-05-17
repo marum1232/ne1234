@@ -33,6 +33,14 @@ export interface AuthTheme {
   maintenanceOverlay: string;
   /** Card / elevated surface background (dark mode dark surface, light mode white card) */
   surface: string;
+  /** Text/icon color drawn on top of primary-colored surfaces (e.g. button labels, brand panel text) */
+  onPrimary: string;
+  /** Error / destructive text and border color */
+  error: string;
+  /** Error box / alert background color */
+  errorBackground: string;
+  /** Error box / alert border color */
+  errorBorder: string;
 }
 
 export const DEFAULT_THEMES: Record<string, AuthTheme> = {
@@ -48,6 +56,10 @@ export const DEFAULT_THEMES: Record<string, AuthTheme> = {
     rejectedOverlay:    '#fef2f2',
     maintenanceOverlay: '#fffbeb',
     surface:            '#0F1217',
+    onPrimary:          '#ffffff',
+    error:              '#b91c1c',
+    errorBackground:    '#fef2f2',
+    errorBorder:        '#fca5a5',
   },
   vendor: {
     primary:            '#f97316',
@@ -61,6 +73,10 @@ export const DEFAULT_THEMES: Record<string, AuthTheme> = {
     rejectedOverlay:    '#fef2f2',
     maintenanceOverlay: '#fffbeb',
     surface:            '#ffffff',
+    onPrimary:          '#ffffff',
+    error:              '#b91c1c',
+    errorBackground:    '#fef2f2',
+    errorBorder:        '#fca5a5',
   },
   customer: {
     primary:            '#0066ff',
@@ -74,6 +90,10 @@ export const DEFAULT_THEMES: Record<string, AuthTheme> = {
     rejectedOverlay:    '#fef2f2',
     maintenanceOverlay: '#fffbeb',
     surface:            '#ffffff',
+    onPrimary:          '#ffffff',
+    error:              '#b91c1c',
+    errorBackground:    '#fef2f2',
+    errorBorder:        '#fca5a5',
   },
   admin: {
     primary:            '#6366f1',
@@ -87,6 +107,10 @@ export const DEFAULT_THEMES: Record<string, AuthTheme> = {
     rejectedOverlay:    '#fef2f2',
     maintenanceOverlay: '#fffbeb',
     surface:            '#131720',
+    onPrimary:          '#ffffff',
+    error:              '#b91c1c',
+    errorBackground:    '#fef2f2',
+    errorBorder:        '#fca5a5',
   },
 };
 
