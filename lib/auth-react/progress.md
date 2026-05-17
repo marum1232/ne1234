@@ -66,6 +66,55 @@ No errors under `tsconfig.json` or `tsconfig.build.json`.
 
 ---
 
+## Task 7 — Shared Hooks
+
+### Status: Complete
+
+All three shared hooks are implemented, exported, and verified. Build is clean with zero TypeScript errors; all 110 tests pass.
+
+### Hooks Implemented
+
+| Hook | File | What it implements |
+|---|---|---|
+| `useTokenRefresh` | `src/hooks/useTokenRefresh.ts` | Proactive JWT refresh: reads the current access token's `exp` claim, schedules a `setTimeout` to fire `leewaySeconds` (default 60) before expiry, retries up to 5× with exponential back-off on network failure, calls `onLogout()` when all attempts fail. Accepts `refreshIntervalSeconds` as a spec-compatible alias for `leewaySeconds` — it takes precedence when set. Deduplicates concurrent refresh calls via an `isRefreshingRef` guard. |
+| `useAuth` | `src/hooks/useAuth.ts` | Primary consumer hook for auth state inside `<AuthProvider>`. Reads `user`, `isLoading`, `isAuthenticated`, `twoFactorPending`, and `storageError` from context, wires up `useTokenRefresh` automatically (using the provider's `tokenStorage` and `baseURL`), and re-exports `login`, `logout`, and `refreshToken`. |
+| `useLoginFlow` | `src/hooks/useLoginFlow.ts` | Multi-step login orchestrator. Step 1: `initiateLogin(identifier)` — calls `/api/auth/check-identifier` and returns `{ method, exists }`. Step 2a: `verifyOtp(otp)` — calls `/api/auth/verify-otp`; sets `twoFactorPending` when the server responds with `twoFactorRequired: true`. Step 2b: `verifyPassword(password)` — calls `/api/auth/login`; same 2FA branching. Step 3: `twoFactorVerify(code)` — calls `/api/auth/2fa/verify` and clears `twoFactorPending` on success. All steps share `loading`, `error`, and `clearError()` state. Works with or without `<AuthProvider>`. |
+
+### Design Notes
+
+- **`refreshIntervalSeconds` alias** — `useTokenRefresh` accepts both `leewaySeconds` (internal name) and `refreshIntervalSeconds` (spec name). When both are provided `refreshIntervalSeconds` takes precedence. This maintains backward compatibility while matching the original spec naming.
+- **Concurrent refresh guard** — `useTokenRefresh` uses an `isRefreshingRef` boolean to ensure that if `refreshToken()` is called twice concurrently (e.g. two 401 responses racing), only one network request is made.
+- **`useLoginFlow` context optionality** — the hook calls `useContext(AuthContext)` and handles a `null` context gracefully, so it can be used in isolation (e.g. a standalone login page without the full `<AuthProvider>` tree).
+
+### Exports in `src/index.ts`
+
+```ts
+export { useAuth } from './hooks/useAuth';
+export { useTokenRefresh } from './hooks/useTokenRefresh';
+export type { UseTokenRefreshOptions } from './hooks/useTokenRefresh';
+export { useLoginFlow } from './hooks/useLoginFlow';
+export type { UseLoginFlowOptions, LoginMethod, IdentifierCheckResult } from './hooks/useLoginFlow';
+```
+
+### Test Coverage
+
+| Test file | What it covers |
+|---|---|
+| `tests/hooks.smoke.test.ts` | Import shape for all four hooks; `useAuth` return keys, initial state, `login()` / `logout()` round-trip; `useTokenRefresh` option variants (`leewaySeconds`, `refreshIntervalSeconds`), concurrent-call deduplication; `useLoginFlow` return shape, initial state, `initiateLogin` happy path and error path, endpoint call verification |
+| `tests/useLoginFlow.test.ts` | Full OTP login flow (initiateLogin → verifyOtp → onSuccess); 2FA branching (twoFactorPending set and cleared); password login flow; error states for each step (invalid OTP, wrong password, wrong 2FA code); `clearError()` |
+
+### Build & Test Results
+
+```
+pnpm --filter @workspace/auth-react build
+# → dist/index.js (ESM), dist/index.cjs (CJS), dist/index.d.ts — zero TypeScript errors
+
+pnpm --filter @workspace/auth-react test
+# → 8 test files, 110 tests — all passing
+```
+
+---
+
 ## Task 8 — Auth-React UI Components: Bug Fixes & Completion
 
 ### Status: Complete
