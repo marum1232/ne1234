@@ -148,7 +148,6 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
 
   /* ── Overlays ── */
   if (maintenance) {
-    const Overlay = import("./Overlay").then(m => m.MaintenanceOverlay);
     return (
       <OverlayWrapper>
         <MaintenanceOverlay message={maintenanceMsg} supportPhone={supportPhone} supportEmail={supportEmail} />
@@ -199,14 +198,21 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
 
 /* ── Inline overlay re-exports so pages don't deep-import from Overlay.tsx ── */
 function OverlayWrapper({ children }: { children: React.ReactNode }) {
+  const t = useTheme();
   return (
-    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: theme.background, padding: 16 }}>
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: t.background, padding: 16 }}>
       <div style={{ width: "100%", maxWidth: 384 }}>{children}</div>
     </div>
   );
 }
 
-function MaintenanceOverlay(props: React.ComponentProps<typeof import("./Overlay")["MaintenanceOverlay"]>) {
+interface MaintenanceOverlayProps {
+  message?: string;
+  supportPhone?: string;
+  supportEmail?: string;
+}
+
+function MaintenanceOverlay(props: MaintenanceOverlayProps) {
   const theme = useTheme();
   return (
     <div style={{

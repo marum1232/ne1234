@@ -92,7 +92,7 @@ export function RejectedOverlay({
 
   return (
     <View style={[styles.shell, { backgroundColor: theme.background, paddingTop: insets.top + 24 }]}>
-      <View style={[styles.card, { borderColor: theme.border }]}>
+      <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
         <View style={[styles.iconCircle, { backgroundColor: "rgba(239,68,68,0.12)", borderColor: "rgba(239,68,68,0.35)" }]}>
           <Text style={{ fontSize: 28 }}>❌</Text>
         </View>
@@ -101,8 +101,8 @@ export function RejectedOverlay({
           Your application could not be approved at this time.
         </Text>
         {reason && (
-          <View style={styles.reasonBox}>
-            <Text style={styles.reasonText}>{reason}</Text>
+          <View style={[styles.reasonBox, { backgroundColor: theme.rejectedOverlay, borderColor: "rgba(239,68,68,0.3)" }]}>
+            <Text style={[styles.reasonText, { color: theme.primary }]}>{reason}</Text>
           </View>
         )}
         {onBack && (
@@ -129,7 +129,6 @@ const styles = StyleSheet.create({
   card: {
     width: "100%",
     maxWidth: 380,
-    backgroundColor: theme.surface,
     borderRadius: 20,
     borderWidth: 1,
     padding: 28,
@@ -194,15 +193,12 @@ const styles = StyleSheet.create({
   },
   reasonBox: {
     width: "100%",
-    backgroundColor: theme.rejectedOverlay,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(239,68,68,0.3)",
     padding: 12,
     marginBottom: 16,
   },
   reasonText: {
-    color: theme.primary,
     fontSize: 13,
     lineHeight: 20,
   },

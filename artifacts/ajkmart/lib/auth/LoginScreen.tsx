@@ -4,7 +4,7 @@
  * Customer login screen wrapping the SDK LoginScreen with customer-specific
  * auth flow, theme tokens, and app status.
  */
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { router } from "expo-router";
 import { View, Text, StyleSheet, Platform } from "react-native";
 import { LoginScreen as SDKLoginScreen } from "@workspace/auth-react";
@@ -40,10 +40,20 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
   const [rejectionReason, setRejectionReason] = useState<string | null>(null);
   const [biometricEnabled, setBiometricEnabled] = useState(false);
 
+  /* ── Persist token/user across biometric prompt ── */
+  const pendingTokenRef = useRef<string>("");
+  const pendingUserRef = useRef<SDKAuthUser | null>(null);
+
   /* ── Check biometric enrollment flag ── */
   useEffect(() => {
     AsyncStorage.getItem(BIOMETRIC_ENABLED_KEY).then(v => setBiometricEnabled(v === "true")).catch(() => {});
   }, []);
+
+  const completeLogin = useCallback((token: string, user: SDKAuthUser) => {
+    login(token, user);
+    onSuccess?.(token, user);
+    router.replace("/(tabs)");
+  }, [login, onSuccess]);
 
   const handleSuccess = useCallback(async (sdkUser: SDKAuthUser, token: string) => {
     const u = sdkUser as unknown as Record<string, unknown>;
@@ -55,20 +65,22 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
 
     /* Biometric enrollment prompt — first-time only */
     if (!biometricEnabled && Platform.OS !== "web") {
+      pendingTokenRef.current = token;
+      pendingUserRef.current = sdkUser;
       setOverlay("biometric");
       return;
     }
 
-    login(token, sdkUser);
-    onSuccess?.(token, sdkUser);
-    router.replace("/(tabs)");
-  }, [biometricEnabled, login, onSuccess]);
+    completeLogin(token, sdkUser);
+  }, [biometricEnabled, completeLogin]);
 
   const confirmBiometric = async (enable: boolean) => {
     if (enable) await AsyncStorage.setItem(BIOMETRIC_ENABLED_KEY, "true");
     setOverlay(null);
-    /* after biometric decision, complete login */
-    router.replace("/(tabs)");
+    /* Complete the pending login that was deferred for biometric prompt */
+    if (pendingTokenRef.current && pendingUserRef.current) {
+      completeLogin(pendingTokenRef.current, pendingUserRef.current);
+    }
   };
 
   const handleGoogle = useCallback(async () => {
@@ -135,7 +147,7 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   overlay: { flex: 1, alignItems: "center", justifyContent: "center", padding: 20 },
   card: {
-    width: "100%", maxWidth: 380, backgroundColor: theme.surface,
+    width: "100%", maxWidth: 380,
     borderRadius: 20, borderWidth: 1, padding: 28, alignItems: "center",
     ...Platform.select({
       ios: { shadowColor: "#000", shadowOpacity: 0.08, shadowRadius: 20, shadowOffset: { width: 0, height: 4 } },
