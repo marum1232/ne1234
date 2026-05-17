@@ -115,7 +115,7 @@ function readCsrfFromCookie(): string {
   try {
     const match = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]+)/);
     return match ? decodeURIComponent(match[1]) : "";
-  } catch (err) { console.warn('[artifacts/vendor-app/src/lib/api.ts]', err); } // eslint-disable-line no-console
+  } catch (err) { console.warn('[artifacts/vendor-app/src/lib/api.ts]', err); return ""; } // eslint-disable-line no-console
 }
 
 function clearTokens() {

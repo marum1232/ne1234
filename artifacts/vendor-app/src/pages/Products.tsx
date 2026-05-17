@@ -551,7 +551,7 @@ export default function Products() {
   if (showAdd)
     return (
       <ProductFormView
-        editProd={editProd}
+        editProd={editProd as Record<string, unknown> | null}
         form={form}
         f={f}
         formErrors={formErrors}
@@ -606,7 +606,7 @@ export default function Products() {
         showPaste={showPaste}
         setShowPaste={setShowPaste}
         parsePaste={parsePaste}
-        csvInputRef={csvInputRef}
+        csvInputRef={csvInputRef as React.RefObject<HTMLInputElement>}
         downloadSampleCsv={downloadSampleCsv}
         handleCsvImport={handleCsvImport}
         EMPTY_ROW={EMPTY_ROW}

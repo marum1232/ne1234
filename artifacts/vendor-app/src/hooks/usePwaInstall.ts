@@ -16,7 +16,7 @@ export function usePwaInstall() {
   const [isInstallable, setIsInstallable] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
   const [isDismissed, setIsDismissed] = useState(() => {
-    try { return localStorage.getItem(DISMISSED_KEY) === "1"; } catch (err) { console.warn('[artifacts/vendor-app/src/hooks/usePwaInstall.ts]', err); } // eslint-disable-line no-console
+    try { return localStorage.getItem(DISMISSED_KEY) === "1"; } catch (err) { console.warn('[artifacts/vendor-app/src/hooks/usePwaInstall.ts]', err); return false; } // eslint-disable-line no-console
   });
 
   const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);

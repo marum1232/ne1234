@@ -38,7 +38,7 @@ function loadQueue(): QueuedStatusUpdate[] {
   try {
     const raw = localStorage.getItem(QUEUE_KEY);
     return raw ? (JSON.parse(raw) as QueuedStatusUpdate[]) : [];
-  } catch (err) { console.warn('[artifacts/vendor-app/src/hooks/useOfflineQueue.ts]', err); } // eslint-disable-line no-console
+  } catch (err) { console.warn('[artifacts/vendor-app/src/hooks/useOfflineQueue.ts]', err); return []; } // eslint-disable-line no-console
 }
 
 function saveQueue(q: QueuedStatusUpdate[]): void {
@@ -51,7 +51,7 @@ function loadProductQueue(): QueuedProductAction[] {
   try {
     const raw = localStorage.getItem(PRODUCT_QUEUE_KEY);
     return raw ? (JSON.parse(raw) as QueuedProductAction[]) : [];
-  } catch (err) { console.warn('[artifacts/vendor-app/src/hooks/useOfflineQueue.ts]', err); } // eslint-disable-line no-console
+  } catch (err) { console.warn('[artifacts/vendor-app/src/hooks/useOfflineQueue.ts]', err); return []; } // eslint-disable-line no-console
 }
 
 /**
@@ -77,7 +77,7 @@ function loadProductFailures(): ProductQueueError[] {
   try {
     const raw = localStorage.getItem(PRODUCT_FAILURES_KEY);
     return raw ? (JSON.parse(raw) as ProductQueueError[]) : [];
-  } catch (err) { console.warn('[artifacts/vendor-app/src/hooks/useOfflineQueue.ts]', err); } // eslint-disable-line no-console
+  } catch (err) { console.warn('[artifacts/vendor-app/src/hooks/useOfflineQueue.ts]', err); return []; } // eslint-disable-line no-console
 }
 
 function saveProductFailures(f: ProductQueueError[]): void {
@@ -268,8 +268,8 @@ export function useOfflineQueue() {
     action: "create" | "update",
     payload: Record<string, unknown>,
     productId?: string,
-  ): string | null => {
-    if (isOnline) return null;
+  ): string | undefined => {
+    if (isOnline) return undefined;
 
     const { sanitized: sanitizedPayload, hadBase64 } = sanitizePayloadForStorage(payload);
 
@@ -303,7 +303,7 @@ export function useOfflineQueue() {
       return `warn:📥 Saved offline — this change is large (${Math.round(byteSize / 1024)} KB). Sync soon to avoid storage issues.`;
     }
 
-    return null;
+    return undefined;
   }, [isOnline]);
 
   const retryProductQueueItem = useCallback(async (itemId: string) => {

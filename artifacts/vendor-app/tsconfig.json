@@ -16,19 +16,5 @@
       "@workspace/auth-react": ["../../lib/auth-react/src/index.ts"],
       "@workspace/auth-utils": ["../../lib/auth-utils/src/index.ts"]
     }
-  },
-  "references": [
-    {
-      "path": "../../lib/api-client-react"
-    },
-    {
-      "path": "../../lib/ui"
-    },
-    {
-      "path": "../../lib/auth-react"
-    },
-    {
-      "path": "../../lib/auth-utils"
-    }
-  ]
+  }
 }

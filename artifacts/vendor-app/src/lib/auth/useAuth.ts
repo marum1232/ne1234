@@ -76,7 +76,7 @@ export function useAuth() {
   async function loginWithPassword(identifier: string, password: string): Promise<AuthResult<TokenPair & { requires2FA?: boolean; tempToken?: string; pendingApproval?: boolean; approvalStatus?: string; rejectionReason?: string | null }>> {
     return wrap(async () => {
       try {
-        const res = await api.loginWithPassword(identifier, password) as Record<string, unknown>;
+        const res = await api.loginUsername(identifier, password) as Record<string, unknown>;
         return { success: true, data: res as never };
       } catch (err: unknown) {
         await captureException(err);
@@ -88,7 +88,7 @@ export function useAuth() {
   async function register(body: Record<string, unknown>): Promise<AuthResult<{ token?: string; user?: unknown }>> {
     return wrap(async () => {
       try {
-        const res = await api.register(body) as Record<string, unknown>;
+        const res = await api.vendorRegister(body as Parameters<typeof api.vendorRegister>[0]) as Record<string, unknown>;
         return { success: true, data: res as never };
       } catch (err: unknown) {
         await captureException(err);

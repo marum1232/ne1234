@@ -85,7 +85,7 @@ function VendorAuthInner({ children }: { children: ReactNode }) {
     refreshEndpoint: "/auth/refresh",
     leewaySeconds: 60,
     onLogout: handleSdkLogout,
-    onRefresh: (newTok) => { setToken(newTok); },
+    onRefresh: (newTok: string) => { setToken(newTok); },
   });
 
   /* Re-schedule proactive refresh whenever the access token changes (e.g. after
@@ -213,5 +213,5 @@ export function decodeJwtExpSafe(token: string): number | null {
     const jsonStr = decodeURIComponent(escape(atob(padded)));
     const payload = JSON.parse(jsonStr) as { exp?: number };
     return typeof payload.exp === 'number' ? payload.exp : null;
-  } catch (err) { console.warn('[artifacts/vendor-app/src/lib/vendor-auth.tsx]', err); } // eslint-disable-line no-console
+  } catch (err) { console.warn('[artifacts/vendor-app/src/lib/vendor-auth.tsx]', err); return null; } // eslint-disable-line no-console
 }

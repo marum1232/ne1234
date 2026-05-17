@@ -108,7 +108,7 @@ function AppRoutes() {
     }
   }, [config?.integrations]);
 
-  const [, navigate] = useLocation();
+  const [location, navigate] = useLocation();
 
   /* ── Cold-start notification tap: consume any tap captured before auth loaded ──
      When the vendor taps a new-order push notification from a killed app, the

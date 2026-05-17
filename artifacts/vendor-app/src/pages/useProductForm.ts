@@ -54,7 +54,7 @@ interface UseProductFormOptions {
     };
   };
   enqueueProductAction: (
-    action: string,
+    action: "create" | "update",
     payload: Record<string, unknown>,
     id?: string
   ) => string | undefined;

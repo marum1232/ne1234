@@ -22,7 +22,7 @@ export interface UserStatus {
 }
 
 export function useAppStatus(): AppStatus & { checkUserStatus: () => Promise<UserStatus> } {
-  const { config, loading } = usePlatformConfig();
+  const { config, isLoading: loading } = usePlatformConfig();
 
   const checkUserStatus = useCallback(async (): Promise<UserStatus> => {
     try {

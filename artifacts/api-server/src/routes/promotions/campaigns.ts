@@ -156,4 +156,76 @@ router.get("/vendor/campaigns/:id/performance", requireRole("vendor"), async (re
   }
 });
 
+/* ── GET /vendor/campaigns ── list active campaigns vendor can join ── */
+router.get("/vendor/campaigns", requireRole("vendor"), async (req, res) => {
+  try {
+    const vendorId = req.vendorId as string;
+    const now = nowIso();
+    const campaigns = await db.select().from(campaignsTable)
+      .where(eq(campaignsTable.status, "active"))
+      .orderBy(asc(campaignsTable.endDate));
+
+    const myParticipations = await db.select()
+      .from(campaignParticipationsTable)
+      .where(eq(campaignParticipationsTable.vendorId, vendorId));
+    const myMap = Object.fromEntries(myParticipations.map(p => [p.campaignId, p]));
+
+    sendSuccess(res, {
+      campaigns: campaigns
+        .filter(c => c.startDate <= now && c.endDate >= now)
+        .map(c => ({
+          ...mapCampaign(c),
+          participation: myMap[c.id] ?? null,
+          isParticipating: !!myMap[c.id],
+        })),
+    });
+  } catch (err) {
+    sendError(res, "Internal server error", 500);
+  }
+});
+
+/* ── POST /vendor/campaigns/:id/participate ── join a campaign ── */
+router.post("/vendor/campaigns/:id/participate", requireRole("vendor"), async (req, res) => {
+  try {
+    const vendorId = req.vendorId as string;
+    const campaignId = req.params["id"]!;
+
+    const [campaign] = await db.select().from(campaignsTable).where(eq(campaignsTable.id, campaignId)).limit(1);
+    if (!campaign) { sendNotFound(res, "Campaign not found"); return; }
+    if (campaign.status !== "active") { sendValidationError(res, "Campaign is not currently active"); return; }
+
+    const [existing] = await db.select().from(campaignParticipationsTable)
+      .where(eq(campaignParticipationsTable.campaignId, campaignId))
+      .limit(1);
+    // check if THIS vendor already participates
+    const myExisting = await db.select().from(campaignParticipationsTable)
+      .where(eq(campaignParticipationsTable.campaignId, campaignId))
+      .then(rows => rows.find(r => r.vendorId === vendorId));
+    if (myExisting) { sendError(res, "You are already participating in this campaign", 409); return; }
+
+    const [participation] = await db.insert(campaignParticipationsTable).values({
+      id: generateId(), campaignId, vendorId, status: "active",
+    }).returning();
+    sendCreated(res, { participation });
+  } catch (err) {
+    sendError(res, "Internal server error", 500);
+  }
+});
+
+/* ── DELETE /vendor/participations/:id ── leave / cancel participation ── */
+router.delete("/vendor/participations/:id", requireRole("vendor"), async (req, res) => {
+  try {
+    const vendorId = req.vendorId as string;
+    const participationId = req.params["id"]!;
+    const rows = await db.select().from(campaignParticipationsTable)
+      .where(eq(campaignParticipationsTable.id, participationId));
+    const participation = rows.find(r => r.vendorId === vendorId);
+    if (!participation) { sendNotFound(res, "Participation not found"); return; }
+    await db.delete(campaignParticipationsTable).where(eq(campaignParticipationsTable.id, participationId));
+    sendSuccess(res, { success: true });
+  } catch (err) {
+    sendError(res, "Internal server error", 500);
+  }
+});
+
 export default router;

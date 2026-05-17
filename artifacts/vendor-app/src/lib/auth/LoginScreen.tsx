@@ -89,12 +89,12 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
   };
 
   const handleGoogle = useCallback(async () => {
-    try { await doLogin(await api.socialGoogle({}) as never); }
+    try { await doLogin(await api.socialGoogle({ idToken: "" }) as never); }
     catch (e: unknown) { setLoginError(e instanceof Error ? e.message : "Google sign-in failed"); }
   }, [doLogin]);
 
   const handleFacebook = useCallback(async () => {
-    try { await doLogin(await api.socialFacebook({}) as never); }
+    try { await doLogin(await api.socialFacebook({ accessToken: "" }) as never); }
     catch (e: unknown) { setLoginError(e instanceof Error ? e.message : "Facebook sign-in failed"); }
   }, [doLogin]);
 
@@ -126,7 +126,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
       )}
       <SDKLoginScreen
         role="vendor"
-        onSuccess={(user, token) => void doLogin({ token, user: user as Record<string, unknown> })}
+        onSuccess={(user: unknown, token: string) => void doLogin({ token, user: user as Record<string, unknown> })}
         onRegisterPress={() => navigate("/register")}
         enableSocial={vendorAuth.google || vendorAuth.facebook}
         onGoogle={vendorAuth.google ? handleGoogle : undefined}

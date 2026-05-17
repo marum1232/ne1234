@@ -35,7 +35,7 @@ async function prefGet(key: string): Promise<string> {
     return value ?? "";
   } catch (err) {
     log.warn("biometric prefGet failed:", err);
-    try { return localStorage.getItem(key) ?? ""; } catch (err) { console.warn('[artifacts/vendor-app/src/lib/biometric.ts]', err); } // eslint-disable-line no-console
+    try { return localStorage.getItem(key) ?? ""; } catch (err) { console.warn('[artifacts/vendor-app/src/lib/biometric.ts]', err); return ""; } // eslint-disable-line no-console
   }
 }
 
@@ -76,7 +76,7 @@ export async function isBiometricAvailable(): Promise<boolean> {
     const { BiometricAuth } = await import("@aparajita/capacitor-biometric-auth");
     const info = await BiometricAuth.checkBiometry();
     return info.isAvailable;
-  } catch (err) { console.warn('[artifacts/vendor-app/src/lib/biometric.ts]', err); } // eslint-disable-line no-console
+  } catch (err) { console.warn('[artifacts/vendor-app/src/lib/biometric.ts]', err); return false; } // eslint-disable-line no-console
 }
 
 /**
@@ -121,7 +121,7 @@ export async function verifyBiometric(reason = "Sign in to AJKMart Vendor"): Pro
     const { BiometricAuth } = await import("@aparajita/capacitor-biometric-auth");
     await BiometricAuth.authenticate({ reason, cancelTitle: "Cancel" });
     return true;
-  } catch (err) { console.warn('[artifacts/vendor-app/src/lib/biometric.ts]', err); } // eslint-disable-line no-console
+  } catch (err) { console.warn('[artifacts/vendor-app/src/lib/biometric.ts]', err); return false; } // eslint-disable-line no-console
 }
 
 /**

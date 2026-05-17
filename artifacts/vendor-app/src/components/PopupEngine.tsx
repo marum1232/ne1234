@@ -33,7 +33,7 @@ function getOrCreateSessionId(): string {
     const id = `sess_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     sessionStorage.setItem(SESSION_KEY, id);
     return id;
-  } catch (err) { console.warn('[artifacts/vendor-app/src/components/PopupEngine.tsx]', err); } // eslint-disable-line no-console
+  } catch (err) { console.warn('[artifacts/vendor-app/src/components/PopupEngine.tsx]', err); return `sess_${Date.now()}_fallback`; } // eslint-disable-line no-console
 }
 
 const sessionSeenIds = new Set<string>();
@@ -53,7 +53,7 @@ function shouldShowPopup(popup: Popup): boolean {
       return !sessionSeenIds.has(popup.id);
     }
     return true;
-  } catch (err) { console.warn('[artifacts/vendor-app/src/components/PopupEngine.tsx]', err); } // eslint-disable-line no-console
+  } catch (err) { console.warn('[artifacts/vendor-app/src/components/PopupEngine.tsx]', err); return false; } // eslint-disable-line no-console
 }
 
 function markPopupSeen(popup: Popup): void {

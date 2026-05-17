@@ -68,11 +68,27 @@ export function useLoginFlow({ baseURL = '', onSuccess }: UseLoginFlowOptions = 
       setError(null);
       setIdentifier(id);
       try {
-        const res = await apiFetch<IdentifierCheckResult>(
+        const res = await apiFetch<IdentifierCheckResult & { action?: string; availableMethods?: string[] }>(
           '/api/auth/check-identifier',
           { identifier: id }
         );
-        const result = res.data ?? { method: 'otp' as LoginMethod, exists: false };
+        const raw = res.data as any ?? {};
+        /* Map the API's action/availableMethods format to the method field
+           the LoginScreen step-switcher expects */
+        const actionToMethod = (action: string | undefined): LoginMethod => {
+          if (action === 'login_password') return 'password';
+          if (action === 'send_magic_link') return 'magic-link';
+          return 'otp';
+        };
+        const derivedMethod: LoginMethod =
+          raw.method ??
+          actionToMethod(raw.action) ??
+          (raw.availableMethods?.includes('password') && !raw.availableMethods?.includes('phone_otp') ? 'password' : 'otp');
+        const result: IdentifierCheckResult = {
+          ...raw,
+          method: derivedMethod,
+          exists: raw.exists ?? false,
+        };
         setMethod(result.method);
         return result;
       } catch (err) {
