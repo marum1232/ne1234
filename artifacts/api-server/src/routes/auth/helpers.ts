@@ -372,14 +372,19 @@ export function isDeviceTrusted(user: any, deviceFingerprint: string, trustedDay
   }
 }
 
-/** Encrypt a PII string when ENCRYPTION_MASTER_KEY is available; returns null silently if not. */
+/** Encrypt a PII string when ENCRYPTION_MASTER_KEY is available; returns null (plaintext fallback) if not. */
 export function tryEncrypt(value: string | null | undefined): string | null {
   if (!value) return null;
   try {
-    if (!isEncryptionAvailable()) return null;
+    if (!isEncryptionAvailable()) {
+      if (process.env["NODE_ENV"] === "production") {
+        logger.warn("[crypto] ENCRYPTION_MASTER_KEY is not set — PII stored as plaintext. Set this secret to enable encryption.");
+      }
+      return null;
+    }
     return encrypt(value);
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
+    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[crypto] tryEncrypt failed — PII stored as plaintext');
     return null;
   }
 }

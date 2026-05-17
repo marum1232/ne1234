@@ -182,7 +182,7 @@ router.post("/verify-email-otp", otpLimiter, verifyCaptcha, sharedValidateBody(V
   }
 
   const [user] = await db.select().from(usersTable).where(eq(usersTable.email, normalized)).limit(1);
-  if (!user) { sendNotFound(res, "Is email se koi account nahi mila."); return; }
+  if (!user) { sendNotFound(res, "No account found with this email address."); return; }
 
   if (!isAuthMethodEnabled(settings, "auth_email_otp_enabled", user.roles ?? "customer")) {
     sendErrorWithData(res, "Email OTP login is currently disabled for your account type.", { code: "AUTH_METHOD_DISABLED" }, 400);

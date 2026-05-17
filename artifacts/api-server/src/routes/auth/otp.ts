@@ -562,25 +562,36 @@ router.post("/verify-otp", otpLimiter, verifyCaptcha, sharedValidateBody(verifyO
       return;
     }
 
-    /* OTP valid — create user record now */
+    /* OTP valid — create user record now (wrapped in transaction to prevent duplicate inserts
+       from concurrent verify-otp requests with the same phone+OTP) */
     const requireApproval = (settings["user_require_approval"] ?? "off") === "on";
     const deviceId = req.body.deviceId as string | undefined;
     const newUserId = generateId();
-    await db.insert(usersTable).values({
-      id:             newUserId,
-      phone,
-      encryptedPhone: tryEncrypt(phone),
-
-      roles:          "customer",
-      walletBalance:  "0",
-      phoneVerified:  true,
-      isActive:       !requireApproval,
-      approvalStatus: requireApproval ? "pending" : "approved",
-      ...(deviceId ? { deviceId } : {}),
-    });
-
-    /* Delete from pending_otps */
-    await db.delete(pendingOtpsTable).where(eq(pendingOtpsTable.phone, phone));
+    try {
+      await db.transaction(async (tx) => {
+        await tx.insert(usersTable).values({
+          id:             newUserId,
+          phone,
+          encryptedPhone: tryEncrypt(phone),
+          roles:          "customer",
+          walletBalance:  "0",
+          phoneVerified:  true,
+          isActive:       !requireApproval,
+          approvalStatus: requireApproval ? "pending" : "approved",
+          ...(deviceId ? { deviceId } : {}),
+        });
+        /* Delete from pending_otps inside transaction so a second concurrent request
+           fails on insert (unique phone constraint) rather than creating a duplicate user */
+        await tx.delete(pendingOtpsTable).where(eq(pendingOtpsTable.phone, phone));
+      });
+    } catch (txErr: unknown) {
+      const errMsg = txErr instanceof Error ? txErr.message : String(txErr);
+      if (errMsg.includes("unique") || errMsg.includes("duplicate") || errMsg.includes("23505")) {
+        sendErrorWithData(res, "OTP already used. Please request a new one.", { code: "OTP_ALREADY_USED" }, 409);
+        return;
+      }
+      throw txErr;
+    }
     writeAuthAuditLog("otp_verified_new_user", { userId: newUserId, ip, userAgent: req.headers["user-agent"] ?? undefined, metadata: { phone } });
 
     const signupBonus = parseFloat(settings["customer_signup_bonus"] ?? "0");
