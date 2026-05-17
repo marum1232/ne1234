@@ -1,0 +1,136 @@
+#1 - Fix Auth Audit to 0 Failures (10-Step Professional Refactor)
+What & Why
+The auth audit (node audit-auth.js) currently has 3 failures. The previous agent also did hacky line-count compression in some files — Products.tsx sits at exactly 999 lines with virtually no blank lines and zero comments across a 999-line React component, a clear sign of whitespace removal rather than real refactoring. This task fixes every failure properly, restores readability, adds tests, and sets up professional linting/formatting tooling.
+
+Current audit state (verified)
+#	Check	Status	Root cause
+5.3	dist/index.js exists	❌	packages/auth-react has never been built — dist/ is missing
+Design	Longest auth file < 1000 lines	❌	artifacts/rider-app/src/pages/Register.tsx is 1151 lines
+DRY	getDeviceFingerprint in ≤ 2 places	❌	countFingerprint() in audit-auth.js does not exclude node_modules (unlike walkDir), so it counts package copies inside node_modules dirs. Actual source files correctly import from @workspace/auth-react.
+Done looks like
+node audit-auth.js exits with 0 failures, 0 partial.
+artifacts/vendor-app/src/pages/Products.tsx is a genuinely readable ~650–750 line file with useProductForm hook and ProductFormFields/ProductImageUploader components extracted.
+artifacts/rider-app/src/pages/Register.tsx is under 1000 lines via real extraction of step sub-components.
+packages/auth-react tests pass under pnpm --filter @workspace/auth-react test.
+.eslintrc.json and .prettierrc exist at workspace root; pnpm lint passes.
+packages/auth-react/README.md exists with usage guide.
+progress.md updated after every step.
+Out of scope
+Changing the 1000-line limit value in audit-auth.js — the user must explicitly approve this before it is touched. The fix in Task 2 below is a bug fix (adding a node_modules guard to countFingerprint), not a limit change.
+E2E / Playwright tests.
+API server, database, or deployment changes.
+Steps
+Important: Complete each step fully, run the stated verification, update progress.md with the task name and outcome, and only then move to the next step. Do NOT batch steps together.
+
+Step 1 — Build packages/auth-react
+cd packages/auth-react
+Check if tsup is installed in devDependencies. If not: pnpm add -D tsup
+Run: pnpm build
+Verify: packages/auth-react/dist/index.js exists
+Update progress.md: "TASK 1 DONE — packages/auth-react built successfully"
+Step 2 — Fix countFingerprint bug in audit-auth.js
+Open audit-auth.js and find function countFingerprint(dir)
+Inside the if (fs.statSync(full).isDirectory()) block, add a continue guard to skip node_modules and .git — identical to the guard already present in walkDir.
+Before saving: show the user the exact before/after diff of those lines and wait for explicit approval.
+After approval: save the file, run node audit-auth.js — the DRY failure should disappear.
+Update progress.md: "TASK 2 DONE — countFingerprint node_modules guard added"
+Step 3 — Properly refactor Register.tsx (1151 → <1000 lines)
+File: artifacts/rider-app/src/pages/Register.tsx
+Extract step-level components into artifacts/rider-app/src/pages/register/:
+RegisterStepPhone.tsx — phone entry and OTP send
+RegisterStepPersonal.tsx — name, password, CNIC, city, vehicle type
+RegisterStepDocuments.tsx — document upload (vehicle photo, CNIC front/back, license)
+Keep all functionality identical. Do NOT remove blank lines or comments.
+Target main Register.tsx: 700–900 lines.
+Verify: run wc -l artifacts/rider-app/src/pages/Register.tsx — must be < 1000.
+Update progress.md: "TASK 3 DONE — Register.tsx refactored to N lines"
+Step 4 — Properly refactor Products.tsx (compressed, 999 lines)
+File: artifacts/vendor-app/src/pages/Products.tsx
+First, restore readability: re-add blank lines between logical sections and add section comments (e.g., // ── Form state ──). This will push the file above 1000 lines — that is intentional and correct.
+Then extract into new files alongside Products.tsx:
+useProductForm.ts — all form state (useState calls) and the submit/save mutation logic
+ProductFormFields.tsx — the main form body JSX
+ProductImageUploader.tsx — the image upload section JSX
+Import these in Products.tsx.
+Target main Products.tsx: 650–750 lines.
+Keep all user-visible behavior identical.
+Update progress.md: "TASK 4 DONE — Products.tsx refactored to N lines"
+Step 5 — Review Profile.tsx and merge over-extracted components
+File: artifacts/rider-app/src/pages/Profile.tsx
+Read the file and each of its split components: ProfileHelpers, ProfileReviews, ProfilePenaltyHistory, ProfileSettings, ProfileFooter.
+For any component that meets both conditions — (a) rendered in exactly one place, AND (b) has no internal useState/useEffect of its own — merge it back into Profile.tsx with a clear {/* ── Section name ── */} comment.
+Keep components that have their own state or are used in more than one place.
+After merging, verify Profile.tsx still compiles (check TypeScript errors in the rider-app).
+Update progress.md: "TASK 5 DONE — merged: [list], kept: [list]"
+Step 6 — Complete Home.tsx refactor + write basic tests
+File: artifacts/rider-app/src/pages/Home.tsx
+Finish extracting HomeRequestList and GoalSection as standalone components in their own files.
+Ensure getDeliveryEarn (and any other computed values) are passed via props — do not let extracted components reach into parent state directly.
+Target Home.tsx: 700–800 lines.
+Write two Vitest + RTL test files:
+HomeRequestList.test.tsx — renders without crash; displays expected text when given mock props.
+GoalSection.test.tsx — renders without crash; shows the goal progress text.
+Run pnpm --filter rider-app test (or the appropriate filter) — all must pass.
+Update progress.md: "TASK 6 DONE — Home.tsx N lines, 2 test files passing"
+Step 7 — Write meaningful tests for packages/auth-react
+File packages/auth-react/tests/OtpInput.test.tsx:
+Test: renders 6 input boxes
+Test: calls onComplete callback when all 6 digits are filled
+File packages/auth-react/tests/useLoginFlow.test.ts:
+Test: initiateLogin sets loading to true then false
+Test: 2FA pending state is surfaced correctly
+Add any missing devDependencies: vitest, @testing-library/react, jsdom (check package.json first — they may already be listed).
+Run pnpm --filter @workspace/auth-react test — all must pass.
+Update progress.md: "TASK 7 DONE — OtpInput and useLoginFlow tests passing"
+Step 8 — Add ESLint + Prettier at workspace root
+From workspace root:
+pnpm add -D eslint prettier eslint-config-prettier eslint-plugin-react @typescript-eslint/parser @typescript-eslint/eslint-plugin
+
+Create .eslintrc.json:
+{
+  "extends": ["eslint:recommended", "plugin:react/recommended", "prettier"],
+  "parser": "@typescript-eslint/parser",
+  "plugins": ["@typescript-eslint"],
+  "rules": {
+    "max-lines": ["warn", 1000],
+    "no-unused-vars": "error",
+    "no-console": "warn"
+  },
+  "env": { "browser": true, "es2020": true }
+}
+
+Create .prettierrc:
+{ "semi": true, "singleQuote": true, "printWidth": 100, "trailingComma": "es5" }
+
+Add to root package.json scripts:
+"lint": "eslint . --ext .ts,.tsx"
+"format": "prettier --write ."
+Run pnpm lint — fix any error-level violations (not warnings).
+Update progress.md: "TASK 8 DONE — ESLint + Prettier configured, lint passes"
+Step 9 — Final audit run
+Run node audit-auth.js — must show 0 failures, 0 partial.
+Run pnpm lint — no errors.
+Run pnpm --filter @workspace/auth-react test — all pass.
+If any failure remains, fix it without hacks and re-run.
+Copy the full text output of node audit-auth.js into progress.md under "TASK 9 DONE".
+Step 10 — Write packages/auth-react/README.md
+Create packages/auth-react/README.md (10–15 lines):
+Installation (pnpm add @workspace/auth-react)
+Basic usage: wrapping with AuthProvider, using LoginScreen
+Key hooks: useAuth, useLoginFlow
+Token storage types: 'web' vs 'native'
+Update progress.md: "TASK 10 DONE — README written"
+Relevant files
+audit-auth.js
+artifacts/rider-app/src/pages/Register.tsx
+artifacts/rider-app/src/pages/register/ (new directory)
+artifacts/vendor-app/src/pages/Products.tsx
+artifacts/rider-app/src/pages/Profile.tsx
+artifacts/rider-app/src/pages/Home.tsx
+packages/auth-react/package.json
+packages/auth-react/tsconfig.build.json
+packages/auth-react/src/index.ts
+packages/auth-react/tests/OtpInput.test.tsx
+packages/auth-react/tests/useLoginFlow.test.ts
+packages/auth-react/README.md
+progress.md
