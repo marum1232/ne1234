@@ -15,68 +15,103 @@ import { ErrorState } from "../components/ui/ErrorState";
 import { useOfflineQueue } from "../hooks/useOfflineQueue";
 import { ProductFormView } from "../components/products/ProductFormView";
 import { ProductBulkView } from "../components/products/ProductBulkView";
-const EMPTY = { name:"", description:"", price:"", originalPrice:"", category:"", unit:"", stock:"", image:"", type:"mart", videoUrl:"", tags:"", isHidden: false };
-const EMPTY_ROW = { name:"", price:"", description:"", image:"", category:"", unit:"", stock:"", type:"mart" };
-const CATS_FALLBACK = ["food","grocery","bakery","pharmacy","electronics","clothing","mart","general"];
-const TYPES = ["mart","food","pharmacy","parcel"];
+import { useProductForm, EMPTY_FORM } from "./useProductForm";
+import { StockHistoryPanel } from "../components/products/StockHistoryPanel";
 
-function StockHistoryPanel({ productId }: { productId: string }) {
-  const { data, isLoading, isError } = useQuery({
-    queryKey: ["vendor-stock-history", productId],
-    queryFn: () => api.getProductStockHistory(productId),
-    staleTime: 30_000,
-  });
-
-  const rows: Array<{
-    id: string;
-    delta: number;
-    reason: string | null;
-    stockAfter: number | null;
-    orderId: string | null;
-    createdAt: string;
-  }> = Array.isArray(data?.history) ? data.history : [];
-
-  return (
-    <div className="border-t border-purple-100 bg-purple-50/40 px-4 py-3">
-      <p className="text-[11px] font-bold text-purple-700 mb-2 uppercase tracking-wide">Stock History</p>
-      {isLoading && <p className="text-xs text-gray-400">Loading…</p>}
-      {isError  && <p className="text-xs text-red-500">Failed to load history.</p>}
-      {!isLoading && !isError && rows.length === 0 && (
-        <p className="text-xs text-gray-400">No stock changes recorded yet.</p>
-      )}
-      {rows.length > 0 && (
-        <div className="space-y-1.5 max-h-48 overflow-y-auto">
-          {rows.map(r => (
-            <div key={r.id} className="flex items-center justify-between gap-2 text-xs">
-              <div className="flex items-center gap-1.5">
-                <span className={`font-extrabold tabular-nums w-8 text-center rounded px-1 ${r.delta < 0 ? "bg-red-100 text-red-600" : "bg-green-100 text-green-700"}`}>
-                  {r.delta > 0 ? `+${r.delta}` : r.delta}
-                </span>
-                <span className="text-gray-600 capitalize">{r.reason ?? "update"}</span>
-                {r.stockAfter != null && (
-                  <span className="text-gray-400">→ {r.stockAfter} left</span>
-                )}
-              </div>
-              <span className="text-gray-400 flex-shrink-0">{fd(r.createdAt)}</span>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
+// ── Constants ──
+const EMPTY_ROW = { name: "", price: "", description: "", image: "", category: "", unit: "", stock: "", type: "mart" };
+const CATS_FALLBACK = ["food", "grocery", "bakery", "pharmacy", "electronics", "clothing", "mart", "general"];
+const TYPES = ["mart", "food", "pharmacy", "parcel"];
 
 export default function Products() {
   const qc = useQueryClient();
   const { user } = useAuth();
-  const { isOnline, pendingProductCount, productQueueErrors, enqueueProductAction, retryProductQueueItem, dismissProductQueueError } = useOfflineQueue();
+  const {
+    isOnline,
+    pendingProductCount,
+    productQueueErrors,
+    enqueueProductAction,
+    retryProductQueueItem,
+    dismissProductQueueError,
+  } = useOfflineQueue();
   const { config } = usePlatformConfig();
-  const { symbol: currencySymbol, code: currencyCode } = useCurrency();
+  const { symbol: currencySymbol } = useCurrency();
   const { language } = useLanguage();
   const T = (key: TranslationKey) => tDual(key, language);
+
   const maxItems = config.vendor?.maxItems ?? 100;
   const lowStockThreshold = config.vendor?.lowStockThreshold ?? 10;
-  /* ── Real-time stock sync via Socket.IO ── */
+
+  // ── Per-product low-stock thresholds (localStorage fallback; server value takes precedence) ──
+  const [productThresholds, setProductThresholds] = useState<Record<string, number>>(() => {
+    try {
+      const stored = localStorage.getItem("vendor_product_thresholds");
+      return stored ? JSON.parse(stored) : {};
+    } catch { return {}; }
+  });
+
+  const saveThreshold = (productId: string, value: number | null) => {
+    setProductThresholds(prev => {
+      const next = { ...prev };
+      if (value === null) {
+        delete next[productId];
+      } else {
+        next[productId] = value;
+      }
+      try { localStorage.setItem("vendor_product_thresholds", JSON.stringify(next)); } catch {}
+      return next;
+    });
+  };
+
+  // ── All-products query (needed by mutations to enforce the item limit) ──
+  const {
+    data: allData,
+    isLoading: allDataLoading,
+    isSuccess: allDataSuccess,
+  } = useQuery({
+    queryKey: ["vendor-products-all"],
+    queryFn: () => api.getProducts(),
+  });
+  const totalProductCount =
+    allDataSuccess && Array.isArray(allData?.products) ? allData.products.length : null;
+
+  // ── Form state, mutations, open/close — managed by hook ──
+  const {
+    toast,
+    showToast,
+    showAdd,
+    setShowAdd,
+    editProd,
+    form,
+    formErrors,
+    videoUploading,
+    editThreshold,
+    setEditThreshold,
+    f,
+    validateForm,
+    maxVideoMb,
+    maxVideoDurationSec,
+    allowedVideoFormats,
+    handleVideoUpload,
+    hideMut,
+    createMut,
+    updateMut,
+    deleteMut,
+    toggleMut,
+    openEdit,
+    closeForm,
+  } = useProductForm({
+    qc,
+    isOnline,
+    maxItems,
+    totalProductCount,
+    productThresholds,
+    saveThreshold,
+    config,
+    enqueueProductAction,
+  });
+
+  // ── Real-time stock sync via Socket.IO ──
   const socketRef = useRef<Socket | null>(null);
   const [lastStockSync, setLastStockSync] = useState<Date | null>(null);
 
@@ -102,141 +137,78 @@ export default function Products() {
       qc.invalidateQueries({ queryKey: ["vendor-products"] });
       qc.invalidateQueries({ queryKey: ["vendor-products-all"] });
     });
-    socket.on("product:stock_updated", (payload: { productId: string; vendorId: string; stock: number | null; inStock: boolean }) => {
-      /* Check if the product is present in the unfiltered cache before patching.
-         If it's not there (e.g. initial load not yet complete, or race on first connect),
-         fall back to a full invalidation so the UI self-heals immediately. */
-      const allCached = qc.getQueryData<{ products: any[] }>(["vendor-products-all"]);
-      const inCache = allCached?.products?.some((p: any) => p.id === payload.productId) ?? false;
+    socket.on(
+      "product:stock_updated",
+      (payload: { productId: string; vendorId: string; stock: number | null; inStock: boolean }) => {
+        /* Check if the product is present in the unfiltered cache before patching.
+           If it's not there (e.g. initial load not yet complete, or race on first connect),
+           fall back to a full invalidation so the UI self-heals immediately. */
+        const allCached = qc.getQueryData<{ products: any[] }>(["vendor-products-all"]);
+        const inCache = allCached?.products?.some((p: any) => p.id === payload.productId) ?? false;
 
-      if (inCache) {
-        const patchProducts = (old: { products: any[] } | undefined) => {
-          if (!old?.products) return old;
-          const updated = old.products.map(p =>
-            p.id === payload.productId
-              ? { ...p, stock: payload.stock, inStock: payload.inStock }
-              : p,
-          );
-          return { ...old, products: updated };
-        };
-        /* Patch the filtered list (current view) and the unfiltered "all" list */
-        qc.setQueriesData<{ products: any[] }>({ queryKey: ["vendor-products"] }, patchProducts);
-        qc.setQueriesData<{ products: any[] }>({ queryKey: ["vendor-products-all"] }, patchProducts);
-      } else {
-        /* Product not in cache (e.g. arrived before initial fetch completed) — re-fetch */
-        qc.invalidateQueries({ queryKey: ["vendor-products"] });
-        qc.invalidateQueries({ queryKey: ["vendor-products-all"] });
+        if (inCache) {
+          const patchProducts = (old: { products: any[] } | undefined) => {
+            if (!old?.products) return old;
+            const updated = old.products.map(p =>
+              p.id === payload.productId
+                ? { ...p, stock: payload.stock, inStock: payload.inStock }
+                : p,
+            );
+            return { ...old, products: updated };
+          };
+          /* Patch the filtered list (current view) and the unfiltered "all" list */
+          qc.setQueriesData<{ products: any[] }>({ queryKey: ["vendor-products"] }, patchProducts);
+          qc.setQueriesData<{ products: any[] }>({ queryKey: ["vendor-products-all"] }, patchProducts);
+        } else {
+          /* Product not in cache (e.g. arrived before initial fetch completed) — re-fetch */
+          qc.invalidateQueries({ queryKey: ["vendor-products"] });
+          qc.invalidateQueries({ queryKey: ["vendor-products-all"] });
+        }
+        setLastStockSync(new Date());
       }
-      setLastStockSync(new Date());
-    });
+    );
     return () => {
       socket.disconnect();
       socketRef.current = null;
     };
   }, [user?.id, qc]);
-  const [view, setView]           = useState<"list"|"bulk">("list");
+
+  // ── View + filter state ──
+  const [view, setView]           = useState<"list" | "bulk">("list");
   const [search, setSearch]       = useState("");
   const [filterCat, setFilterCat] = useState("all");
-  const [showAdd, setShowAdd]     = useState(false);
-  const [editProd, setEditProd]   = useState<any|null>(null);
-  const [form, setForm]           = useState({ ...EMPTY });
-  const [bulkRows, setBulkRows]   = useState([{ ...EMPTY_ROW }, { ...EMPTY_ROW }, { ...EMPTY_ROW }]);
-  const [toast, setToast]         = useState("");
-  const [formErrors, setFormErrors] = useState<{ name?: string; price?: string; category?: string }>({});
-  const [videoUploading, setVideoUploading] = useState(false);
-  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const showToast = (m: string) => {
-    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-    setToast(m);
-    toastTimerRef.current = setTimeout(() => setToast(""), 3000);
-  };
-  useEffect(() => () => { if (toastTimerRef.current) clearTimeout(toastTimerRef.current); }, []);
-  const f = (k: string, v: any) => {
-    setForm(p => ({ ...p, [k]: v }));
-    if (k === "name" || k === "price" || k === "category") {
-      setFormErrors(prev => ({ ...prev, [k]: undefined }));
-    }
-  };
 
-  const validateForm = (): boolean => {
-    const errors: { name?: string; price?: string; category?: string } = {};
-    if (!form.name.trim()) errors.name = "Product name is required";
-    if (!form.price || Number(form.price) <= 0) errors.price = "A valid price is required";
-    if (!form.category) errors.category = "Please select a category";
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-
-  const maxVideoMb = config.uploads?.maxVideoMb ?? 50;
-  const maxVideoDurationSec = config.uploads?.maxVideoDurationSec ?? 60;
-  const allowedVideoFormats = (config.uploads?.allowedVideoFormats ?? []).length > 0
-    ? config.uploads!.allowedVideoFormats!.map(f => `video/${f}`)
-    : ["video/mp4", "video/quicktime", "video/webm"];
-
-  const handleVideoUpload = async (file: File) => {
-    if (file.size > maxVideoMb * 1024 * 1024) { showToast(`❌ Video must be under ${maxVideoMb}MB`); return; }
-    if (!allowedVideoFormats.includes(file.type)) { showToast(`❌ Only ${(config.uploads?.allowedVideoFormats ?? ["mp4", "mov", "webm"]).join(", ").toUpperCase()} videos allowed`); return; }
-    try {
-      const duration = await getVideoDuration(file);
-      if (duration > maxVideoDurationSec) { showToast(`❌ Video must be ${maxVideoDurationSec} seconds or less (yours is ${Math.ceil(duration)}s)`); return; }
-    } catch {
-      showToast("❌ Could not read video file — it may be corrupted or unsupported. Please try a different file.");
-      return;
-    }
-    setVideoUploading(true);
-    try {
-      const result = await api.uploadVideo(file);
-      f("videoUrl", result.url);
-      showToast("✅ Video uploaded!");
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : "Video upload failed";
-      showToast("❌ " + msg);
-    }
-    setVideoUploading(false);
-  };
-
-  function getVideoDuration(file: File): Promise<number> {
-    return new Promise((resolve, reject) => {
-      const video = document.createElement("video");
-      video.preload = "metadata";
-      video.onloadedmetadata = () => {
-        URL.revokeObjectURL(video.src);
-        resolve(video.duration);
-      };
-      video.onerror = () => reject(new Error("Cannot read video"));
-      video.src = URL.createObjectURL(file);
-    });
-  }
-
+  // ── Product queries ──
   const { data: catsData } = useQuery({
     queryKey: ["categories"],
     queryFn: () => apiFetch("/categories"),
     staleTime: 5 * 60_000,
     retry: 1,
   });
+
   const catList: string[] = useMemo(() => {
     const raw = catsData;
     if (Array.isArray(raw) && raw.length > 0) {
       return raw.map((c: any) => (typeof c === "string" ? c : c.slug ?? c.name ?? String(c)));
     }
     if (raw && Array.isArray(raw.categories) && raw.categories.length > 0) {
-      return raw.categories.map((c: any) => (typeof c === "string" ? c : c.slug ?? c.name ?? String(c)));
+      return raw.categories.map((c: any) =>
+        (typeof c === "string" ? c : c.slug ?? c.name ?? String(c))
+      );
     }
     return CATS_FALLBACK;
   }, [catsData]);
 
   const { data, isLoading, isError, refetch: refetchProducts } = useQuery({
     queryKey: ["vendor-products", search, filterCat],
-    queryFn: () => api.getProducts(search || undefined, filterCat !== "all" ? filterCat : undefined),
+    queryFn: () =>
+      api.getProducts(search || undefined, filterCat !== "all" ? filterCat : undefined),
     refetchInterval: 60000,
   });
-  const products: any[] = useMemo(() => Array.isArray(data?.products) ? data.products : [], [data?.products]);
-
-  const { data: allData, isLoading: allDataLoading, isSuccess: allDataSuccess } = useQuery({
-    queryKey: ["vendor-products-all"],
-    queryFn: () => api.getProducts(),
-  });
-  const totalProductCount = allDataSuccess && Array.isArray(allData?.products) ? allData.products.length : null;
+  const products: any[] = useMemo(
+    () => (Array.isArray(data?.products) ? data.products : []),
+    [data?.products]
+  );
 
   const categories = useMemo(() => {
     const s = new Set<string>();
@@ -244,120 +216,29 @@ export default function Products() {
     return ["all", ...Array.from(s)];
   }, [products]);
 
-  /* ── Per-product low-stock thresholds (localStorage fallback; server value takes precedence) ── */
-  const [productThresholds, setProductThresholds] = useState<Record<string, number>>(() => {
-    try {
-      const stored = localStorage.getItem("vendor_product_thresholds");
-      return stored ? JSON.parse(stored) : {};
-    } catch { return {}; }
-  });
-  const saveThreshold = (productId: string, value: number | null) => {
-    setProductThresholds(prev => {
-      const next = { ...prev };
-      if (value === null) {
-        delete next[productId];
-      } else {
-        next[productId] = value;
-      }
-      try { localStorage.setItem("vendor_product_thresholds", JSON.stringify(next)); } catch {}
-      return next;
-    });
-  };
-  const [editThreshold, setEditThreshold] = useState("");
-
   const lowStock = products.filter(p => {
     if (p.stock === null || p.stock === undefined || p.stock < 0) return false;
     const thresh = p.lowStockThreshold ?? productThresholds[p.id] ?? lowStockThreshold;
     return p.stock <= thresh;
   });
 
-  const hideMut = useMutation({
-    mutationFn: ({ id, isHidden }: { id: string; isHidden: boolean }) => api.updateProduct(id, { isHidden }),
-    onSuccess: (_, { isHidden }) => { qc.invalidateQueries({ queryKey: ["vendor-products"] }); showToast(isHidden ? "👁️ Hidden from customers" : "✅ Visible to customers"); },
-    onError: (e: Error) => showToast("❌ " + errMsg(e)),
-  });
-
-  const tagsFromForm = (t: string): string[] => t.split(",").map(s => s.trim()).filter(Boolean);
-
-  const createMut = useMutation({
-    mutationFn: () => {
-      if (!isOnline) {
-        const payload = { ...form, price: Number(form.price), originalPrice: form.originalPrice ? Number(form.originalPrice) : undefined, stock: form.stock !== "" ? Number(form.stock) : undefined, videoUrl: form.videoUrl || undefined, tags: tagsFromForm(form.tags), isHidden: form.isHidden };
-        const storageMsg = enqueueProductAction("create", payload as Record<string, unknown>);
-        if (storageMsg && !storageMsg.startsWith("warn:")) { showToast("❌ " + storageMsg); return Promise.resolve(null); }
-        setShowAdd(false);
-        setForm({ ...EMPTY });
-        showToast(storageMsg ? storageMsg.slice(5) : "📥 Saved offline — will sync when connected");
-        return Promise.resolve(null);
-      }
-      if (totalProductCount === null) throw new Error("Cannot verify product count — please wait and try again.");
-      if (totalProductCount >= maxItems) throw new Error(`Product limit of ${maxItems} reached. Delete existing products to add new ones.`);
-      return api.createProduct({ ...form, price: Number(form.price), originalPrice: form.originalPrice ? Number(form.originalPrice) : undefined, stock: form.stock !== "" ? Number(form.stock) : undefined, videoUrl: form.videoUrl || undefined, tags: tagsFromForm(form.tags), isHidden: form.isHidden });
-    },
-    onSuccess: (result) => {
-      if (result === null) return;
-      qc.invalidateQueries({ queryKey: ["vendor-products"] }); qc.invalidateQueries({ queryKey: ["vendor-products-all"] }); setShowAdd(false); setForm({ ...EMPTY }); showToast("✅ Product added!");
-    },
-    onError: (e: Error) => showToast("❌ " + errMsg(e)),
-  });
-
-  const updateMut = useMutation({
-    mutationFn: () => {
-      if (!isOnline) {
-        const payload = { ...form, price: Number(form.price), originalPrice: form.originalPrice ? Number(form.originalPrice) : null, stock: form.stock !== "" ? Number(form.stock) : null, videoUrl: form.videoUrl || null, tags: tagsFromForm(form.tags), isHidden: form.isHidden };
-        const storageMsg = enqueueProductAction("update", payload as Record<string, unknown>, editProd.id);
-        if (storageMsg && !storageMsg.startsWith("warn:")) { showToast("❌ " + storageMsg); return Promise.resolve(null); }
-        setEditProd(null);
-        setShowAdd(false);
-        showToast(storageMsg ? storageMsg.slice(5) : "📥 Saved offline — will sync when connected");
-        return Promise.resolve(null);
-      }
-      const lowStockThresholdVal = editThreshold !== "" ? Number(editThreshold) : null;
-      return api.updateProduct(editProd.id, { ...form, price: Number(form.price), originalPrice: form.originalPrice ? Number(form.originalPrice) : null, stock: form.stock !== "" ? Number(form.stock) : null, videoUrl: form.videoUrl || null, tags: tagsFromForm(form.tags), isHidden: form.isHidden, lowStockThreshold: lowStockThresholdVal });
-    },
-    onSuccess: (result) => {
-      if (result === null) return;
-      if (editProd) {
-        if (editThreshold !== "") {
-          const t = Number(editThreshold);
-          if (!isNaN(t) && t >= 0) saveThreshold(editProd.id, t);
-        } else {
-          /* Threshold was cleared — remove any stale localStorage override */
-          saveThreshold(editProd.id, null);
-        }
-      }
-      qc.invalidateQueries({ queryKey: ["vendor-products"] }); qc.invalidateQueries({ queryKey: ["vendor-products-all"] }); setEditProd(null); setShowAdd(false); setEditThreshold(""); showToast("✅ Updated!");
-    },
-    onError: (e: Error) => showToast("❌ " + errMsg(e)),
-  });
-
-  const deleteMut = useMutation({
-    mutationFn: (id: string) => api.deleteProduct(id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["vendor-products"] }); qc.invalidateQueries({ queryKey: ["vendor-products-all"] }); showToast("🗑️ Deleted"); },
-    onError: (e: Error) => showToast("❌ " + errMsg(e)),
-  });
-
-  const toggleMut = useMutation({
-    mutationFn: ({ id, inStock }: { id: string; inStock: boolean }) => api.updateProduct(id, { inStock }),
-    onSuccess: (_, { inStock }) => { qc.invalidateQueries({ queryKey: ["vendor-products"] }); showToast(inStock ? "✅ Marked In Stock" : "📦 Marked Out of Stock"); },
-    onError: (e: Error) => showToast("❌ " + errMsg(e)),
-  });
-
-  const [pasteText, setPasteText] = useState("");
-  const [showPaste, setShowPaste] = useState(false);
-  const [bulkCat, setBulkCat]   = useState("");
-  const [parseErrors, setParseErrors] = useState<string[]>([]);
+  // ── Bulk add state ──
+  const [bulkRows, setBulkRows]         = useState([{ ...EMPTY_ROW }, { ...EMPTY_ROW }, { ...EMPTY_ROW }]);
+  const [pasteText, setPasteText]       = useState("");
+  const [showPaste, setShowPaste]       = useState(false);
+  const [bulkCat, setBulkCat]           = useState("");
+  const [parseErrors, setParseErrors]   = useState<string[]>([]);
   const [stockHistoryOpen, setStockHistoryOpen] = useState<string | null>(null);
   const [duplicateWarning, setDuplicateWarning] = useState<string[]>([]);
   const csvListInputRef = useRef<HTMLInputElement>(null);
-
-  /* ── Bulk Edit Mode ── */
-  const [bulkEditMode, setBulkEditMode] = useState(false);
-  const [bulkEditSelected, setBulkEditSelected] = useState<Set<string>>(new Set());
-  const [bulkEditPrice, setBulkEditPrice] = useState("");
-  const [bulkEditStock, setBulkEditStock] = useState("");
-  const [bulkEditError, setBulkEditError] = useState("");
   const csvInputRef = useRef<HTMLInputElement>(null);
+
+  // ── Bulk edit mode ──
+  const [bulkEditMode, setBulkEditMode]           = useState(false);
+  const [bulkEditSelected, setBulkEditSelected]   = useState<Set<string>>(new Set());
+  const [bulkEditPrice, setBulkEditPrice]         = useState("");
+  const [bulkEditStock, setBulkEditStock]         = useState("");
+  const [bulkEditError, setBulkEditError]         = useState("");
 
   /* Exit bulk edit mode when switching to add/bulk views */
   useEffect(() => {
@@ -388,7 +269,8 @@ export default function Products() {
         if (Number(bulkEditStock) < 0) throw new Error("Stock cannot be negative");
         patch.stock = Number(bulkEditStock);
       }
-      if (!patch.price && patch.stock === undefined) throw new Error("Enter a price or stock value to update");
+      if (!patch.price && patch.stock === undefined)
+        throw new Error("Enter a price or stock value to update");
       return api.bulkEditProducts(ids.map(id => ({ id, ...patch })));
     },
     onSuccess: (res: any) => {
@@ -403,6 +285,7 @@ export default function Products() {
     onError: (e: Error) => setBulkEditError(errMsg(e)),
   });
 
+  // ── CSV helpers ──
   const downloadSampleCsv = () => {
     const headers = ["name", "price", "stock", "category", "description", "unit", "type", "image"];
     const rows = [
@@ -443,17 +326,20 @@ export default function Products() {
         skipEmptyLines: true,
         step: (result: Papa.ParseStepResult<Record<string, string>>, parser: Papa.Parser) => {
           rowCount++;
-          if (rowCount > 500) {
-            parser.abort();
-            return;
-          }
+          if (rowCount > 500) { parser.abort(); return; }
           const row = result.data;
           const name  = (row["name"] || row["Name"] || "").trim();
           const price = (row["price"] || row["Price"] || "").trim();
           const stockRaw = (row["stock"] || row["Stock"] || "").trim();
           if (!name) { rowErrors.push(`Row ${rowCount}: name is empty — skipped`); return; }
-          if (!price || isNaN(Number(price)) || Number(price) <= 0) { rowErrors.push(`Row ${rowCount}: price "${price}" must be a positive number — skipped`); return; }
-          if (stockRaw && (!isNaN(Number(stockRaw)) && Number(stockRaw) < 0)) { rowErrors.push(`Row ${rowCount}: stock cannot be negative ("${stockRaw}") — skipped`); return; }
+          if (!price || isNaN(Number(price)) || Number(price) <= 0) {
+            rowErrors.push(`Row ${rowCount}: price "${price}" must be a positive number — skipped`);
+            return;
+          }
+          if (stockRaw && (!isNaN(Number(stockRaw)) && Number(stockRaw) < 0)) {
+            rowErrors.push(`Row ${rowCount}: stock cannot be negative ("${stockRaw}") — skipped`);
+            return;
+          }
           parsed.push({
             name,
             price,
@@ -502,10 +388,8 @@ export default function Products() {
       skipEmptyLines: true,
       quoteChar: '"',
     });
-
     const rowErrors: string[] = [];
     const parsed: typeof bulkRows = [];
-
     result.data.forEach((parts, idx) => {
       if (result.errors.some(e => e.row === idx)) {
         rowErrors.push(`Row ${idx + 1}: parse error — ${result.errors.find(e => e.row === idx)?.message}`);
@@ -514,7 +398,10 @@ export default function Products() {
       const name  = (parts[0] || "").trim();
       const price = (parts[1] || "").trim();
       if (!name) { rowErrors.push(`Row ${idx + 1}: name is empty — skipped`); return; }
-      if (!price || Number.isNaN(Number(price))) { rowErrors.push(`Row ${idx + 1}: invalid price "${price}" — skipped`); return; }
+      if (!price || Number.isNaN(Number(price))) {
+        rowErrors.push(`Row ${idx + 1}: invalid price "${price}" — skipped`);
+        return;
+      }
       parsed.push({
         name,
         price,
@@ -526,28 +413,47 @@ export default function Products() {
         type:        (parts[7] || "mart").trim() || "mart",
       });
     });
-
     setParseErrors(rowErrors);
-    if (parsed.length > 0) { setBulkRows(r => [...r, ...parsed]); setShowPaste(false); setPasteText(""); showToast(`✅ Parsed ${parsed.length} rows${rowErrors.length ? ` (${rowErrors.length} skipped)` : ""}`); }
-    else showToast("❌ No valid rows found — check format");
+    if (parsed.length > 0) {
+      setBulkRows(r => [...r, ...parsed]);
+      setShowPaste(false);
+      setPasteText("");
+      showToast(`✅ Parsed ${parsed.length} rows${rowErrors.length ? ` (${rowErrors.length} skipped)` : ""}`);
+    } else {
+      showToast("❌ No valid rows found — check format");
+    }
   };
 
-  const [bulkImportResults, setBulkImportResults] = useState<Array<{ name: string; status: "pending" | "success" | "error"; message?: string }> | null>(null);
+  // ── Bulk import progress ──
+  const [bulkImportResults, setBulkImportResults] = useState<
+    Array<{ name: string; status: "pending" | "success" | "error"; message?: string }> | null
+  >(null);
   const [bulkImporting, setBulkImporting] = useState(false);
   const [bulkImportProgress, setBulkImportProgress] = useState<{ done: number; total: number } | null>(null);
 
   const runBulkImport = useCallback(async () => {
-    const valid = bulkRows.filter(r => r.name.trim() && r.price && !Number.isNaN(Number(r.price)) && Number(r.price) > 0);
-    if (totalProductCount === null) { showToast("Cannot verify product count — please wait and try again."); return; }
-    if (totalProductCount + valid.length > maxItems) { showToast(`Product limit reached. You can add at most ${maxItems - totalProductCount} more product(s).`); return; }
+    const valid = bulkRows.filter(
+      r => r.name.trim() && r.price && !Number.isNaN(Number(r.price)) && Number(r.price) > 0
+    );
+    if (totalProductCount === null) {
+      showToast("Cannot verify product count — please wait and try again.");
+      return;
+    }
+    if (totalProductCount + valid.length > maxItems) {
+      showToast(
+        `Product limit reached. You can add at most ${maxItems - totalProductCount} more product(s).`
+      );
+      return;
+    }
     if (valid.length === 0) return;
-    const initial: Array<{ name: string; status: "pending" | "success" | "error"; message?: string }> = valid.map(r => ({ name: r.name.trim(), status: "pending" }));
+    const initial: Array<{ name: string; status: "pending" | "success" | "error"; message?: string }> =
+      valid.map(r => ({ name: r.name.trim(), status: "pending" }));
     setBulkImportResults(initial);
     setBulkImporting(true);
     setBulkImportProgress({ done: 0, total: valid.length });
     let successCount = 0;
     let doneCount = 0;
-    const results: Array<{ name: string; status: "pending" | "success" | "error"; message?: string }> = [...initial];
+    const results = [...initial];
 
     /* Send in batches of 50 to match server limit */
     const BATCH = 50;
@@ -570,7 +476,11 @@ export default function Products() {
           results[i] = { ...results[i]!, status: "success" };
           successCount++;
         } catch (e) {
-          results[i] = { ...results[i]!, status: "error", message: e instanceof Error ? e.message : "Failed" };
+          results[i] = {
+            ...results[i]!,
+            status: "error",
+            message: e instanceof Error ? e.message : "Failed",
+          };
         }
         doneCount++;
         setBulkImportProgress({ done: doneCount, total: valid.length });
@@ -586,114 +496,128 @@ export default function Products() {
   const bulkMut = useMutation({
     mutationFn: () => {
       const valid = bulkRows.filter(r => r.name.trim() && r.price && !Number.isNaN(Number(r.price)));
-      if (totalProductCount === null) throw new Error("Cannot verify product count — please wait and try again.");
+      if (totalProductCount === null)
+        throw new Error("Cannot verify product count — please wait and try again.");
       if (totalProductCount + valid.length > maxItems) {
-        throw new Error(`Product limit reached. You can add at most ${maxItems - totalProductCount} more product(s).`);
+        throw new Error(
+          `Product limit reached. You can add at most ${maxItems - totalProductCount} more product(s).`
+        );
       }
-      return api.bulkAddProducts(valid.map(r => ({
-        name:        r.name.trim(),
-        price:       Number(r.price),
-        description: r.description.trim() || null,
-        image:       r.image.trim() || null,
-        category:    r.category.trim() || bulkCat || "general",
-        unit:        r.unit.trim() || null,
-        stock:       r.stock ? Number(r.stock) : null,
-        type:        r.type || "mart",
-      })));
+      return api.bulkAddProducts(
+        valid.map(r => ({
+          name:        r.name.trim(),
+          price:       Number(r.price),
+          description: r.description.trim() || null,
+          image:       r.image.trim() || null,
+          category:    r.category.trim() || bulkCat || "general",
+          unit:        r.unit.trim() || null,
+          stock:       r.stock ? Number(r.stock) : null,
+          type:        r.type || "mart",
+        }))
+      );
     },
-    onSuccess: (res) => { qc.invalidateQueries({ queryKey: ["vendor-products"] }); qc.invalidateQueries({ queryKey: ["vendor-products-all"] }); setView("list"); setBulkRows([{...EMPTY_ROW},{...EMPTY_ROW},{...EMPTY_ROW}]); setBulkCat(""); showToast(`✅ ${res.inserted} products added!`); },
+    onSuccess: (res) => {
+      qc.invalidateQueries({ queryKey: ["vendor-products"] });
+      qc.invalidateQueries({ queryKey: ["vendor-products-all"] });
+      setView("list");
+      setBulkRows([{ ...EMPTY_ROW }, { ...EMPTY_ROW }, { ...EMPTY_ROW }]);
+      setBulkCat("");
+      showToast(`✅ ${res.inserted} products added!`);
+    },
     onError: (e: Error) => showToast("❌ " + errMsg(e)),
   });
-
-  interface Product { id: string; name: string; description?: string | null; price: number; originalPrice?: number | null; category?: string | null; unit?: string | null; stock?: number | null; image?: string | null; videoUrl?: string | null; type?: string | null; inStock?: boolean; tags?: string[] | null; isHidden?: boolean; lowStockThreshold?: number | null }
-  const openEdit = (p: Product) => {
-    setEditProd(p);
-    setForm({ name: p.name, description: p.description||"", price: String(p.price), originalPrice: p.originalPrice ? String(p.originalPrice) : "", category: p.category||"", unit: p.unit||"", stock: p.stock != null ? String(p.stock) : "", image: p.image||"", type: p.type||"mart", videoUrl: p.videoUrl||"", tags: Array.isArray(p.tags) ? p.tags.join(", ") : "", isHidden: !!p.isHidden });
-    setEditThreshold(p.lowStockThreshold != null ? String(p.lowStockThreshold) : productThresholds[p.id] != null ? String(productThresholds[p.id]) : "");
-    setShowAdd(true);
-  };
-  const closeForm = () => { setShowAdd(false); setEditProd(null); setForm({ ...EMPTY }); setFormErrors({}); setEditThreshold(""); };
 
   const handlePullRefresh = useCallback(async () => {
     await qc.invalidateQueries({ queryKey: ["vendor-products"] });
   }, [qc]);
 
+  // ── Toast overlay ──
   const Toast = toast ? (
-    <div className="fixed top-0 left-0 right-0 z-50 flex justify-center toast-in"
-      style={{ paddingTop: "calc(env(safe-area-inset-top,0px) + 8px)", paddingLeft: "16px", paddingRight: "16px" }}>
-      <div className="bg-gray-900 text-white text-sm font-semibold px-5 py-3 rounded-2xl shadow-2xl max-w-sm w-full text-center">{toast}</div>
+    <div
+      className="fixed top-0 left-0 right-0 z-50 flex justify-center toast-in"
+      style={{
+        paddingTop: "calc(env(safe-area-inset-top,0px) + 8px)",
+        paddingLeft: "16px",
+        paddingRight: "16px",
+      }}
+    >
+      <div className="bg-gray-900 text-white text-sm font-semibold px-5 py-3 rounded-2xl shadow-2xl max-w-sm w-full text-center">
+        {toast}
+      </div>
     </div>
   ) : null;
 
-  /* ── Add/Edit Form ── */
-  if (showAdd) return (
-    <ProductFormView
-      editProd={editProd}
-      form={form}
-      f={f}
-      formErrors={formErrors}
-      validateForm={validateForm}
-      catList={catList}
-      config={config}
-      videoUploading={videoUploading}
-      handleVideoUpload={handleVideoUpload}
-      allowedVideoFormats={allowedVideoFormats}
-      maxVideoMb={maxVideoMb}
-      maxVideoDurationSec={maxVideoDurationSec}
-      editThreshold={editThreshold}
-      setEditThreshold={setEditThreshold}
-      lowStockThreshold={lowStockThreshold}
-      createMut={createMut}
-      updateMut={updateMut}
-      closeForm={closeForm}
-      Toast={Toast}
-      T={T}
-      PageHeader={PageHeader}
-      TYPES={TYPES}
-    />
-  );
+  // ── Add / Edit form early return ──
+  if (showAdd)
+    return (
+      <ProductFormView
+        editProd={editProd}
+        form={form}
+        f={f}
+        formErrors={formErrors}
+        validateForm={validateForm}
+        catList={catList}
+        config={config}
+        videoUploading={videoUploading}
+        handleVideoUpload={handleVideoUpload}
+        allowedVideoFormats={allowedVideoFormats}
+        maxVideoMb={maxVideoMb}
+        maxVideoDurationSec={maxVideoDurationSec}
+        editThreshold={editThreshold}
+        setEditThreshold={setEditThreshold}
+        lowStockThreshold={lowStockThreshold}
+        createMut={createMut}
+        updateMut={updateMut}
+        closeForm={closeForm}
+        Toast={Toast}
+        T={T}
+        PageHeader={PageHeader}
+        TYPES={TYPES}
+      />
+    );
 
-  /* ── Bulk Add ── */
+  // ── Bulk add early return ──
   const validRows = bulkRows.filter(r => r.name.trim() && r.price);
 
-  if (view === "bulk") return (
-    <ProductBulkView
-      validRows={validRows}
-      bulkRows={bulkRows}
-      setBulkRows={setBulkRows}
-      bulkCat={bulkCat}
-      setBulkCat={setBulkCat}
-      catList={catList}
-      currencySymbol={currencySymbol}
-      parseErrors={parseErrors}
-      setParseErrors={setParseErrors}
-      duplicateWarning={duplicateWarning}
-      setDuplicateWarning={setDuplicateWarning}
-      bulkImportResults={bulkImportResults}
-      setBulkImportResults={setBulkImportResults}
-      bulkImporting={bulkImporting}
-      bulkImportProgress={bulkImportProgress}
-      setBulkImportProgress={setBulkImportProgress}
-      allDataLoading={allDataLoading}
-      runBulkImport={runBulkImport}
-      setView={setView}
-      pasteText={pasteText}
-      setPasteText={setPasteText}
-      showPaste={showPaste}
-      setShowPaste={setShowPaste}
-      parsePaste={parsePaste}
-      csvInputRef={csvInputRef}
-      downloadSampleCsv={downloadSampleCsv}
-      handleCsvImport={handleCsvImport}
-      EMPTY_ROW={EMPTY_ROW}
-      TYPES={TYPES}
-      T={T}
-      Toast={Toast}
-      PageHeader={PageHeader}
-    />
-  );
+  if (view === "bulk")
+    return (
+      <ProductBulkView
+        validRows={validRows}
+        bulkRows={bulkRows}
+        setBulkRows={setBulkRows}
+        bulkCat={bulkCat}
+        setBulkCat={setBulkCat}
+        catList={catList}
+        currencySymbol={currencySymbol}
+        parseErrors={parseErrors}
+        setParseErrors={setParseErrors}
+        duplicateWarning={duplicateWarning}
+        setDuplicateWarning={setDuplicateWarning}
+        bulkImportResults={bulkImportResults}
+        setBulkImportResults={setBulkImportResults}
+        bulkImporting={bulkImporting}
+        bulkImportProgress={bulkImportProgress}
+        setBulkImportProgress={setBulkImportProgress}
+        allDataLoading={allDataLoading}
+        runBulkImport={runBulkImport}
+        setView={setView}
+        pasteText={pasteText}
+        setPasteText={setPasteText}
+        showPaste={showPaste}
+        setShowPaste={setShowPaste}
+        parsePaste={parsePaste}
+        csvInputRef={csvInputRef}
+        downloadSampleCsv={downloadSampleCsv}
+        handleCsvImport={handleCsvImport}
+        EMPTY_ROW={EMPTY_ROW}
+        TYPES={TYPES}
+        T={T}
+        Toast={Toast}
+        PageHeader={PageHeader}
+      />
+    );
 
-  /* ── Product List ── */
+  // ── Product List ──
   return (
     <PullToRefresh onRefresh={handlePullRefresh} className="min-h-screen bg-gray-50 md:bg-transparent">
       <PageHeader
@@ -701,59 +625,91 @@ export default function Products() {
         subtitle={totalProductCount !== null ? `${totalProductCount}/${maxItems} items used` : `—/${maxItems} items`}
         actions={
           <div className="flex gap-2 flex-wrap justify-end">
-          <div className="flex gap-2">
-            <button
-              onClick={() => { setBulkEditMode(m => { const next = !m; if (!next) { setBulkEditSelected(new Set()); setBulkEditError(""); } return next; }); }}
-              className={`h-9 px-3.5 text-xs font-bold rounded-xl android-press min-h-0 ${bulkEditMode ? "bg-orange-500 text-white" : "bg-white/20 md:bg-gray-100 md:text-gray-700 text-white"}`}>
-              {bulkEditMode ? "✕ Cancel" : "✏️ Bulk Edit"}
-            </button>
-            <label className={`h-9 px-3.5 text-xs font-bold rounded-xl android-press min-h-0 flex items-center justify-center cursor-pointer ${(allDataLoading || totalProductCount === null || totalProductCount >= maxItems) ? "bg-gray-300 text-gray-500 cursor-not-allowed pointer-events-none" : "bg-white/20 md:bg-green-50 md:text-green-700 text-white"}`}>
-              📥 Import CSV
-              <input
-                ref={csvListInputRef}
-                type="file"
-                accept=".csv,text/csv"
-                className="hidden"
-                disabled={allDataLoading || totalProductCount === null || totalProductCount >= maxItems}
-                onChange={e => {
-                  const file = e.target.files?.[0];
-                  if (file) { setBulkRows([{ ...EMPTY_ROW }]); handleCsvImport(file, true); }
-                  e.target.value = "";
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  setBulkEditMode(m => {
+                    const next = !m;
+                    if (!next) { setBulkEditSelected(new Set()); setBulkEditError(""); }
+                    return next;
+                  });
                 }}
-              />
-            </label>
-            <button onClick={() => setView("bulk")} disabled={allDataLoading || totalProductCount === null || totalProductCount >= maxItems} className={`h-9 px-3.5 text-xs font-bold rounded-xl android-press min-h-0 ${(allDataLoading || totalProductCount === null || totalProductCount >= maxItems) ? "bg-gray-300 text-gray-500 cursor-not-allowed" : "bg-white/20 md:bg-gray-100 md:text-gray-700 text-white"}`}>Bulk Add</button>
-            <button onClick={() => setShowAdd(true)} disabled={allDataLoading || totalProductCount === null || totalProductCount >= maxItems} className={`h-9 px-3.5 text-sm font-bold rounded-xl android-press min-h-0 ${(allDataLoading || totalProductCount === null || totalProductCount >= maxItems) ? "bg-gray-300 text-gray-500 cursor-not-allowed" : "bg-white text-orange-500 md:bg-orange-500 md:text-white"}`}>+ Add</button>
-          </div>
+                className={`h-9 px-3.5 text-xs font-bold rounded-xl android-press min-h-0 ${bulkEditMode ? "bg-orange-500 text-white" : "bg-white/20 md:bg-gray-100 md:text-gray-700 text-white"}`}
+              >
+                {bulkEditMode ? "✕ Cancel" : "✏️ Bulk Edit"}
+              </button>
+              <label className={`h-9 px-3.5 text-xs font-bold rounded-xl android-press min-h-0 flex items-center justify-center cursor-pointer ${(allDataLoading || totalProductCount === null || totalProductCount >= maxItems) ? "bg-gray-300 text-gray-500 cursor-not-allowed pointer-events-none" : "bg-white/20 md:bg-green-50 md:text-green-700 text-white"}`}>
+                📥 Import CSV
+                <input
+                  ref={csvListInputRef}
+                  type="file"
+                  accept=".csv,text/csv"
+                  className="hidden"
+                  disabled={allDataLoading || totalProductCount === null || totalProductCount >= maxItems}
+                  onChange={e => {
+                    const file = e.target.files?.[0];
+                    if (file) { setBulkRows([{ ...EMPTY_ROW }]); handleCsvImport(file, true); }
+                    e.target.value = "";
+                  }}
+                />
+              </label>
+              <button
+                onClick={() => setView("bulk")}
+                disabled={allDataLoading || totalProductCount === null || totalProductCount >= maxItems}
+                className={`h-9 px-3.5 text-xs font-bold rounded-xl android-press min-h-0 ${(allDataLoading || totalProductCount === null || totalProductCount >= maxItems) ? "bg-gray-300 text-gray-500 cursor-not-allowed" : "bg-white/20 md:bg-gray-100 md:text-gray-700 text-white"}`}
+              >
+                Bulk Add
+              </button>
+              <button
+                onClick={() => setShowAdd(true)}
+                disabled={allDataLoading || totalProductCount === null || totalProductCount >= maxItems}
+                className={`h-9 px-3.5 text-sm font-bold rounded-xl android-press min-h-0 ${(allDataLoading || totalProductCount === null || totalProductCount >= maxItems) ? "bg-gray-300 text-gray-500 cursor-not-allowed" : "bg-white text-orange-500 md:bg-orange-500 md:text-white"}`}
+              >
+                + Add
+              </button>
+            </div>
           </div>
         }
         mobileContent={
-          <input type="search" placeholder="🔍  Search products..." value={search} onChange={e => setSearch(e.target.value)}
-            className="w-full h-11 px-4 bg-white/20 text-white placeholder-orange-200 rounded-2xl focus:outline-none focus:bg-white focus:text-gray-800 focus:placeholder-gray-400 transition-all text-base"/>
+          <input
+            type="search"
+            placeholder="🔍  Search products..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="w-full h-11 px-4 bg-white/20 text-white placeholder-orange-200 rounded-2xl focus:outline-none focus:bg-white focus:text-gray-800 focus:placeholder-gray-400 transition-all text-base"
+          />
         }
       />
 
       {/* Desktop search */}
       <div className="hidden md:block px-0 py-3">
-        <input type="search" placeholder="🔍 Search products..." value={search} onChange={e => setSearch(e.target.value)}
-          className="w-full h-11 px-4 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-orange-400 text-sm"/>
+        <input
+          type="search"
+          placeholder="🔍 Search products..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className="w-full h-11 px-4 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-orange-400 text-sm"
+        />
       </div>
 
       {/* Live sync indicator */}
       {lastStockSync && (
         <div className="hidden md:flex items-center gap-1.5 text-[11px] text-green-600 font-medium px-0 pb-1">
-          <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse inline-block"/>
+          <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse inline-block" />
           Last synced: {lastStockSync.toLocaleTimeString()}
         </div>
       )}
 
-      {/* Category Chips */}
+      {/* Category chips */}
       <div className="bg-white border-b border-gray-200 sticky top-0 z-10 md:static md:border-0 md:bg-transparent md:mt-2">
         <div className="flex gap-2 px-4 py-2.5 md:px-0 overflow-x-auto">
           {categories.map(c => (
-            <button key={c} onClick={() => setFilterCat(c)}
+            <button
+              key={c}
+              onClick={() => setFilterCat(c)}
               className={`h-8 px-3.5 rounded-full text-xs font-bold whitespace-nowrap capitalize android-press min-h-0 flex-shrink-0 transition-all
-                ${filterCat === c ? "bg-orange-500 text-white" : "bg-gray-100 text-gray-600 hover:bg-orange-50"}`}>
+                ${filterCat === c ? "bg-orange-500 text-white" : "bg-gray-100 text-gray-600 hover:bg-orange-50"}`}
+            >
               {c}
             </button>
           ))}
@@ -761,6 +717,7 @@ export default function Products() {
       </div>
 
       <div className="px-4 py-4 space-y-3 md:px-0 md:py-4">
+        {/* Offline pending queue banner */}
         {pendingProductCount > 0 && (
           <div className="rounded-2xl px-4 py-3 border bg-amber-50 border-amber-200">
             <div className="flex items-center gap-3">
@@ -775,6 +732,7 @@ export default function Products() {
           </div>
         )}
 
+        {/* Queue error banners */}
         {productQueueErrors.length > 0 && (
           <div className="rounded-2xl border bg-red-50 border-red-200 overflow-hidden">
             <div className="flex items-center gap-3 px-4 py-3 border-b border-red-100">
@@ -812,19 +770,23 @@ export default function Products() {
           </div>
         )}
 
+        {/* Low stock alert */}
         {lowStock.length > 0 && (
           <div className="bg-red-50 border border-red-200 rounded-2xl px-4 py-3 flex items-center gap-3">
             <span className="text-xl">⚠️</span>
             <div>
-              <p className="text-sm font-bold text-red-700">{lowStock.length} product{lowStock.length>1?"s":""} low on stock</p>
+              <p className="text-sm font-bold text-red-700">
+                {lowStock.length} product{lowStock.length > 1 ? "s" : ""} low on stock
+              </p>
               <p className="text-xs text-red-500 mt-0.5">Edit products to update stock levels</p>
             </div>
           </div>
         )}
 
+        {/* Product list / loading / error / empty states */}
         {isLoading ? (
           <div className="md:grid md:grid-cols-2 lg:grid-cols-3 md:gap-4 space-y-3 md:space-y-0">
-            {[1,2,3,4].map(i => <div key={i} className="h-24 skeleton rounded-2xl"/>)}
+            {[1, 2, 3, 4].map(i => <div key={i} className="h-24 skeleton rounded-2xl" />)}
           </div>
         ) : isError ? (
           <ErrorState
@@ -863,75 +825,100 @@ export default function Products() {
               const isLowStock = p.stock != null && p.stock >= 0 && p.stock <= pThresh;
               const isSelected = bulkEditSelected.has(p.id);
               return (
-              <div key={p.id} className={`${CARD}${!p.inStock ? " opacity-60" : ""}${p.isHidden ? " border-2 border-dashed border-gray-300" : ""}${isSelected ? " ring-2 ring-orange-400" : ""}`}>
-                {bulkEditMode && (
-                  <div className="px-4 pt-3 pb-0 flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      onChange={() => toggleBulkSelect(p.id)}
-                      className="w-4 h-4 rounded accent-orange-500 cursor-pointer"
-                    />
-                    <span className="text-xs text-gray-500 font-medium">{isSelected ? "Selected" : "Select for bulk edit"}</span>
-                  </div>
-                )}
-                <div className="p-4 flex items-start gap-3">
-                  {p.image
-                    ? <SafeImage src={p.image} alt={p.name} className="w-16 h-16 rounded-xl object-cover flex-shrink-0 bg-gray-100" />
-                    : <div className="w-16 h-16 rounded-xl bg-orange-50 flex items-center justify-center text-2xl flex-shrink-0">🍽️</div>
-                  }
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className="font-bold text-gray-800 text-sm leading-snug">{p.name}</p>
-                          {p.isHidden && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-200 text-gray-500">Hidden</span>}
+                <div
+                  key={p.id}
+                  className={`${CARD}${!p.inStock ? " opacity-60" : ""}${p.isHidden ? " border-2 border-dashed border-gray-300" : ""}${isSelected ? " ring-2 ring-orange-400" : ""}`}
+                >
+                  {bulkEditMode && (
+                    <div className="px-4 pt-3 pb-0 flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleBulkSelect(p.id)}
+                        className="w-4 h-4 rounded accent-orange-500 cursor-pointer"
+                      />
+                      <span className="text-xs text-gray-500 font-medium">
+                        {isSelected ? "Selected" : "Select for bulk edit"}
+                      </span>
+                    </div>
+                  )}
+                  <div className="p-4 flex items-start gap-3">
+                    {p.image
+                      ? <SafeImage src={p.image} alt={p.name} className="w-16 h-16 rounded-xl object-cover flex-shrink-0 bg-gray-100" />
+                      : <div className="w-16 h-16 rounded-xl bg-orange-50 flex items-center justify-center text-2xl flex-shrink-0">🍽️</div>
+                    }
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="font-bold text-gray-800 text-sm leading-snug">{p.name}</p>
+                            {p.isHidden && (
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-200 text-gray-500">Hidden</span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                            {p.category && (
+                              <span className="text-[10px] bg-orange-50 text-orange-600 font-bold px-2 py-0.5 rounded-full capitalize">{p.category}</span>
+                            )}
+                            {p.unit && <span className="text-[10px] text-gray-400">/{p.unit}</span>}
+                            {p.stock != null && (
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isLowStock ? "bg-red-100 text-red-600" : "bg-green-100 text-green-700"}`}>
+                                {isLowStock ? `⚠️ ${p.stock} left` : `${p.stock} in stock`}
+                              </span>
+                            )}
+                          </div>
                         </div>
-                        <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                          {p.category && <span className="text-[10px] bg-orange-50 text-orange-600 font-bold px-2 py-0.5 rounded-full capitalize">{p.category}</span>}
-                          {p.unit && <span className="text-[10px] text-gray-400">/{p.unit}</span>}
-                          {p.stock != null && (
-                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isLowStock ? "bg-red-100 text-red-600" : "bg-green-100 text-green-700"}`}>
-                              {isLowStock ? `⚠️ ${p.stock} left` : `${p.stock} in stock`}
-                            </span>
+                        <div className="text-right flex-shrink-0">
+                          <p className="font-extrabold text-orange-600 text-base">{fc(p.price, currencySymbol)}</p>
+                          {p.originalPrice && p.originalPrice > p.price && (
+                            <p className="text-[10px] text-gray-400 line-through">{fc(p.originalPrice, currencySymbol)}</p>
                           )}
                         </div>
                       </div>
-                      <div className="text-right flex-shrink-0">
-                        <p className="font-extrabold text-orange-600 text-base">{fc(p.price, currencySymbol)}</p>
-                        {p.originalPrice && p.originalPrice > p.price && <p className="text-[10px] text-gray-400 line-through">{fc(p.originalPrice, currencySymbol)}</p>}
+                      <div className="flex items-center gap-2 mt-2.5 flex-wrap">
+                        <button
+                          onClick={() => toggleMut.mutate({ id: p.id, inStock: !p.inStock })}
+                          className={`h-8 px-3 text-xs font-bold rounded-xl android-press min-h-0 ${p.inStock ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}
+                        >
+                          {p.inStock ? "✓ In Stock" : "✗ Out"}
+                        </button>
+                        <button
+                          onClick={() => hideMut.mutate({ id: p.id, isHidden: !p.isHidden })}
+                          disabled={hideMut.isPending}
+                          className={`h-8 px-3 text-xs font-bold rounded-xl android-press min-h-0 ${p.isHidden ? "bg-gray-100 text-gray-500" : "bg-indigo-50 text-indigo-600"}`}
+                        >
+                          {p.isHidden ? "👁️ Show" : "🙈 Hide"}
+                        </button>
+                        <button
+                          onClick={() => openEdit(p)}
+                          className="h-8 px-3 bg-blue-50 text-blue-600 text-xs font-bold rounded-xl android-press min-h-0"
+                        >
+                          ✏️ Edit
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (!window.confirm(`Delete "${p.name}"? This cannot be undone.`)) return;
+                            deleteMut.mutate(p.id);
+                          }}
+                          className="h-8 px-3 bg-red-50 text-red-600 text-xs font-bold rounded-xl android-press min-h-0"
+                        >
+                          🗑️
+                        </button>
+                        {p.stock != null && (
+                          <button
+                            onClick={() => setStockHistoryOpen(stockHistoryOpen === p.id ? null : p.id)}
+                            className="h-8 px-3 bg-purple-50 text-purple-600 text-xs font-bold rounded-xl android-press min-h-0"
+                          >
+                            {stockHistoryOpen === p.id ? "▲ History" : "📊 History"}
+                          </button>
+                        )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 mt-2.5 flex-wrap">
-                      <button onClick={() => toggleMut.mutate({ id: p.id, inStock: !p.inStock })}
-                        className={`h-8 px-3 text-xs font-bold rounded-xl android-press min-h-0 ${p.inStock ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
-                        {p.inStock ? "✓ In Stock" : "✗ Out"}
-                      </button>
-                      <button onClick={() => hideMut.mutate({ id: p.id, isHidden: !p.isHidden })} disabled={hideMut.isPending}
-                        className={`h-8 px-3 text-xs font-bold rounded-xl android-press min-h-0 ${p.isHidden ? "bg-gray-100 text-gray-500" : "bg-indigo-50 text-indigo-600"}`}>
-                        {p.isHidden ? "👁️ Show" : "🙈 Hide"}
-                      </button>
-                      <button onClick={() => openEdit(p)} className="h-8 px-3 bg-blue-50 text-blue-600 text-xs font-bold rounded-xl android-press min-h-0">✏️ Edit</button>
-                      <button onClick={() => {
-                        if (!window.confirm(`Delete "${p.name}"? This cannot be undone.`)) return;
-                        deleteMut.mutate(p.id);
-                      }} className="h-8 px-3 bg-red-50 text-red-600 text-xs font-bold rounded-xl android-press min-h-0">🗑️</button>
-                      {p.stock != null && (
-                        <button
-                          onClick={() => setStockHistoryOpen(stockHistoryOpen === p.id ? null : p.id)}
-                          className="h-8 px-3 bg-purple-50 text-purple-600 text-xs font-bold rounded-xl android-press min-h-0">
-                          {stockHistoryOpen === p.id ? "▲ History" : "📊 History"}
-                        </button>
-                      )}
-                    </div>
                   </div>
+                  {/* ── Stock History Collapsible Panel ── */}
+                  {stockHistoryOpen === p.id && <StockHistoryPanel productId={p.id} />}
                 </div>
-                {/* ── Stock History Collapsible Panel ── */}
-                {stockHistoryOpen === p.id && (
-                  <StockHistoryPanel productId={p.id} />
-                )}
-              </div>
-            );
+              );
             })}
           </div>
         )}
@@ -947,19 +934,23 @@ export default function Products() {
                   ✏️ Bulk Edit Mode — {bulkEditSelected.size} product{bulkEditSelected.size !== 1 ? "s" : ""} selected
                 </p>
                 <button
-                  onClick={() => { const all = new Set(products.map((p: any) => p.id)); setBulkEditSelected(prev => prev.size === all.size ? new Set() : all); }}
-                  className="text-xs font-bold text-orange-500 underline">
+                  onClick={() => {
+                    const all = new Set(products.map((p: any) => p.id));
+                    setBulkEditSelected(prev => (prev.size === all.size ? new Set() : all));
+                  }}
+                  className="text-xs font-bold text-orange-500 underline"
+                >
                   {bulkEditSelected.size === products.length ? "Deselect All" : "Select All"}
                 </button>
               </div>
               <div className="px-4 py-3 space-y-3">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">New Price ({currencySymbol})</label>
+                    <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">
+                      New Price ({currencySymbol})
+                    </label>
                     <input
-                      type="number"
-                      inputMode="numeric"
-                      min="0"
+                      type="number" inputMode="numeric" min="0"
                       value={bulkEditPrice}
                       onChange={e => { setBulkEditPrice(e.target.value); setBulkEditError(""); }}
                       placeholder="Leave blank to keep"
@@ -967,11 +958,11 @@ export default function Products() {
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">New Stock (qty)</label>
+                    <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">
+                      New Stock (qty)
+                    </label>
                     <input
-                      type="number"
-                      inputMode="numeric"
-                      min="0"
+                      type="number" inputMode="numeric" min="0"
                       value={bulkEditStock}
                       onChange={e => { setBulkEditStock(e.target.value); setBulkEditError(""); }}
                       placeholder="Leave blank to keep"
@@ -979,12 +970,17 @@ export default function Products() {
                     />
                   </div>
                 </div>
-                {bulkEditError && <p className="text-xs text-red-500 font-semibold">⚠️ {bulkEditError}</p>}
+                {bulkEditError && (
+                  <p className="text-xs text-red-500 font-semibold">⚠️ {bulkEditError}</p>
+                )}
                 <button
                   onClick={() => bulkEditMut.mutate()}
                   disabled={bulkEditMut.isPending || bulkEditSelected.size === 0}
-                  className="w-full h-11 bg-orange-500 text-white font-bold rounded-xl text-sm disabled:opacity-50 android-press">
-                  {bulkEditMut.isPending ? "Updating..." : `Apply to ${bulkEditSelected.size} Product${bulkEditSelected.size !== 1 ? "s" : ""}`}
+                  className="w-full h-11 bg-orange-500 text-white font-bold rounded-xl text-sm disabled:opacity-50 android-press"
+                >
+                  {bulkEditMut.isPending
+                    ? "Updating..."
+                    : `Apply to ${bulkEditSelected.size} Product${bulkEditSelected.size !== 1 ? "s" : ""}`}
                 </button>
               </div>
             </div>
