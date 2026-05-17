@@ -70,7 +70,6 @@ export function signAccessToken(
    * the value is ignored. Kept on the signature so existing call sites
    * keep compiling while we phase the parameter out.
    */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _mustChangePassword: boolean = false,
 ): string {
   const payload: AccessTokenPayload = { sub: adminId, role, name, perms, pv };

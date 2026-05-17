@@ -523,7 +523,7 @@ export async function createServer() {
         the route is effectively inert. maxAge:0 prevents stale caches on
         files that may be overwritten in a no-S3 fallback scenario. ────────── */
   const publicUploadsDir = resolve(process.cwd(), "public", "uploads");
-  try { mkdirSync(publicUploadsDir, { recursive: true }); } catch { /* dir may already exist */ }
+  try { mkdirSync(publicUploadsDir, { recursive: true }); } catch (err) { logger.warn({ err }, "[uploads] Could not create public/uploads dir — may already exist"); }
   app.use("/uploads", express.static(publicUploadsDir, { maxAge: "0", etag: false }));
 
   /* ── Dev-only: proxy sibling apps so the api-server preview can render

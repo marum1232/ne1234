@@ -9,6 +9,7 @@ import swaggerJsdoc from "swagger-jsdoc";
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
 import { createRequire } from "module";
+import { logger } from "../lib/logger.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -27,9 +28,9 @@ const pkgVersion: string = (() => {
       try {
         const pkg = _require(c) as { version?: string };
         if (pkg.version) return pkg.version;
-      } catch { /* try next */ }
+      } catch (err) { logger.warn({ err }, "[swagger] Could not read version from package candidate — trying next"); }
     }
-  } catch { /* swallow */ }
+  } catch (err) { logger.warn({ err }, "[swagger] Could not resolve package version — falling back to 1.0.0"); }
   return "1.0.0";
 })();
 

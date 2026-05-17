@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { verifyAccessToken, AccessTokenPayload } from '../utils/admin-jwt.js';
 import { verifyCsrfToken } from '../utils/admin-csrf.js';
+import { logger } from '../lib/logger.js';
 
 /** No-op shim: forced password-change gate removed. */
 export function enforceMustChangePassword(
@@ -108,7 +109,7 @@ export function optionalAdminAuth(req: Request, res: Response, next: NextFunctio
       const payload = verifyAccessToken(token);
       req.admin = payload;
     } catch (err) {
-      // Silently fail - continue without auth
+      logger.warn({ err }, "[admin-auth] optional token verification failed — continuing without auth");
     }
   }
 

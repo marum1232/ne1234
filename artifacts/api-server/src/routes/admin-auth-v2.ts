@@ -517,7 +517,7 @@ router.post(
         const payload = verifyRefreshToken(refreshToken);
         await logoutAdminSession(payload.sessionId);
       } catch (err) {
-        // Token might be invalid, continue anyway
+        logger.warn({ err }, "[admin-auth] logout: refresh token invalid or expired — continuing anyway");
       }
     }
 

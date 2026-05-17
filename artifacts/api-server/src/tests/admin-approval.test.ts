@@ -94,7 +94,7 @@ afterAll(async () => {
     const { usersTable } = await import("@workspace/db/schema");
     const { eq }         = await import("drizzle-orm");
     await db.delete(usersTable).where(eq(usersTable.id, TEST_RIDER_ID));
-  } catch { /* best-effort — isolation > teardown */ }
+  } catch (err) { console.warn("[teardown] best-effort DB cleanup failed:", err); }
 });
 
 function api() { return supertest(app); }

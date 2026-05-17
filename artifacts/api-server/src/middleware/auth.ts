@@ -40,7 +40,7 @@ export async function checkSessionRevocation(req: Request, res: Response, next: 
         userId: payload?.userId ?? "unknown",
         ip,
         metadata: { tokenHashPrefix: tokenHash.slice(0, 8), url: req.url },
-      }).catch(() => {/* non-fatal */});
+      }).catch((err) => { logger.warn({ err }, "[auth] writeAuthAuditLog failed — non-fatal"); });
 
       res.status(401).json({ success: false, error: "Session has been revoked. Please log in again." });
       return;

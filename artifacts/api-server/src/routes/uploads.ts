@@ -100,8 +100,8 @@ function anyAuthOrAdmin(req: Request, res: Response, next: NextFunction): void {
       next();
       return;
     }
-  } catch {
-    /* not a user token — fall through to admin check */
+  } catch (err) {
+    logger.warn({ err }, "[uploads] user token verification failed — trying admin token");
   }
 
   /* Try admin JWT */
@@ -112,8 +112,8 @@ function anyAuthOrAdmin(req: Request, res: Response, next: NextFunction): void {
       next();
       return;
     }
-  } catch {
-    /* not a valid admin token either */
+  } catch (err) {
+    logger.warn({ err }, "[uploads] admin token verification failed — rejecting request");
   }
 
   res.status(401).json({ error: "Authentication required" });
@@ -522,7 +522,7 @@ router.get("/reg/:key", async (req, res) => {
     try {
       const adminPayload = verifyAccessToken(rawToken);
       if (adminPayload?.sub) isAdmin = true;
-    } catch { /* not admin */ }
+    } catch (err) { logger.warn({ err }, "[uploads] doc-serve: admin token check failed"); }
   }
 
   /* Check owner nonce (required for non-admin callers) */
