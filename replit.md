@@ -65,6 +65,8 @@ Two workflows, two clean ports — no scattered mappings:
 
 The API server at port 5000 also proxies `/admin/`, `/vendor/`, `/rider/` to the sibling Vite apps, so everything is reachable from a single origin.
 
+> **API route prefixes** for authenticated app-specific routes use plural nouns: `/api/riders/*` (rider management) and `/api/vendors/*` (vendor management). The public vendor-browsing routes are also at `/api/vendors` but served by a separate public router without auth. The sibling Vite proxy paths (`/vendor/`, `/rider/`) are separate — those are the browser-facing app paths served by the proxy, not API routes.
+
 **Database migrations run automatically** on every server start — no manual step needed. Set `DATABASE_URL` in the Replit Secrets panel (padlock icon) before pressing Run.
 
 ### Shared Libraries

@@ -334,24 +334,24 @@ export const api = {
   registerLogoutCallback,
 
   /* Profile */
-  getMe:         (signal?: AbortSignal) => apiFetch("/vendor/me", signal ? { signal } : {}),
-  updateProfile: (data: Record<string, string | undefined>) => apiFetch("/vendor/profile", { method: "PATCH", body: JSON.stringify(data) }),
-  getQuickReplies:    () => apiFetch("/vendor/profile/quick-replies"),
-  updateQuickReplies: (quickReplies: string[]) => apiFetch("/vendor/profile/quick-replies", { method: "PATCH", body: JSON.stringify({ quickReplies }) }),
+  getMe:         (signal?: AbortSignal) => apiFetch("/vendors/me", signal ? { signal } : {}),
+  updateProfile: (data: Record<string, string | undefined>) => apiFetch("/vendors/profile", { method: "PATCH", body: JSON.stringify(data) }),
+  getQuickReplies:    () => apiFetch("/vendors/profile/quick-replies"),
+  updateQuickReplies: (quickReplies: string[]) => apiFetch("/vendors/profile/quick-replies", { method: "PATCH", body: JSON.stringify({ quickReplies }) }),
 
   /* Store management */
-  getStore:      () => apiFetch("/vendor/store"),
-  updateStore:   (data: any) => apiFetch("/vendor/store", { method: "PATCH", body: JSON.stringify(data) }),
+  getStore:      () => apiFetch("/vendors/store"),
+  updateStore:   (data: any) => apiFetch("/vendors/store", { method: "PATCH", body: JSON.stringify(data) }),
 
   /* Stats & Analytics */
-  getStats:      () => apiFetch("/vendor/stats"),
-  getAnalytics:  (days?: number) => apiFetch(`/vendor/analytics${days ? `?days=${days}` : ""}`),
-  getAnalyticsRange: (from: string, to: string) => apiFetch(`/vendor/analytics?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`),
+  getStats:      () => apiFetch("/vendors/stats"),
+  getAnalytics:  (days?: number) => apiFetch(`/vendors/analytics${days ? `?days=${days}` : ""}`),
+  getAnalyticsRange: (from: string, to: string) => apiFetch(`/vendors/analytics?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`),
 
   /* Orders */
-  getOrders:     (status?: string) => apiFetch(`/vendor/orders${status ? `?status=${status}` : ""}`),
-  getVendorOrder: (id: string) => apiFetch(`/vendor/orders/${id}`),
-  updateOrder:   (id: string, status: string, reason?: string) => apiFetch(`/vendor/orders/${id}/status`, { method: "PATCH", body: JSON.stringify({ status, ...(reason ? { reason } : {}) }) }),
+  getOrders:     (status?: string) => apiFetch(`/vendors/orders${status ? `?status=${status}` : ""}`),
+  getVendorOrder: (id: string) => apiFetch(`/vendors/orders/${id}`),
+  updateOrder:   (id: string, status: string, reason?: string) => apiFetch(`/vendors/orders/${id}/status`, { method: "PATCH", body: JSON.stringify({ status, ...(reason ? { reason } : {}) }) }),
 
   /* Products */
   getProducts:   (q?: string, category?: string) => {
@@ -359,21 +359,21 @@ export const api = {
     if (q) params.set("q", q);
     if (category && category !== "all") params.set("category", category);
     const qs = params.toString();
-    return apiFetch(`/vendor/products${qs ? `?${qs}` : ""}`);
+    return apiFetch(`/vendors/products${qs ? `?${qs}` : ""}`);
   },
-  createProduct:  (data: any) => apiFetch("/vendor/products", { method: "POST", body: JSON.stringify(data) }),
-  bulkAddProducts:(products: any[]) => apiFetch("/vendor/products/bulk", { method: "POST", body: JSON.stringify({ products }) }),
-  bulkEditProducts:(products: Array<{ id: string; price?: number; stock?: number | null }>) => apiFetch("/vendor/products/bulk", { method: "PATCH", body: JSON.stringify({ products }) }),
-  updateProduct:  (id: string, data: any) => apiFetch(`/vendor/products/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
-  deleteProduct:  (id: string) => apiFetch(`/vendor/products/${id}`, { method: "DELETE" }),
-  getProductStockHistory: (id: string) => apiFetch(`/vendor/products/${id}/stock-history`),
+  createProduct:  (data: any) => apiFetch("/vendors/products", { method: "POST", body: JSON.stringify(data) }),
+  bulkAddProducts:(products: any[]) => apiFetch("/vendors/products/bulk", { method: "POST", body: JSON.stringify({ products }) }),
+  bulkEditProducts:(products: Array<{ id: string; price?: number; stock?: number | null }>) => apiFetch("/vendors/products/bulk", { method: "PATCH", body: JSON.stringify({ products }) }),
+  updateProduct:  (id: string, data: any) => apiFetch(`/vendors/products/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+  deleteProduct:  (id: string) => apiFetch(`/vendors/products/${id}`, { method: "DELETE" }),
+  getProductStockHistory: (id: string) => apiFetch(`/vendors/products/${id}/stock-history`),
 
   /* Promos */
-  getPromos:     () => apiFetch("/vendor/promos"),
-  createPromo:   (data: any) => apiFetch("/vendor/promos", { method: "POST", body: JSON.stringify(data) }),
-  updatePromo:   (id: string, data: any) => apiFetch(`/vendor/promos/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
-  togglePromo:   (id: string) => apiFetch(`/vendor/promos/${id}/toggle`, { method: "PATCH", body: "{}" }),
-  deletePromo:   (id: string) => apiFetch(`/vendor/promos/${id}`, { method: "DELETE" }),
+  getPromos:     () => apiFetch("/vendors/promos"),
+  createPromo:   (data: any) => apiFetch("/vendors/promos", { method: "POST", body: JSON.stringify(data) }),
+  updatePromo:   (id: string, data: any) => apiFetch(`/vendors/promos/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+  togglePromo:   (id: string) => apiFetch(`/vendors/promos/${id}/toggle`, { method: "PATCH", body: "{}" }),
+  deletePromo:   (id: string) => apiFetch(`/vendors/promos/${id}`, { method: "DELETE" }),
 
   /* Reviews */
   getReviews:    (vendorId: string) => apiFetch(`/reviews/vendor/${vendorId}`),
@@ -383,7 +383,7 @@ export const api = {
     if (params?.limit) q.set("limit", String(params.limit));
     if (params?.stars) q.set("stars", params.stars);
     if (params?.sort)  q.set("sort",  params.sort);
-    return apiFetch(`/vendor/reviews?${q.toString()}`);
+    return apiFetch(`/vendors/reviews?${q.toString()}`);
   },
   getPublicReviews:    (vendorId: string) => apiFetch(`/reviews/vendor/${vendorId}`),
   postVendorReply:     (reviewId: string, reply: string) => apiFetch(`/reviews/${reviewId}/vendor-reply`, { method: "POST", body: JSON.stringify({ reply }) }),
@@ -391,11 +391,11 @@ export const api = {
   deleteVendorReply:   (reviewId: string) => apiFetch(`/reviews/${reviewId}/vendor-reply`, { method: "DELETE" }),
 
   /* Wallet */
-  getWallet:      () => apiFetch("/vendor/wallet/transactions"),
+  getWallet:      () => apiFetch("/vendors/wallet/transactions"),
   withdrawWallet: (data: { amount: number; bankName: string; accountNumber: string; accountTitle: string; note?: string }) =>
-    apiFetch("/vendor/wallet/withdraw", { method: "POST", body: JSON.stringify(data) }),
+    apiFetch("/vendors/wallet/withdraw", { method: "POST", body: JSON.stringify(data) }),
   depositWallet: (data: { amount: number; paymentMethod: string; paymentReference: string; note?: string }) =>
-    apiFetch("/vendor/wallet/deposit", { method: "POST", body: JSON.stringify(data) }),
+    apiFetch("/vendors/wallet/deposit", { method: "POST", body: JSON.stringify(data) }),
 
   /* Image Upload */
   uploadImage: async (file: File): Promise<{ url: string }> => {
@@ -451,31 +451,31 @@ export const api = {
   getAvailableRiders: (lat: number | null, lng: number | null, maxKm = 10) => {
     const params = new URLSearchParams({ maxKm: String(maxKm) });
     if (lat !== null && lng !== null) { params.set("lat", String(lat)); params.set("lng", String(lng)); }
-    return apiFetch(`/vendor/orders/available-riders?${params}`);
+    return apiFetch(`/vendors/orders/available-riders?${params}`);
   },
   getOrderAvailableRiders: (orderId: string) =>
-    apiFetch(`/vendor/orders/${orderId}/available-riders`),
-  assignRider:        (orderId: string, riderId: string) => apiFetch(`/vendor/orders/${orderId}/assign-rider`, { method: "POST", body: JSON.stringify({ riderId }) }),
-  autoAssignRider:    (orderId: string) => apiFetch(`/vendor/orders/${orderId}/auto-assign`, { method: "POST", body: JSON.stringify({}) }),
+    apiFetch(`/vendors/orders/${orderId}/available-riders`),
+  assignRider:        (orderId: string, riderId: string) => apiFetch(`/vendors/orders/${orderId}/assign-rider`, { method: "POST", body: JSON.stringify({ riderId }) }),
+  autoAssignRider:    (orderId: string) => apiFetch(`/vendors/orders/${orderId}/auto-assign`, { method: "POST", body: JSON.stringify({}) }),
 
   /* Delivery Access */
-  getDeliveryAccessStatus: () => apiFetch("/vendor/delivery-access/status"),
-  requestDeliveryAccess:   (data: { serviceType?: string; reason?: string }) => apiFetch("/vendor/delivery-access/request", { method: "POST", body: JSON.stringify(data) }),
+  getDeliveryAccessStatus: () => apiFetch("/vendors/delivery-access/status"),
+  requestDeliveryAccess:   (data: { serviceType?: string; reason?: string }) => apiFetch("/vendors/delivery-access/request", { method: "POST", body: JSON.stringify(data) }),
 
   /* Weekly Schedule */
-  getSchedule:     () => apiFetch("/vendor/schedule"),
+  getSchedule:     () => apiFetch("/vendors/schedule"),
   updateSchedule:  (schedule: Array<{ dayOfWeek: number; openTime: string; closeTime: string; isEnabled: boolean }>) =>
-    apiFetch("/vendor/schedule", { method: "PUT", body: JSON.stringify({ schedule }) }),
+    apiFetch("/vendors/schedule", { method: "PUT", body: JSON.stringify({ schedule }) }),
 
   /* Notifications */
-  getNotifications:  () => apiFetch("/vendor/notifications"),
-  markAllRead:       () => apiFetch("/vendor/notifications/read-all", { method: "PATCH", body: "{}" }),
-  markNotificationRead: (id: string) => apiFetch(`/vendor/notifications/${id}/read`, { method: "PATCH", body: "{}" }),
+  getNotifications:  () => apiFetch("/vendors/notifications"),
+  markAllRead:       () => apiFetch("/vendors/notifications/read-all", { method: "PATCH", body: "{}" }),
+  markNotificationRead: (id: string) => apiFetch(`/vendors/notifications/${id}/read`, { method: "PATCH", body: "{}" }),
 
   /* Settings */
   getSettings:    () => apiFetch("/settings"),
   updateSettings: (data: Record<string, unknown>) => apiFetch("/settings", { method: "PUT", body: JSON.stringify(data) }),
 
   /* Test notification */
-  testNotification: () => apiFetch("/vendor/test-notification", { method: "POST", body: "{}" }),
+  testNotification: () => apiFetch("/vendors/test-notification", { method: "POST", body: "{}" }),
 };

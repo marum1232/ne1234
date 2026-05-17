@@ -516,11 +516,11 @@ export const api = {
   registerLogoutCallback,
 
   /* Rider */
-  getMe:        (signal?: AbortSignal) => apiFetch("/rider/me", signal ? { signal } : {}),
-  setOnline:    (isOnline: boolean) => apiFetch("/rider/online", { method: "PATCH", body: JSON.stringify({ isOnline }) }),
-  updateProfile:(data: any) => apiFetch("/rider/profile", { method: "PATCH", body: JSON.stringify(data) }),
+  getMe:        (signal?: AbortSignal) => apiFetch("/riders/me", signal ? { signal } : {}),
+  setOnline:    (isOnline: boolean) => apiFetch("/riders/online", { method: "PATCH", body: JSON.stringify({ isOnline }) }),
+  updateProfile:(data: any) => apiFetch("/riders/profile", { method: "PATCH", body: JSON.stringify(data) }),
   getRequests:  (): Promise<RiderRequestsResponse> =>
-    apiFetch("/rider/requests", {}, true).then((env: ApiEnvelope<{ orders: Order[]; rides: Ride[] }> & { serverTime?: string }) => {
+    apiFetch("/riders/requests", {}, true).then((env: ApiEnvelope<{ orders: Order[]; rides: Ride[] }> & { serverTime?: string }) => {
       const payload = env.data ?? { orders: [], rides: [] };
       return {
         orders: payload.orders ?? [],
@@ -528,39 +528,39 @@ export const api = {
         _serverTime: env.serverTime ?? null,
       };
     }),
-  getActive:    () => apiFetch("/rider/active"),
-  acceptOrder:  (id: string) => apiFetch(`/rider/orders/${id}/accept`, { method: "POST", body: "{}" }),
-  rejectOrder:  (id: string, reason?: string) => apiFetch(`/rider/orders/${id}/reject`, { method: "POST", body: JSON.stringify({ reason: reason || "not_interested" }) }),
-  updateOrder:  (id: string, status: string, proofPhoto?: string) => apiFetch(`/rider/orders/${id}/status`, { method: "PATCH", body: JSON.stringify({ status, ...(proofPhoto ? { proofPhoto } : {}) }) }),
-  acceptRide:   (id: string) => apiFetch(`/rider/rides/${id}/accept`, { method: "POST", body: "{}" }),
-  updateRide:   (id: string, status: string, loc?: { lat: number; lng: number }) => apiFetch(`/rider/rides/${id}/status`, { method: "PATCH", body: JSON.stringify({ status, ...(loc || {}) }) }),
-  verifyRideOtp:(id: string, otp: string) => apiFetch(`/rider/rides/${id}/verify-otp`, { method: "POST", body: JSON.stringify({ otp }) }),
-  counterRide:  (id: string, data: { counterFare: number; note?: string }) => apiFetch(`/rider/rides/${id}/counter`, { method: "POST", body: JSON.stringify(data) }),
-  rejectOffer:  (id: string) => apiFetch(`/rider/rides/${id}/reject-offer`, { method: "POST", body: "{}" }),
-  ignoreRide:   (id: string) => apiFetch(`/rider/rides/${id}/ignore`, { method: "POST", body: "{}" }),
-  getCancelStats: () => apiFetch("/rider/cancel-stats"),
-  getIgnoreStats: () => apiFetch("/rider/ignore-stats"),
-  getPenaltyHistory: () => apiFetch("/rider/penalty-history"),
+  getActive:    () => apiFetch("/riders/active"),
+  acceptOrder:  (id: string) => apiFetch(`/riders/orders/${id}/accept`, { method: "POST", body: "{}" }),
+  rejectOrder:  (id: string, reason?: string) => apiFetch(`/riders/orders/${id}/reject`, { method: "POST", body: JSON.stringify({ reason: reason || "not_interested" }) }),
+  updateOrder:  (id: string, status: string, proofPhoto?: string) => apiFetch(`/riders/orders/${id}/status`, { method: "PATCH", body: JSON.stringify({ status, ...(proofPhoto ? { proofPhoto } : {}) }) }),
+  acceptRide:   (id: string) => apiFetch(`/riders/rides/${id}/accept`, { method: "POST", body: "{}" }),
+  updateRide:   (id: string, status: string, loc?: { lat: number; lng: number }) => apiFetch(`/riders/rides/${id}/status`, { method: "PATCH", body: JSON.stringify({ status, ...(loc || {}) }) }),
+  verifyRideOtp:(id: string, otp: string) => apiFetch(`/riders/rides/${id}/verify-otp`, { method: "POST", body: JSON.stringify({ otp }) }),
+  counterRide:  (id: string, data: { counterFare: number; note?: string }) => apiFetch(`/riders/rides/${id}/counter`, { method: "POST", body: JSON.stringify(data) }),
+  rejectOffer:  (id: string) => apiFetch(`/riders/rides/${id}/reject-offer`, { method: "POST", body: "{}" }),
+  ignoreRide:   (id: string) => apiFetch(`/riders/rides/${id}/ignore`, { method: "POST", body: "{}" }),
+  getCancelStats: () => apiFetch("/riders/cancel-stats"),
+  getIgnoreStats: () => apiFetch("/riders/ignore-stats"),
+  getPenaltyHistory: () => apiFetch("/riders/penalty-history"),
   getHistory:   (opts: { limit?: number; offset?: number } = {}): Promise<{ history: Array<{ id: string; kind: "order" | "ride"; type: string; status: string; earnings: number; amount: number; address?: string; createdAt: string; proofPhoto?: string; origin?: string; destination?: string; fare?: number; distance?: string | number; duration?: number }>; hasMore: boolean; limit: number; offset: number }> => {
     const params = new URLSearchParams();
     if (opts.limit  !== undefined) params.set("limit",  String(opts.limit));
     if (opts.offset !== undefined) params.set("offset", String(opts.offset));
     const qs = params.toString();
-    return apiFetch(`/rider/history${qs ? `?${qs}` : ""}`);
+    return apiFetch(`/riders/history${qs ? `?${qs}` : ""}`);
   },
-  getEarnings:  (): Promise<{ today: { earnings: number; deliveries: number; breakdown?: { food: { earnings: number; count: number }; parcel: { earnings: number; count: number }; rides: { earnings: number; count: number } } }; week: { earnings: number; deliveries: number; breakdown?: { food: { earnings: number; count: number }; parcel: { earnings: number; count: number }; rides: { earnings: number; count: number } } }; month: { earnings: number; deliveries: number; breakdown?: { food: { earnings: number; count: number }; parcel: { earnings: number; count: number }; rides: { earnings: number; count: number } } }; dailyGoal: number | null }> => apiFetch("/rider/earnings"),
-  getMyReviews: () => apiFetch("/rider/reviews"),
+  getEarnings:  (): Promise<{ today: { earnings: number; deliveries: number; breakdown?: { food: { earnings: number; count: number }; parcel: { earnings: number; count: number }; rides: { earnings: number; count: number } } }; week: { earnings: number; deliveries: number; breakdown?: { food: { earnings: number; count: number }; parcel: { earnings: number; count: number }; rides: { earnings: number; count: number } } }; month: { earnings: number; deliveries: number; breakdown?: { food: { earnings: number; count: number }; parcel: { earnings: number; count: number }; rides: { earnings: number; count: number } } }; dailyGoal: number | null }> => apiFetch("/riders/earnings"),
+  getMyReviews: () => apiFetch("/riders/reviews"),
 
   /* Location */
-  updateLocation: (data: { latitude: number; longitude: number; accuracy?: number; speed?: number; heading?: number; batteryLevel?: number; mockProvider?: boolean; rideId?: string }) => apiFetch("/rider/location", { method: "PATCH", body: JSON.stringify(data) }),
+  updateLocation: (data: { latitude: number; longitude: number; accuracy?: number; speed?: number; heading?: number; batteryLevel?: number; mockProvider?: boolean; rideId?: string }) => apiFetch("/riders/location", { method: "PATCH", body: JSON.stringify(data) }),
   batchLocation: (pings: Array<{ timestamp: string; latitude: number; longitude: number; accuracy?: number; speed?: number; heading?: number; batteryLevel?: number; mockProvider?: boolean; action?: string | null }>) =>
-    apiFetch("/rider/location/batch", { method: "POST", body: JSON.stringify({ locations: pings }) }),
+    apiFetch("/riders/location/batch", { method: "POST", body: JSON.stringify({ locations: pings }) }),
 
   /* Wallet */
   /* getWallet — kept for backward compatibility. Calls the legacy non-paged
      endpoint shape `{ balance, transactions }` via `?legacy=1`. New code
      should use `getWalletPage` for cursor pagination. */
-  getWallet:      () => apiFetch("/rider/wallet/transactions?legacy=1"),
+  getWallet:      () => apiFetch("/riders/wallet/transactions?legacy=1"),
   /* getWalletPage — cursor-paginated. Returns `{ balance, items, nextCursor, limit }`.
      Pass `cursor` (opaque string from the previous response) to fetch the
      next page. Pass `limit` (1–200) to control page size; default 50. */
@@ -569,24 +569,24 @@ export const api = {
     if (opts.limit) params.set("limit", String(opts.limit));
     if (opts.cursor) params.set("cursor", opts.cursor);
     const qs = params.toString();
-    return apiFetch(`/rider/wallet/transactions${qs ? `?${qs}` : ""}`);
+    return apiFetch(`/riders/wallet/transactions${qs ? `?${qs}` : ""}`);
   },
-  getMinBalance:  () => apiFetch("/rider/wallet/min-balance"),
+  getMinBalance:  () => apiFetch("/riders/wallet/min-balance"),
   withdrawWallet: (data: { amount: number; bankName: string; accountNumber: string; accountTitle: string; paymentMethod?: string; note?: string }) =>
-    apiFetch("/rider/wallet/withdraw", { method: "POST", body: JSON.stringify(data) }),
+    apiFetch("/riders/wallet/withdraw", { method: "POST", body: JSON.stringify(data) }),
   submitDeposit:  (data: { amount: number; paymentMethod: string; transactionId: string; accountNumber?: string; note?: string }) =>
-    apiFetch("/rider/wallet/deposit", { method: "POST", body: JSON.stringify(data) }),
-  getDeposits:    () => apiFetch("/rider/wallet/deposits"),
+    apiFetch("/riders/wallet/deposit", { method: "POST", body: JSON.stringify(data) }),
+  getDeposits:    () => apiFetch("/riders/wallet/deposits"),
 
   /* COD Remittance */
-  getCodSummary:       () => apiFetch("/rider/cod-summary"),
+  getCodSummary:       () => apiFetch("/riders/cod-summary"),
   submitCodRemittance: (data: { amount: number; paymentMethod: string; accountNumber: string; transactionId?: string; note?: string }) =>
-    apiFetch("/rider/cod/remit", { method: "POST", body: JSON.stringify(data) }),
+    apiFetch("/riders/cod/remit", { method: "POST", body: JSON.stringify(data) }),
 
   /* Notifications */
-  getNotifications: () => apiFetch("/rider/notifications"),
-  markAllRead:      () => apiFetch("/rider/notifications/read-all", { method: "PATCH", body: "{}" }),
-  markOneRead:      (id: string) => apiFetch(`/rider/notifications/${id}/read`, { method: "PATCH", body: "{}" }),
+  getNotifications: () => apiFetch("/riders/notifications"),
+  markAllRead:      () => apiFetch("/riders/notifications/read-all", { method: "PATCH", body: "{}" }),
+  markOneRead:      (id: string) => apiFetch(`/riders/notifications/${id}/read`, { method: "PATCH", body: "{}" }),
 
   /* Settings */
   getSettings:    () => apiFetch("/settings"),
@@ -594,7 +594,7 @@ export const api = {
 
   /* AI Assistant */
   aiChat: (message: string, history?: Array<{ role: "user" | "assistant"; content: string }>) =>
-    apiFetch("/rider/ai-chat", { method: "POST", body: JSON.stringify({ message, history }) }),
+    apiFetch("/riders/ai-chat", { method: "POST", body: JSON.stringify({ message, history }) }),
 
   /* Generic fetch — exposed on the api object so Chat (and other surfaces that
      migrated off their own apiFetch copy) can call api.apiFetch(...) and

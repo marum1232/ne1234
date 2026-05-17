@@ -36,7 +36,7 @@ export default function Promos() {
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["vendor-promos"],
-    queryFn: () => apiFetch("/vendor/promos"),
+    queryFn: () => apiFetch("/vendors/promos"),
     retry: 2,
   });
 
@@ -44,7 +44,7 @@ export default function Promos() {
   const promos: any[] = Array.isArray(_promosRaw) ? _promosRaw : [];
 
   const createMut = useMutation({
-    mutationFn: () => apiFetch("/vendor/promos", {
+    mutationFn: () => apiFetch("/vendors/promos", {
       method: "POST",
       body: JSON.stringify({
         title:         form.title.trim(),
@@ -61,7 +61,7 @@ export default function Promos() {
   });
 
   const deleteMut = useMutation({
-    mutationFn: (id: string) => apiFetch(`/vendor/promos/${id}`, { method: "DELETE" }),
+    mutationFn: (id: string) => apiFetch(`/vendors/promos/${id}`, { method: "DELETE" }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["vendor-promos"] }); showToast("🗑️ Promo deleted"); },
     onError: (e: Error) => showToast("❌ " + errMsg(e)),
   });

@@ -36,20 +36,7 @@ export function hashOtp(otp: string): string {
   return createHash("sha256").update(otp).digest("hex");
 }
 
-// TODO: Move to shared package (@workspace/service-constants) to avoid
-// duplication with rider/index.ts normalizeVehicleType().
-export function normalizeVehicleTypeForStorage(raw: string): string {
-  const v = raw.trim().toLowerCase();
-  if (!v) return raw;
-  if (v === "bike" || v.startsWith("bike") || v.includes("motorcycle")) return "bike";
-  if (v === "car") return "car";
-  if (v === "rickshaw" || v.includes("rickshaw") || v.includes("qingqi")) return "rickshaw";
-  if (v === "van") return "van";
-  if (v === "daba") return "daba";
-  if (v === "bicycle") return "bicycle";
-  if (v === "on_foot" || v === "on foot") return "on_foot";
-  return v;
-}
+export { normalizeVehicleType as normalizeVehicleTypeForStorage } from "@workspace/service-constants";
 
 export function generateVerificationToken(): string {
   return randomBytes(32).toString("hex");

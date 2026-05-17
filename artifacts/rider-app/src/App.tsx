@@ -137,20 +137,20 @@ function AppRoutes() {
 
       switch (action.type) {
         case "accept_order":
-          await run(() => apiFetch(`/rider/orders/${action.entityId}/accept`, { method: "POST", body: "{}", headers: idemHdr }));
+          await run(() => apiFetch(`/riders/orders/${action.entityId}/accept`, { method: "POST", body: "{}", headers: idemHdr }));
           break;
         case "accept_ride":
-          await run(() => apiFetch(`/rider/rides/${action.entityId}/accept`, { method: "POST", body: "{}", headers: idemHdr }));
+          await run(() => apiFetch(`/riders/rides/${action.entityId}/accept`, { method: "POST", body: "{}", headers: idemHdr }));
           break;
         case "update_order": {
           const { status, proofPhoto } = action.payload as { status: string; proofPhoto?: string };
-          await run(() => apiFetch(`/rider/orders/${action.entityId}/status`, { method: "PATCH", body: JSON.stringify({ status, ...(proofPhoto ? { proofPhoto } : {}) }), headers: idemHdr }));
+          await run(() => apiFetch(`/riders/orders/${action.entityId}/status`, { method: "PATCH", body: JSON.stringify({ status, ...(proofPhoto ? { proofPhoto } : {}) }), headers: idemHdr }));
           break;
         }
         case "update_ride": {
           const { status, lat, lng } = action.payload as { status: string; lat?: number; lng?: number };
           const loc = lat !== undefined && lng !== undefined ? { lat, lng } : {};
-          await run(() => apiFetch(`/rider/rides/${action.entityId}/status`, { method: "PATCH", body: JSON.stringify({ status, ...loc }), headers: idemHdr }));
+          await run(() => apiFetch(`/riders/rides/${action.entityId}/status`, { method: "PATCH", body: JSON.stringify({ status, ...loc }), headers: idemHdr }));
           break;
         }
         case "complete_trip": {

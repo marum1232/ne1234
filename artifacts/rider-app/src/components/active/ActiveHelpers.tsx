@@ -327,7 +327,7 @@ export function SosButton({ rideId, riderPos, T, showToast }: { rideId?: string 
     const hasCoords = lat != null && lng != null &&
       Number.isFinite(lat) && Number.isFinite(lng) &&
       !(Math.abs(lat) < 0.001 && Math.abs(lng) < 0.001);
-    await apiFetch("/rider/sos", {
+    await apiFetch("/riders/sos", {
       method: "POST",
       body: JSON.stringify({
         rideId: rideId ?? null,
@@ -437,7 +437,7 @@ export function TurnByTurnPanel({ fromLat, fromLng, toLat, toLng, label, riderLa
     const startLng = lng ?? fromLng;
     try {
       const data = await apiFetch(
-        `/rider/osrm-route?fromLat=${startLat}&fromLng=${startLng}&toLat=${toLat}&toLng=${toLng}`,
+        `/riders/osrm-route?fromLat=${startLat}&fromLng=${startLng}&toLat=${toLat}&toLng=${toLng}`,
         { signal: abortController.signal }
       ) as OsrmRoute & { error?: string };
       if (data.error) { setError(data.error); return; }

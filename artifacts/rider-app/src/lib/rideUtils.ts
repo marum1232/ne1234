@@ -2,7 +2,7 @@ import { apiFetch } from "./api";
 
 export function logRideEvent(rideId: string, event: string, showToast?: (msg: string, isError?: boolean) => void): void {
   const doLog = (lat?: number, lng?: number) => {
-    apiFetch(`/rider/rides/${rideId}/event-log`, {
+    apiFetch(`/riders/rides/${rideId}/event-log`, {
       method: "POST",
       body: JSON.stringify({ event, lat, lng }),
     }).catch((err: Error) => {

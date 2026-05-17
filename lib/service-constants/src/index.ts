@@ -1,5 +1,23 @@
 export type ServiceKey = "mart" | "food" | "rides" | "pharmacy" | "parcel" | "van" | "school";
 
+/**
+ * Normalises a raw vehicle-type string to a canonical value used across the
+ * API server and rider app. Centralised here so both callers share a single
+ * source of truth.
+ */
+export function normalizeVehicleType(raw: string | null | undefined): string {
+  const v = (raw ?? "").trim().toLowerCase();
+  if (!v) return "";
+  if (v === "bike" || v.startsWith("bike") || v.includes("motorcycle")) return "bike";
+  if (v === "car") return "car";
+  if (v === "rickshaw" || v.includes("rickshaw") || v.includes("qingqi")) return "rickshaw";
+  if (v === "van") return "van";
+  if (v === "daba") return "daba";
+  if (v === "bicycle") return "bicycle";
+  if (v === "on_foot" || v === "on foot") return "on_foot";
+  return v;
+}
+
 export const SERVICE_KEYS: ServiceKey[] = ["mart", "food", "rides", "pharmacy", "parcel", "van", "school"];
 
 export interface ServiceMetadata {

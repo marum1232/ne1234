@@ -19,6 +19,7 @@ import { sendSuccess, sendCreated, sendError, sendErrorWithData, sendNotFound, s
 import { emitWebhookEvent } from "../../lib/webhook-emitter.js";
 import { isInServiceZone } from "../../lib/geofence.js";
 import rateLimit from "express-rate-limit";
+import { normalizeVehicleType } from "@workspace/service-constants";
 
 /* ── Ride-action rate limiters (defined early so they can be referenced anywhere in the file) ── */
 
@@ -76,22 +77,6 @@ const otpLimiter = rateLimit({
 
 const MAX_OTP_ATTEMPTS = 5;
 const OTP_ATTEMPT_TTL_MS = 30 * 60_000;
-
-// TODO: Deduplicate with auth/helpers.ts normalizeVehicleTypeForStorage().
-// Move to shared package (@workspace/service-constants) so both modules
-// import from a single source of truth.
-function normalizeVehicleType(raw: string | null | undefined): string {
-  const v = (raw ?? "").trim().toLowerCase();
-  if (!v) return "";
-  if (v === "bike" || v.startsWith("bike") || v.includes("motorcycle")) return "bike";
-  if (v === "car") return "car";
-  if (v === "rickshaw" || v.includes("rickshaw") || v.includes("qingqi")) return "rickshaw";
-  if (v === "van") return "van";
-  if (v === "daba") return "daba";
-  if (v === "bicycle") return "bicycle";
-  if (v === "on_foot" || v === "on foot") return "on_foot";
-  return v;
-}
 
 const router: IRouter = Router();
 

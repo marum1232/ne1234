@@ -148,8 +148,20 @@ function walkDir(dir: string, results: string[]): void {
   }
 }
 
+const FILE_SIZE_LIMIT_BYTES = 500 * 1024;
+
 function scanFile(filePath: string, relPath: string): FileScanFinding[] {
   const findings: FileScanFinding[] = [];
+  try {
+    const stat = fs.statSync(filePath);
+    if (stat.size > FILE_SIZE_LIMIT_BYTES) {
+      logger.warn({ filePath: relPath, sizeBytes: stat.size }, "[file-scanner] skipping oversized file");
+      return findings;
+    }
+  } catch (err) {
+    logger.error({ error: err instanceof Error ? err.message : String(err), filePath: relPath }, "[file-scanner] stat failed");
+    return findings;
+  }
   let content: string;
   try {
     content = fs.readFileSync(filePath, "utf8");

@@ -176,19 +176,33 @@ function classifyImpact(errorType: ErrorType, severity: string): string {
   return impacts[errorType]?.[severity] || "Error detected — investigation needed";
 }
 
+function metadataDepth(value: unknown, depth = 0): number {
+  if (depth > 10) return depth;
+  if (value === null || typeof value !== "object" || Array.isArray(value)) return depth;
+  const children = Object.values(value as Record<string, unknown>);
+  if (children.length === 0) return depth;
+  return Math.max(...children.map(v => metadataDepth(v, depth + 1)));
+}
+
 const createErrorReportSchema = z.object({
   sourceApp:     z.enum(VALID_SOURCE_APPS),
   errorType:     z.enum(VALID_ERROR_TYPES),
   severity:      z.enum(VALID_SEVERITIES).optional().transform(() => undefined),
-  functionName:  z.string().max(500).optional(),
-  moduleName:    z.string().max(500).optional(),
-  componentName: z.string().max(500).optional(),
-  errorMessage:  z.string().max(5000),
-  stackTrace:    z.string().max(50000).optional(),
-  metadata:      z.record(z.unknown()).optional(),
+  functionName:  z.string().min(1).max(500).optional(),
+  moduleName:    z.string().min(1).max(500).optional(),
+  componentName: z.string().min(1).max(500).optional(),
+  errorMessage:  z.string().min(1).max(5000),
+  stackTrace:    z.string().max(50000).regex(/^[\s\S]*$/).optional(),
+  metadata:      z.record(z.string(), z.unknown()).optional().refine(
+    (m) => !m || JSON.stringify(m).length <= 10 * 1024,
+    { message: "metadata exceeds 10 KB limit" },
+  ).refine(
+    (m) => !m || metadataDepth(m) <= 3,
+    { message: "metadata nesting exceeds 3 levels" },
+  ),
   statusCode:    z.number().optional(),
-  /** Client-computed DJB2 hash for deduplication */
-  errorHash:     z.string().max(64).optional(),
+  /** Client-computed hash for deduplication — must be exactly 8 lowercase hex chars */
+  errorHash:     z.string().regex(/^[0-9a-f]{8}$/).optional(),
 });
 
 /* ── Deterministic DJB2 fingerprint for grouping identical errors ──────── */
@@ -250,7 +264,7 @@ router.post("/", errorReportIngestGuard, validateBody(createErrorReportSchema), 
         await db.update(errorReportsTable)
           .set({ occurrenceCount: newCount, updatedAt: new Date() })
           .where(eq(errorReportsTable.id, activeExisting.id));
-      } catch (err) { /* intentional: non-fatal guard */ void err; }
+      } catch (err) { logger.warn({ err }, '[error-reports] dedup DB update failed — non-fatal'); }
       return sendSuccess(res, {
         ...activeExisting,
         occurrenceCount: newCount,
@@ -277,7 +291,7 @@ router.post("/", errorReportIngestGuard, validateBody(createErrorReportSchema), 
             updatedAt: now,
           })
           .where(eq(errorReportsTable.id, resolvedExisting.id));
-      } catch (err) { /* intentional: non-fatal guard */ void err; }
+      } catch (err) { logger.warn({ err }, '[error-reports] dedup DB update failed — non-fatal'); }
       return sendSuccess(res, {
         ...resolvedExisting,
         status: "new",
