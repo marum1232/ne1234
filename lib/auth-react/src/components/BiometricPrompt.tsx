@@ -232,11 +232,16 @@ export function BiometricPrompt({
         <span style={s.icon}>🫆</span>
         <p style={s.title}>Set up biometrics</p>
         <p style={s.subtitle}>
-          No biometric credential is stored yet. Sign in with your password first, then enable biometric login from your profile settings.
+          No biometric credential is stored yet. Sign in with your password first to enable fingerprint or face login.
         </p>
         {onDismiss && (
+          <button type="button" style={s.btnPrimary} onClick={onDismiss}>
+            Continue with password to enroll
+          </button>
+        )}
+        {onDismiss && (
           <button type="button" style={s.btnSecondary} onClick={onDismiss}>
-            Use password instead
+            Maybe later
           </button>
         )}
       </div>
