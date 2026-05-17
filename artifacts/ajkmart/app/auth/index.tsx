@@ -285,14 +285,26 @@ export default function AuthScreen() {
      Hooks run at component level; handleSocialLogin calls promptAsync to start
      the OAuth flow. Responses are processed in useEffect → POSTed to the
      backend token-exchange endpoints (/api/auth/social/google|facebook). */
+  /* Client IDs: platform config is primary; env vars are the deployment fallback.
+     If neither is set the hooks receive an empty string and prompt will no-op,
+     so social buttons are hidden via socialMethods guard (requires clientId). */
+  const googleClientId =
+    authConfig.googleClientId ||
+    process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID ||
+    "";
+  const facebookAppId =
+    authConfig.facebookAppId ||
+    process.env.EXPO_PUBLIC_FACEBOOK_APP_ID ||
+    "";
+
   const [, googleResponse, promptGoogleAsync] = Google.useAuthRequest({
-    clientId: authConfig.googleClientId,
-    iosClientId: authConfig.googleClientId,
-    androidClientId: authConfig.googleClientId,
+    clientId: googleClientId,
+    iosClientId: googleClientId,
+    androidClientId: googleClientId,
     scopes: ["openid", "profile", "email"],
   });
   const [, fbResponse, promptFacebookAsync] = Facebook.useAuthRequest({
-    clientId: authConfig.facebookAppId,
+    clientId: facebookAppId,
     scopes: ["email", "public_profile"],
   });
 
@@ -331,12 +343,13 @@ export default function AuthScreen() {
     }
   };
 
-  /* Social method buttons derived from platform config — only show enabled providers */
+  /* Social method buttons — only show when provider is enabled AND client ID is
+     available (either from platform config or env fallback). */
   const socialMethods = [
-    ...(authConfig.allowGoogle && authConfig.googleClientId
+    ...(authConfig.allowGoogle && googleClientId
       ? [{ key: "google", label: "Google", color: "#4285F4" }]
       : []),
-    ...(authConfig.allowFacebook && authConfig.facebookAppId
+    ...(authConfig.allowFacebook && facebookAppId
       ? [{ key: "facebook", label: "Facebook", color: "#1877F2" }]
       : []),
   ];
