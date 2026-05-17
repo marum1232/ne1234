@@ -2,7 +2,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { withErrorBoundary } from "@/utils/withErrorBoundary";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createLogger } from "@/utils/logger";
-const log = createLogger("[Profile]");
 import { LinearGradient } from "expo-linear-gradient";
 import * as StoreReview from "expo-store-review";
 import { router, useLocalSearchParams } from "expo-router";
@@ -46,6 +45,8 @@ import {
   AddressesModal,
 } from "@/components/profile";
 import { stripPkCode, getSharedStyles } from "@/components/profile/shared";
+
+const log = createLogger("[Profile]");
 
 function validateMpin(pin: string): string | null {
   if (pin.length !== 4) return "Enter a 4-digit MPIN";
@@ -1086,14 +1087,14 @@ function ProfileScreenInner() {
               <Row icon="shield-checkmark-outline"
                    label={T("privacyPolicy")}
                    sub={T("privacySubLabel")}
-                   onPress={() => Linking.openURL(platformCfg.privacyUrl).catch((err) => console.debug("[Profile] Failed to open privacy URL:", err))}
+                   onPress={() => Linking.openURL(platformCfg.privacyUrl).catch((err) => log.debug("[Profile] Failed to open privacy URL:", err))}
                    iconColor={C.primary} iconBg={C.primarySoft} />
             )}
             {platformCfg.refundPolicyUrl && (
               <Row icon="return-down-back-outline"
                    label={T("refundPolicy")}
                    sub={T("refundSubLabel")}
-                   onPress={() => Linking.openURL(platformCfg.refundPolicyUrl).catch((err) => console.debug("[Profile] Failed to open refund URL:", err))}
+                   onPress={() => Linking.openURL(platformCfg.refundPolicyUrl).catch((err) => log.debug("[Profile] Failed to open refund URL:", err))}
                    iconColor={C.success} iconBg={C.successSoft} />
             )}
             <Row icon="help-circle-outline"
@@ -1120,7 +1121,7 @@ function ProfileScreenInner() {
               <Row icon="information-circle-outline"
                    label={T("aboutUsLabel")}
                    sub={`${platformCfg.appName} ${T("aboutSubLabel")}`}
-                   onPress={() => Linking.openURL(platformCfg.aboutUrl).catch((err) => console.debug("[Profile] Failed to open about URL:", err))}
+                   onPress={() => Linking.openURL(platformCfg.aboutUrl).catch((err) => log.debug("[Profile] Failed to open about URL:", err))}
                    iconColor={C.parcel} iconBg={C.parcelLight} />
             )}
           </Accordion>

@@ -4,7 +4,6 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router, type RelativePathString } from "expo-router";
 import React, { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { createLogger } from "@/utils/logger";
-const log = createLogger("[Orders]");
 import type { Socket } from "socket.io-client";
 import {
   ActivityIndicator,
@@ -52,6 +51,8 @@ import {
   PARCEL_STATUS_MAP,
   RIDE_STEPS,
 } from "@/lib/orderUtils";
+
+const log = createLogger("[Orders]");
 
 interface OrderItemShape {
   productId?: string;

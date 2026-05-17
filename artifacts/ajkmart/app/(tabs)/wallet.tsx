@@ -2,7 +2,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { withErrorBoundary } from "@/utils/withErrorBoundary";
 import { LinearGradient } from "expo-linear-gradient";
 import { createLogger } from "@/utils/logger";
-const log = createLogger("[Wallet]");
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -36,6 +35,8 @@ import { SmartRefresh } from "@/components/ui/SmartRefresh";
 import { useGetWallet, getGetWalletQueryKey } from "@workspace/api-client-react";
 import { API_BASE as API, unwrapApiResponse } from "@/utils/api";
 import { useTheme } from "@/context/ThemeContext";
+
+const log = createLogger("[Wallet]");
 
 const QUICK_AMOUNTS = [500, 1000, 2000, 5000];
 

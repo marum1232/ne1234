@@ -46,5 +46,7 @@ export { BiometricPrompt } from './components/BiometricPrompt';
 export type { BiometricPromptProps } from './components/BiometricPrompt';
 export { LoginScreen } from './components/LoginScreen';
 export type { LoginScreenProps, AppRole, CustomField } from './components/LoginScreen';
+export { RegisterScreen } from './components/RegisterScreen';
+export type { RegisterScreenProps, RegisterRole, FieldConfig, StepConfig, StepComponentProps } from './components/RegisterScreen';
 export { SessionManagerScreen } from './components/SessionManagerScreen';
 export type { SessionManagerScreenProps } from './components/SessionManagerScreen';

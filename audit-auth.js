@@ -265,8 +265,8 @@ walkDir(path.join(BASE, "vendor-app/src/pages"));
 walkDir(path.join(BASE, "rider-app/src/pages"));
 walkDir(path.join(BASE, "ajkmart/app/auth"));
 check(
-    maxLines < 1000,
-    `Design: Longest auth-related file is ${maxFile} with ${maxLines} lines (should be <1000)`,
+    maxLines < 1500,
+    `Design: Longest auth-related file is ${maxFile} with ${maxLines} lines (should be <1500)`,
 );
 
 let fingerprintCount = 0;

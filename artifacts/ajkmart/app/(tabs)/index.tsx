@@ -1,7 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getRecentItems, clearRecentItems } from "@/utils/recentlyViewed";
 import { createLogger } from "@/utils/logger";
-const log = createLogger("[Home]");
 import { API_BASE } from "@/utils/api";
 import { Ionicons } from "@expo/vector-icons";
 import { router, type RelativePathString } from "expo-router";
@@ -43,6 +42,8 @@ import {
   EmptyState,
 } from "@/components/user-shared";
 import { WishlistHeart } from "@/components/WishlistHeart";
+
+const log = createLogger("[Home]");
 
 const LazyServiceSection = React.lazy(() => import("@/components/home/ServiceGrid").then(m => ({ default: m.ServiceSection })));
 const LazyServiceStatsStrip = React.lazy(() => import("@/components/home/StatsBar").then(m => ({ default: m.ServiceStatsStrip })));
