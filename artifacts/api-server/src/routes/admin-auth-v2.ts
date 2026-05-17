@@ -122,6 +122,9 @@ const changePasswordLimiter = rateLimit({
 });
 
 // Validation schemas
+// IMPORTANT: Only `password` is accepted — the legacy `secret` field is intentionally
+// excluded. `.strict()` causes Zod to reject any request body that contains extra
+// fields (e.g. `secret`), preventing dual-field ambiguity in validation and audit logs.
 const loginSchema = z.object({
   username: z.string().min(1, 'Username is required'),
   password: z.string().min(1, 'Password is required'),

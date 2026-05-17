@@ -64,8 +64,7 @@ router.post("/send-email-otp", otpLimiter, verifyCaptcha, sharedValidateBody(Sen
 
   const [user] = await db.select().from(usersTable).where(eq(usersTable.email, normalized)).limit(1);
   if (!user) {
-    const isDev = process.env.NODE_ENV !== "production";
-    sendSuccess(res, { message: "If an account exists with this email, an OTP has been sent.", ...(isDev ? { hint: "No account found" } : {}) });
+    sendSuccess(res, { message: "If an account exists with this email, an OTP has been sent." });
     return;
   }
 
@@ -140,10 +139,13 @@ router.post("/send-email-otp", otpLimiter, verifyCaptcha, sharedValidateBody(Sen
   addAuditEntry({ action: "email_otp_sent", ip, details: `Email OTP for: ${normalized} (delivered: ${emailResult.sent})`, result: "success" });
 
   const emailConsoleFallback = !emailResult.sent;
+  /* Dev console fallback: OTP already logged to server at lines above — never expose in API response */
+  if (isDev && emailConsoleFallback) {
+    logger.info({ email: normalized, otp }, "[EMAIL-OTP DEV] OTP logged here for testing only — not included in API response");
+  }
   sendSuccess(res, {
     message: "OTP aapki email par bhej diya gaya hai",
     channel: emailResult.sent ? "email" : "console",
-    ...(isDev && emailConsoleFallback ? { otp, devMode: true } : {}),
   });
   } catch (err) {
     logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');

@@ -380,12 +380,18 @@ router.post("/send-otp", otpLimiter, verifyCaptcha, sharedValidateBody(sendOtpSc
   if (!deliverySuccess) {
     if (isDev) {
       deliveryChannel = "dev";
-      logger.warn({ phone }, "All OTP delivery channels failed — returning OTP in dev mode");
+      /* Dev fallback: all channels failed — log OTP to server console only, never in API response */
+      logger.warn({ phone, otp }, "[OTP DEV] All delivery channels failed — OTP logged here for testing only");
     } else {
       logger.error({ phone }, "All OTP delivery channels failed");
       sendErrorWithData(res, "Could not deliver OTP. Please try again or use an alternative login method.", { fallbackChannels: availableChannels }, 502);
       return;
     }
+  }
+
+  /* Dev console delivery: log OTP to server only — never expose in API response */
+  if (isDev && isConsoleDelivery) {
+    logger.info({ phone, otp }, "[OTP DEV] Console delivery — OTP logged here for testing only");
   }
 
   const fallbackChannels = availableChannels.filter(ch => ch !== deliveryChannel);
@@ -402,7 +408,6 @@ router.post("/send-otp", otpLimiter, verifyCaptcha, sharedValidateBody(sendOtpSc
     message: "OTP sent successfully",
     channel: deliveryChannel,
     fallbackChannels,
-    ...(isDev && (isConsoleDelivery || deliveryChannel === "dev") ? { otp } : {}),
   };
 
   sendSuccess(res, response);

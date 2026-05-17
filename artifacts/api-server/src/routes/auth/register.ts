@@ -728,13 +728,16 @@ router.post("/register", verifyCaptcha, sharedValidateBody(registerSchema), asyn
 
   const isDev = process.env.NODE_ENV !== "production";
   const isConsoleDelivery = smsResult.provider === "console" || !smsResult.sent;
+  /* Dev console delivery: log OTP to server only — never expose in API response */
+  if (isDev && isConsoleDelivery) {
+    logger.warn({ phone: normalizedPhone, otp }, "[REGISTER DEV] OTP logged here for testing only — not included in API response");
+  }
   sendSuccess(res, {
     message: "Registration successful. Please verify your phone with the OTP sent.",
     userId,
     pendingApproval: needsApproval,
     otpRequired: true,
     channel: smsResult.sent ? smsResult.provider : "console",
-    ...(isDev && isConsoleDelivery ? { otp } : {}),
   }, undefined, 201);
   } catch (err) {
     logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
