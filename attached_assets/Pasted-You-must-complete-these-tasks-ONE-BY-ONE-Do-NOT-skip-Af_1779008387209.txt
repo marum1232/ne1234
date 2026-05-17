@@ -1,0 +1,101 @@
+You must complete these tasks ONE BY ONE. Do NOT skip. After each task, run verification and update progress.md. Then ask me to proceed to next task.
+
+---
+
+### TASK 1: Build auth-react package
+- cd packages/auth-react
+- Check if tsup is installed. If not: pnpm add -D tsup
+- Run: pnpm build
+- Verify: packages/auth-react/dist/index.js exists
+- Update progress.md: "TASK 1 DONE"
+
+### TASK 2: Fix fingerprint count in audit script
+- Open audit-auth.js
+- Find function countFingerprint(dir)
+- Add this line inside the if (fs.statSync(full).isDirectory()) block:  
+  `if (full.includes('node_modules') || full.includes('.git')) continue;`
+- Show me the exact change before saving. Wait for my approval.
+- After approval, save and run node audit-auth.js – DRY failure should disappear.
+- Update progress.md: "TASK 2 DONE"
+
+### TASK 3: Refactor Register.tsx (1151 lines → under 1000)
+- File: artifacts/rider-app/src/pages/Register.tsx
+- Extract step components into separate files inside artifacts/rider-app/src/pages/register/
+  - RegisterStepPhone.tsx
+  - RegisterStepPersonal.tsx
+  - RegisterStepDocuments.tsx
+- Keep all functionality identical. Do NOT remove blank lines or comments.
+- Target main Register.tsx: 700–900 lines.
+- Update progress.md: "TASK 3 DONE"
+
+### TASK 4: Properly refactor Products.tsx (999 lines – currently compressed)
+- File: artifacts/vendor-app/src/pages/Products.tsx
+- First, restore readability: add back blank lines and section comments.
+- Then extract:
+  - useProductForm hook (form state + submit logic) into a new file.
+  - ProductFormFields component
+  - ProductImageUploader component
+- Target main Products.tsx: 650–750 lines.
+- Update progress.md: "TASK 4 DONE"
+
+### TASK 5: Review Profile.tsx and merge over-extracted components
+- File: artifacts/rider-app/src/pages/Profile.tsx
+- Find its split components: ProfileHelpers, ProfileReviews, ProfilePenaltyHistory, ProfileSettings, ProfileFooter.
+- For any component that is used only once and has no internal state → merge back into Profile.tsx with a JSX comment.
+- Keep components that have their own state or are used in multiple places.
+- Update progress.md: "TASK 5 DONE"
+
+### TASK 6: Complete Home.tsx refactor + basic tests
+- File: artifacts/rider-app/src/pages/Home.tsx
+- Finish extracting HomeRequestList and GoalSection as standalone components.
+- Ensure getDeliveryEarn logic is passed via props.
+- Write two basic tests (Vitest + React Testing Library) for these components:
+  - Renders without crash
+  - Displays expected text
+- Run pnpm --filter rider-app test (or appropriate) – must pass.
+- Update progress.md: "TASK 6 DONE"
+
+### TASK 7: Write tests for auth-react package (Task 12.2)
+- Create packages/auth-react/tests/OtpInput.test.tsx
+  - Test: renders 6 inputs, calls onComplete when all filled.
+- Create packages/auth-react/tests/useLoginFlow.test.ts
+  - Test: initiates login, handles 2FA pending.
+- Add any missing devDependencies: vitest, @testing-library/react, jsdom.
+- Run pnpm --filter @workspace/auth-react test – all pass.
+- Update progress.md: "TASK 7 DONE"
+
+### TASK 8: Add ESLint + Prettier configuration (root level)
+- Run from workspace root:  
+  pnpm add -D eslint prettier eslint-config-prettier eslint-plugin-react @typescript-eslint/parser @typescript-eslint/eslint-plugin
+- Create .eslintrc.json with:
+  {
+    "extends": ["eslint:recommended", "plugin:react/recommended", "prettier"],
+    "rules": {
+      "max-lines": ["warn", 1000],
+      "no-unused-vars": "error",
+      "no-console": "warn"
+    }
+  }
+- Create .prettierrc: { "semi": true, "singleQuote": true, "printWidth": 100 }
+- Add to root package.json scripts: "lint": "eslint . --ext .ts,.tsx", "format": "prettier --write ."
+- Run pnpm lint – fix any errors.
+- Update progress.md: "TASK 8 DONE"
+
+### TASK 9: Final audit run
+- Run: node audit-auth.js
+- Must show 0 failures, 0 partial.
+- If any failure remains, fix it (without hacks) and re-run.
+- Also run pnpm lint and pnpm --filter @workspace/auth-react test.
+- Update progress.md with final results and a screenshot (text copy of output).
+
+### TASK 10: Write a short README for auth-react package
+- Create packages/auth-react/README.md
+- Explain: installation, basic usage (AuthProvider, LoginScreen), hooks (useAuth, useLoginFlow).
+- Keep it short – 10–15 lines.
+- Update progress.md: "TASK 10 DONE"
+
+---
+
+**After all tasks complete, I will run the final audit myself. If all pass, system is production-ready.**
+
+Do not proceed to the next task until the current one is fully verified and progress.md is updated.
