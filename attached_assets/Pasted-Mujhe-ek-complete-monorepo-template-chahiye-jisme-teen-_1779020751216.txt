@@ -1,0 +1,56 @@
+Mujhe ek complete monorepo template chahiye jisme teen applications hain:
+1. Rider App (React web)
+2. Vendor App (React web)
+3. Customer App (React Native / Expo)
+
+Professional company standards ke mutabiq, teeno apps mein following cheezein EXACT same honi chahiye:
+
+🔐 Authentication (shared library `@workspace/auth`):
+- Phone + OTP login
+- Password login
+- Biometric login (web ke liye WebAuthn, mobile ke liye expo-local-authentication)
+- Magic link email
+- Google/Facebook OAuth
+- 2FA/TOTP
+- Forgot password (same UI and flow)
+- Token response: { accessToken, refreshToken, user } — same structure har jagah
+- Registration steps wizard (common component, fields role-based)
+
+🎨 UI Components (shared library `@workspace/ui`):
+- Button (loading state, variants)
+- TextInput (validation styles)
+- Modal (for rejection reason, pending overlay)
+- Toast notifications (error/success)
+- Screen layout template (header, footer, loading skeleton)
+
+📋 Each app-specific registration steps:
+- Rider: Phone/OTP → Personal info (CNIC) → Vehicle docs → Password
+- Vendor: Phone/OTP → Store details → Documents upload → Bank info → Password
+- Customer: Phone/OTP → Name → City → Password
+
+🚦 Status handling (shared logic):
+- Pending approval screen (rider/vendor)
+- Rejection screen with reason (rider/vendor)
+- Customer gets immediate approved
+
+🛠️ Backend:
+- Node.js + Express ya NestJS
+- All auth endpoints under /api/auth/*
+- Consistent error responses: { error: { code: '...', message: '...' } }
+
+📁 Monorepo structure:
+packages/
+  shared/
+    auth/        (React & React Native hooks + API client)
+    ui/          (common components)
+  apps/
+    rider-web/
+    vendor-web/
+    customer-mobile/
+
+✅ Testing & CI:
+- Unit tests with Jest
+- E2E tests with Playwright (web) and Detox (mobile)
+- GitHub Actions workflow for lint, typecheck, test
+
+Please generate the complete template with all boilerplate code, configuration files, and a README explaining how to run each app. Ensure every app uses the same authentication flow visually and functionally.

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation } from "wouter";
 import { OtpInput, PhoneInput, PasswordInput, SocialButtons, useLoginFlow, LoginScreen } from "@workspace/auth-react";
 import type { Country } from "@workspace/auth-react";
@@ -10,14 +10,20 @@ import { tDual, type TranslationKey } from "@workspace/i18n";
 import { canonicalizePhone, executeCaptcha } from "@workspace/auth-utils";
 import { getDeviceFingerprint } from "@workspace/auth-react";
 import { getVendorApiBase } from "../lib/envValidation";
+import {
+  isBiometricAvailable, isBiometricEnabled,
+  setBiometricEnabled as saveBiometricEnabled,
+  storeBiometricToken, getBiometricToken, verifyBiometric,
+} from "../lib/biometric";
 
-type LoginStep = "identifier" | "otp" | "password" | "2fa" | "pending";
+type LoginStep = "identifier" | "otp" | "password" | "2fa" | "pending" | "rejected" | "biometric-prompt";
 type ForgotStep = "forgot" | "forgot-otp" | "forgot-reset" | "forgot-done";
 
 interface AuthResponse {
   token: string; refreshToken?: string; pendingApproval?: boolean;
+  approvalStatus?: string; rejectionReason?: string | null;
   requires2FA?: boolean; tempToken?: string; userId?: string;
-  user?: { roles?: string[] | string; role?: string; status?: string };
+  user?: { roles?: string[] | string; role?: string; status?: string; approvalStatus?: string; rejectionReason?: string | null };
 }
 
 const FEATURES = [
@@ -65,6 +71,18 @@ export default function Login() {
   const error      = (flow.error ?? "") || localError;
   const clearError = () => { flow.clearError(); setLocalError(""); };
 
+  /* ── Biometric state ── */
+  const [biometricAvailable,   setBiometricAvailable]   = useState(false);
+  const [biometricEnabled,     setBiometricEnabledState] = useState(false);
+  const [biometricLoading,     setBiometricLoading]     = useState(false);
+  const [rejectionReason,      setRejectionReason]      = useState<string | null>(null);
+  const [pendingToken,         setPendingToken]         = useState("");
+  const [pendingRefreshToken,  setPendingRefreshToken]  = useState<string | undefined>();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [pendingProfile,       setPendingProfile]       = useState<any>(null);
+  const capturedTokenRef        = useRef("");
+  const capturedRefreshTokenRef = useRef("");
+
   /* ── Forgot password ── */
   const [forgotStep, setForgotStep] = useState<ForgotStep | null>(null);
   const [forgotId,   setForgotId]   = useState("");
@@ -78,6 +96,44 @@ export default function Login() {
     setForgotStep(null);
     setForgotId(""); setForgotOtp(""); setForgotPwd(""); setForgotCfm(""); setForgotErr("");
   };
+
+  /* ── Fetch interceptor — captures { token, refreshToken } from auth responses
+     and remaps { token } → { accessToken } so useLoginFlow reads the right field.
+     Scoped to this component's mount lifetime only.                            ── */
+  useEffect(() => {
+    const AUTH_PATHS = ["/api/auth/verify-otp", "/api/auth/login", "/api/auth/2fa/verify", "/api/auth/verify-email-otp"];
+    const origFetch = window.fetch;
+    window.fetch = async (...args: Parameters<typeof fetch>): Promise<Response> => {
+      const res = await origFetch(...args);
+      const url = typeof args[0] === "string" ? args[0] : (args[0] as Request).url;
+      if (!AUTH_PATHS.some(p => url.includes(p))) return res;
+      try {
+        const json = await res.json() as Record<string, unknown>;
+        const data = json?.data as Record<string, unknown> | undefined;
+        const rawToken   = (data?.token   ?? json?.token)   as string | undefined;
+        const rawRefresh = (data?.refreshToken ?? json?.refreshToken) as string | undefined;
+        if (rawToken)   capturedTokenRef.current        = rawToken;
+        if (rawRefresh) capturedRefreshTokenRef.current = rawRefresh;
+        if (data && rawToken && !data.accessToken) {
+          (data as Record<string, unknown>).accessToken = rawToken;
+          json.data = data;
+        }
+        return new Response(JSON.stringify(json), {
+          status: res.status,
+          headers: { "Content-Type": "application/json" },
+        });
+      } catch { return res; }
+    };
+    return () => { window.fetch = origFetch; };
+  }, []);
+
+  /* ── Biometric availability check on mount ── */
+  useEffect(() => {
+    isBiometricAvailable().then(available => {
+      setBiometricAvailable(available);
+      if (available) isBiometricEnabled().then(setBiometricEnabledState);
+    });
+  }, []);
 
   /* ── Magic-link auto-verify on page load ── */
   useEffect(() => {
@@ -104,6 +160,55 @@ export default function Login() {
     try { return await executeCaptcha(action, vendorAuth.captchaSiteKey); } catch (err) { console.warn('[artifacts/vendor-app/src/pages/Login.tsx]', err); } // eslint-disable-line no-console
   };
 
+  /* ── Biometric quick-login ── */
+  const handleBiometricLogin = useCallback(async () => {
+    setBiometricLoading(true);
+    setLocalError("");
+    try {
+      const ok = await verifyBiometric();
+      if (!ok) { setBiometricLoading(false); return; }
+      const storedToken = await getBiometricToken();
+      if (!storedToken) {
+        setLocalError("Biometric session expired. Please log in with your credentials.");
+        await saveBiometricEnabled(false);
+        setBiometricEnabledState(false);
+        setBiometricLoading(false);
+        return;
+      }
+      const res = await fetch(`${window.location.origin}/api/auth/refresh`, {
+        method: "POST", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refreshToken: storedToken }),
+      });
+      if (!res.ok) {
+        setLocalError("Biometric session expired. Please log in with your credentials.");
+        await saveBiometricEnabled(false);
+        setBiometricEnabledState(false);
+        setBiometricLoading(false);
+        return;
+      }
+      const data = await res.json() as { token?: string; refreshToken?: string };
+      api.storeTokens(data.token ?? "", data.refreshToken ?? storedToken);
+      const profile = await api.getMe();
+      login(data.token ?? "", profile, data.refreshToken ?? storedToken);
+    } catch {
+      setLocalError("Biometric sign-in failed. Please use your credentials.");
+    }
+    setBiometricLoading(false);
+  }, [login]);
+
+  /* ── Biometric enrollment confirmation (called after successful password/OTP login) ── */
+  const confirmBiometricEnrollment = useCallback(async (enable: boolean) => {
+    if (enable && pendingRefreshToken) {
+      await saveBiometricEnabled(true);
+      await storeBiometricToken(pendingRefreshToken);
+      setBiometricEnabledState(true);
+    }
+    login(pendingToken, pendingProfile, pendingRefreshToken);
+    setStep("identifier");
+    navigate("/");
+  }, [pendingToken, pendingProfile, pendingRefreshToken, login, navigate]);
+
   /* ── Vendor role guard ── */
   const checkVendorRole = (res: AuthResponse): boolean => {
     if (res.requires2FA) return true;
@@ -126,10 +231,28 @@ export default function Login() {
     if (res.requires2FA && res.tempToken) {
       setTotpTempToken(res.tempToken); setTotpUserId(res.userId || ""); setStep("2fa"); return;
     }
-    if (res.pendingApproval) { setStep("pending"); return; }
+    if (res.pendingApproval || res.approvalStatus === "pending" || res.user?.approvalStatus === "pending") {
+      setStep("pending"); return;
+    }
+    const rejectedReason =
+      res.rejectionReason ?? res.user?.rejectionReason ??
+      (res.approvalStatus === "rejected" || res.user?.approvalStatus === "rejected" ? "Your application was not approved." : null);
+    if (rejectedReason !== null) {
+      setRejectionReason(rejectedReason ?? null);
+      setStep("rejected");
+      return;
+    }
     api.storeTokens(res.token, res.refreshToken);
     try {
       const profile = await api.getMe();
+      /* Offer biometric enrollment if available and not yet enabled */
+      if (biometricAvailable && !biometricEnabled && res.refreshToken) {
+        setPendingToken(res.token);
+        setPendingRefreshToken(res.refreshToken);
+        setPendingProfile(profile);
+        setStep("biometric-prompt");
+        return;
+      }
       login(res.token, profile, res.refreshToken);
     } catch (e: unknown) {
       api.clearTokens();
@@ -339,6 +462,54 @@ export default function Login() {
     </div>
   );
 
+  /* ── Rejected screen ── */
+  if (step === "rejected") return (
+    <div className="min-h-screen bg-gradient-to-br from-red-700 to-rose-600 flex items-center justify-center p-4">
+      <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl">
+        <div className="text-5xl mb-4">❌</div>
+        <h2 className="text-2xl font-extrabold text-gray-800 mb-3">Application Not Approved</h2>
+        <p className="text-gray-500 text-sm mb-4">Unfortunately your vendor application was not approved at this time.</p>
+        {rejectionReason && (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-5 text-left">
+            <p className="text-xs font-bold text-red-400 uppercase mb-1 tracking-wide">Reason</p>
+            <p className="text-sm text-red-700 font-medium leading-snug">{rejectionReason}</p>
+          </div>
+        )}
+        {(config.platform.supportPhone || config.platform.supportEmail) && (
+          <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 mb-5 text-left">
+            <p className="text-xs font-bold text-gray-400 uppercase mb-1">Contact support</p>
+            {config.platform.supportPhone && <p className="text-sm font-bold text-gray-700">{config.platform.supportPhone}</p>}
+            {config.platform.supportEmail && <p className="text-xs text-gray-500">{config.platform.supportEmail}</p>}
+          </div>
+        )}
+        <button onClick={() => { setStep("identifier"); setRejectionReason(null); }} className="w-full h-12 bg-gray-700 hover:bg-gray-800 text-white font-bold rounded-2xl text-sm">Back to Login</button>
+      </div>
+    </div>
+  );
+
+  /* ── Biometric enrollment prompt (shown once, after first successful login) ── */
+  if (step === "biometric-prompt") return (
+    <div className="min-h-screen bg-gradient-to-br from-orange-800 to-amber-700 flex items-center justify-center p-4">
+      <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl">
+        <div className="text-5xl mb-4">🔏</div>
+        <h2 className="text-2xl font-extrabold text-gray-800 mb-3">Enable Biometric Login?</h2>
+        <p className="text-gray-500 text-sm mb-6">Sign in faster next time using your fingerprint or face ID. You can always turn this off in settings.</p>
+        <button
+          onClick={() => void confirmBiometricEnrollment(true)}
+          className="w-full h-12 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-2xl text-sm mb-3"
+        >
+          Enable Biometric Login
+        </button>
+        <button
+          onClick={() => void confirmBiometricEnrollment(false)}
+          className="w-full h-12 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-2xl text-sm"
+        >
+          Not Now
+        </button>
+      </div>
+    </div>
+  );
+
   const useSharedLogin = (config.platform as Record<string, unknown>).vendorSharedLoginScreen === true;
   if (useSharedLogin && step === "identifier") {
     return (
@@ -422,6 +593,17 @@ export default function Login() {
                     <div className="bg-orange-50 border border-orange-200 rounded-xl p-3 text-sm text-orange-700">✅ Magic link sent to <strong>{magicEmail}</strong>. Check your inbox.</div>
                   )}
                 </div>
+              )}
+              {biometricAvailable && biometricEnabled && (
+                <button
+                  onClick={() => void handleBiometricLogin()}
+                  disabled={biometricLoading || loading}
+                  className="w-full h-12 mb-3 bg-gray-900 hover:bg-gray-800 text-white font-bold rounded-2xl disabled:opacity-60 flex items-center justify-center gap-2 text-sm"
+                >
+                  {biometricLoading
+                    ? <><div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />Verifying…</>
+                    : <><span className="text-lg">🔏</span> Sign in with Biometrics</>}
+                </button>
               )}
               <button onClick={handleIdentifierSubmit} disabled={loading} className="w-full h-12 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-2xl disabled:opacity-60 flex items-center justify-center gap-2 text-sm">
                 {loading ? <><div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />Please wait...</> : "Continue →"}
