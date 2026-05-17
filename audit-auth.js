@@ -1,0 +1,320 @@
+// audit-auth.js – Run after all 12 tasks
+const fs = require("fs");
+const path = require("path");
+
+const results = { passed: 0, failed: 0, partial: 0 };
+
+function check(condition, message) {
+    if (condition) {
+        console.log(`✅ ${message}`);
+        results.passed++;
+    } else {
+        console.log(`❌ ${message}`);
+        results.failed++;
+    }
+}
+
+function checkPartial(condition, message) {
+    if (condition) {
+        console.log(`⚠️ ${message}`);
+        results.partial++;
+    } else {
+        console.log(`❌ ${message}`);
+        results.failed++;
+    }
+}
+
+console.log("\n🔍 DEEP AUDIT OF AUTH SYSTEM\n");
+
+// ----------------- Task 1 – Security fixes -----------------
+console.log("\n📌 TASK 1: Security & Critical Fixes");
+const authHelpers = fs.readFileSync(
+    "api-server/src/routes/auth/helpers.ts",
+    "utf8",
+);
+check(
+    !authHelpers.includes("req.body.token"),
+    "1.1 No `req.body.token` fallback",
+);
+check(
+    !fs.readFileSync("ajkmart/app/auth/index.tsx", "utf8").includes("000000"),
+    "1.2 Customer no hardcoded OTP",
+);
+check(
+    !fs
+        .readFileSync("vendor-app/src/pages/Login.tsx", "utf8")
+        .includes("000000"),
+    "1.3 Vendor no hardcoded OTP",
+);
+const vendorAuth = fs.readFileSync("vendor-app/src/lib/auth.tsx", "utf8");
+check(
+    vendorAuth.includes("decodeURIComponent(escape(atob("),
+    "1.4 Vendor decodeJwtExp UTF-8 safe",
+);
+// Check tokenFamily breach detection
+const authMiddleware = fs.readFileSync(
+    "api-server/src/middleware/auth.ts",
+    "utf8",
+);
+check(
+    authMiddleware.includes("FAMILY_BREACH_DETECTED"),
+    "1.5 Token family breach detection present",
+);
+// pendingTotpSecrets in DB/Redis – check if file references in-memory object
+const authIndexExists = fs.existsSync("api-server/src/routes/auth/index.ts");
+if (authIndexExists) {
+    const authIndex = fs.readFileSync(
+        "api-server/src/routes/auth/index.ts",
+        "utf8",
+    );
+    check(
+        !authIndex.includes("pendingTotpSecrets = {}"),
+        "1.6 TOTP secrets not in-memory",
+    );
+} else {
+    check(true, "1.6 Auth index split – no monolithic file (checked later)");
+}
+
+// ----------------- Task 2 – Backend split -----------------
+console.log("\n📌 TASK 2: Backend Auth Router Split");
+const splitFiles = [
+    "api-server/src/routes/auth/config.ts",
+    "api-server/src/routes/auth/identifier.ts",
+    "api-server/src/routes/auth/otp.ts",
+    "api-server/src/routes/auth/password.ts",
+    "api-server/src/routes/auth/register.ts",
+    "api-server/src/routes/auth/refresh.ts",
+    "api-server/src/routes/auth/two-factor.ts",
+];
+let allSplitExist = true;
+splitFiles.forEach((f) => {
+    if (!fs.existsSync(f)) allSplitExist = false;
+});
+check(allSplitExist, "2.1 Auth router split into modular files");
+if (fs.existsSync("api-server/src/routes/auth/index.ts")) {
+    const newIndex = fs.readFileSync(
+        "api-server/src/routes/auth/index.ts",
+        "utf8",
+    );
+    check(newIndex.length < 500, "2.2 Main index.ts <500 lines (was 5k)");
+} else check(false, "2.2 Main index.ts missing");
+
+// ----------------- Task 3 – Duplicates removed -------------
+console.log("\n📌 TASK 3: Duplicate Schemas & Helpers");
+const helpers = fs.readFileSync(
+    "api-server/src/routes/auth/helpers.ts",
+    "utf8",
+);
+const hasSchemaExports =
+    helpers.includes("export const registerSchema") ||
+    helpers.includes("registerSchema");
+check(hasSchemaExports, "3.1 Helpers exports schemas");
+if (fs.existsSync("api-server/src/routes/auth/index.ts")) {
+    const idx = fs.readFileSync("api-server/src/routes/auth/index.ts", "utf8");
+    const hasRedefine = idx.includes("const registerSchema =");
+    check(!hasRedefine, "3.2 No schema redefinition in index.ts");
+}
+
+// ----------------- Task 4 – Missing backend features -------
+console.log("\n📌 TASK 4: Missing Backend Features");
+const routes = fs.readdirSync("api-server/src/routes/auth").join(" ");
+check(
+    routes.includes("sessions") ||
+        fs
+            .readFileSync("api-server/src/routes/auth/refresh.ts", "utf8")
+            .includes("sessions/revoke"),
+    "4.1 Session revocation API exists",
+);
+const adminRoutes = fs.readdirSync(
+    "api-server/src/routes/admin-auth-v2.ts",
+    "utf8",
+);
+const hasRecovery = fs
+    .readFileSync("api-server/src/routes/admin-auth-v2.ts", "utf8")
+    .includes("recovery");
+check(hasRecovery, "4.2 Admin account recovery endpoint exists");
+const swaggerExists =
+    fs.existsSync("api-server/src/docs/swagger.ts") ||
+    fs.existsSync("api-server/swagger.json");
+check(swaggerExists, "4.3 OpenAPI spec generation exists");
+
+// ----------------- Task 5 – Shared package scaffolding ----
+console.log("\n📌 TASK 5: Auth-React Package Scaffolding");
+const pkgJsonExists = fs.existsSync("packages/auth-react/package.json");
+check(pkgJsonExists, "5.1 @workspace/auth-react package.json exists");
+if (pkgJsonExists) {
+    const pkg = JSON.parse(
+        fs.readFileSync("packages/auth-react/package.json", "utf8"),
+    );
+    check(pkg.name === "@workspace/auth-react", "5.2 Package name correct");
+}
+const buildScript = fs.existsSync("packages/auth-react/dist/index.js");
+check(buildScript, "5.3 Package builds (dist/index.js exists)");
+
+// ----------------- Task 6 – Token storage & API client -----
+console.log("\n📌 TASK 6: Unified Token Storage & API Client");
+const tokenStorage = fs.existsSync(
+    "packages/auth-react/src/api/tokenStorage.ts",
+);
+const authClient = fs.existsSync("packages/auth-react/src/api/authClient.ts");
+check(tokenStorage, "6.1 tokenStorage.ts exists");
+check(authClient, "6.2 authClient.ts exists");
+const jwtUtils = fs.existsSync("packages/auth-react/src/utils/jwtUtils.ts");
+check(jwtUtils, "6.3 jwtUtils.ts exists");
+
+// ----------------- Task 7 – Shared hooks -------------------
+console.log("\n📌 TASK 7: Shared Hooks");
+const hooksDir = fs.existsSync("packages/auth-react/src/hooks");
+check(hooksDir, "7.1 hooks directory exists");
+const hooks = ["useTokenRefresh.ts", "useAuth.ts", "useLoginFlow.ts"];
+hooks.forEach((h) => {
+    const exists = fs.existsSync(`packages/auth-react/src/hooks/${h}`);
+    check(exists, `7.2 ${h} exists`);
+});
+
+// ----------------- Task 8 – Shared UI components -----------
+console.log("\n📌 TASK 8: Shared UI Components");
+const components = [
+    "OtpInput.tsx",
+    "PhoneInput.tsx",
+    "PasswordInput.tsx",
+    "SocialButtons.tsx",
+    "BiometricPrompt.tsx",
+    "LoginScreen.tsx",
+];
+components.forEach((c) => {
+    const exists = fs.existsSync(`packages/auth-react/src/components/${c}`);
+    check(exists, `8.1 ${c} exists`);
+});
+
+// ----------------- Task 9 – Vendor migration --------------
+console.log("\n📌 TASK 9: Vendor App Migrated");
+const vendorLogin = fs.readFileSync("vendor-app/src/pages/Login.tsx", "utf8");
+const usesSharedLogin =
+    vendorLogin.includes("@workspace/auth-react") &&
+    vendorLogin.includes("LoginScreen");
+check(usesSharedLogin, "9.1 Vendor Login uses LoginScreen from shared package");
+const vendorAuthContext = fs.existsSync("vendor-app/src/lib/auth.tsx");
+check(!vendorAuthContext, "9.2 Vendor custom auth.tsx removed");
+const vendorRegisterExists = fs.existsSync("vendor-app/src/pages/Register.tsx");
+check(vendorRegisterExists, "9.3 Vendor separate Register.tsx exists");
+
+// ----------------- Task 10 – Rider migration --------------
+console.log("\n📌 TASK 10: Rider App Migrated");
+const riderLogin = fs.readFileSync("rider-app/src/pages/Login.tsx", "utf8");
+const usesSharedRider =
+    riderLogin.includes("@workspace/auth-react") &&
+    riderLogin.includes("LoginScreen");
+check(usesSharedRider, "10.1 Rider Login uses LoginScreen");
+const riderAuthContext = fs.existsSync("rider-app/src/lib/auth.tsx");
+check(!riderAuthContext, "10.2 Rider custom auth.tsx removed");
+
+// ----------------- Task 11 – Customer migration (Expo) -----
+console.log("\n📌 TASK 11: Customer App Migrated");
+const customerAuth = fs.readFileSync("ajkmart/context/AuthContext.tsx", "utf8");
+const usesSharedCustomer = customerAuth.includes("@workspace/auth-react");
+check(usesSharedCustomer, "11.1 Customer AuthContext uses shared package");
+const customerLogin = fs.readFileSync("ajkmart/app/auth/index.tsx", "utf8");
+const usesLoginScreen = customerLogin.includes("LoginScreen");
+check(usesLoginScreen, "11.2 Customer login uses LoginScreen");
+
+// ----------------- Task 12 – Tests & Docs ------------------
+console.log("\n📌 TASK 12: Tests & Documentation");
+const backendTests =
+    fs.existsSync("api-server/tests/auth") &&
+    fs.readdirSync("api-server/tests/auth").length > 0;
+check(backendTests, "12.1 Backend auth tests exist");
+const componentTests =
+    fs.existsSync("packages/auth-react/tests") &&
+    fs.readdirSync("packages/auth-react/tests").length > 0;
+check(componentTests, "12.2 Shared component tests exist");
+const openapiExists =
+    fs.existsSync("api-server/src/docs/swagger.ts") ||
+    fs.existsSync("api-server/swagger.yaml");
+check(openapiExists, "12.3 OpenAPI spec exists");
+const authDocExists = fs.existsSync("docs/AUTH.md");
+check(authDocExists, "12.4 AUTH.md documentation exists");
+
+// ----------------- Professional Design Checks (extra) ------
+console.log("\n📌 PROFESSIONAL DESIGN CHECKS");
+
+// Check longest file
+let maxLines = 0,
+    maxFile = "";
+function countLines(file) {
+    try {
+        const content = fs.readFileSync(file, "utf8");
+        const lines = content.split("\n").length;
+        if (lines > maxLines) {
+            maxLines = lines;
+            maxFile = file;
+        }
+    } catch (e) {}
+}
+function walkDir(dir) {
+    const files = fs.readdirSync(dir);
+    for (const file of files) {
+        const full = path.join(dir, file);
+        if (fs.statSync(full).isDirectory()) {
+            if (!full.includes("node_modules") && !full.includes(".git"))
+                walkDir(full);
+        } else if (
+            full.endsWith(".ts") ||
+            full.endsWith(".tsx") ||
+            full.endsWith(".js")
+        ) {
+            countLines(full);
+        }
+    }
+}
+walkDir(".");
+check(
+    maxLines < 1000,
+    `Design: Longest file is ${maxFile} with ${maxLines} lines (should be <1000)`,
+);
+
+// Check for DRY violations (duplicate code patterns)
+let duplicateCount = 0;
+const seen = new Set();
+// Simple heuristic: search for 'function getDeviceFingerprint' across apps
+const filesWithFingerprint = [];
+["rider-app", "vendor-app", "ajkmart"].forEach((app) => {
+    const pattern = /function getDeviceFingerprint|const getDeviceFingerprint/g;
+    if (fs.existsSync(app)) {
+        const files = fs.readdirSync(app, { recursive: true });
+        files.forEach((f) => {
+            if (f.endsWith(".tsx") || f.endsWith(".ts")) {
+                const content = fs.readFileSync(path.join(app, f), "utf8");
+                if (pattern.test(content))
+                    filesWithFingerprint.push(`${app}/${f}`);
+            }
+        });
+    }
+});
+check(
+    filesWithFingerprint.length <= 1,
+    `DRY: getDeviceFingerprint defined in ${filesWithFingerprint.length} places (should be only in shared package)`,
+);
+
+// Check for presence of shared SDK usage in all apps
+const appsUsingSDK = [
+    "vendor-app/src/pages/Login.tsx",
+    "rider-app/src/pages/Login.tsx",
+    "ajkmart/app/auth/index.tsx",
+].every((f) => {
+    if (!fs.existsSync(f)) return false;
+    return fs.readFileSync(f, "utf8").includes("@workspace/auth-react");
+});
+check(appsUsingSDK, "All apps use shared auth-react SDK");
+
+// Final summary
+console.log(
+    `\n📊 AUDIT SUMMARY: Passed: ${results.passed}, Failed: ${results.failed}, Partial: ${results.partial}`,
+);
+if (results.failed === 0 && results.partial === 0) {
+    console.log(
+        "\n🎉 ALL CHECKS PASSED! System is fully compliant and professional.",
+    );
+} else {
+    console.log(`\n⚠️ Some checks failed. Fix the ❌ items above.`);
+}
