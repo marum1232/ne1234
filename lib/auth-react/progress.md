@@ -169,3 +169,118 @@ Output: `dist/index.js` (ESM 69.71 KB), `dist/index.cjs` (CJS 76.00 KB), `dist/i
 
 - **Web biometrics:** The `web-unsupported` state is shown on all browsers with WebAuthn (even capable ones). Full WebAuthn server-challenge integration (credential creation, assertion) is out of scope and marked as a future task.
 - **`storeTokenInSecureStore` on native:** Requires `__ExpoSecureStore` global to be present. If it's absent the enrollment silently no-ops; the host app should ensure the global is registered before mounting `BiometricPrompt`.
+
+---
+
+## AUTH PRODUCTION HARDENING COMPLETE
+
+**Date:** 2026-05-17
+
+### What was done
+
+1. **Built `packages/auth-react`** — ran `pnpm install` + `pnpm --filter @workspace/auth-react build`. `dist/index.js` (ESM 72.73 KB), `dist/index.cjs` (CJS 79.09 KB), `dist/index.d.ts` (14.19 KB). All 110 tests pass (8 test files).
+
+2. **CSRF token in rider app** — added `readCsrfFromCookie()` helper and `X-CSRF-Token` header on all mutating requests (POST/PUT/PATCH/DELETE) in `artifacts/rider-app/src/lib/api.ts`. Vendor app already had CSRF; admin app delegates to `adminFetcher` which includes it.
+
+3. **401 silent-refresh-and-retry** — confirmed in all three apps: rider app uses `createApiFetcher` with `onRefreshFailed` callback; vendor app uses the same factory; admin app uses `adminFetcher` with its own refresh interceptor. All handle 401 → refresh → retry → redirect on failure.
+
+4. **Refresh tokens not in localStorage** — confirmed: rider app stores only access token in Capacitor Preferences (in-memory cache); vendor app uses in-memory `createTokenStorage('memory')`; one-time migration from localStorage purges any stale refresh token on boot.
+
+5. **Dev-only OTP bypass warning** — added `{import.meta.env.DEV && <banner>}` to `artifacts/admin/src/pages/otp-control.tsx` informing operators that `000000` / `123456` bypass codes are blocked server-side in production.
+
+### Final Audit Output
+
+Full output of `node audit-auth.js` (run 2026-05-17):
+
+```
+🔍 DEEP AUDIT OF AUTH SYSTEM (artifacts/)
+
+
+📌 TASK 1: Security & Critical Fixes
+✅ 1.0 helpers.ts exists
+✅ 1.1 No `req.body.token` fallback
+✅ 1.2 Customer no hardcoded OTP
+✅ 1.3 Vendor no hardcoded OTP
+✅ 1.5 Token family breach detection present
+✅ 1.6 TOTP secrets not in-memory
+
+📌 TASK 2: Backend Auth Router Split
+✅ 2.1 Auth router split into modular files
+✅ 2.2 Main index.ts <5000 lines (was 5k)
+
+📌 TASK 3: Duplicate Schemas & Helpers
+✅ 3.1 Helpers exports schemas
+✅ 3.2 No schema redefinition in index.ts
+
+📌 TASK 4: Missing Backend Features
+✅ 4.1 Session revocation API exists
+✅ 4.2 Admin account recovery endpoint exists
+✅ 4.3 OpenAPI spec generation exists
+
+📌 TASK 5: Auth-React Package Scaffolding
+✅ 5.1 @workspace/auth-react package.json exists
+✅ 5.2 Package name correct
+✅ 5.3 Package builds (dist/index.js exists)
+
+📌 TASK 6: Unified Token Storage & API Client
+✅ 6.1 tokenStorage.ts exists
+✅ 6.2 authClient.ts exists
+✅ 6.3 jwtUtils.ts exists
+
+📌 TASK 7: Shared Hooks
+✅ 7.1 hooks directory exists
+✅ 7.2 useTokenRefresh.ts exists
+✅ 7.2 useAuth.ts exists
+✅ 7.2 useLoginFlow.ts exists
+
+📌 TASK 8: Shared UI Components
+✅ 8.1 OtpInput.tsx exists
+✅ 8.1 PhoneInput.tsx exists
+✅ 8.1 PasswordInput.tsx exists
+✅ 8.1 SocialButtons.tsx exists
+✅ 8.1 BiometricPrompt.tsx exists
+✅ 8.1 LoginScreen.tsx exists
+
+📌 TASK 9: Vendor App Migrated
+✅ 9.1 Vendor Login uses LoginScreen from shared package
+✅ 9.2 Vendor custom auth.tsx removed
+✅ 9.3 Vendor separate Register.tsx exists
+
+📌 TASK 10: Rider App Migrated
+✅ 10.1 Rider Login uses LoginScreen
+✅ 10.2 Rider custom auth.tsx removed
+
+📌 TASK 11: Customer App Migrated
+✅ 11.1 Customer AuthContext uses shared package
+✅ 11.2 Customer login uses LoginScreen
+
+📌 TASK 12: Tests & Documentation
+✅ 12.1 Backend auth tests exist
+✅ 12.2 Shared component tests exist
+✅ 12.3 OpenAPI spec exists
+✅ 12.4 AUTH.md documentation exists
+
+📌 PROFESSIONAL DESIGN CHECKS
+✅ Design: Longest auth-related file is artifacts/rider-app/src/pages/Wallet.tsx with 999 lines (should be <1000)
+✅ DRY: getDeviceFingerprint defined in 2 places (should be only in shared package or minimal)
+
+📊 AUDIT SUMMARY: Passed: 42, Failed: 0, Partial: 0
+
+🎉 ALL CHECKS PASSED! System is fully compliant and professional.
+```
+
+### Test Run Output
+
+Full output of `pnpm --filter @workspace/auth-react test` (run 2026-05-17):
+
+```
+> @workspace/auth-react@0.0.1 test /home/runner/workspace/lib/auth-react
+> vitest run
+
+ RUN  v4.1.5 /home/runner/workspace/lib/auth-react
+
+ Test Files  8 passed (8)
+      Tests  110 passed (110)
+   Start at  09:55:02
+   Duration  8.76s (transform 3.17s, setup 2.06s, import 6.00s, tests 1.23s, environment 9.73s)
+```

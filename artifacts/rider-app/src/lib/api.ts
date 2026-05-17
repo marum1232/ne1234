@@ -285,6 +285,15 @@ export interface Ride {
 }
 export interface RiderRequestsResponse { orders: Order[]; rides: Ride[]; _serverTime: string | null; }
 
+function readCsrfFromCookie(): string {
+  try {
+    const match = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]+)/);
+    return match ? decodeURIComponent(match[1]) : "";
+  } catch {
+    return "";
+  }
+}
+
 export async function apiFetch(path: string, opts: RequestInit = {}, _returnEnvelope = false, _5xxRetries = CB_DEFAULT_RETRIES): Promise<any> {
   /* Guard: reject immediately if this endpoint's circuit is open.
      Only checked on the initial call — recursive retries bypass this so they
@@ -307,10 +316,14 @@ export async function apiFetch(path: string, opts: RequestInit = {}, _returnEnve
   }
 
   const isFormData = opts.body instanceof FormData;
+  const method = (opts.method ?? "GET").toUpperCase();
+  const isStateMutating = ["POST", "PUT", "PATCH", "DELETE"].includes(method);
+  const csrfToken = isStateMutating ? readCsrfFromCookie() : "";
   const mergedOpts: RequestInit = {
     ...opts,
     headers: {
       ...(isFormData ? {} : { "Content-Type": "application/json" }),
+      ...(csrfToken ? { "X-CSRF-Token": csrfToken } : {}),
       ...(opts.headers as Record<string, string> || {}),
     },
   };

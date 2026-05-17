@@ -700,6 +700,21 @@ export default function OtpControl() {
         }
       />
 
+      {/* ── Dev-only: OTP bypass production warning ── */}
+      {import.meta.env.DEV && (
+        <div className="flex items-start gap-2.5 text-xs text-amber-800 bg-amber-50 border border-amber-300 rounded-xl p-3">
+          <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-amber-500" />
+          <span>
+            <strong>Development mode:</strong> OTP bypass codes (including{" "}
+            <code className="font-mono bg-amber-100 px-1 rounded">000000</code>{" "}
+            and{" "}
+            <code className="font-mono bg-amber-100 px-1 rounded">123456</code>
+            ) are blocked server-side in production. Bypass features here only
+            work in development and staging environments.
+          </span>
+        </div>
+      )}
+
       {/* ── Stat cards ── */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <StatCard
