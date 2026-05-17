@@ -21,7 +21,7 @@ function readLocalLang(): Language {
   try {
     const stored = localStorage.getItem(LS_KEY);
     if (stored && VALID_LANGS.has(stored)) return stored as Language;
-  } catch {}
+  } catch (err) { console.warn('[artifacts/vendor-app/src/lib/useLanguage.ts]', err); } // eslint-disable-line no-console
   return DEFAULT_LANGUAGE;
 }
 
@@ -45,12 +45,12 @@ export function useLanguage() {
       .then((s: SettingsResponse) => {
         if (s?.language && VALID_LANGS.has(s.language)) {
           const lang = s.language as Language;
-          try { localStorage.setItem(LS_KEY, lang); } catch {}
+          try { localStorage.setItem(LS_KEY, lang); } catch (err) { console.warn('[artifacts/vendor-app/src/lib/useLanguage.ts]', err); } // eslint-disable-line no-console
           setLang(lang);
           applyRTL(lang);
         }
       })
-      .catch(() => {})
+      .catch((err) => { console.warn('[artifacts/vendor-app/src/lib/useLanguage.ts]', err); }) // eslint-disable-line no-console
       .finally(() => setInitialised(true));
   }, []);
 
@@ -58,10 +58,10 @@ export function useLanguage() {
     setLoading(true);
     setLang(lang);
     applyRTL(lang);
-    try { localStorage.setItem(LS_KEY, lang); } catch {}
+    try { localStorage.setItem(LS_KEY, lang); } catch (err) { console.warn('[artifacts/vendor-app/src/lib/useLanguage.ts]', err); } // eslint-disable-line no-console
     try {
       await api.updateSettings({ language: lang });
-    } catch {}
+    } catch (err) { console.warn('[artifacts/vendor-app/src/lib/useLanguage.ts]', err); } // eslint-disable-line no-console
     setLoading(false);
   }, []);
 

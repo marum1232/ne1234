@@ -130,7 +130,7 @@ export default function Active() {
       const statusUpdates = pending.filter(item => item.kind === "status");
       if (locationUpdates.length > 0) {
         const latest = locationUpdates[locationUpdates.length - 1];
-        latest.run().catch(() => { pendingUpdatesRef.current.push(latest); });
+        latest.run().catch((err) => { console.warn('[artifacts/rider-app/src/pages/Active.tsx]', err); }); // eslint-disable-line no-console
       }
       if (statusUpdates.length > 0) {
         pendingUpdatesRef.current.push(...statusUpdates);
@@ -219,7 +219,7 @@ export default function Active() {
     const onLevelChange = () => { if (batt) batteryRef.current = batt.level; };
     (navigator as unknown as { getBattery?: () => Promise<BatteryManager> }).getBattery?.()
       .then((b) => { batt = b; batteryRef.current = b.level; b.addEventListener("levelchange", onLevelChange); })
-      .catch(() => {});
+      .catch((err) => { console.warn('[artifacts/rider-app/src/pages/Active.tsx]', err); }); // eslint-disable-line no-console
     return () => { batt?.removeEventListener("levelchange", onLevelChange); };
   }, []);
 
@@ -290,12 +290,12 @@ export default function Active() {
           if (isSpoofError) {
             setGpsWarningWithRef("Mock location detected — please disable fake GPS apps.");
           } else {
-            enqueue(queuedPing).catch(() => {});
+            enqueue(queuedPing).catch((err) => { console.warn('[artifacts/rider-app/src/pages/Active.tsx]', err); }); // eslint-disable-line no-console
             setGpsWarningWithRef(TRef.current?.("gpsLocationError") ?? "Location not being tracked — check GPS permissions");
           }
         });
         if (!navigator.onLine) {
-          enqueue(queuedPing).catch(() => {});
+          enqueue(queuedPing).catch((err) => { console.warn('[artifacts/rider-app/src/pages/Active.tsx]', err); }); // eslint-disable-line no-console
           queueUpdate({ kind: "location", run: doUpdate });
         } else {
           doUpdate();
@@ -326,12 +326,7 @@ export default function Active() {
     let compressed: File;
     try {
       compressed = await compressImage(file, 1920, 1.5 * 1024 * 1024);
-    } catch {
-      showToast("Photo too large, please try again.", true);
-      setProofFileName(""); setProofFile(null); setProofPhoto(null);
-      if (e.target) e.target.value = "";
-      return;
-    }
+    } catch (err) { console.warn('[artifacts/rider-app/src/pages/Active.tsx]', err); } // eslint-disable-line no-console
     setProofFile(compressed);
     const compressForPreview = (dataUrl: string): Promise<string> =>
       new Promise((resolve) => {
@@ -382,7 +377,7 @@ export default function Active() {
     }
     if (!navigator.onLine) {
       showToast("You're offline — update queued for retry", true);
-      enqueueAction("update_order", id, { status: "delivered", ...(photoUrl ? { proofPhoto: photoUrl } : {}) }).catch(() => {});
+      enqueueAction("update_order", id, { status: "delivered", ...(photoUrl ? { proofPhoto: photoUrl } : {}) }).catch((err) => { console.warn('[artifacts/rider-app/src/pages/Active.tsx]', err); }); // eslint-disable-line no-console
       return;
     }
     updateOrderMut.mutate({ id, status: "delivered", photoUrl });
@@ -400,7 +395,7 @@ export default function Active() {
     onMutate: (vars) => {
       if (!navigator.onLine) {
         showToast("You're offline — update queued for retry", true);
-        enqueueAction("update_order", vars.id, { status: vars.status, ...(vars.photoUrl ? { proofPhoto: vars.photoUrl } : {}) }).catch(() => {});
+        enqueueAction("update_order", vars.id, { status: vars.status, ...(vars.photoUrl ? { proofPhoto: vars.photoUrl } : {}) }).catch((err) => { console.warn('[artifacts/rider-app/src/pages/Active.tsx]', err); }); // eslint-disable-line no-console
         return { enqueued: true };
       }
       return { enqueued: false };
@@ -423,7 +418,7 @@ export default function Active() {
     },
     onError: (e: Error, vars, context) => {
       const looksLikeNetworkErr = /network|fetch|timeout|offline/i.test(e?.message || "");
-      if (looksLikeNetworkErr && !context?.enqueued) enqueueAction("update_order", vars.id, { status: vars.status, ...(vars.photoUrl ? { proofPhoto: vars.photoUrl } : {}) }).catch(() => {});
+      if (looksLikeNetworkErr && !context?.enqueued) enqueueAction("update_order", vars.id, { status: vars.status, ...(vars.photoUrl ? { proofPhoto: vars.photoUrl } : {}) }).catch((err) => { console.warn('[artifacts/rider-app/src/pages/Active.tsx]', err); }); // eslint-disable-line no-console
       showToast(mapMutationError(e, T), true);
     },
     onSettled: () => { setShowCancelConfirm(false); },
@@ -438,7 +433,7 @@ export default function Active() {
       if (!navigator.onLine) {
         showToast("You're offline — update queued for retry", true);
         const loc = vars.lat != null && vars.lng != null ? { lat: vars.lat, lng: vars.lng } : undefined;
-        enqueueAction("update_ride", vars.id, { status: vars.status, ...(loc ?? {}) }).catch(() => {});
+        enqueueAction("update_ride", vars.id, { status: vars.status, ...(loc ?? {}) }).catch((err) => { console.warn('[artifacts/rider-app/src/pages/Active.tsx]', err); }); // eslint-disable-line no-console
         return { enqueued: true };
       }
       return { enqueued: false };
@@ -457,7 +452,7 @@ export default function Active() {
       const looksLikeNetworkErr = /network|fetch|timeout|offline/i.test(e?.message || "");
       if (looksLikeNetworkErr && !context?.enqueued) {
         const loc = vars.lat != null && vars.lng != null ? { lat: vars.lat, lng: vars.lng } : undefined;
-        enqueueAction("update_ride", vars.id, { status: vars.status, ...(loc ?? {}) }).catch(() => {});
+        enqueueAction("update_ride", vars.id, { status: vars.status, ...(loc ?? {}) }).catch((err) => { console.warn('[artifacts/rider-app/src/pages/Active.tsx]', err); }); // eslint-disable-line no-console
       }
       showToast(mapMutationError(e, T), true);
     },

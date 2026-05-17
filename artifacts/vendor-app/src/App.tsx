@@ -124,7 +124,7 @@ function AppRoutes() {
         queryKey: ["vendor-order", orderId],
         queryFn: () => api.getVendorOrder(orderId),
         staleTime: 30_000,
-      }).catch(() => {});
+      }).catch((err) => { console.warn('[artifacts/vendor-app/src/App.tsx]', err); }); // eslint-disable-line no-console
       navigate(`/orders/${orderId}`);
 
     } else if (pending) {
@@ -174,7 +174,7 @@ function AppRoutes() {
           gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
           osc.start(ctx.currentTime);
           osc.stop(ctx.currentTime + 0.4);
-        } catch {}
+        } catch (err) { console.warn('[artifacts/vendor-app/src/App.tsx]', err); } // eslint-disable-line no-console
       }
       /* Banner copy for cancellation and settlement types */
       let displayTitle = title;
@@ -206,7 +206,7 @@ function AppRoutes() {
     if (Capacitor.isNativePlatform()) {
       registerPush(onForeground, onNotificationTap, onPushError).then(cleanup => {
         if (cleanup) fcmCleanupRef.current = cleanup;
-      }).catch(() => {});
+      }).catch((err) => { console.warn('[artifacts/vendor-app/src/App.tsx]', err); }); // eslint-disable-line no-console
       return () => {
         fcmCleanupRef.current?.remove();
         if (fcmDismissTimer.current) clearTimeout(fcmDismissTimer.current);
@@ -215,18 +215,18 @@ function AppRoutes() {
     if (typeof Notification !== "undefined" && Notification.requestPermission) {
       Notification.requestPermission().then(perm => {
         if (perm === "granted") {
-          registerPush(undefined, undefined, onPushError).catch(() => {});
+          registerPush(undefined, undefined, onPushError).catch((err) => { console.warn('[artifacts/vendor-app/src/App.tsx]', err); }); // eslint-disable-line no-console
         } else if (perm === "denied") {
           setPushError("permission_denied");
         }
-      }).catch(() => {});
+      }).catch((err) => { console.warn('[artifacts/vendor-app/src/App.tsx]', err); }); // eslint-disable-line no-console
     }
 
     /* Re-register whenever the vendor tab regains focus so tokens stay fresh
        and any rotation that happened while backgrounded is picked up. */
     const onVisibilityChange = () => {
       if (document.visibilityState === "visible") {
-        registerPush(undefined, undefined, onPushError).catch(() => {});
+        registerPush(undefined, undefined, onPushError).catch((err) => { console.warn('[artifacts/vendor-app/src/App.tsx]', err); }); // eslint-disable-line no-console
       }
     };
     document.addEventListener("visibilitychange", onVisibilityChange);
@@ -240,9 +240,7 @@ function AppRoutes() {
           const base = (import.meta.env.BASE_URL || "/vendor").replace(/\/$/, "");
           const appPath = fullUrl.pathname.replace(new RegExp(`^${base}`), "") || "/";
           navigate(appPath);
-        } catch {
-          navigate("/");
-        }
+        } catch (err) { console.warn('[artifacts/vendor-app/src/App.tsx]', err); } // eslint-disable-line no-console
       }
     };
     navigator.serviceWorker?.addEventListener("message", onSwMessage);

@@ -60,13 +60,13 @@ export function connectVendorSocket(vendorId: string): void {
     if (orderId && wasOrderSeenRecently(orderId)) return;
     if (orderId) markOrderSeen(orderId);
     _newOrderHandlers.forEach(fn => {
-      try { fn(order); } catch {}
+      try { fn(order); } catch (err) { console.warn('[artifacts/vendor-app/src/lib/socket.ts]', err); } // eslint-disable-line no-console
     });
   });
 
   _socket.on("order:update", (order: Record<string, unknown>) => {
     _orderUpdateHandlers.forEach(fn => {
-      try { fn(order); } catch {}
+      try { fn(order); } catch (err) { console.warn('[artifacts/vendor-app/src/lib/socket.ts]', err); } // eslint-disable-line no-console
     });
   });
 

@@ -67,7 +67,7 @@ export default function Login() {
   const { config } = usePlatformConfig();
   const auth = useRiderAuthConfig();
   const { language } = useLanguage();
-  const T = (key: TranslationKey) => tDual(key, language);
+  const T = (key: TranslationKey) => tDual(key, language); // eslint-disable-line react-hooks/exhaustive-deps
   const appName = config.platform.appName;
   const googleClientId = auth.googleClientId ?? config.auth?.googleClientId;
   const facebookAppId  = auth.facebookAppId  ?? config.auth?.facebookAppId;

@@ -27,7 +27,7 @@ export function GoalSection({ adminGoal, personalGoal, todayEarnings, currency, 
     mutationFn: (v: number | null) => api.updateProfile({ dailyGoal: v }),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["rider-earnings"] });
-      await refreshUser().catch(() => {});
+      await refreshUser().catch((err) => { console.warn('[artifacts/rider-app/src/components/home/GoalSection.tsx]', err); }); // eslint-disable-line no-console
       setShowModal(false);
       showToast("Daily goal updated!", "success");
     },

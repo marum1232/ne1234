@@ -65,7 +65,7 @@ async function sendReport(report: Record<string, unknown>): Promise<void> {
       headers,
       body,
     });
-  } catch {}
+  } catch (err) { console.warn('[artifacts/rider-app/src/lib/error-reporter.ts]', err); }
 }
 
 async function flushQueue(): Promise<void> {
@@ -153,7 +153,7 @@ export function initErrorReporter(): void {
     const msg = args.map(a => {
       if (a instanceof Error) return a.message;
       if (typeof a === "string") return a;
-      try { return JSON.stringify(a); } catch { return String(a); }
+      try { return JSON.stringify(a); } catch (err) { console.warn('[artifacts/rider-app/src/lib/error-reporter.ts]', err); }
     }).join(" ");
 
     if (msg.includes("[ErrorReporter]") || msg.includes("error-reports")) return;

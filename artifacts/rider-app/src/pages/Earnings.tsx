@@ -74,7 +74,7 @@ export default function Earnings() {
     onSuccess: async () => {
       await Promise.all([
         qc.invalidateQueries({ queryKey: ["rider-earnings"] }),
-        refreshUser().catch(() => {}),
+        refreshUser().catch((err) => { console.warn('[artifacts/rider-app/src/pages/Earnings.tsx]', err); }), // eslint-disable-line no-console
       ]);
       setGoalError(null);
       setShowGoalModal(false);

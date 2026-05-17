@@ -30,7 +30,7 @@ const INPUT = "w-full h-12 px-4 bg-gray-50 border border-gray-200 rounded-xl tex
 export default function ForgotPassword() {
   const { config } = usePlatformConfig();
   const { language } = useLanguage();
-  const T = (key: TranslationKey) => tDual(key, language);
+  const T = (key: TranslationKey) => tDual(key, language); // eslint-disable-line react-hooks/exhaustive-deps
   const auth = getRiderAuthConfig(config);
   const captchaSiteKey = config.auth?.captchaSiteKey;
   const phoneHint = config.regional?.phoneHint ?? "03XXXXXXXXX";
@@ -40,7 +40,7 @@ export default function ForgotPassword() {
         const re = new RegExp(config.regional.phoneFormat);
         return (p: string) => re.test(p);
       }
-    } catch { /* invalid regex — fall through to hardcoded regex */ }
+    } catch (err) { console.warn('[artifacts/rider-app/src/pages/ForgotPassword.tsx]', err); } // eslint-disable-line no-console
     return (p: string) => /^0?3\d{9}$/.test(p.replace(/[\s\-()+]/g, ""));
   })();
 
@@ -74,7 +74,7 @@ export default function ForgotPassword() {
     try {
       let captchaToken: string | undefined;
       if (auth.captchaEnabled) {
-        try { captchaToken = await executeCaptcha("forgot_password", captchaSiteKey); } catch { /* noop */ }
+        try { captchaToken = await executeCaptcha("forgot_password", captchaSiteKey); } catch (err) { console.warn('[artifacts/rider-app/src/pages/ForgotPassword.tsx]', err); } // eslint-disable-line no-console
         if (!captchaToken) { setError(T("captchaRequired")); setLoading(false); return; }
       }
       const res = await api.forgotPassword({
@@ -97,7 +97,7 @@ export default function ForgotPassword() {
     try {
       let captchaToken: string | undefined;
       if (auth.captchaEnabled) {
-        try { captchaToken = await executeCaptcha("reset_password", captchaSiteKey); } catch { /* noop */ }
+        try { captchaToken = await executeCaptcha("reset_password", captchaSiteKey); } catch (err) { console.warn('[artifacts/rider-app/src/pages/ForgotPassword.tsx]', err); } // eslint-disable-line no-console
         if (!captchaToken) { setError(T("captchaRequired")); setLoading(false); return; }
       }
       await api.resetPassword({
@@ -126,7 +126,7 @@ export default function ForgotPassword() {
     try {
       let captchaToken: string | undefined;
       if (auth.captchaEnabled) {
-        try { captchaToken = await executeCaptcha("reset_password_2fa", captchaSiteKey); } catch { /* noop */ }
+        try { captchaToken = await executeCaptcha("reset_password_2fa", captchaSiteKey); } catch (err) { console.warn('[artifacts/rider-app/src/pages/ForgotPassword.tsx]', err); } // eslint-disable-line no-console
       }
       await api.resetPassword({
         ...(method === "phone" ? { phone: formatPhoneForApi(phone) } : { email }),

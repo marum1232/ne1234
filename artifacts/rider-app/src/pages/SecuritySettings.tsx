@@ -113,7 +113,7 @@ export default function SecuritySettings() {
   const { config } = usePlatformConfig();
   const { language } = useLanguage();
   const { user, refreshUser } = useAuth();
-  const T = (key: TranslationKey) => tDual(key, language);
+  const T = (key: TranslationKey) => tDual(key, language); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [view, setView] = useState<ViewState>("main");
   const [loading, setLoading] = useState(false);

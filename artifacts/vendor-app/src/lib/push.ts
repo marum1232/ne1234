@@ -58,8 +58,8 @@ if (Capacitor.isNativePlatform()) {
       if (Object.keys(data).length > 0) {
         _pendingTapData = data;
       }
-    }).catch(() => {});
-  }).catch(() => {});
+    }).catch((err) => { console.warn('[artifacts/vendor-app/src/lib/push.ts]', err); }); // eslint-disable-line no-console
+  }).catch((err) => { console.warn('[artifacts/vendor-app/src/lib/push.ts]', err); }); // eslint-disable-line no-console
 }
 
 /** Called when push registration fails so the UI can show a re-enable prompt. */
@@ -155,12 +155,12 @@ async function registerFcmPush(
         /* resolve() is idempotent — subsequent calls (token rotation) are no-ops
            on the promise but we still re-register the new token with the server. */
         resolve(newToken.value);
-        await registerTokenWithServer(newToken.value).catch(() => {});
+        await registerTokenWithServer(newToken.value).catch((err) => { console.warn('[artifacts/vendor-app/src/lib/push.ts]', err); }); // eslint-disable-line no-console
       }).then((h) => cleanups.push(h)).catch(reject);
 
       PushNotifications.addListener("registrationError", (err) => {
         reject(new Error(err.error));
-      }).then((h) => cleanups.push(h)).catch(() => {});
+      }).then((h) => cleanups.push(h)).catch((err) => { console.warn('[artifacts/vendor-app/src/lib/push.ts]', err); }); // eslint-disable-line no-console
     });
 
     /* Token refresh listener — fires when FCM rotates the device token without
@@ -173,14 +173,14 @@ async function registerFcmPush(
       addListener(e: "tokenRefresh", fn: (t: { registration?: string; value?: string }) => void): Promise<{ remove: () => void }>;
     }).addListener("tokenRefresh", async (newToken) => {
       const token = newToken.registration ?? newToken.value;
-      if (token) await registerTokenWithServer(token).catch(() => {});
-    }).then((h) => cleanups.push(h)).catch(() => {});
+      if (token) await registerTokenWithServer(token).catch((err) => { console.warn('[artifacts/vendor-app/src/lib/push.ts]', err); }); // eslint-disable-line no-console
+    }).then((h) => cleanups.push(h)).catch((err) => { console.warn('[artifacts/vendor-app/src/lib/push.ts]', err); }); // eslint-disable-line no-console
 
     if (onForegroundMessage) {
       PushNotifications.addListener("pushNotificationReceived", (notification) => {
         const data = (notification.data ?? {}) as Record<string, string>;
         onForegroundMessage(notification.title ?? "", notification.body ?? "", data);
-      }).then((h) => cleanups.push(h)).catch(() => {});
+      }).then((h) => cleanups.push(h)).catch((err) => { console.warn('[artifacts/vendor-app/src/lib/push.ts]', err); }); // eslint-disable-line no-console
     }
 
     /* Handle notification tap — fires when vendor taps the notification in the
@@ -193,7 +193,7 @@ async function registerFcmPush(
         _pendingTapData = null;
         const data = (action.notification?.data ?? {}) as Record<string, string>;
         onNotificationTap(data);
-      }).then((h) => cleanups.push(h)).catch(() => {});
+      }).then((h) => cleanups.push(h)).catch((err) => { console.warn('[artifacts/vendor-app/src/lib/push.ts]', err); }); // eslint-disable-line no-console
     }
 
     /* Now trigger registration — token/error events may fire after this. */
@@ -250,7 +250,7 @@ async function registerVapidPush(onError?: PushErrorHandler): Promise<void> {
           log.warn("VAPID re-registration failed:", res.status);
           if (res.status >= 400 && res.status < 500) {
             /* 4xx: subscription is stale — unsubscribe and force fresh registration */
-            await existing.unsubscribe().catch(() => {});
+            await existing.unsubscribe().catch((err) => { console.warn('[artifacts/vendor-app/src/lib/push.ts]', err); }); // eslint-disable-line no-console
             onError?.("registration_failed");
           } else if (res.status >= 500) {
             /* 5xx: server error — surface to UI so vendor knows push may be degraded */

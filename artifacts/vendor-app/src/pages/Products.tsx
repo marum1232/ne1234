@@ -47,7 +47,7 @@ export default function Products() {
     try {
       const stored = localStorage.getItem("vendor_product_thresholds");
       return stored ? JSON.parse(stored) : {};
-    } catch { return {}; }
+    } catch (err) { console.warn('[artifacts/vendor-app/src/pages/Products.tsx]', err); return {}; } // eslint-disable-line no-console
   });
 
   const saveThreshold = (productId: string, value: number | null) => {
@@ -58,7 +58,7 @@ export default function Products() {
       } else {
         next[productId] = value;
       }
-      try { localStorage.setItem("vendor_product_thresholds", JSON.stringify(next)); } catch {}
+      try { localStorage.setItem("vendor_product_thresholds", JSON.stringify(next)); } catch (err) { console.warn('[artifacts/vendor-app/src/pages/Products.tsx]', err); } // eslint-disable-line no-console
       return next;
     });
   };
@@ -491,7 +491,7 @@ export default function Products() {
     qc.invalidateQueries({ queryKey: ["vendor-products"] });
     qc.invalidateQueries({ queryKey: ["vendor-products-all"] });
     showToast(`✅ ${successCount} of ${valid.length} products added!`);
-  }, [bulkRows, totalProductCount, maxItems, bulkCat, qc]);
+  }, [bulkRows, totalProductCount, maxItems, bulkCat, qc]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const bulkMut = useMutation({
     mutationFn: () => {

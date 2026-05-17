@@ -88,7 +88,7 @@ function openDB(): Promise<IDBDatabase> {
     req.onsuccess = () => {
       const db = req.result;
       db.onclose = () => { _dbPromise = null; };
-      db.onversionchange = () => { try { db.close(); } catch {} _dbPromise = null; };
+      db.onversionchange = () => { try { db.close(); } catch (err) { console.warn('[artifacts/rider-app/src/lib/gpsQueue.ts]', err); } _dbPromise = null; }; // eslint-disable-line no-console
       resolve(db);
     };
     req.onerror = () => { _dbPromise = null; reject(req.error); };
@@ -161,7 +161,7 @@ export async function enqueue(ping: QueuedPing): Promise<void> {
       };
       countReq.onerror = () => tx.abort();
     });
-  } catch { /* swallow — offline queue is best-effort */ }
+  } catch (err) { console.warn('[artifacts/rider-app/src/lib/gpsQueue.ts]', err); } // eslint-disable-line no-console
 }
 
 export async function dequeueAll(): Promise<QueuedPing[]> {
@@ -175,7 +175,7 @@ export async function dequeueAll(): Promise<QueuedPing[]> {
       req.onsuccess = () => resolve((req.result ?? []) as QueuedPing[]);
       req.onerror   = () => reject(req.error);
     });
-  } catch { return []; }
+  } catch (err) { console.warn('[artifacts/rider-app/src/lib/gpsQueue.ts]', err); } // eslint-disable-line no-console
 }
 
 export async function clearQueue(ids: string[]): Promise<void> {
@@ -189,7 +189,7 @@ export async function clearQueue(ids: string[]): Promise<void> {
       tx.oncomplete = () => resolve();
       tx.onerror    = () => reject(tx.error);
     });
-  } catch {}
+  } catch (err) { console.warn('[artifacts/rider-app/src/lib/gpsQueue.ts]', err); } // eslint-disable-line no-console
 }
 
 export async function queueSize(): Promise<number> {
@@ -202,7 +202,7 @@ export async function queueSize(): Promise<number> {
       req.onsuccess = () => resolve(req.result);
       req.onerror   = () => reject(req.error);
     });
-  } catch { return 0; }
+  } catch (err) { console.warn('[artifacts/rider-app/src/lib/gpsQueue.ts]', err); } // eslint-disable-line no-console
 }
 
 /* ── Dismissed-request store ──────────────────────────────────────────────────
@@ -219,7 +219,7 @@ export async function addDismissed(id: string): Promise<void> {
       tx.oncomplete = () => resolve();
       tx.onerror    = () => reject(tx.error);
     });
-  } catch {}
+  } catch (err) { console.warn('[artifacts/rider-app/src/lib/gpsQueue.ts]', err); } // eslint-disable-line no-console
 }
 
 export async function removeDismissed(id: string): Promise<void> {
@@ -231,7 +231,7 @@ export async function removeDismissed(id: string): Promise<void> {
       tx.oncomplete = () => resolve();
       tx.onerror    = () => reject(tx.error);
     });
-  } catch {}
+  } catch (err) { console.warn('[artifacts/rider-app/src/lib/gpsQueue.ts]', err); } // eslint-disable-line no-console
 }
 
 export async function loadDismissed(): Promise<Set<string>> {
@@ -250,7 +250,7 @@ export async function loadDismissed(): Promise<Set<string>> {
       purgeExpiredDismissed(expired.map(e => e.id));
     }
     return new Set(valid.map(e => e.id));
-  } catch { return new Set(); }
+  } catch (err) { console.warn('[artifacts/rider-app/src/lib/gpsQueue.ts]', err); } // eslint-disable-line no-console
 }
 
 /** Purge expired entries from the dismissed store (fire-and-forget) */
@@ -265,7 +265,7 @@ async function purgeExpiredDismissed(ids: string[]): Promise<void> {
       tx.oncomplete = () => resolve();
       tx.onerror    = () => reject(tx.error);
     });
-  } catch {}
+  } catch (err) { console.warn('[artifacts/rider-app/src/lib/gpsQueue.ts]', err); } // eslint-disable-line no-console
 }
 
 /**
@@ -286,7 +286,7 @@ export async function clearAllDismissed(): Promise<void> {
       tx.oncomplete = () => resolve();
       tx.onerror    = () => reject(tx.error);
     });
-  } catch {}
+  } catch (err) { console.warn('[artifacts/rider-app/src/lib/gpsQueue.ts]', err); } // eslint-disable-line no-console
 }
 
 /* ── Drain handler ────────────────────────────────────────────────────────────
@@ -341,7 +341,7 @@ async function drainQueue(): Promise<void> {
         continue;
       }
     }
-  } catch { /* drain failed — will retry next online event */ }
+  } catch (err) { console.warn('[artifacts/rider-app/src/lib/gpsQueue.ts]', err); } // eslint-disable-line no-console
   finally { _draining = false; }
 }
 

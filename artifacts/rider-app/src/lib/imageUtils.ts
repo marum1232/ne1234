@@ -49,7 +49,7 @@ export async function compressImage(file: File): Promise<File> {
           if (blob && blob.size < file.size) {
             const candidate = await blobToFile(blob, file.name.replace(/\.[^.]+$/, ".webp"), "image/webp");
             if (import.meta.env.DEV && !bestFile) {
-              console.debug(`[imageUtils] ${file.name}: ${(file.size / 1024).toFixed(1)}KB → ${(blob.size / 1024).toFixed(1)}KB (webp q${quality})`);
+              console.debug(`[imageUtils] ${file.name}: ${(file.size / 1024).toFixed(1)}KB → ${(blob.size / 1024).toFixed(1)}KB (webp q${quality})`); // eslint-disable-line no-console
             }
             if (blob.size <= TARGET_SIZE_BYTES) { resolve(candidate); return; }
             if (!bestFile || blob.size < bestFile.size) bestFile = candidate;
@@ -61,7 +61,7 @@ export async function compressImage(file: File): Promise<File> {
         if (jblob && jblob.size < file.size) {
           const candidate = await blobToFile(jblob, file.name.replace(/\.[^.]+$/, ".jpg"), "image/jpeg");
           if (import.meta.env.DEV && !bestFile) {
-            console.debug(`[imageUtils] ${file.name}: ${(file.size / 1024).toFixed(1)}KB → ${(jblob.size / 1024).toFixed(1)}KB (jpeg q${quality})`);
+            console.debug(`[imageUtils] ${file.name}: ${(file.size / 1024).toFixed(1)}KB → ${(jblob.size / 1024).toFixed(1)}KB (jpeg q${quality})`); // eslint-disable-line no-console
           }
           if (jblob.size <= TARGET_SIZE_BYTES) { resolve(candidate); return; }
           if (!bestFile || jblob.size < bestFile.size) bestFile = candidate;
@@ -70,7 +70,7 @@ export async function compressImage(file: File): Promise<File> {
 
       if (bestFile) {
         if (import.meta.env.DEV) {
-          console.debug(`[imageUtils] ${file.name}: best effort ${(bestFile.size / 1024).toFixed(1)}KB (target was ${(TARGET_SIZE_BYTES / 1024).toFixed(0)}KB)`);
+          console.debug(`[imageUtils] ${file.name}: best effort ${(bestFile.size / 1024).toFixed(1)}KB (target was ${(TARGET_SIZE_BYTES / 1024).toFixed(0)}KB)`); // eslint-disable-line no-console
         }
         resolve(bestFile);
       } else {

@@ -33,9 +33,7 @@ function getOrCreateSessionId(): string {
     const id = `sess_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     sessionStorage.setItem(SESSION_KEY, id);
     return id;
-  } catch {
-    return `sess_fallback_${Date.now()}`;
-  }
+  } catch (err) { console.warn('[artifacts/vendor-app/src/components/PopupEngine.tsx]', err); } // eslint-disable-line no-console
 }
 
 const sessionSeenIds = new Set<string>();
@@ -55,9 +53,7 @@ function shouldShowPopup(popup: Popup): boolean {
       return !sessionSeenIds.has(popup.id);
     }
     return true;
-  } catch {
-    return true;
-  }
+  } catch (err) { console.warn('[artifacts/vendor-app/src/components/PopupEngine.tsx]', err); } // eslint-disable-line no-console
 }
 
 function markPopupSeen(popup: Popup): void {
@@ -69,7 +65,7 @@ function markPopupSeen(popup: Popup): void {
     } else if (popup.displayFrequency === "every_session") {
       sessionSeenIds.add(popup.id);
     }
-  } catch {}
+  } catch (err) { console.warn('[artifacts/vendor-app/src/components/PopupEngine.tsx]', err); } // eslint-disable-line no-console
 }
 
 async function sendImpression(popupId: string, action: string, token: string | null, sessionId: string): Promise<void> {
@@ -82,7 +78,7 @@ async function sendImpression(popupId: string, action: string, token: string | n
       },
       body: JSON.stringify({ popupId, action, sessionId }),
     });
-  } catch {}
+  } catch (err) { console.warn('[artifacts/vendor-app/src/components/PopupEngine.tsx]', err); } // eslint-disable-line no-console
 }
 
 function getAnimationClass(animation: string | null, type: string): string {
@@ -173,7 +169,7 @@ export function PopupEngine() {
           setQueue(eligible);
           showAt(eligible, 0);
         }
-      } catch {}
+      } catch (err) { console.warn('[artifacts/vendor-app/src/components/PopupEngine.tsx]', err); } // eslint-disable-line no-console
     })();
     return () => {
       if (autoDismissTimer.current) clearTimeout(autoDismissTimer.current);

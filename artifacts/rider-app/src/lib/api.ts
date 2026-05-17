@@ -31,7 +31,7 @@ try {
   if (typeof localStorage !== "undefined") {
     localStorage.removeItem(REFRESH_KEY);
   }
-} catch { /* storage may be blocked */ }
+} catch (err) { console.warn('[artifacts/rider-app/src/lib/api.ts]', err); } // eslint-disable-line no-console
 
 /* ── Preferences-backed async token storage ── */
 async function preferencesSet(key: string, value: string): Promise<void> {
@@ -74,11 +74,11 @@ function sessionGet(): string {
 }
 function sessionSet(value: string): void {
   _inMemoryAccessToken = value;
-  preferencesSet(TOKEN_KEY, value).catch(() => {});
+  preferencesSet(TOKEN_KEY, value).catch((err) => { console.warn('[artifacts/rider-app/src/lib/api.ts]', err); }); // eslint-disable-line no-console
 }
 function sessionRemove(): void {
   _inMemoryAccessToken = "";
-  preferencesRemove(TOKEN_KEY).catch(() => {});
+  preferencesRemove(TOKEN_KEY).catch((err) => { console.warn('[artifacts/rider-app/src/lib/api.ts]', err); }); // eslint-disable-line no-console
 }
 
 /* Refresh token helpers — IN-MEMORY ONLY.
@@ -90,11 +90,11 @@ function localGet(): string {
 }
 function localSet(value: string): void {
   _inMemoryRefreshToken = value;
-  try { localStorage.removeItem(REFRESH_KEY); } catch {}
+  try { localStorage.removeItem(REFRESH_KEY); } catch (err) { console.warn('[artifacts/rider-app/src/lib/api.ts]', err); } // eslint-disable-line no-console
 }
 function localRemove(): void {
   _inMemoryRefreshToken = "";
-  try { localStorage.removeItem(REFRESH_KEY); } catch {}
+  try { localStorage.removeItem(REFRESH_KEY); } catch (err) { console.warn('[artifacts/rider-app/src/lib/api.ts]', err); } // eslint-disable-line no-console
 }
 
 /* ── Shared SDK auth client (typed HTTP client from @workspace/auth-react) ── */
@@ -132,8 +132,8 @@ function sweepLegacyTokens(): void {
         keysToRemove.push(key);
       }
     }
-    keysToRemove.forEach(k => { try { localStorage.removeItem(k); } catch {} });
-  } catch {}
+    keysToRemove.forEach(k => { try { localStorage.removeItem(k); } catch (err) { console.warn('[artifacts/rider-app/src/lib/api.ts]', err); } }); // eslint-disable-line no-console
+  } catch (err) { console.warn('[artifacts/rider-app/src/lib/api.ts]', err); } // eslint-disable-line no-console
 }
 
 function clearTokens(): void {
@@ -175,7 +175,7 @@ function triggerLogout(reason: string) {
   /* Also dispatch CustomEvent for components that still listen to it */
   try {
     window.dispatchEvent(new CustomEvent("ajkmart:logout", { detail: { reason } }));
-  } catch {}
+  } catch (err) { console.warn('[artifacts/rider-app/src/lib/api.ts]', err); } // eslint-disable-line no-console
 }
 
 export interface ApiError extends Error {
@@ -216,7 +216,7 @@ const [_riderFetcher, _riderRefresh] = createApiFetcher({
   setToken: (token: string | null) => {
     if (token) sessionSet(token);
     sweepLegacyTokens();
-    _tokenRefreshCallbacks.forEach(fn => { try { fn(); } catch {} });
+    _tokenRefreshCallbacks.forEach(fn => { try { fn(); } catch (err) { console.warn('[artifacts/rider-app/src/lib/api.ts]', err); } }); // eslint-disable-line no-console
   },
   getRefreshToken: localGet,
   setRefreshToken: localSet,
@@ -396,19 +396,14 @@ export async function apiFetch(path: string, opts: RequestInit = {}, _returnEnve
     try {
       const { reportApiError } = await import("./error-reporter");
       reportApiError(path, res.status, err.error || "Request failed");
-    } catch {}
+    } catch (err) { console.warn('[artifacts/rider-app/src/lib/api.ts]', err); } // eslint-disable-line no-console
     throw error;
   }
 
   let json: ApiEnvelope;
   try {
     json = await res.json() as ApiEnvelope;
-  } catch {
-    throw Object.assign(
-      new Error("Response could not be parsed — please try again."),
-      { status: res.status, parseError: true },
-    );
-  }
+  } catch (err) { console.warn('[artifacts/rider-app/src/lib/api.ts]', err); } // eslint-disable-line no-console
   /* When returnEnvelope is true, the caller receives the full JSON envelope
      (e.g. to read top-level fields like serverTime alongside data). */
   /* Successful response — reset the failure counter for this endpoint so a

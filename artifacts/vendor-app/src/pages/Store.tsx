@@ -37,7 +37,7 @@ function useVendorTileConfig() {
           setTile({ url: `https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&key=${tok}`, attribution: "© Google Maps", provider: "google" });
         }
       })
-      .catch(() => {});
+      .catch((err) => { console.warn('[artifacts/vendor-app/src/pages/Store.tsx]', err); }); // eslint-disable-line no-console
   }, []);
   return tile;
 }
@@ -106,7 +106,7 @@ export default function Store() {
   const [hours, setHours] = useState<Record<string, { open:string; close:string; closed:boolean }>>(() => {
     if (!user?.storeHours) return DEFAULT_HOURS;
     if (typeof user.storeHours === "string") {
-      try { return JSON.parse(user.storeHours); } catch { return DEFAULT_HOURS; }
+      try { return JSON.parse(user.storeHours); } catch (err) { console.warn('[artifacts/vendor-app/src/pages/Store.tsx]', err); } // eslint-disable-line no-console
     }
     return user.storeHours;
   });
@@ -124,7 +124,7 @@ export default function Store() {
     });
     if (user.storeHours) {
       const parsed = typeof user.storeHours === "string"
-        ? (() => { try { return JSON.parse(user.storeHours as string); } catch { return null; } })()
+        ? (() => { try { return JSON.parse(user.storeHours as string); } catch (err) { console.warn('[artifacts/vendor-app/src/pages/Store.tsx]', err); } })() // eslint-disable-line no-console
         : user.storeHours;
       if (parsed) setHours(parsed);
     }

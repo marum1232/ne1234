@@ -13,11 +13,20 @@
     "db:seed": "curl -sf -X POST http://localhost:${PORT:-5000}/api/seed/full -H \"x-admin-seed-key: ${DEV_SEED_KEY:-local-dev-seed-ajkmart}\" -H 'Content-Type: application/json' | node -e \"process.stdin.resume(); let d=''; process.stdin.on('data',c=>d+=c); process.stdin.on('end',()=>{try{const r=JSON.parse(d);console.log(JSON.stringify(r,null,2));}catch{console.log(d);}});\"",
     "audit:admin": "node scripts/admin-button-audit.js",
     "lint": "pnpm -r --filter './artifacts/**' --filter './lib/logger' --if-present run lint",
-    "format": "prettier --write \"artifacts/**/*.{ts,tsx}\" \"lib/**/*.{ts,tsx}\" \"packages/**/*.{ts,tsx}\""
+    "format": "prettier --write \"artifacts/**/*.{ts,tsx}\" \"lib/**/*.{ts,tsx}\" \"packages/**/*.{ts,tsx}\"",
+    "prepare": "husky"
   },
   "private": true,
+  "lint-staged": {
+    "artifacts/api-server/src/**/*.{ts,tsx}": "pnpm --filter @workspace/api-server run lint --",
+    "artifacts/admin/src/**/*.{ts,tsx}": "pnpm --filter @workspace/admin run lint --",
+    "artifacts/rider-app/src/**/*.{ts,tsx}": "pnpm --filter @workspace/rider-app run lint --",
+    "artifacts/vendor-app/src/**/*.{ts,tsx}": "pnpm --filter @workspace/vendor-app run lint --"
+  },
   "devDependencies": {
     "concurrently": "^9.2.1",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.0.4",
     "prettier": "^3.8.1",
     "tsup": "^8.5.1",
     "typescript": "~5.9.2"

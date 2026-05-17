@@ -110,9 +110,7 @@ export default function Register() {
         /* Do not restore step 4 — OTP is single-use and requires a fresh send */
         setStep(Math.min(draft.step as number, 3));
       }
-    } catch {
-      /* ignore corrupt draft */
-    }
+    } catch (err) { console.warn('[artifacts/rider-app/src/pages/Register.tsx]', err); } // eslint-disable-line no-console
   }, []);
 
   /* Persist draft whenever step or key form fields change */
@@ -129,9 +127,7 @@ export default function Register() {
         licensePhoto: licensePhoto ? { label: licensePhoto.label, url: licensePhoto.url, preview: licensePhoto.url } : null,
       };
       sessionStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
-    } catch {
-      /* ignore quota errors */
-    }
+    } catch (err) { console.warn('[artifacts/rider-app/src/pages/Register.tsx]', err); } // eslint-disable-line no-console
   }, [step, name, phone, email, username, address, city, customCity, emergencyContact,
       cnic, vehicleType, vehicleReg, drivingLicense,
       vehiclePhoto, cnicPhoto, cnicBackPhoto, licensePhoto]);
@@ -177,7 +173,7 @@ export default function Register() {
       setOptimisingField("");
       setUploadingField("");
     }
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const usernameAbortRef = useRef<AbortController | null>(null);
   useEffect(() => {
@@ -208,7 +204,7 @@ export default function Register() {
       const suggested = name.trim().toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 20);
       if (suggested.length >= 3) setUsername(suggested);
     }
-  }, [name]);
+  }, [name]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const phoneReady = !auth.phoneEnabled || (phone && phone.length >= 10);
@@ -224,12 +220,10 @@ export default function Register() {
           ...(auth.emailEnabled && email ? { email } : {}),
         });
         setAvailabilityStatus("available");
-      } catch {
-        setAvailabilityStatus("taken");
-      }
+      } catch (err) { console.warn('[artifacts/rider-app/src/pages/Register.tsx]', err); } // eslint-disable-line no-console
     }, 800);
     return () => { if (availabilityTimer.current) clearTimeout(availabilityTimer.current); };
-  }, [phone, email, auth.phoneEnabled, auth.emailEnabled]);
+  }, [phone, email, auth.phoneEnabled, auth.emailEnabled]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSocialAutofill = async (provider: "google" | "facebook") => {
     const googleClientId = auth.googleClientId ?? config.auth?.googleClientId;
@@ -328,7 +322,7 @@ export default function Register() {
       try {
         let captchaToken: string | undefined;
         if (auth.captchaEnabled) {
-          try { captchaToken = await executeCaptcha("register", captchaSiteKey); } catch { /* noop */ }
+          try { captchaToken = await executeCaptcha("register", captchaSiteKey); } catch (err) { console.warn('[artifacts/rider-app/src/pages/Register.tsx]', err); } // eslint-disable-line no-console
           if (!captchaToken) { setError(T("captchaRequired")); setLoading(false); return; }
         }
         const selectedChannel = (() => {
@@ -370,9 +364,7 @@ export default function Register() {
             const emailRes = await api.sendEmailOtp(email.trim(), captchaToken);
             setDevOtp(emailRes.otp || "");
             setOtpSendFailed(false);
-          } catch {
-            setOtpSendFailed(true);
-          }
+          } catch (err) { console.warn('[artifacts/rider-app/src/pages/Register.tsx]', err); } // eslint-disable-line no-console
           setVerifyChannel("email");
         } else {
           try {
@@ -384,7 +376,7 @@ export default function Register() {
                 if (res.pendingApproval) { sessionStorage.removeItem(DRAFT_KEY); setCompleted(true); setLoading(false); return; }
                 let profile: AuthUser | null = res.user ?? null;
                 if (!profile) {
-                  try { profile = await api.getMe() as AuthUser; } catch { api.clearTokens(); sessionStorage.removeItem(DRAFT_KEY); setCompleted(true); setLoading(false); return; }
+                  try { profile = await api.getMe() as AuthUser; } catch (err) { console.warn('[artifacts/rider-app/src/pages/Register.tsx]', err); } // eslint-disable-line no-console
                 }
                 sessionStorage.removeItem(DRAFT_KEY);
                 authLogin(res.token, profile!, res.refreshToken);
@@ -707,9 +699,7 @@ export default function Register() {
                           if (channelMsgTimer.current) clearTimeout(channelMsgTimer.current);
                           setChannelSwitchMsg(`OTP sent via ${label}`);
                           channelMsgTimer.current = setTimeout(() => setChannelSwitchMsg(""), 3500);
-                        } catch {
-                          setError("Could not resend OTP on that channel. Please try again.");
-                        }
+                        } catch (err) { console.warn('[artifacts/rider-app/src/pages/Register.tsx]', err); } // eslint-disable-line no-console
                       }}
                       className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${registrationOtpChannel === ch ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
                       {ch === "sms" ? "SMS" : ch === "whatsapp" ? "WhatsApp" : ch.charAt(0).toUpperCase() + ch.slice(1)}

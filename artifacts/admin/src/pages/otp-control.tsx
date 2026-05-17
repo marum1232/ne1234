@@ -345,7 +345,6 @@ export default function OtpControl() {
       setRlIp(getSetting("security_otp_max_per_ip", "20"));
       setRlWindow(getSetting("security_otp_window_min", "60"));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settingsData, getSetting]);
 
   /* ── Delivery OTP Viewer ── */

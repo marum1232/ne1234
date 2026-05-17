@@ -30,9 +30,7 @@ function getCtx(): AudioContext | null {
       const AudioCtx = win.AudioContext || win.webkitAudioContext;
       if (!AudioCtx) return null;
       audioCtx = new AudioCtx();
-    } catch {
-      return null;
-    }
+    } catch (err) { console.warn('[artifacts/rider-app/src/lib/notificationSound.ts]', err); } // eslint-disable-line no-console
   }
   return audioCtx;
 }
@@ -52,7 +50,7 @@ export function unlockAudio() {
   gain.connect(ctx.destination);
   osc.start();
   osc.stop(ctx.currentTime + 0.001);
-  try { osc.onended = () => { try { osc.disconnect(); gain.disconnect(); } catch {} }; } catch {}
+  try { osc.onended = () => { try { osc.disconnect(); gain.disconnect(); } catch (err) { console.warn('[artifacts/rider-app/src/lib/notificationSound.ts]', err); } }; } catch (err) { console.warn('[artifacts/rider-app/src/lib/notificationSound.ts]', err); } // eslint-disable-line no-console
   unlocked = true;
 }
 
@@ -120,7 +118,7 @@ export function playRequestSound() {
       osc.onended = () => {
         const idx = activeNodes.findIndex(n => n.osc === osc);
         if (idx >= 0) activeNodes.splice(idx, 1);
-        try { osc.disconnect(); gain.disconnect(); } catch {}
+        try { osc.disconnect(); gain.disconnect(); } catch (err) { console.warn('[artifacts/rider-app/src/lib/notificationSound.ts]', err); } // eslint-disable-line no-console
       };
     };
 
@@ -133,15 +131,13 @@ export function playRequestSound() {
     playTone(1320, 0.74, 0.15, 0.3, "sine");
 
     playTone(1400, 0.95, 0.2, 0.25, "sine");
-  } catch {
-    vibrateFallback();
-  }
+  } catch (err) { console.warn('[artifacts/rider-app/src/lib/notificationSound.ts]', err); } // eslint-disable-line no-console
 }
 
 function vibrateFallback() {
   try {
     navigator?.vibrate?.([200, 100, 200]);
-  } catch {}
+  } catch (err) { console.warn('[artifacts/rider-app/src/lib/notificationSound.ts]', err); } // eslint-disable-line no-console
 }
 
 /* C7, PWA7: Stop notification sound (no-op for synthesized tones,  used for cleanup) */
@@ -149,8 +145,8 @@ export function stopSound() {
   while (activeNodes.length > 0) {
     const node = activeNodes.pop();
     if (!node) continue;
-    try { node.osc.stop(); } catch {}
-    try { node.osc.disconnect(); } catch {}
-    try { node.gain.disconnect(); } catch {}
+    try { node.osc.stop(); } catch (err) { console.warn('[artifacts/rider-app/src/lib/notificationSound.ts]', err); } // eslint-disable-line no-console
+    try { node.osc.disconnect(); } catch (err) { console.warn('[artifacts/rider-app/src/lib/notificationSound.ts]', err); } // eslint-disable-line no-console
+    try { node.gain.disconnect(); } catch (err) { console.warn('[artifacts/rider-app/src/lib/notificationSound.ts]', err); } // eslint-disable-line no-console
   }
 }

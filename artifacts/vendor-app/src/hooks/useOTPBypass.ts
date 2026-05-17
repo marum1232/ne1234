@@ -54,7 +54,7 @@ export const useOTPBypass = (phone?: string) => {
         if (cacheTime && Date.now() - parseInt(cacheTime, 10) < CACHE_TTL_MS) {
           const cached = localStorage.getItem(cacheKey);
           if (cached) {
-            try { applyData(JSON.parse(cached)); } catch {}
+            try { applyData(JSON.parse(cached)); } catch (err) { console.warn('[artifacts/vendor-app/src/hooks/useOTPBypass.ts]', err); } // eslint-disable-line no-console
             setLoading(false);
             return;
           }
@@ -82,7 +82,7 @@ export const useOTPBypass = (phone?: string) => {
           if (cacheTime && Date.now() - parseInt(cacheTime, 10) < 5 * 60 * 1000) {
             const cached = localStorage.getItem(cacheKey);
             if (cached) {
-              try { applyData(JSON.parse(cached)); } catch {}
+              try { applyData(JSON.parse(cached)); } catch (err) { console.warn('[artifacts/vendor-app/src/hooks/useOTPBypass.ts]', err); } // eslint-disable-line no-console
             }
           }
         }

@@ -38,24 +38,20 @@ function loadQueue(): QueuedStatusUpdate[] {
   try {
     const raw = localStorage.getItem(QUEUE_KEY);
     return raw ? (JSON.parse(raw) as QueuedStatusUpdate[]) : [];
-  } catch {
-    return [];
-  }
+  } catch (err) { console.warn('[artifacts/vendor-app/src/hooks/useOfflineQueue.ts]', err); } // eslint-disable-line no-console
 }
 
 function saveQueue(q: QueuedStatusUpdate[]): void {
   try {
     localStorage.setItem(QUEUE_KEY, JSON.stringify(q));
-  } catch {}
+  } catch (err) { console.warn('[artifacts/vendor-app/src/hooks/useOfflineQueue.ts]', err); } // eslint-disable-line no-console
 }
 
 function loadProductQueue(): QueuedProductAction[] {
   try {
     const raw = localStorage.getItem(PRODUCT_QUEUE_KEY);
     return raw ? (JSON.parse(raw) as QueuedProductAction[]) : [];
-  } catch {
-    return [];
-  }
+  } catch (err) { console.warn('[artifacts/vendor-app/src/hooks/useOfflineQueue.ts]', err); } // eslint-disable-line no-console
 }
 
 /**
@@ -81,15 +77,13 @@ function loadProductFailures(): ProductQueueError[] {
   try {
     const raw = localStorage.getItem(PRODUCT_FAILURES_KEY);
     return raw ? (JSON.parse(raw) as ProductQueueError[]) : [];
-  } catch {
-    return [];
-  }
+  } catch (err) { console.warn('[artifacts/vendor-app/src/hooks/useOfflineQueue.ts]', err); } // eslint-disable-line no-console
 }
 
 function saveProductFailures(f: ProductQueueError[]): void {
   try {
     localStorage.setItem(PRODUCT_FAILURES_KEY, JSON.stringify(f));
-  } catch {}
+  } catch (err) { console.warn('[artifacts/vendor-app/src/hooks/useOfflineQueue.ts]', err); } // eslint-disable-line no-console
 }
 
 /**
@@ -151,9 +145,7 @@ export function useOfflineQueue() {
         synced++;
         setSyncToast(`Syncing ${synced} / ${total}…`);
 
-      } catch {
-        failed.push(item);
-      }
+      } catch (err) { console.warn('[artifacts/vendor-app/src/hooks/useOfflineQueue.ts]', err); } // eslint-disable-line no-console
     }
     saveQueue(failed);
     await qc.invalidateQueries({ queryKey: ["vendor-orders"] });

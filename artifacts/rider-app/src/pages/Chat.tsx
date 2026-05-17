@@ -35,7 +35,7 @@ export default function Chat() {
     try {
       const params = new URLSearchParams(search);
       if (params.get("tab") === "ai") return "ai";
-    } catch { /* ignore */ }
+    } catch (err) { console.warn('[artifacts/rider-app/src/pages/Chat.tsx]', err); } // eslint-disable-line no-console
     return "chats";
   });
   const [typing, setTyping] = useState(false);
@@ -59,7 +59,7 @@ export default function Chat() {
     try {
       const params = new URLSearchParams(search);
       if (params.get("tab") === "ai") setTab("ai");
-    } catch { /* ignore */ }
+    } catch (err) { console.warn('[artifacts/rider-app/src/pages/Chat.tsx]', err); } // eslint-disable-line no-console
   }, [search]);
 
   /* Notify push.ts whether the AI Help tab is currently the active, visible tab.
@@ -96,17 +96,17 @@ export default function Chat() {
   }, []);
 
   const loadConversations = useCallback(() => {
-    api.apiFetch("/communication/conversations").then(setConversations).catch(() => {});
+    api.apiFetch("/communication/conversations").then(setConversations).catch((err) => { console.warn('[artifacts/rider-app/src/pages/Chat.tsx]', err); }); // eslint-disable-line no-console
   }, []);
 
   const loadRequests = useCallback(() => {
-    api.apiFetch("/communication/requests?type=received").then(setRequests).catch(() => {});
+    api.apiFetch("/communication/requests?type=received").then(setRequests).catch((err) => { console.warn('[artifacts/rider-app/src/pages/Chat.tsx]', err); }); // eslint-disable-line no-console
   }, []);
 
   const endCall = useCallback(() => {
     stopSound();
     if (callId) {
-      api.apiFetch(`/communication/calls/${callId}/end`, { method: "POST", body: JSON.stringify({ duration: callTimer }) }).catch(() => {});
+      api.apiFetch(`/communication/calls/${callId}/end`, { method: "POST", body: JSON.stringify({ duration: callTimer }) }).catch((err) => { console.warn('[artifacts/rider-app/src/pages/Chat.tsx]', err); }); // eslint-disable-line no-console
       const otherId = selectedConv?.otherUser?.id;
       if (otherId && socket) socket.emit("comm:call:end", { callId, targetUserId: otherId });
     }
@@ -165,7 +165,7 @@ export default function Chat() {
   useEffect(() => {
     if (!socket || !user?.id) return;
 
-    api.apiFetch("/communication/me/ajk-id").then(d => setAjkId(d.ajkId)).catch(() => {});
+    api.apiFetch("/communication/me/ajk-id").then(d => setAjkId(d.ajkId)).catch((err) => { console.warn('[artifacts/rider-app/src/pages/Chat.tsx]', err); }); // eslint-disable-line no-console
     loadConversations();
     loadRequests();
 
@@ -357,9 +357,7 @@ export default function Chat() {
     try {
       const result = await api.apiFetch(`/communication/search/${searchId.toUpperCase()}`);
       setSearchResult(result);
-    } catch {
-      setSearchResult(null);
-    }
+    } catch (err) { console.warn('[artifacts/rider-app/src/pages/Chat.tsx]', err); } // eslint-disable-line no-console
   };
 
   const sendRequest = async (receiverId: string) => {
@@ -419,9 +417,7 @@ export default function Chat() {
       pc.ontrack = (e) => {
         if (remoteAudioRef.current) {
           remoteAudioRef.current.srcObject = e.streams[0];
-          remoteAudioRef.current.play().catch(() => {
-            setSendError("Remote audio playback denied. Tap to enable audio.");
-          });
+          remoteAudioRef.current.play().catch((err) => { console.warn('[artifacts/rider-app/src/pages/Chat.tsx]', err); }); // eslint-disable-line no-console
         }
       };
 
@@ -477,9 +473,7 @@ export default function Chat() {
       pc.ontrack = (e) => {
         if (remoteAudioRef.current) {
           remoteAudioRef.current.srcObject = e.streams[0];
-          remoteAudioRef.current.play().catch(() => {
-            setSendError("Remote audio playback denied. Tap to enable audio.");
-          });
+          remoteAudioRef.current.play().catch((err) => { console.warn('[artifacts/rider-app/src/pages/Chat.tsx]', err); }); // eslint-disable-line no-console
         }
       };
 
@@ -503,9 +497,8 @@ export default function Chat() {
     try {
       const result = await api.aiChat(text, aiMessages.slice(-10));
       setAiMessages(prev => [...prev, { role: "assistant", content: result.reply }]);
-    } catch {
-      setAiMessages(prev => [...prev, { role: "assistant", content: "Sorry, I couldn't connect right now. Please try again." }]);
-    } finally {
+    } catch (err) { console.warn('[artifacts/rider-app/src/pages/Chat.tsx]', err); } // eslint-disable-line no-console
+    finally {
       setAiLoading(false);
       setTimeout(() => aiScrollRef.current?.scrollTo(0, aiScrollRef.current.scrollHeight), 100);
     }

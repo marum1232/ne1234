@@ -25,7 +25,7 @@ function loadLocalShortcuts(): string[] | null {
         return parsed.slice(0, MAX_SHORTCUTS);
       }
     }
-  } catch {}
+  } catch (err) { console.warn('[artifacts/vendor-app/src/pages/Chat.tsx]', err); } // eslint-disable-line no-console
   return null;
 }
 
@@ -84,7 +84,7 @@ const DEFAULT_SHORTCUTS = [
 function saveLocalShortcuts(shortcuts: string[]) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(shortcuts.slice(0, MAX_SHORTCUTS)));
-  } catch {}
+  } catch (err) { console.warn('[artifacts/vendor-app/src/pages/Chat.tsx]', err); } // eslint-disable-line no-console
 }
 
 function ShortcutsModal({ shortcuts, onSave, onClose }: { shortcuts: string[]; onSave: (s: string[]) => void; onClose: () => void; }) {
@@ -320,7 +320,7 @@ export default function Chat() {
   const handleSaveShortcuts = (updated: string[]) => {
     saveLocalShortcuts(updated);
     setQuickReplies(updated);
-    api.updateQuickReplies(updated).catch(() => {});
+    api.updateQuickReplies(updated).catch((err) => { console.warn('[artifacts/vendor-app/src/pages/Chat.tsx]', err); }); // eslint-disable-line no-console
   };
 
   useEffect(() => {
@@ -333,7 +333,7 @@ export default function Chat() {
         saveLocalShortcuts(fromServer);
       }
       // Server returned [] (never synced) or non-array → keep current local/default state unchanged
-    }).catch(() => {});
+    }).catch((err) => { console.warn('[artifacts/vendor-app/src/pages/Chat.tsx]', err); }); // eslint-disable-line no-console
 
     apiFetch("/communication/me/ajk-id").then(d => setAjkId(d.ajkId)).catch((e: unknown) => {
       showError(e instanceof Error ? e.message : "Failed to load your AJK ID");
@@ -441,7 +441,7 @@ export default function Chat() {
     try {
       const result = await apiFetch(`/communication/search/${searchId.toUpperCase()}`);
       setSearchResult(result);
-    } catch { setSearchResult(null); }
+    } catch (err) { console.warn('[artifacts/vendor-app/src/pages/Chat.tsx]', err); } // eslint-disable-line no-console
   };
 
   const sendRequest = async (receiverId: string) => {
@@ -607,7 +607,7 @@ export default function Chat() {
 
   const endCall = useCallback(() => {
     if (callId) {
-      apiFetch(`/communication/calls/${callId}/end`, { method: "POST", body: JSON.stringify({ duration: callTimer }) }).catch(() => {});
+      apiFetch(`/communication/calls/${callId}/end`, { method: "POST", body: JSON.stringify({ duration: callTimer }) }).catch((err) => { console.warn('[artifacts/vendor-app/src/pages/Chat.tsx]', err); }); // eslint-disable-line no-console
       const otherId = selectedConv ? (selectedConv.otherUser?.id) : null;
       if (otherId) socketRef.current?.emit("comm:call:end", { callId, targetUserId: otherId });
     }

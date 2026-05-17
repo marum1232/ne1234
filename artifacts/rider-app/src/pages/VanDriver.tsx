@@ -120,7 +120,7 @@ const STATUS_STYLE: Record<string, string> = {
 
 function AutoPanMap({ lat, lng }: { lat: number; lng: number }) {
   const map = useMap();
-  useEffect(() => { map.setView([lat, lng], map.getZoom()); }, [lat, lng]);
+  useEffect(() => { map.setView([lat, lng], map.getZoom()); }, [lat, lng]); // eslint-disable-line react-hooks/exhaustive-deps
   return null;
 }
 
@@ -177,7 +177,7 @@ export default function VanDriver() {
     onError: (e: Error, bookingId: string) => {
       const looksLikeNetErr = /network|fetch|timeout|offline/i.test(e?.message || "");
       if (looksLikeNetErr) {
-        enqueueAction("board_passenger", bookingId, { boardedAt: new Date().toISOString() }).catch(() => {});
+        enqueueAction("board_passenger", bookingId, { boardedAt: new Date().toISOString() }).catch((err) => { console.warn('[artifacts/rider-app/src/pages/VanDriver.tsx]', err); }); // eslint-disable-line no-console
       }
       setError(e.message);
     },
@@ -207,7 +207,7 @@ export default function VanDriver() {
       /* Persist to IndexedDB queue so the trip completion survives connectivity loss */
       const looksLikeNetErr = /network|fetch|timeout|offline/i.test(e?.message || "");
       if (looksLikeNetErr && selectedSchedule) {
-        enqueueAction("complete_trip", selectedSchedule.id, { date: selectedSchedule.date }).catch(() => {});
+        enqueueAction("complete_trip", selectedSchedule.id, { date: selectedSchedule.date }).catch((err) => { console.warn('[artifacts/rider-app/src/pages/VanDriver.tsx]', err); }); // eslint-disable-line no-console
         /* Immediately show optimistic "Trip Ending…" state so the UI never appears
            frozen while the action hits the offline queue to sync. */
         setTripEndingOffline(true);
@@ -231,7 +231,7 @@ export default function VanDriver() {
       setSelectedSchedule(null);
     });
     return unsub;
-  }, [selectedSchedule?.id]);
+  }, [selectedSchedule?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* G6: Surface geolocation errors to the UI rather than swallowing them.
      G7: Use an in-flight flag so the 5s interval never queues a second
@@ -269,7 +269,7 @@ export default function VanDriver() {
           gpsInflightRef.current = false;
           setGpsError(null);
           setRiderPos([pos.coords.latitude, pos.coords.longitude]);
-          sendLocation(schedId, schedDate, pos.coords.latitude, pos.coords.longitude).catch(() => {});
+          sendLocation(schedId, schedDate, pos.coords.latitude, pos.coords.longitude).catch((err) => { console.warn('[artifacts/rider-app/src/pages/VanDriver.tsx]', err); }); // eslint-disable-line no-console
         },
         (err) => {
           gpsInflightRef.current = false;
@@ -313,7 +313,7 @@ export default function VanDriver() {
          — stop broadcasting immediately rather than waiting for navigation. */
       stopGpsBroadcast();
     }
-  }, [selectedSchedule?.tripStatus, broadcasting]);
+  }, [selectedSchedule?.tripStatus, broadcasting]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const boardedCount = passengers.filter(p => p.status === "boarded" || p.status === "completed").length;
   const confirmedCount = passengers.filter(p => p.status === "confirmed").length;

@@ -59,7 +59,7 @@ export function PullToRefresh({ onRefresh, children, accentColor = "#10B981", cl
          unhandledrejection listener. Caller decides toast vs UI banner. */
       setLastRefreshFailed(true);
       if (onRefreshError) {
-        try { onRefreshError(err); } catch {}
+        try { onRefreshError(err); } catch (err) { console.warn('[artifacts/rider-app/src/components/PullToRefresh.tsx]', err); } // eslint-disable-line no-console
       } else {
         log.warn("onRefresh failed:", err);
       }

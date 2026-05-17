@@ -851,7 +851,6 @@ export default function LiveRidersMap() {
       };
     });
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   const riders: Rider[] = useMemo(() => [...mergedBaseRiders, ...wsOnlyRiders], [mergedBaseRiders, wsOnlyRiders]);
 
   const filteredRiders = riders.filter(rider => {

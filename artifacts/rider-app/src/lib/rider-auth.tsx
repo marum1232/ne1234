@@ -121,21 +121,13 @@ function RiderAuthInner({ children }: { children: ReactNode }) {
             api.clearTokens();
             setToken(null); setUser(null);
             sharedAuth.logout();
-            try { window.dispatchEvent(new CustomEvent("ajkmart:refresh-user-failed")); } catch {}
+            try { window.dispatchEvent(new CustomEvent("ajkmart:refresh-user-failed")); } catch (err) { console.warn('[artifacts/rider-app/src/lib/rider-auth.tsx]', err); } // eslint-disable-line no-console
           }
           refreshingRef.current = false;
           return;
         }
-      } catch {
-        refreshFailCountRef.current++;
-        if (refreshFailCountRef.current <= 5) {
-          const backoffMs = Math.min(60_000 * Math.pow(2, refreshFailCountRef.current - 1), 15 * 60_000);
-          refreshTimerRef.current = setTimeout(() => {
-            const currentToken = api.getToken();
-            if (currentToken) scheduleProactiveRefresh(currentToken);
-          }, backoffMs);
-        }
-      } finally {
+      } catch (err) { console.warn('[artifacts/rider-app/src/lib/rider-auth.tsx]', err); } // eslint-disable-line no-console
+      finally {
         refreshingRef.current = false;
       }
     }, refreshIn);
@@ -249,14 +241,8 @@ function RiderAuthInner({ children }: { children: ReactNode }) {
         const u = await api.getMe();
         setUser(u);
         refreshFailCountRef.current = 0;
-      } catch {
-        refreshFailCountRef.current += 1;
-        if (refreshFailCountRef.current >= 3) {
-          window.dispatchEvent(new CustomEvent("ajkmart:refresh-user-failed", {
-            detail: { count: refreshFailCountRef.current },
-          }));
-        }
-      } finally {
+      } catch (err) { console.warn('[artifacts/rider-app/src/lib/rider-auth.tsx]', err); } // eslint-disable-line no-console
+      finally {
         refreshUserInflightRef.current = null;
       }
     })();

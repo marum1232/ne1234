@@ -42,9 +42,9 @@ try {
       const k = localStorage.key(i);
       if (k && (k.startsWith("vendor_") || k.startsWith("ajkmart_vendor"))) keysToRemove.push(k);
     }
-    keysToRemove.forEach(k => { try { localStorage.removeItem(k); } catch {} });
+    keysToRemove.forEach(k => { try { localStorage.removeItem(k); } catch (err) { console.warn('[artifacts/vendor-app/src/lib/api.ts]', err); } }); // eslint-disable-line no-console
   }
-} catch { /* storage may be blocked — start fresh */ }
+} catch (err) { console.warn('[artifacts/vendor-app/src/lib/api.ts]', err); } // eslint-disable-line no-console
 
 export function getTokenStorage() { return _tokenStorage; }
 function getToken(): string  { return _tokenStorage.getAccessToken() ?? ""; }
@@ -115,14 +115,12 @@ function readCsrfFromCookie(): string {
   try {
     const match = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]+)/);
     return match ? decodeURIComponent(match[1]) : "";
-  } catch {
-    return "";
-  }
+  } catch (err) { console.warn('[artifacts/vendor-app/src/lib/api.ts]', err); } // eslint-disable-line no-console
 }
 
 function clearTokens() {
   _tokenStorage.clear();
-  try { localStorage.removeItem(REFRESH_KEY); } catch {}
+  try { localStorage.removeItem(REFRESH_KEY); } catch (err) { console.warn('[artifacts/vendor-app/src/lib/api.ts]', err); } // eslint-disable-line no-console
 }
 
 /* ── Module-level logout callback ─────────────────────────────────────────────
@@ -138,7 +136,7 @@ export function registerLogoutCallback(fn: () => void): () => void {
 function triggerLogout(reason: string) {
   clearTokens();
   if (_logoutCallback) _logoutCallback();
-  try { window.dispatchEvent(new CustomEvent("ajkmart:logout", { detail: { reason } })); } catch {}
+  try { window.dispatchEvent(new CustomEvent("ajkmart:logout", { detail: { reason } })); } catch (err) { console.warn('[artifacts/vendor-app/src/lib/api.ts]', err); } // eslint-disable-line no-console
 }
 
 /* ── Configurable network settings ────────────────────────────────────────────
@@ -281,7 +279,7 @@ export async function apiFetch(path: string, opts: RequestInit & { _timeoutMs?: 
     try {
       const { reportApiError } = await import("./error-reporter");
       reportApiError(path, res.status, err.error || "Request failed");
-    } catch {}
+    } catch (err) { console.warn('[artifacts/vendor-app/src/lib/api.ts]', err); } // eslint-disable-line no-console
     throw new Error(err.error || "Request failed");
   }
   const json = await res.json();

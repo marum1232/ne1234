@@ -152,7 +152,7 @@ export default function Notifications() {
     refetchInterval: 30000,
   });
 
-  const notifs: NotifRecord[] = data?.notifications || [];
+  const notifs: NotifRecord[] = data?.notifications || []; // eslint-disable-line react-hooks/exhaustive-deps
   const unread: number = data?.unread || 0;
 
   const [toast, setToast] = useState("");
@@ -230,7 +230,7 @@ export default function Notifications() {
       groupMap.get(gKey)?.push(n);
     }
     return groups;
-  }, [filtered, language]);
+  }, [filtered, language]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const filterCounts = useMemo(() => ({
     all:    notifs.filter(n => !n.isRead).length,

@@ -177,7 +177,7 @@ function VendorAuthInner({ children }: { children: ReactNode }) {
 
   const logout = () => {
     const refreshTok = api.getRefreshToken();
-    api.logout(refreshTok || undefined).catch(() => {});
+    api.logout(refreshTok || undefined).catch((err) => { console.warn('[artifacts/vendor-app/src/lib/vendor-auth.tsx]', err); }); // eslint-disable-line no-console
     sharedAuth.logout();
     setToken(null);
     setUser(null);
@@ -212,7 +212,5 @@ export function decodeJwtExpSafe(token: string): number | null {
     const jsonStr = decodeURIComponent(escape(atob(padded)));
     const payload = JSON.parse(jsonStr) as { exp?: number };
     return typeof payload.exp === 'number' ? payload.exp : null;
-  } catch {
-    return null;
-  }
+  } catch (err) { console.warn('[artifacts/vendor-app/src/lib/vendor-auth.tsx]', err); } // eslint-disable-line no-console
 }

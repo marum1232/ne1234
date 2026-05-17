@@ -4,7 +4,7 @@ const THEME_KEY = "ajkmart_dark_mode";
 
 export function useTheme() {
   const [isDark, setIsDark] = useState(() => {
-    try { return localStorage.getItem(THEME_KEY) === "true"; } catch { return false; }
+    try { return localStorage.getItem(THEME_KEY) === "true"; } catch (err) { console.warn('[artifacts/rider-app/src/lib/useTheme.ts]', err); } // eslint-disable-line no-console
   });
 
   useEffect(() => {
@@ -15,7 +15,7 @@ export function useTheme() {
   const toggleDark = useCallback(() => {
     setIsDark(prev => {
       const next = !prev;
-      try { localStorage.setItem(THEME_KEY, next ? "true" : "false"); } catch {}
+      try { localStorage.setItem(THEME_KEY, next ? "true" : "false"); } catch (err) { console.warn('[artifacts/rider-app/src/lib/useTheme.ts]', err); } // eslint-disable-line no-console
       return next;
     });
   }, []);

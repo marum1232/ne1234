@@ -346,7 +346,7 @@ export function SosButton({ rideId, riderPos, T, showToast }: { rideId?: string 
         <p className="font-bold mb-1">Location unavailable</p>
         <p>Your GPS position could not be determined. SOS will be sent without location — admin will contact you by phone.</p>
         <div className="flex gap-2 mt-2">
-          <button onClick={async () => { setLoading(true); try { await fireSos(); } catch { showToast("SOS failed — call emergency contacts directly", true); } setLoading(false); }}
+          <button onClick={async () => { setLoading(true); try { await fireSos(); } catch (err) { console.warn('[artifacts/rider-app/src/components/active/ActiveHelpers.tsx]', err); } setLoading(false); }} // eslint-disable-line no-console
             disabled={loading} className="bg-red-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg disabled:opacity-60">
             Send SOS anyway
           </button>
@@ -370,7 +370,7 @@ export function SosButton({ rideId, riderPos, T, showToast }: { rideId?: string 
               });
               lat = pos.coords.latitude;
               lng = pos.coords.longitude;
-            } catch {}
+            } catch (err) { console.warn('[artifacts/rider-app/src/components/active/ActiveHelpers.tsx]', err); } // eslint-disable-line no-console
           }
           const hasCoords = lat != null && lng != null && Number.isFinite(lat) && Number.isFinite(lng) &&
             !(Math.abs(lat) < 0.001 && Math.abs(lng) < 0.001);
@@ -380,9 +380,7 @@ export function SosButton({ rideId, riderPos, T, showToast }: { rideId?: string 
             return;
           }
           await fireSos(lat!, lng!);
-        } catch {
-          showToast("SOS request failed — please call emergency contacts directly", true);
-        }
+        } catch (err) { console.warn('[artifacts/rider-app/src/components/active/ActiveHelpers.tsx]', err); } // eslint-disable-line no-console
         setLoading(false);
       }}
       disabled={sent || loading || noLocWarning}

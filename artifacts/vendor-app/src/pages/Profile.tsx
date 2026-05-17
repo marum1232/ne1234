@@ -91,7 +91,7 @@ export default function Profile() {
         }
       }
       if (Notification.permission === "granted") {
-        await registerPush().catch(() => {});
+        await registerPush().catch((err) => { console.warn('[artifacts/vendor-app/src/pages/Profile.tsx]', err); }); // eslint-disable-line no-console
       }
       const result = await api.testNotification() as {
         sent?: boolean;

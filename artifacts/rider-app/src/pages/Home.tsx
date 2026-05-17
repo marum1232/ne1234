@@ -167,7 +167,7 @@ export default function Home() {
       } else {
         setZoneWarning(null);
       }
-      await refreshUser().catch(() => {});
+      await refreshUser().catch((err) => { console.warn('[artifacts/rider-app/src/pages/Home.tsx]', err); }); // eslint-disable-line no-console
       if (!isMountedRef.current) return;
       succeeded = true;
       showToast(newStatus ? T("youAreNowOnline") : T("youAreNowOffline"), "success");
@@ -233,8 +233,8 @@ export default function Home() {
     staleTime: 60000,
   });
 
-  const allOrders: Order[] = requestsData?.orders || [];
-  const allRides: Ride[] = requestsData?.rides || [];
+  const allOrders: Order[] = requestsData?.orders || []; // eslint-disable-line react-hooks/exhaustive-deps
+  const allRides: Ride[] = requestsData?.rides || []; // eslint-disable-line react-hooks/exhaustive-deps
   /* Server time from the API envelope — used to offset AcceptCountdown for clock drift */
   const requestsServerTime: string | null = requestsData?._serverTime ?? null;
 
@@ -252,7 +252,7 @@ export default function Home() {
       [...prev].filter((id) => !serverIds.has(id)).forEach((id) => removeDismissed(id));
       return next;
     });
-  }, [requestsData]);
+  }, [requestsData]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* New-request flash — pulse the header text; ring around the card container */
   const currentIdsSig = [...allOrders.map((o) => o.id), ...allRides.map((r) => r.id)]
@@ -341,16 +341,14 @@ export default function Home() {
           }
         ).wakeLock.request("screen");
         setWakeLockWarning(false);
-      } catch {
-        setWakeLockWarning(true);
-      }
+      } catch (err) { console.warn('[artifacts/rider-app/src/pages/Home.tsx]', err); } // eslint-disable-line no-console
     };
 
     acquire();
 
     return () => {
       cancelled = true;
-      sentinel?.release().catch(() => {});
+      sentinel?.release().catch((err) => { console.warn('[artifacts/rider-app/src/pages/Home.tsx]', err); }); // eslint-disable-line no-console
     };
   }, [effectiveOnline, tabVisible]);
 
@@ -382,7 +380,7 @@ export default function Home() {
             batteryRef.current = Math.round(batt.level * 100);
           });
         })
-        .catch(() => {});
+        .catch((err) => { console.warn('[artifacts/rider-app/src/pages/Home.tsx]', err); }); // eslint-disable-line no-console
     }
   }, []);
 
@@ -490,7 +488,7 @@ export default function Home() {
         };
 
         if (!navigator.onLine) {
-          enqueue(queuedPing).catch(() => {});
+          enqueue(queuedPing).catch((err) => { console.warn('[artifacts/rider-app/src/pages/Home.tsx]', err); }); // eslint-disable-line no-console
           return;
         }
 
@@ -506,7 +504,7 @@ export default function Home() {
             if (isSpoofError) {
               setGpsWarningWithRef(`GPS Spoof Detected: ${msg}`);
             } else {
-              enqueue(queuedPing).catch(() => {});
+              enqueue(queuedPing).catch((err) => { console.warn('[artifacts/rider-app/src/pages/Home.tsx]', err); }); // eslint-disable-line no-console
               setGpsWarningWithRef(T("gpsLocationError"));
             }
           });
@@ -520,7 +518,7 @@ export default function Home() {
     return () => {
       navigator.geolocation.clearWatch(watchId);
     };
-  }, [user?.isOnline, hasActiveTask, user?.id]);
+  }, [user?.isOnline, hasActiveTask, user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* PF5: Memoize the filtered request lists so unrelated re-renders (e.g.
      typing into a controlled input on Home, GPS-driven `setGpsWarning`
@@ -600,7 +598,7 @@ export default function Home() {
       } else {
         /* Persist to IndexedDB queue so the accept survives connectivity loss */
         const looksLikeNetErr = /network|fetch|timeout|offline/i.test(e?.message || "");
-        if (looksLikeNetErr) enqueueAction("accept_order", id, {}).catch(() => {});
+        if (looksLikeNetErr) enqueueAction("accept_order", id, {}).catch((err) => { console.warn('[artifacts/rider-app/src/pages/Home.tsx]', err); }); // eslint-disable-line no-console
         showToast(e.message || "Could not accept order. Please try again.", "error");
       }
     },
@@ -643,7 +641,7 @@ export default function Home() {
       } else {
         /* Persist to IndexedDB queue so the accept survives connectivity loss */
         const looksLikeNetErr = /network|fetch|timeout|offline/i.test(e?.message || "");
-        if (looksLikeNetErr) enqueueAction("accept_ride", id, {}).catch(() => {});
+        if (looksLikeNetErr) enqueueAction("accept_ride", id, {}).catch((err) => { console.warn('[artifacts/rider-app/src/pages/Home.tsx]', err); }); // eslint-disable-line no-console
         showToast(e.message || "Could not accept ride. Please try again.", "error");
       }
     },

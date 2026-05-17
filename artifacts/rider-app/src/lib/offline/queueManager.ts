@@ -44,7 +44,7 @@ function openDB(): Promise<IDBDatabase> {
     req.onsuccess = () => {
       const db = req.result;
       db.onclose = () => { _dbPromise = null; };
-      db.onversionchange = () => { try { db.close(); } catch {} _dbPromise = null; };
+      db.onversionchange = () => { try { db.close(); } catch (err) { console.warn('[artifacts/rider-app/src/lib/offline/queueManager.ts]', err); } _dbPromise = null; }; // eslint-disable-line no-console
       resolve(db);
     };
     req.onerror = () => { _dbPromise = null; reject(req.error); };
@@ -79,7 +79,7 @@ export async function enqueueAction(
       tx.onerror = () => reject(tx.error);
     });
     notifyListeners();
-  } catch { /* best-effort — swallow on unavailable storage */ }
+  } catch (err) { console.warn('[artifacts/rider-app/src/lib/offline/queueManager.ts]', err); } // eslint-disable-line no-console
   return action.id;
 }
 
@@ -95,7 +95,7 @@ async function getAll(): Promise<QueuedAction[]> {
     /* Sort strictly FIFO by creation time so status transitions replay in the
        correct order (e.g. accepted → in_transit → completed, never reversed). */
     return all.sort((a, b) => a.createdAt - b.createdAt);
-  } catch { return []; }
+  } catch (err) { console.warn('[artifacts/rider-app/src/lib/offline/queueManager.ts]', err); } // eslint-disable-line no-console
 }
 
 async function removeAction(id: string): Promise<void> {
@@ -107,7 +107,7 @@ async function removeAction(id: string): Promise<void> {
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
     });
-  } catch {}
+  } catch (err) { console.warn('[artifacts/rider-app/src/lib/offline/queueManager.ts]', err); } // eslint-disable-line no-console
 }
 
 async function bumpRetryCount(action: QueuedAction): Promise<void> {
@@ -120,7 +120,7 @@ async function bumpRetryCount(action: QueuedAction): Promise<void> {
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
     });
-  } catch {}
+  } catch (err) { console.warn('[artifacts/rider-app/src/lib/offline/queueManager.ts]', err); } // eslint-disable-line no-console
 }
 
 /* ── PermanentQueueError ───────────────────────────────────────────────────────
@@ -179,7 +179,7 @@ async function pushDeadLetter(action: QueuedAction, err: PermanentQueueError): P
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
     });
-  } catch { /* best-effort */ }
+  } catch (err) { console.warn('[artifacts/rider-app/src/lib/offline/queueManager.ts]', err); } // eslint-disable-line no-console
 }
 
 export async function getDeadLetterQueue(): Promise<DeadLetterEntry[]> {
@@ -192,7 +192,7 @@ export async function getDeadLetterQueue(): Promise<DeadLetterEntry[]> {
       req.onsuccess = () => resolve((req.result ?? []) as DeadLetterEntry[]);
       req.onerror = () => reject(req.error);
     });
-  } catch { return []; }
+  } catch (err) { console.warn('[artifacts/rider-app/src/lib/offline/queueManager.ts]', err); } // eslint-disable-line no-console
 }
 
 export async function clearDeadLetterEntry(id: string): Promise<void> {
@@ -205,7 +205,7 @@ export async function clearDeadLetterEntry(id: string): Promise<void> {
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
     });
-  } catch {}
+  } catch (err) { console.warn('[artifacts/rider-app/src/lib/offline/queueManager.ts]', err); } // eslint-disable-line no-console
 }
 
 type ActionExecutor = (action: QueuedAction) => Promise<void>;
@@ -236,7 +236,7 @@ export function subscribeActionSuccess(type: ActionType, fn: ActionSuccessCallba
 }
 
 function notifyActionSuccess(action: QueuedAction): void {
-  _successCallbacks.get(action.type)?.forEach(fn => { try { fn(action); } catch {} });
+  _successCallbacks.get(action.type)?.forEach(fn => { try { fn(action); } catch (err) { console.warn('[artifacts/rider-app/src/lib/offline/queueManager.ts]', err); } }); // eslint-disable-line no-console
 }
 
 export async function syncQueue(): Promise<void> {
@@ -259,7 +259,7 @@ export async function syncQueue(): Promise<void> {
         await pushDeadLetter(action, new PermanentQueueError(
           `Exceeded max retries (${MAX_RETRIES}) without a permanent error classification`,
         ));
-        await removeAction(action.id).catch((err) => { console.warn("[queueManager] removeAction failed after dead-letter push:", err); });
+        await removeAction(action.id).catch((err) => { console.warn("[queueManager] removeAction failed after dead-letter push:", err); }); // eslint-disable-line no-console
         continue;
       }
       try {
@@ -272,13 +272,13 @@ export async function syncQueue(): Promise<void> {
           /* Permanent server-side rejection (e.g. 4xx): move to dead-letter
              immediately and continue draining subsequent actions. */
           await pushDeadLetter(action, err);
-          await removeAction(action.id).catch((removeErr) => { console.warn("[queueManager] removeAction failed after permanent error:", removeErr); });
+          await removeAction(action.id).catch((removeErr) => { console.warn("[queueManager] removeAction failed after permanent error:", removeErr); }); // eslint-disable-line no-console
           continue;
         }
         /* Transient failure (network unreachable, 5xx, 429): bump retry count
            and halt the drain. The ordering invariant requires that later actions
            (e.g. update_ride) only run after the predecessor succeeds. */
-        await bumpRetryCount(action).catch((err) => { console.warn("[queueManager] bumpRetryCount failed:", err); });
+        await bumpRetryCount(action).catch((err) => { console.warn("[queueManager] bumpRetryCount failed:", err); }); // eslint-disable-line no-console
         break;
       }
     }
@@ -330,11 +330,11 @@ export function useQueueStatus() {
 }
 
 if (typeof window !== "undefined") {
-  window.addEventListener("online", () => { syncQueue().catch(() => {}); });
+  window.addEventListener("online", () => { syncQueue().catch((err) => { console.warn('[artifacts/rider-app/src/lib/offline/queueManager.ts]', err); }); }); // eslint-disable-line no-console
   /* Periodic retry every 30 seconds — covers Android WebViews that skip the
      `online` event, and any OS where the event fires unreliably after roaming. */
   setInterval(() => {
-    if (navigator.onLine) { syncQueue().catch(() => {}); }
+    if (navigator.onLine) { syncQueue().catch((err) => { console.warn('[artifacts/rider-app/src/lib/offline/queueManager.ts]', err); }); } // eslint-disable-line no-console
   }, 30_000);
 
 }

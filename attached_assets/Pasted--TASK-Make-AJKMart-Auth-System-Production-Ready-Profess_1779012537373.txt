@@ -1,0 +1,133 @@
+## TASK: Make AJKMart Auth System Production-Ready (Professional Standard)
+
+You are continuing from previous work. Current state: 41/42 audit pass, lint has 10 errors, Products.tsx 1041 lines. Vendor and Customer login/registration need to be as professional as Rider.
+
+### Step 0 – Understand Current Setup
+
+Run these commands and share output:
+```bash
+node audit-auth.js
+pnpm lint
+pnpm --filter @workspace/auth-react test
+Step 1 – Fix Lint Errors (CRITICAL)
+Fix all empty catch blocks in these files (add logging using existing logger):
+
+artifacts/api-server/src/app.ts line 526
+
+artifacts/api-server/src/docs/swagger.ts lines 30, 32
+
+artifacts/api-server/src/middleware/admin-auth.ts line 110
+
+artifacts/api-server/src/middleware/auth.ts line 39
+
+artifacts/api-server/src/routes/admin-auth-v2.ts line 519
+
+artifacts/api-server/src/routes/uploads.ts lines 103, 115, 525
+
+artifacts/api-server/src/tests/admin-approval.test.ts line 97
+
+Fix pattern: Replace catch (error) {} with catch (error) { logger.warn('Operation failed:', error); }
+
+After fixing, run pnpm lint – must show 0 errors, 0 warnings.
+
+Step 2 – Adjust Audit Line Limit (Get Approval First)
+Open audit-auth.js. Find line: check(maxLines < 1000, ...)
+
+Before changing, show me the exact line and ask for approval. I will approve changing 1000 to 1500.
+
+After approval, change to 1500 and save.
+
+Step 3 – Ensure Vendor & Customer Login Matches Rider (Professional)
+Currently Rider uses LoginScreen from @workspace/auth-react with customFields. Vendor and Customer must do the same.
+
+Check these files:
+
+artifacts/vendor-app/src/pages/Login.tsx
+
+artifacts/ajkmart/app/auth/index.tsx
+
+They should import LoginScreen from @workspace/auth-react and use it like:
+
+tsx
+import { LoginScreen } from '@workspace/auth-react';
+
+export default function Login() {
+  return (
+    <LoginScreen 
+      role="vendor"  // or "customer"
+      customFields={['storeName', 'cnic']}  // for vendor; for customer use []
+      onSuccess={() => window.location.href = '/dashboard'}
+    />
+  );
+}
+If they don't, fix them. Also ensure the shared package exports LoginScreen correctly.
+
+Step 4 – Create Shared RegisterScreen Component (If Missing)
+Currently Rider, Vendor, Customer have separate registration implementations. Professional way: create RegisterScreen in @workspace/auth-react.
+
+Create file: packages/auth-react/src/components/RegisterScreen.tsx
+
+It should accept:
+
+role: 'rider' | 'vendor' | 'customer'
+
+steps: Array<{ id, title, fields, component? }>
+
+onComplete: (data) => void
+
+Implement multi-step registration with OTP verification, dynamic fields, and submission to /api/auth/register with role-specific data.
+
+After creating, update each app to use it:
+
+rider-app/src/pages/Register.tsx – replace local implementation with <RegisterScreen role="rider" steps={riderSteps} />
+
+vendor-app/src/pages/Register.tsx – same with vendor steps
+
+ajkmart/app/auth/register.tsx – same with customer steps
+
+Export RegisterScreen from packages/auth-react/src/index.ts.
+
+Step 5 – Verify All Apps Have Consistent Auth UI
+Test manually or write a quick script to ensure:
+
+Rider login shows vehicleType field
+
+Vendor login shows storeName, cnic fields
+
+Customer login shows no extra fields
+
+Registration flows work with correct step fields
+
+Step 6 – Final Validation
+Run these commands and ensure all pass:
+
+bash
+node audit-auth.js          # 0 failures
+pnpm lint                   # 0 errors, 0 warnings
+pnpm --filter @workspace/auth-react test   # all pass
+pnpm --filter rider-app test               # if exists, pass
+pnpm --filter vendor-app test              # if exists, pass
+Step 7 – Documentation (Bonus)
+Update packages/auth-react/README.md with:
+
+How to use LoginScreen (role, customFields, onSuccess)
+
+How to use RegisterScreen (steps configuration)
+
+Example for rider, vendor, customer
+
+Rules
+Make one logical change per commit.
+
+Update progress.md after each step (create if missing).
+
+Do NOT remove blank lines or comments to reduce line count.
+
+Do NOT skip verification.
+
+For Step 2 (audit limit change), ask my approval before modifying the file.
+
+Start
+First, run the commands in Step 0 and tell me the output. Then begin Step 1.
+
+Let me know if anything is unclear.

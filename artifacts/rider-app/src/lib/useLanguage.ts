@@ -11,7 +11,7 @@ function getStoredLanguage(): Language | null {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored && VALID_LANGS.has(stored)) return stored as Language;
-  } catch {}
+  } catch (err) { console.warn('[artifacts/rider-app/src/lib/useLanguage.ts]', err); } // eslint-disable-line no-console
   return null;
 }
 
@@ -62,7 +62,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
       /* Only sync language preference from server when authenticated — avoids
          a 401 on the login page which would log noise in the browser console. */
       if (api.getToken()) {
-        api.getSettings().catch(() => {});
+        api.getSettings().catch((err) => { console.warn('[artifacts/rider-app/src/lib/useLanguage.ts]', err); }); // eslint-disable-line no-console
       }
     } else {
       /* Only fetch from server when a token exists — avoids a 401 on the login
@@ -80,10 +80,10 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
           if (serverLang && VALID_LANGS.has(serverLang)) {
             setLanguageState(serverLang as Language);
             applyRTL(serverLang as Language);
-            try { localStorage.setItem(STORAGE_KEY, serverLang); } catch {}
+            try { localStorage.setItem(STORAGE_KEY, serverLang); } catch (err) { console.warn('[artifacts/rider-app/src/lib/useLanguage.ts]', err); } // eslint-disable-line no-console
           }
         })
-        .catch(() => {})
+        .catch((err) => { console.warn('[artifacts/rider-app/src/lib/useLanguage.ts]', err); }) // eslint-disable-line no-console
         .finally(() => setInitialised(true));
     }
   }, []);
@@ -95,10 +95,10 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     /* P3: Mark that the user has made an explicit pick so any in-flight
        getSettings() resolution from the init effect does not overwrite it. */
     localPickRef.current = true;
-    try { localStorage.setItem(STORAGE_KEY, lang); } catch {}
+    try { localStorage.setItem(STORAGE_KEY, lang); } catch (err) { console.warn('[artifacts/rider-app/src/lib/useLanguage.ts]', err); } // eslint-disable-line no-console
     try {
       await api.updateSettings({ language: lang });
-    } catch {}
+    } catch (err) { console.warn('[artifacts/rider-app/src/lib/useLanguage.ts]', err); } // eslint-disable-line no-console
     setLoading(false);
   }, []);
 

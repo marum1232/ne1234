@@ -147,12 +147,12 @@ async function registerFcmPush(
         /* resolve() is idempotent — subsequent calls (token rotation) are no-ops
            on the promise but we still re-register the new token with the server. */
         resolve(newToken.value);
-        await registerTokenWithServer(newToken.value).catch(() => {});
+        await registerTokenWithServer(newToken.value).catch((err) => { console.warn('[artifacts/rider-app/src/lib/push.ts]', err); }); // eslint-disable-line no-console
       }).then((h) => cleanups.push(h)).catch(reject);
 
       PushNotifications.addListener("registrationError", (err) => {
         reject(new Error(err.error));
-      }).then((h) => cleanups.push(h)).catch(() => {});
+      }).then((h) => cleanups.push(h)).catch((err) => { console.warn('[artifacts/rider-app/src/lib/push.ts]', err); }); // eslint-disable-line no-console
     });
 
     /* Token refresh listener — fires when FCM rotates the device token without
@@ -165,8 +165,8 @@ async function registerFcmPush(
       addListener(e: "tokenRefresh", fn: (t: { registration?: string; value?: string }) => void): Promise<{ remove: () => void }>;
     }).addListener("tokenRefresh", async (newToken) => {
       const token = newToken.registration ?? newToken.value;
-      if (token) await registerTokenWithServer(token).catch(() => {});
-    }).then((h) => cleanups.push(h)).catch(() => {});
+      if (token) await registerTokenWithServer(token).catch((err) => { console.warn('[artifacts/rider-app/src/lib/push.ts]', err); }); // eslint-disable-line no-console
+    }).then((h) => cleanups.push(h)).catch((err) => { console.warn('[artifacts/rider-app/src/lib/push.ts]', err); }); // eslint-disable-line no-console
 
     if (onForegroundMessage) {
       PushNotifications.addListener("pushNotificationReceived", (notification) => {
@@ -177,7 +177,7 @@ async function registerFcmPush(
            Help tab open — they can see the reply directly without a banner. */
         if (validated.type === "ai_chat" && _aiTabActive) return;
         onForegroundMessage(notification.title ?? "", notification.body ?? "");
-      }).then((h) => cleanups.push(h)).catch(() => {});
+      }).then((h) => cleanups.push(h)).catch((err) => { console.warn('[artifacts/rider-app/src/lib/push.ts]', err); }); // eslint-disable-line no-console
     }
 
     /* Handle notification tap — fires when rider taps the notification in the
@@ -189,7 +189,7 @@ async function registerFcmPush(
         const validated = validatePushPayload(raw);
         if (validated === null) return;
         onNotificationTap(validated as Record<string, string>);
-      }).then((h) => cleanups.push(h)).catch(() => {});
+      }).then((h) => cleanups.push(h)).catch((err) => { console.warn('[artifacts/rider-app/src/lib/push.ts]', err); }); // eslint-disable-line no-console
     }
 
     /* Now trigger registration — token/error events may fire after this. */

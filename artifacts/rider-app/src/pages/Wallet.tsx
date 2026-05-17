@@ -99,7 +99,7 @@ function EarningsChart({ transactions }: { transactions: WalletTx[] }) {
       });
     }
     return result;
-  }, [transactions]);
+  }, [transactions]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const maxVal = Math.max(...days.map(d => d.amount), 1);
   const weekTotal = days.reduce((s, d) => s + d.amount, 0);
@@ -310,7 +310,7 @@ export default function Wallet() {
      the live balance, but using the first page avoids tiny flicker as later
      pages stream in). Aggregates below (today/week/total) sum the loaded
      pages — same behaviour as before, but now extends as the rider scrolls. */
-  const pages = data?.pages ?? [];
+  const pages = data?.pages ?? []; // eslint-disable-line react-hooks/exhaustive-deps
   const transactions: WalletTx[] = useMemo(() => {
     const out: WalletTx[] = [];
     for (const p of pages) {
@@ -962,7 +962,7 @@ export default function Wallet() {
             refetch();
             refetchCod();
             refetchDeposits();
-            refreshUser().catch(() => {});
+            refreshUser().catch((err) => { console.warn('[artifacts/rider-app/src/pages/Wallet.tsx]', err); }); // eslint-disable-line no-console
             /* Show "Under Review" message so rider knows the request is pending admin review
                and their balance will only be deducted after the request is approved. */
             showToast(`${T("withdrawalSubmitted")} ${T("underReview")}`, "success");

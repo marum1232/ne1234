@@ -164,7 +164,7 @@ export function SocketProvider({ children }: { children: ReactNode }) {
         batteryLevelRef.current = batt.level;
         setBatteryLevelState(batt.level);
         batt.addEventListener("levelchange", onLevelChange);
-      }).catch(() => {});
+      }).catch((err) => { console.warn('[artifacts/rider-app/src/lib/socket.tsx]', err); }); // eslint-disable-line no-console
     return () => { batt?.removeEventListener("levelchange", onLevelChange); };
   }, []);
 

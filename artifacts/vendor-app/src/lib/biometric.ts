@@ -24,7 +24,7 @@ async function prefSet(key: string, value: string): Promise<void> {
     await Preferences.set({ key, value });
   } catch (err) {
     log.warn("biometric prefSet failed:", err);
-    try { localStorage.setItem(key, value); } catch {}
+    try { localStorage.setItem(key, value); } catch (err) { console.warn('[artifacts/vendor-app/src/lib/biometric.ts]', err); } // eslint-disable-line no-console
   }
 }
 
@@ -35,7 +35,7 @@ async function prefGet(key: string): Promise<string> {
     return value ?? "";
   } catch (err) {
     log.warn("biometric prefGet failed:", err);
-    try { return localStorage.getItem(key) ?? ""; } catch { return ""; }
+    try { return localStorage.getItem(key) ?? ""; } catch (err) { console.warn('[artifacts/vendor-app/src/lib/biometric.ts]', err); } // eslint-disable-line no-console
   }
 }
 
@@ -45,7 +45,7 @@ async function prefRemove(key: string): Promise<void> {
     await Preferences.remove({ key });
   } catch (err) {
     log.warn("biometric prefRemove failed:", err);
-    try { localStorage.removeItem(key); } catch {}
+    try { localStorage.removeItem(key); } catch (err) { console.warn('[artifacts/vendor-app/src/lib/biometric.ts]', err); } // eslint-disable-line no-console
   }
 }
 
@@ -55,9 +55,7 @@ function isNative(): boolean {
   try {
     const { Capacitor } = require("@capacitor/core") as typeof import("@capacitor/core");
     return Capacitor.isNativePlatform();
-  } catch {
-    return false;
-  }
+  } catch (err) { console.warn('[artifacts/vendor-app/src/lib/biometric.ts]', err); } // eslint-disable-line no-console
 }
 
 /* ── Public API ── */
@@ -72,9 +70,7 @@ export async function isBiometricAvailable(): Promise<boolean> {
     const { BiometricAuth } = await import("@aparajita/capacitor-biometric-auth");
     const info = await BiometricAuth.checkBiometry();
     return info.isAvailable;
-  } catch {
-    return false;
-  }
+  } catch (err) { console.warn('[artifacts/vendor-app/src/lib/biometric.ts]', err); } // eslint-disable-line no-console
 }
 
 /**
@@ -119,9 +115,7 @@ export async function verifyBiometric(reason = "Sign in to AJKMart Vendor"): Pro
     const { BiometricAuth } = await import("@aparajita/capacitor-biometric-auth");
     await BiometricAuth.authenticate({ reason, cancelTitle: "Cancel" });
     return true;
-  } catch {
-    return false;
-  }
+  } catch (err) { console.warn('[artifacts/vendor-app/src/lib/biometric.ts]', err); } // eslint-disable-line no-console
 }
 
 /**

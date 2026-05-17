@@ -31,6 +31,6 @@ export function executeLogoutSequence(
   clearAppState();
   if (refreshTok) {
     /* Token is already cleared locally — server revocation is fire-and-forget */
-    apiClient.logout(refreshTok).catch((err) => { console.warn("[logoutSequence] server token revocation failed (local session already cleared):", err); });
+    apiClient.logout(refreshTok).catch((err) => { console.warn("[logoutSequence] server token revocation failed (local session already cleared):", err); }); // eslint-disable-line no-console
   }
 }

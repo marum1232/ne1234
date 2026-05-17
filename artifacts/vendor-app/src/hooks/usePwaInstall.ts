@@ -16,7 +16,7 @@ export function usePwaInstall() {
   const [isInstallable, setIsInstallable] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
   const [isDismissed, setIsDismissed] = useState(() => {
-    try { return localStorage.getItem(DISMISSED_KEY) === "1"; } catch { return false; }
+    try { return localStorage.getItem(DISMISSED_KEY) === "1"; } catch (err) { console.warn('[artifacts/vendor-app/src/hooks/usePwaInstall.ts]', err); } // eslint-disable-line no-console
   });
 
   const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
@@ -56,16 +56,14 @@ export function usePwaInstall() {
       await deferredPrompt.prompt();
       const { outcome } = await deferredPrompt.userChoice;
       if (outcome === "accepted") setIsInstalled(true);
-    } catch {
-      // Prompt unavailable (sandboxed iframe or event already consumed) — ignore silently.
-    }
+    } catch (err) { console.warn('[artifacts/vendor-app/src/hooks/usePwaInstall.ts]', err); } // eslint-disable-line no-console
     setDeferredPrompt(null);
     setIsInstallable(false);
   };
 
   const dismiss = () => {
     setIsDismissed(true);
-    try { localStorage.setItem(DISMISSED_KEY, "1"); } catch {}
+    try { localStorage.setItem(DISMISSED_KEY, "1"); } catch (err) { console.warn('[artifacts/vendor-app/src/hooks/usePwaInstall.ts]', err); } // eslint-disable-line no-console
   };
 
   return { isInstallable, isInstalled, isIOS, isStandalone, isDismissed, promptInstall, dismiss };

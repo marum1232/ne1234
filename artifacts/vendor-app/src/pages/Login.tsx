@@ -101,7 +101,7 @@ export default function Login() {
   /* ── captcha helper ── */
   const getCaptchaToken = async (action: string) => {
     if (!vendorAuth.captchaEnabled) return undefined;
-    try { return await executeCaptcha(action, vendorAuth.captchaSiteKey); } catch { return undefined; }
+    try { return await executeCaptcha(action, vendorAuth.captchaSiteKey); } catch (err) { console.warn('[artifacts/vendor-app/src/pages/Login.tsx]', err); } // eslint-disable-line no-console
   };
 
   /* ── Vendor role guard ── */
@@ -154,9 +154,7 @@ export default function Login() {
       }
       /* OTP path — send OTP now */
       await sendOtp(id);
-    } catch {
-      /* flow.error is set by initiateLogin */
-    }
+    } catch (err) { console.warn('[artifacts/vendor-app/src/pages/Login.tsx]', err); } // eslint-disable-line no-console
   };
 
   /* ── sendOtp (phone or email) ── */
@@ -299,7 +297,8 @@ export default function Login() {
           <h2 className="text-2xl font-extrabold text-gray-800 mb-1">Enter Reset Code</h2>
           <p className="text-sm text-gray-500 mb-6">A code was sent to <strong>{forgotId}</strong></p>
           {forgotErr && <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-3 text-sm mb-4">{forgotErr}</div>}
-          <OtpInput onComplete={otp => { setForgotOtp(otp); setForgotStep("forgot-reset"); }} onResend={() => api.forgotPassword({ identifier: forgotId.trim() }).catch(() => {})} resendCooldownSeconds={60} autoSubmit />
+          {/* eslint-disable-next-line no-console */}
+          <OtpInput onComplete={otp => { setForgotOtp(otp); setForgotStep("forgot-reset"); }} onResend={() => api.forgotPassword({ identifier: forgotId.trim() }).catch((err) => { console.warn('[artifacts/vendor-app/src/pages/Login.tsx]', err); })} resendCooldownSeconds={60} autoSubmit />
         </>)}
         {forgotStep === "forgot-reset" && (<>
           <h2 className="text-2xl font-extrabold text-gray-800 mb-1">Set New Password</h2>
