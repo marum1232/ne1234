@@ -5,7 +5,7 @@ export interface BiometricPromptProps {
   onSuccess: (refreshToken: string) => void;
   onDismiss?: () => void;
   /**
-   * Called when no stored token is found after biometric auth.
+   * Called when no stored token is found after a *successful* biometric auth.
    * Receives a `storeToken` function so the caller can supply and persist
    * a token (e.g. after a password login). If not provided, the component
    * shows a "Set up biometrics" CTA with instructions.
@@ -27,6 +27,13 @@ type BiometricState =
   | 'success'
   | 'error';
 
+/** Structured result from the native biometric + secure-store flow */
+type NativeAuthResult =
+  | { status: 'success'; token: string }
+  | { status: 'auth-failed' }        // biometric dismissed / cancelled / failed
+  | { status: 'token-missing' }      // biometric passed, but no token in secure store
+  | { status: 'unavailable' };       // Expo LocalAuth module not present
+
 function isNativeBiometricAvailable(): boolean {
   const g = globalThis as Record<string, unknown>;
   return !!(g['__ExpoLocalAuthentication'] || g['ExpoModulesCore']);
@@ -44,23 +51,36 @@ async function storeTokenInSecureStore(key: string, token: string): Promise<void
   if (SecureStore) await SecureStore.setItemAsync(key, token);
 }
 
-async function authenticateNative(storageKey: string): Promise<string | null> {
+/**
+ * Attempt native biometric authentication and return a structured result.
+ * Distinct outcomes:
+ *   - `unavailable`    — Expo LocalAuth module not registered
+ *   - `auth-failed`    — biometric prompt shown but user canceled / failed
+ *   - `token-missing`  — biometric succeeded, but no token in secure store yet
+ *   - `success`        — biometric succeeded and token retrieved
+ */
+async function authenticateNative(storageKey: string): Promise<NativeAuthResult> {
   const g = globalThis as Record<string, unknown>;
   const LocalAuth = g['__ExpoLocalAuthentication'] as
     | { authenticateAsync: (opts: { promptMessage: string }) => Promise<{ success: boolean }> }
     | undefined;
 
-  if (!LocalAuth) return null;
+  if (!LocalAuth) return { status: 'unavailable' };
 
   const result = await LocalAuth.authenticateAsync({
     promptMessage: 'Authenticate to sign in',
   });
-  if (!result.success) return null;
 
+  if (!result.success) return { status: 'auth-failed' };
+
+  // Biometric passed — now try to retrieve the stored token
   const SecureStore = g['__ExpoSecureStore'] as
     | { getItemAsync: (k: string) => Promise<string | null> }
     | undefined;
-  return SecureStore ? SecureStore.getItemAsync(storageKey) : null;
+
+  const token = SecureStore ? await SecureStore.getItemAsync(storageKey) : null;
+
+  return token ? { status: 'success', token } : { status: 'token-missing' };
 }
 
 const s = {
@@ -117,9 +137,9 @@ export function BiometricPrompt({
     if (isNativeBiometricAvailable()) {
       setState('ready');
     } else if (isWebAuthnAvailable()) {
-      // WebAuthn is present but full server-challenge integration is not yet
-      // implemented — surface a clear "not supported in this browser" message
-      // instead of silently returning null.
+      // WebAuthn is present in the browser but full server-challenge integration
+      // is not yet implemented — surface a clear message instead of silently
+      // returning null.
       setState('web-unsupported');
     } else {
       setState('unavailable');
@@ -130,22 +150,41 @@ export function BiometricPrompt({
     setState('prompting');
     setErrorMsg('');
     try {
-      const token = await authenticateNative(storageKey);
-      if (token) {
-        setState('success');
-        onSuccess(token);
-      } else {
-        // Biometric auth succeeded but no stored token found — enrollment path
-        if (onEnroll) {
-          setState('enrolling');
-          const storeToken = async (newToken: string) => {
-            await storeTokenInSecureStore(storageKey, newToken);
-          };
-          await onEnroll(storeToken);
-          setState('ready');
-        } else {
-          setState('not-enrolled');
-        }
+      const result = await authenticateNative(storageKey);
+
+      switch (result.status) {
+        case 'success':
+          setState('success');
+          onSuccess(result.token);
+          break;
+
+        case 'auth-failed':
+          // Biometric prompt was shown but the user canceled or failed —
+          // stay on the error/retry path, never trigger enrollment.
+          setState('error');
+          setErrorMsg('Biometric authentication failed or was cancelled. Please try again.');
+          break;
+
+        case 'token-missing':
+          // Biometric auth *succeeded* but there is no stored token yet.
+          // This is the enrollment case: offer to set one up.
+          if (onEnroll) {
+            setState('enrolling');
+            const storeToken = async (newToken: string) => {
+              await storeTokenInSecureStore(storageKey, newToken);
+            };
+            await onEnroll(storeToken);
+            setState('ready');
+          } else {
+            setState('not-enrolled');
+          }
+          break;
+
+        case 'unavailable':
+          // Native module disappeared between mount and prompt — surface as error
+          setState('error');
+          setErrorMsg('Biometric authentication is no longer available.');
+          break;
       }
     } catch (err) {
       setState('error');
