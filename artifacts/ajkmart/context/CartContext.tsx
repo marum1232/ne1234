@@ -8,11 +8,11 @@ import React, {
   useRef,
 } from "react";
 import { createLogger } from "@/utils/logger";
-const log = createLogger("[Cart]");
 import { Alert } from "react-native";
 import { useAuth } from "@/context/AuthContext";
 import { useCurrency } from "@/context/PlatformConfigContext";
 import { unwrapApiResponse, API_BASE } from "../utils/api";
+const log = createLogger("[Cart]");
 
 export interface CartItem {
   productId: string;
@@ -435,11 +435,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         valid?: boolean;
         items?: unknown[];
         removed?: string[];
-        priceChanges?: Array<{
+        priceChanges?: {
           name: string;
           oldPrice: number;
           newPrice: number;
-        }>;
+        }[];
       }>(await res.json());
       /* Discard stale response — user modified the cart while this request was in-flight */
       if (cartGenRef.current !== genAtStart) {

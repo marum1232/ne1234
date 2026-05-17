@@ -1,7 +1,6 @@
 import { Platform } from "react-native";
 import * as Font from "expo-font";
 import { createLogger } from "@/utils/logger";
-const log = createLogger("[fonts]");
 import {
   Inter_400Regular,
   Inter_500Medium,
@@ -14,6 +13,7 @@ import {
   NotoNastaliqUrdu_600SemiBold,
   NotoNastaliqUrdu_700Bold,
 } from "@expo-google-fonts/noto-nastaliq-urdu";
+const log = createLogger("[fonts]");
 
 if (Platform.OS === "web" && typeof window !== "undefined") {
   window.addEventListener("unhandledrejection", (e) => {

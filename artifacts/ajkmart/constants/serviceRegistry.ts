@@ -1,8 +1,8 @@
 import { type Href } from "expo-router";
 import type { Ionicons } from "@expo/vector-icons";
 import Colors from "./colors";
-export { type ServiceKey, SERVICE_KEYS as SERVICE_KEY_LIST, SERVICE_METADATA } from "@workspace/service-constants";
 import { type ServiceKey, SERVICE_KEYS } from "@workspace/service-constants";
+export { type ServiceKey, SERVICE_KEYS as SERVICE_KEY_LIST, SERVICE_METADATA } from "@workspace/service-constants";
 
 
 type IoniconName = keyof typeof Ionicons.glyphMap;
@@ -41,11 +41,11 @@ export interface ServiceDefinition {
     badgeLabel: string;
     title: string;
     subtitle: string;
-    stats: Array<{ icon: IoniconName; label: string }>;
+    stats: { icon: IoniconName; label: string }[];
     cta: string;
     gradient: [string, string, string];
   };
-  banners: Array<{
+  banners: {
     title: string;
     desc: string;
     tag: string;
@@ -53,14 +53,14 @@ export interface ServiceDefinition {
     c2: string;
     icon: IoniconName;
     cta: string;
-  }>;
-  quickActions: Array<{
+  }[];
+  quickActions: {
     icon: IoniconName;
     label: string;
     color: string;
     bg: string;
     route: Href;
-  }>;
+  }[];
   tabLabel: string;
   adminDescription: string;
   adminIcon: string;
@@ -423,14 +423,14 @@ export const SERVICE_REGISTRY: Record<ServiceKey, ServiceDefinition> = {
 };
 
 
-export const GLOBAL_QUICK_ACTIONS: Array<{
+export const GLOBAL_QUICK_ACTIONS: {
   icon: IoniconName;
   label: string;
   color: string;
   bg: string;
   route: Href;
   service: ServiceKey | null;
-}> = [
+}[] = [
   { icon: "time-outline", label: "Track", color: Colors.light.primary, bg: Colors.light.primarySoft, route: APP_ROUTES.orders, service: null },
   { icon: "bus-outline", label: "Van Service", color: "#6366F1", bg: "#EEF2FF", route: APP_ROUTES.van, service: null },
 ];

@@ -1,5 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { createLogger } from "@/utils/logger";
+import { createLogger , registerErrorHandler } from "@/utils/logger";
 import { AuthGuard } from "@/app/_handlers/AuthGuard";
 import { SuspendedScreen } from "@/app/_handlers/SuspendedScreen";
 import { MaintenanceScreen } from "@/app/_handlers/MaintenanceScreen";
@@ -44,7 +44,6 @@ import {
   reportError as reportErrorToBackend,
   initErrorReporter,
 } from "@/utils/error-reporter";
-import { registerErrorHandler } from "@/utils/logger";
 import { PwaInstallBanner } from "@/components/PwaInstallBanner";
 import { registerServiceWorker } from "@/utils/register-service-worker";
 import { initSentry, setSentryUser } from "@/utils/sentry";

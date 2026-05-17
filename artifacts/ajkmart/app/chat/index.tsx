@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { createLogger } from "@/utils/logger";
 import { router } from "expo-router";
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
@@ -17,6 +18,8 @@ import { useToast } from "@/context/ToastContext";
 import { useTheme } from "@/context/ThemeContext";
 import { API_BASE } from "@/utils/api";
 import * as Clipboard from "expo-clipboard";
+
+const log = createLogger("[chat/index]");
 
 interface Conversation {
   id: string;
@@ -66,7 +69,7 @@ export default function ChatListScreen() {
       setRequests(reqs.filter((r: any) => r.status === "pending"));
       setAjkId(me.ajkId);
     } catch (err) {
-      console.warn("[chat/index] Failed to load conversations:", err);
+      log.warn("[chat/index] Failed to load conversations:", err);
     }
     setLoading(false);
   }, [apiFetch]);
@@ -86,7 +89,7 @@ export default function ChatListScreen() {
       await apiFetch(`/requests/${id}/reject`, { method: "PATCH" });
       load();
     } catch (err) {
-      console.warn("[chat/index] Failed to reject request:", err);
+      log.warn("[chat/index] Failed to reject request:", err);
     }
   };
 

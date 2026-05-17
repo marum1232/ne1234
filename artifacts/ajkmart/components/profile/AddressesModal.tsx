@@ -4,7 +4,6 @@ import {
   Text, TextInput, TouchableOpacity, View,
 } from "react-native";
 import { createLogger } from "@/utils/logger";
-const log = createLogger("[AddressesModal]");
 import { Ionicons } from "@expo/vector-icons";
 import { useToast } from "@/context/ToastContext";
 import { usePlatformConfig } from "@/context/PlatformConfigContext";
@@ -17,6 +16,7 @@ import {
   type Address,
   getSharedStyles,
 } from "./shared";
+const log = createLogger("[AddressesModal]");
 
 export function AddressesModal({ visible, userId, token, onClose }: { visible: boolean; userId: string; token?: string; onClose: () => void }) {
   const { colors: C } = useTheme();

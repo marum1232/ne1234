@@ -4,7 +4,6 @@ import {
   ScrollView, Switch, Text, TextInput, TouchableOpacity, View,
 } from "react-native";
 import { createLogger } from "@/utils/logger";
-const log = createLogger("[PrivacyModal]");
 import { Ionicons } from "@expo/vector-icons";
 import * as LegacyFileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
@@ -23,6 +22,7 @@ import {
   getSharedStyles,
 } from "./shared";
 import { DeleteAccountRow } from "./DeleteAccountRow";
+const log = createLogger("[PrivacyModal]");
 
 export function PrivacyModal({ visible, userId, token, onClose }: { visible: boolean; userId: string; token?: string; onClose: () => void }) {
   const { colors: C } = useTheme();

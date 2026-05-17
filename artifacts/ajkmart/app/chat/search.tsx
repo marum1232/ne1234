@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback , useMemo } from "react";
 import {
   ActivityIndicator,
   StyleSheet,
@@ -18,7 +18,6 @@ import { API_BASE } from "@/utils/api";
 import { useSmartBack } from "@/hooks/useSmartBack";
 
 import { useTheme } from "@/context/ThemeContext";
-import { useMemo } from "react";
 
 export default function ChatSearchScreen() {
   const { colors: C } = useTheme();

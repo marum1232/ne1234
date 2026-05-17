@@ -1,9 +1,9 @@
-export { typography, getTypography, getFontFamily } from "./colors";
-export type { } from "./colors";
-
 import { useLanguage } from "@/context/LanguageContext";
 import { useFontSize } from "@/context/FontSizeContext";
 import { getTypography as _getTypography } from "./colors";
+
+export { typography, getTypography, getFontFamily } from "./colors";
+export type { } from "./colors";
 
 export function useScaledTypography() {
   const { language } = useLanguage();

@@ -1,7 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Clipboard from "expo-clipboard";
 import { createLogger } from "@/utils/logger";
-const log = createLogger("[RideTracker]");
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
@@ -43,6 +42,7 @@ import {
 import { usePlatformConfig } from "@/context/PlatformConfigContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { tDual, type TranslationKey } from "@workspace/i18n";
+const log = createLogger("[RideTracker]");
 
 type LiveRide = Omit<Ride, "status" | "paymentMethod"> & {
   status?: string;

@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { createLogger } from "@/utils/logger";
 import { router, type Href } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
@@ -11,6 +12,8 @@ import { useTheme } from "@/context/ThemeContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLanguage } from "@/context/LanguageContext";
 import { tDual, type TranslationKey } from "@workspace/i18n";
+
+const log = createLogger("[AuthGateSheet]");
 
 interface AuthGateSheetProps {
   visible: boolean;
@@ -61,7 +64,7 @@ export function AuthGateSheet({ visible, onClose, returnTo, message }: AuthGateS
           <Text style={s.signInTxt}>{T("signInRegister")}</Text>
         </Pressable>
         <Pressable onPress={async () => {
-          await AsyncStorage.removeItem("@ajkmart_auth_return_to").catch((e: unknown) => console.warn("[AuthGateSheet] Failed to clear return_to:", e));
+          await AsyncStorage.removeItem("@ajkmart_auth_return_to").catch((e: unknown) => log.warn("[AuthGateSheet] Failed to clear return_to:", e));
           onClose();
         }} style={s.browseBtn} accessibilityRole="button">
           <Text style={s.browseTxt}>{T("continueBrowsing")}</Text>
@@ -125,7 +128,7 @@ export function useAuthGate() {
     setSheetVisible(false);
     setSheetMessage(undefined);
     setSheetReturnTo(undefined);
-    AsyncStorage.removeItem("@ajkmart_auth_return_to").catch((e: unknown) => console.warn("[AuthGateSheet] Failed to clear return_to:", e));
+    AsyncStorage.removeItem("@ajkmart_auth_return_to").catch((e: unknown) => log.warn("[AuthGateSheet] Failed to clear return_to:", e));
   }, []);
 
   const gate = {

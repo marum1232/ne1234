@@ -50,7 +50,7 @@ function PhoneInfoStep({ data, onChange, onError }: StepComponentProps) {
       if (timerRef.current) clearTimeout(timerRef.current);
       if (abortRef.current) abortRef.current.abort();
     };
-  }, [data.username]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [data.username]);
 
   return (
     <RegisterStepPhone
@@ -92,7 +92,7 @@ function PhoneInfoStep({ data, onChange, onError }: StepComponentProps) {
 /* ── Step 2 adapter: vehicle info + document uploads ─────────────────────── */
 function VehicleDocsStep({ data, onChange, onError }: StepComponentProps) {
   const { language } = useLanguage();
-  const T = (key: TranslationKey) => tDual(key, language);
+  const T = useCallback((key: TranslationKey) => tDual(key, language), [language]);
 
   const [uploadingField, setUploadingField] = useState("");
   const [optimisingField, setOptimisingField] = useState("");
@@ -114,7 +114,7 @@ function VehicleDocsStep({ data, onChange, onError }: StepComponentProps) {
     } finally {
       setApiTimeoutMs(30_000); setOptimisingField(""); setUploadingField("");
     }
-  }, [onError, T]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [onError, T]);
 
   const setDoc = (field: string) => (doc: UploadedDoc) => { onChange(field, doc); };
 
@@ -278,7 +278,7 @@ export default function Register() {
               try {
                 let captchaToken: string | undefined;
                 if (auth.captchaEnabled) {
-                  try { captchaToken = await executeCaptcha("register_verify_otp", auth.captchaSiteKey ?? ""); } catch (err) { log.warn("captcha failed:", err); } // eslint-disable-line no-console
+                  try { captchaToken = await executeCaptcha("register_verify_otp", auth.captchaSiteKey ?? ""); } catch (err) { log.warn("captcha failed:", err); }
                 }
                 type OtpRes = { token?: string; refreshToken?: string; user?: AuthUser; pendingApproval?: boolean };
                 let res: OtpRes;

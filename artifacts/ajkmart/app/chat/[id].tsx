@@ -1,7 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { createLogger } from "@/utils/logger";
-const log = createLogger("[Chat]");
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import {
   ActivityIndicator,
@@ -24,6 +23,7 @@ import { useToast } from "@/context/ToastContext";
 import { useTheme } from "@/context/ThemeContext";
 import { API_BASE, SOCKET_BASE } from "@/utils/api";
 import { useSmartBack } from "@/hooks/useSmartBack";
+const log = createLogger("[Chat]");
 
 const SOCKET_URL = SOCKET_BASE;
 

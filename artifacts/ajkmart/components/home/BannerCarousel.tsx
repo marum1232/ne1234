@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState, useMemo } from "react";
 import { createLogger } from "@/utils/logger";
-const log = createLogger("[BannerCarousel]");
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Platform, useWindowDimensions } from "react-native";
 import { AdaptiveImage } from "@/components/AdaptiveImage";
 import { Ionicons } from "@expo/vector-icons";
@@ -13,8 +12,9 @@ import { Font } from "@/constants/typography";
 import { useTheme } from "@/context/ThemeContext";
 import { SkeletonBlock } from "@/components/user-shared";
 import { getBanners, type Banner as _Banner } from "@workspace/api-client-react";
-type Banner = _Banner & { linkType?: string; linkValue?: string; gradient1?: string; gradient2?: string; subtitle?: string; icon?: string };
 import { SERVICE_REGISTRY } from "@/constants/serviceRegistry";
+const log = createLogger("[BannerCarousel]");
+type Banner = _Banner & { linkType?: string; linkValue?: string; gradient1?: string; gradient2?: string; subtitle?: string; icon?: string };
 
 const H_PAD = spacing.lg;
 

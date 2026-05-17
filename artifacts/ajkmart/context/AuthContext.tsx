@@ -360,7 +360,7 @@ function CustomerAuthInner({ children }: { children: React.ReactNode }) {
     clearRefreshTimer();
     clearSdkTokens();
     /* Sync logout to the shared SDK primary auth state */
-    try { sdkCtx.logout(); } catch { /* non-fatal if SDK context not mounted */ }
+    try { sdkCtx.logout(); } catch (err) { log.warn("[AuthContext] sdkCtx.logout non-fatal:", err); }
     await AsyncStorage.multiRemove([USER_KEY, "@ajkmart_cart", "@ajkmart_auth_return_to"]);
     await secureDelete(TOKEN_KEY);
     await secureDelete(REFRESH_TOKEN_KEY);
@@ -567,7 +567,7 @@ function CustomerAuthInner({ children }: { children: React.ReactNode }) {
         email: userData.email,
       };
       sdkCtx.login(sdkUser, userToken);
-    } catch { /* non-fatal */ }
+    } catch (err) { log.warn("[AuthContext] sdkCtx.login non-fatal:", err); }
     if (hasRole(userData, "customer")) {
       captureCustomerLocation(userData.id, userToken).catch((err) => {
         log.warn("[AuthContext] captureCustomerLocation after login failed:", err);

@@ -1,5 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { createLogger } from "@/utils/logger";
 
+const log = createLogger("[offline/queue]");
 const QUEUE_KEY = "@ajkmart_offline_queue";
 const DEAD_LETTER_KEY = "@ajkmart_offline_dead_letter";
 const MAX_REPLAY_ATTEMPTS = 3;
@@ -46,8 +48,8 @@ async function appendDeadLetter(entry: DeadLetterEntry): Promise<void> {
     list.push(entry);
     if (list.length > 50) list.splice(0, list.length - 50);
     await AsyncStorage.setItem(DEAD_LETTER_KEY, JSON.stringify(list));
-  } catch {
-    /* dead-letter write failure is non-fatal */
+  } catch (err) {
+    log.warn("[offline/queue] dead-letter write failed (non-fatal):", err);
   }
 }
 

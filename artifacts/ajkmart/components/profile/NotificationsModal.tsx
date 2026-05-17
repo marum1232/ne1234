@@ -4,7 +4,6 @@ import {
   Text, TouchableOpacity, View,
 } from "react-native";
 import { createLogger } from "@/utils/logger";
-const log = createLogger("[NotificationsModal]");
 import { Ionicons } from "@expo/vector-icons";
 import { router, type Href } from "expo-router";
 import { useToast } from "@/context/ToastContext";
@@ -15,6 +14,7 @@ import {
   getSharedStyles,
   type Notification,
 } from "./shared";
+const log = createLogger("[NotificationsModal]");
 
 export function NotificationsModal({ visible, userId, token, onClose }: {
   visible: boolean; userId: string; token?: string; onClose: (unread: number) => void;

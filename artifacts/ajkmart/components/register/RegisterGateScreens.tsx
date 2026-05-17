@@ -1,8 +1,7 @@
 import React from "react";
-import { Platform, View, Text, TouchableOpacity } from "react-native";
+import { Platform, View, Text, TouchableOpacity , ScrollView } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
-import { ScrollView } from "react-native";
 import { authColors as C, AuthButton } from "@/components/auth-shared";
 import { s } from "./registerStyles";
 

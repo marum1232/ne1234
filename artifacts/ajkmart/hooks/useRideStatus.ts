@@ -102,7 +102,7 @@ export function useRideStatus(rideId: string): RideStatusHookResult {
           }
         }
       } catch (pollErr) {
-        console.warn("[useRideStatus] Poll failed:", pollErr);
+        log.warn("[useRideStatus] Poll failed:", pollErr);
       }
     };
     poll();

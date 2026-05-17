@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
 import { createLogger } from "@/utils/logger";
-const log = createLogger("[van-tracking]");
 import {
   TouchableOpacity,
   StyleSheet,
@@ -16,6 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Font } from "@/constants/typography";
 import { useAuth } from "@/context/AuthContext";
 import { SOCKET_BASE } from "@/utils/api";
+const log = createLogger("[van-tracking]");
 
 const SOCKET_URL = SOCKET_BASE;
 

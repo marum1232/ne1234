@@ -1,9 +1,12 @@
 import React from "react";
 import { Modal, View, Text, TouchableOpacity } from "react-native";
 import * as Linking from "expo-linking";
+import { createLogger } from "@/utils/logger";
+
+const log = createLogger("[ForceUpdateDialog]");
 
 export function ForceUpdateDialog({ visible, storeUrl }: { visible: boolean; storeUrl: string }) {
-  const openStore = () => { if (storeUrl) Linking.openURL(storeUrl).catch((_e) => { console.debug("[ForceUpdateDialog] Cannot open store URL:", _e); }); };
+  const openStore = () => { if (storeUrl) Linking.openURL(storeUrl).catch((err) => { log.warn("[ForceUpdateDialog] Cannot open store URL:", err); }); };
   return (
     <Modal visible={visible} transparent animationType="fade" statusBarTranslucent>
       <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.7)", alignItems: "center", justifyContent: "center", padding: 24 }}>

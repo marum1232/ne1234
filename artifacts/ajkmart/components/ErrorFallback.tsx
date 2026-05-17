@@ -1,6 +1,5 @@
 import { Feather } from "@expo/vector-icons";
 import { createLogger } from "@/utils/logger";
-const log = createLogger("[ErrorFallback]");
 import { reloadAppAsync } from "expo";
 import React, { useState } from "react";
 import {
@@ -14,6 +13,7 @@ import {
   useColorScheme,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+const log = createLogger("[ErrorFallback]");
 
 export type ErrorFallbackProps = {
   error: Error;

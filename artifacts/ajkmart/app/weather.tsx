@@ -2,7 +2,6 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import { createLogger } from "@/utils/logger";
 import { withErrorBoundary } from "@/utils/withErrorBoundary";
-const log = createLogger("[Weather]");
 import { router } from "expo-router";
 import { useSmartBack } from "@/hooks/useSmartBack";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
@@ -29,6 +28,7 @@ import Colors, {
   getFontFamily,
 } from "@/constants/colors";
 import { Font } from "@/constants/typography";
+const log = createLogger("[Weather]");
 
 
 const WMO_ICONS: Record<

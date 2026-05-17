@@ -2,7 +2,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { withErrorBoundary } from "@/utils/withErrorBoundary";
 import { router, useLocalSearchParams } from "expo-router";
 import { createLogger } from "@/utils/logger";
-const log = createLogger("[Cart]");
 import { useSmartBack } from "@/hooks/useSmartBack";
 import * as Location from "expo-location";
 import * as ImagePicker from "expo-image-picker";
@@ -38,6 +37,7 @@ import { API_BASE, apiRequest, unwrapApiResponse } from "@/utils/api";
 import { AuthGateSheet, useAuthGate, useRoleGate, RoleBlockSheet } from "@/components/AuthGateSheet";
 
 import { useTheme } from "@/context/ThemeContext";
+const log = createLogger("[Cart]");
 
 type PayMethod = "cash" | "wallet" | "jazzcash" | "easypaisa" | "pickup";
 type CartAvailableOffer = { id: string; name: string; code?: string; discountPct?: number; discountFlat?: number; type: string; minOrderAmount?: number };

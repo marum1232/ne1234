@@ -1,8 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { createLogger } from "@/utils/logger";
-const log = createLogger("[Register]");
-const REG_DRAFT_KEY = "@ajkmart_reg_draft";
 import * as Location from "expo-location";
 import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
@@ -42,6 +40,8 @@ import { MaintenanceScreen, RegistrationClosedScreen, RegModeNoneScreen, Registe
 import { RegisterStep2 } from "@/components/register/RegisterStep2";
 import { RegisterStep3 } from "@/components/register/RegisterStep3";
 import { RegisterStep4 } from "@/components/register/RegisterStep4";
+const log = createLogger("[Register]");
+const REG_DRAFT_KEY = "@ajkmart_reg_draft";
 
 const API = `https://${process.env.EXPO_PUBLIC_DOMAIN ?? ""}/api`;
 type RegStep = 1 | 2 | 3 | 4 | 5;
@@ -151,14 +151,14 @@ export default function RegisterScreen() {
           const restored = Math.min(draft.step as number, 4);
           setStep(restored as RegStep);
         }
-      } catch { /* ignore corrupt draft */ }
-    }).catch(() => {});
+      } catch (err) { log.warn("[Register] corrupt draft, ignoring:", err); }
+    }).catch(err => { log.warn("[Register] draft load failed:", err); });
   }, []);
 
   useEffect(() => {
     if (step === 1 || step === 5) return;
     const draft = { step, name, email, username, city, area, address, cnic };
-    AsyncStorage.setItem(REG_DRAFT_KEY, JSON.stringify(draft)).catch(() => {});
+    AsyncStorage.setItem(REG_DRAFT_KEY, JSON.stringify(draft)).catch(err => { log.warn("[Register] draft save failed:", err); });
   }, [step, name, email, username, city, area, address, cnic]);
 
   useEffect(() => {
@@ -177,9 +177,9 @@ export default function RegisterScreen() {
     let unsubscribe: (() => void) | undefined;
     import("@react-native-community/netinfo").then(({ default: NetInfo }) => {
       unsubscribe = NetInfo.addEventListener(state => {
-        if (state.isConnected) drainQueue(API).catch(() => {});
+        if (state.isConnected) drainQueue(API).catch(err => { log.warn("[Register] drain queue failed:", err); });
       });
-    }).catch(() => {});
+    }).catch(err => { log.warn("[Register] netinfo load failed:", err); });
     return () => { unsubscribe?.(); };
   }, []);
 
@@ -310,7 +310,7 @@ export default function RegisterScreen() {
         setAuthToken(sendResult.token as string);
         if (sendResult.refreshToken) setAuthRefreshToken(sendResult.refreshToken as string);
         if (sendResult.user) setAuthUser(sendResult.user as AppUser);
-        try { const SecureStore = await import("expo-secure-store"); await SecureStore.setItemAsync("ajkmart_reg_token", sendResult.token as string); } catch {}
+        try { const SecureStore = await import("expo-secure-store"); await SecureStore.setItemAsync("ajkmart_reg_token", sendResult.token as string); } catch (err) { log.warn("[Register] SecureStore write:", err); }
       }
       setStep(2); setLoading(false); return;
     }
@@ -328,14 +328,14 @@ export default function RegisterScreen() {
     if (data === null) { setError((lastVerifyOtpErrRef.current || "Invalid OTP.").replace(/^HTTP \d+: /, "")); setLoading(false); return; }
     if (data.token) {
       setAuthToken(data.token as string);
-      try { const SecureStore = await import("expo-secure-store"); await SecureStore.setItemAsync("ajkmart_reg_token", data.token as string); } catch {}
+      try { const SecureStore = await import("expo-secure-store"); await SecureStore.setItemAsync("ajkmart_reg_token", data.token as string); } catch (err) { log.warn("[Register] SecureStore write:", err); }
     }
     if (data.refreshToken) setAuthRefreshToken(data.refreshToken as string);
     if (data.user) setAuthUser(data.user as AppUser);
     if (data.token && (data.user as AppUser | null)?.name && (data.user as AppUser | null)?.id) {
       const u = data.user as AppUser;
       await login({ ...u, walletBalance: u.walletBalance ?? 0, isActive: u.isActive ?? true, createdAt: u.createdAt ?? new Date().toISOString() }, data.token as string, (data.refreshToken as string | undefined) || undefined);
-      try { const SS = await import("expo-secure-store"); await SS.deleteItemAsync("ajkmart_reg_token"); } catch {}
+      try { const SS = await import("expo-secure-store"); await SS.deleteItemAsync("ajkmart_reg_token"); } catch (err) { log.warn("[Register] SecureStore delete:", err); }
       router.replace("/(tabs)"); return;
     }
     setStep(2); setLoading(false);
@@ -366,7 +366,7 @@ export default function RegisterScreen() {
       if (!res.ok) { setError(data.error || "Invalid verification code."); setLoading(false); return; }
       if (data.token) {
         setAuthToken(data.token);
-        try { const SecureStore = await import("expo-secure-store"); await SecureStore.setItemAsync("ajkmart_reg_token", data.token); } catch {}
+        try { const SecureStore = await import("expo-secure-store"); await SecureStore.setItemAsync("ajkmart_reg_token", data.token); } catch (err) { log.warn("[Register] SecureStore write:", err); }
       }
       if (data.refreshToken) setAuthRefreshToken(data.refreshToken);
       if (data.user) setAuthUser(data.user as AppUser);
@@ -386,7 +386,7 @@ export default function RegisterScreen() {
         const compressedUri = await compressImage(result.assets[0].uri, { maxWidth: 1200, quality: 0.7 });
         setPhotoUri(compressedUri);
       }
-    } catch { /* photo pick failure is non-fatal */ }
+    } catch (err) { log.warn("[Register] photo pick failed:", err); }
     setPhotoLoading(false);
   };
 
@@ -414,12 +414,12 @@ export default function RegisterScreen() {
     try {
       let activeToken = authToken;
       if (!activeToken) {
-        try { const SecureStore = await import("expo-secure-store"); activeToken = await SecureStore.getItemAsync("ajkmart_reg_token") || ""; } catch {}
+        try { const SecureStore = await import("expo-secure-store"); activeToken = await SecureStore.getItemAsync("ajkmart_reg_token") || ""; } catch (err) { log.warn("[Register] SecureStore read:", err); }
       }
       if (!activeToken) { setError("Session expired. Please go back and verify OTP again."); setLoading(false); return; }
       const termsVersion = config.compliance?.termsVersion || "";
       let profilePhotoBase64: string | undefined;
-      if (photoUri) { try { profilePhotoBase64 = await compressImageToDataUrl(photoUri, 200 * 1024); } catch { /* non-fatal */ } }
+      if (photoUri) { try { profilePhotoBase64 = await compressImageToDataUrl(photoUri, 200 * 1024); } catch (err) { log.warn("[Register] compress image failed:", err); } }
       const profileRes = await fetch(`${API}/auth/complete-profile`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${activeToken}` },
@@ -439,7 +439,7 @@ export default function RegisterScreen() {
       if (!profileRes.ok) { setError(profileData.error || "Could not save profile. Please try again."); setLoading(false); return; }
       if (profileData.token) {
         setAuthToken(profileData.token);
-        try { const SecureStore = await import("expo-secure-store"); await SecureStore.setItemAsync("ajkmart_reg_token", profileData.token); } catch {}
+        try { const SecureStore = await import("expo-secure-store"); await SecureStore.setItemAsync("ajkmart_reg_token", profileData.token); } catch (err) { log.warn("[Register] SecureStore write:", err); }
       }
       if (profileData.refreshToken) setAuthRefreshToken(profileData.refreshToken);
       if (profileData.user) setAuthUser(profileData.user);
@@ -452,12 +452,12 @@ export default function RegisterScreen() {
     setLoading(true);
     try {
       let finalToken = authToken;
-      if (!finalToken) { try { const SecureStore = await import("expo-secure-store"); finalToken = await SecureStore.getItemAsync("ajkmart_reg_token") || ""; } catch {} }
+      if (!finalToken) { try { const SecureStore = await import("expo-secure-store"); finalToken = await SecureStore.getItemAsync("ajkmart_reg_token") || ""; } catch (err) { log.warn("[Register] SecureStore read:", err); } }
       if (finalToken && authUser) {
         const userData = { ...authUser, walletBalance: authUser.walletBalance ?? 0, isActive: authUser.isActive ?? true, createdAt: authUser.createdAt ?? new Date().toISOString() };
         await login(userData, finalToken, authRefreshToken || undefined);
-        AsyncStorage.removeItem(REG_DRAFT_KEY).catch(() => {});
-        try { const SecureStore = await import("expo-secure-store"); await SecureStore.deleteItemAsync("ajkmart_reg_token"); } catch {}
+        AsyncStorage.removeItem(REG_DRAFT_KEY).catch(err => { log.warn("[Register] draft cleanup:", err); });
+        try { const SecureStore = await import("expo-secure-store"); await SecureStore.deleteItemAsync("ajkmart_reg_token"); } catch (err) { log.warn("[Register] SecureStore delete:", err); }
         router.replace("/(tabs)");
       } else { goBackToAuth(); }
     } catch (e: unknown) { log.warn("Login after registration failed:", e instanceof Error ? e.message : e); goBackToAuth(); }
@@ -467,7 +467,7 @@ export default function RegisterScreen() {
   const stepLabels = ["Verify", "Details", "Address", "Security", "Done"];
 
   const goBackToAuth = useCallback(() => {
-    AsyncStorage.removeItem(REG_DRAFT_KEY).catch(() => {});
+    AsyncStorage.removeItem(REG_DRAFT_KEY).catch(err => { log.warn("[Register] draft cleanup:", err); });
     router.replace("/auth");
   }, []);
 

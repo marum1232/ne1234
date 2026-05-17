@@ -15,8 +15,8 @@ import {
 import { spacing } from "@/constants/colors";
 import { useTheme } from "@/context/ThemeContext";
 import { createLogger } from "@/utils/logger";
-const log = createLogger("[SmartRefresh]");
 import Svg, { Circle } from "react-native-svg";
+const log = createLogger("[SmartRefresh]");
 
 interface SmartRefreshProps extends ScrollViewProps {
   onRefresh: () => Promise<void>;

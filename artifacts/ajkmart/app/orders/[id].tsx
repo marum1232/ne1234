@@ -1,7 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import Head from "expo-router/head";
 import { createLogger } from "@/utils/logger";
-const log = createLogger("[OrderDetail]");
 import { withErrorBoundary } from "@/utils/withErrorBoundary";
 import { router, useLocalSearchParams, useNavigation } from "expo-router";
 import { useSmartBack } from "@/hooks/useSmartBack";
@@ -51,6 +50,9 @@ import {
 } from "@/lib/orderUtils";
 import type { Socket } from "socket.io-client";
 
+import { useTheme } from "@/context/ThemeContext";
+const log = createLogger("[OrderDetail]");
+
 const LIVE_TRACKING_STATUSES = [
   "picked_up",
   "out_for_delivery",
@@ -98,8 +100,6 @@ interface OrderDetail {
 }
 
 export default withErrorBoundary(OrderDetailScreenInner);
-
-import { useTheme } from "@/context/ThemeContext";
 
 function OrderDetailScreenInner() {
   const { colors: C } = useTheme();
@@ -1703,7 +1703,7 @@ function OrderDetailScreenInner() {
                           setReviewDone(true);
                         }
                       } catch (reviewErr) {
-                        console.warn("[orders/[id]] Review submit failed:", reviewErr);
+                        log.warn("[orders/[id]] Review submit failed:", reviewErr);
                       } finally {
                         setReviewSubmitting(false);
                       }

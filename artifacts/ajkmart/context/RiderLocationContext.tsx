@@ -11,7 +11,6 @@
  */
 
 import { createLogger } from "@/utils/logger";
-const log = createLogger("[RiderLocation]");
 import React, {
   createContext,
   useCallback,
@@ -27,6 +26,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { AppState, AppStateStatus, Platform } from "react-native";
 import { useAuth } from "./AuthContext";
 import { unwrapApiResponse, API_BASE } from "../utils/api";
+const log = createLogger("[RiderLocation]");
 
 const BACKGROUND_LOCATION_TASK = "RIDER_BACKGROUND_LOCATION";
 const MIN_DISTANCE_METERS = 25;

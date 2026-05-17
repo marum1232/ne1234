@@ -1,5 +1,4 @@
 import { createLogger } from "@/utils/logger";
-const log = createLogger("[Product]");
 import { Ionicons } from "@expo/vector-icons";
 import { withErrorBoundary } from "@/utils/withErrorBoundary";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -49,6 +48,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { VideoView, useVideoPlayer } from "expo-video";
 
 import { useTheme } from "@/context/ThemeContext";
+const log = createLogger("[Product]");
 
 const SCREEN_W_FALLBACK = 375;
 

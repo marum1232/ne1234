@@ -1,7 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { createLogger } from "@/utils/logger";
-const log = createLogger("[RideBookingForm]");
 import * as Location from "expo-location";
 import { router } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -56,6 +55,7 @@ import type {
   EstimateFareRequest,
   SchoolSubscribeRequest,
 } from "@workspace/api-client-react";
+const log = createLogger("[RideBookingForm]");
 
 type MapPickerResult = { lat: number; lng: number; address: string };
 
@@ -387,7 +387,7 @@ export function RideBookingForm({ onBooked, prefillPickup, prefillDrop, prefillT
   useEffect(() => {
     fetch(`${API_BASE}/rides/payment-methods`)
       .then((r) => r.json())
-      .then((j) => unwrapApiResponse<{ methods?: Array<{ key?: string; id?: string; label?: string; name?: string }> }>(j))
+      .then((j) => unwrapApiResponse<{ methods?: { key?: string; id?: string; label?: string; name?: string }[] }>(j))
       .then((rideData) => {
         if (rideData?.methods?.length) {
           const mapped = rideData.methods.map((m) => ({ id: (m.key ?? m.id) ?? "", label: (m.label ?? m.name) ?? "" }));

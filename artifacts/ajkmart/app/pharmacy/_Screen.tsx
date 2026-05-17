@@ -1,7 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { createLogger } from "@/utils/logger";
-const log = createLogger("[Pharmacy]");
 import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
 import * as FileSystem from "expo-file-system";
@@ -44,6 +43,7 @@ import { API_BASE, unwrapApiResponse } from "@/utils/api";
 import { isValidPakistaniPhone, buildPhoneValidator } from "@/utils/phone";
 import { usePlatformConfig } from "@/context/PlatformConfigContext";
 import { AuthGateSheet, useAuthGate, useRoleGate, RoleBlockSheet } from "@/components/AuthGateSheet";
+const log = createLogger("[Pharmacy]");
 
 
 interface PharmacyProduct {

@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { createLogger } from "@/utils/logger";
 import { withErrorBoundary } from "@/utils/withErrorBoundary";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import {
@@ -19,6 +20,8 @@ import { Font } from "@/constants/typography";
 import { useToast } from "@/context/ToastContext";
 import { API_BASE } from "@/utils/api";
 import { useTheme } from "@/context/ThemeContext";
+
+const log = createLogger("[scan]");
 
 export default withErrorBoundary(ScanScreenInner);
 
@@ -85,7 +88,7 @@ function ScanScreenInner() {
         }
       }
     } catch (err) {
-      console.warn("[scan] Barcode resolve failed:", err);
+      log.warn("[scan] Barcode resolve failed:", err);
     } finally {
       setResolving(false);
     }

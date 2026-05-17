@@ -1,7 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { createLogger } from "@/utils/logger";
-const log = createLogger("[Mart]");
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSmartBack } from "@/hooks/useSmartBack";
@@ -35,6 +34,7 @@ import { useQuery } from "@tanstack/react-query";
 import { WishlistHeart } from "@/components/WishlistHeart";
 import { CartSwitchModal } from "@/components/CartSwitchModal";
 import { AuthGateSheet, useAuthGate, useRoleGate, RoleBlockSheet } from "@/components/AuthGateSheet";
+const log = createLogger("[Mart]");
 
 const FLASH_CARD_W = (375 - 16 * 2 - 12) / 2;
 const PRODUCT_CARD_W = (375 - 16 * 2 - 12) / 2;

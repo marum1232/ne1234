@@ -36,6 +36,9 @@ import * as SecureStore from 'expo-secure-store';
 import { createAuthClient } from '@workspace/auth-react';
 import type { TokenStorage } from '@workspace/auth-react';
 import { API_BASE } from '@/utils/api';
+import { createLogger } from '@/utils/logger';
+
+const log = createLogger('[sdkAuthClient]');
 
 // ── Customer app's own SecureStore key names ───────────────────────────────
 // These match the TOKEN_KEY / REFRESH_TOKEN_KEY in AuthContext.tsx so the
@@ -89,8 +92,8 @@ export async function bootstrapSdkAuth(): Promise<void> {
     ]);
     if (access) _accessToken = access;
     if (refresh) _refreshToken = refresh;
-  } catch {
-    // SecureStore unavailable — start with empty memory; login will sync
+  } catch (err) {
+    log.warn("[sdkAuthClient] SecureStore unavailable, starting empty:", err);
   }
 
   _authClient = createAuthClient({

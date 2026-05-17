@@ -17,8 +17,6 @@ import * as WebBrowser from "expo-web-browser";
 import * as Google from "expo-auth-session/providers/google";
 import * as Facebook from "expo-auth-session/providers/facebook";
 
-WebBrowser.maybeCompleteAuthSession();
-
 import Colors, { spacing, radii, shadows, typography } from "@/constants/colors";
 import { useAuth, type AppUser } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
@@ -40,6 +38,8 @@ import {
   InputField,
   authColors as C,
 } from "@/components/auth-shared";
+
+WebBrowser.maybeCompleteAuthSession();
 
 const API = `https://${process.env.EXPO_PUBLIC_DOMAIN ?? ""}/api`;
 
@@ -318,7 +318,7 @@ export default function AuthScreen() {
       .then((res) => handleLoginResult(res))
       .catch((e: unknown) => setError(e instanceof Error ? e.message : "Google login failed."))
       .finally(() => setLoading(false));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, [googleResponse]);
 
   useEffect(() => {
@@ -330,7 +330,7 @@ export default function AuthScreen() {
       .then((res) => handleLoginResult(res))
       .catch((e: unknown) => setError(e instanceof Error ? e.message : "Facebook login failed."))
       .finally(() => setLoading(false));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, [fbResponse]);
 
   const handleSocialLogin = async (provider: "google" | "facebook") => {

@@ -1,12 +1,12 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { createContext, useContext, useEffect, useCallback, useState, useRef } from "react";
 import { createLogger } from "@/utils/logger";
-const log = createLogger("[Language]");
 import { Alert, I18nManager } from "react-native";
 import type { Language } from "@workspace/i18n";
 import { LANGUAGE_OPTIONS } from "@workspace/i18n";
 import { unwrapApiResponse } from "../utils/api";
 import { loadUrduFonts } from "../utils/fonts";
+const log = createLogger("[Language]");
 
 const LANG_STORAGE_KEY = "@ajkmart_language";
 const VALID_LANGS = new Set<string>(LANGUAGE_OPTIONS.map(o => o.value));

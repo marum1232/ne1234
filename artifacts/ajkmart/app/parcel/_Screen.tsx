@@ -1,7 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { createLogger } from "@/utils/logger";
-const log = createLogger("[Parcel]");
 import * as Location from "expo-location";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSmartBack } from "@/hooks/useSmartBack";
@@ -35,6 +34,7 @@ import { estimateParcel, createParcelBooking } from "@workspace/api-client-react
 import type { CreateParcelBookingRequest } from "@workspace/api-client-react";
 import { normalizePhone, isValidPakistaniPhone, buildPhoneValidator } from "@/utils/phone";
 import { AuthGateSheet, useAuthGate } from "@/components/AuthGateSheet";
+const log = createLogger("[Parcel]");
 
 
 interface ParcelType {
