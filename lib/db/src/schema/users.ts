@@ -18,6 +18,7 @@ export const usersTable = pgTable("users", {
   /* ── Email OTP (separate from phone OTP) ── */
   emailOtpCode:    text("email_otp_code"),
   emailOtpExpiry:  timestamp("email_otp_expiry"),
+  emailOtpUsed:    boolean("email_otp_used").notNull().default(false),
   /* ── Username + password login ── */
   username:        text("username").unique(),
   passwordHash:    text("password_hash"),

@@ -32,10 +32,13 @@ function isValidCnic(cnic: string): boolean {
   return /^\d{5}-\d{7}-\d$/.test(cnic.trim());
 }
 
-/* ── Validate Pakistani phone: 03XXXXXXXXX ── */
+/* ── Validate Pakistani phone: 03XXXXXXXXX or +92XXXXXXXXXX ── */
 function isValidPakistaniPhone(phone: string): boolean {
-  const digits = phone.replace(/\D/g, "");
-  return digits.length === 11 && digits.startsWith("03");
+  const trimmed = phone.trim();
+  const digits = trimmed.replace(/\D/g, "");
+  if (digits.length === 11 && digits.startsWith("03")) return true;
+  if (trimmed.startsWith("+92") && digits.length === 12 && digits.startsWith("92")) return true;
+  return false;
 }
 
 /* ── Step 1: Store Info ──────────────────────────────────────────────── */
@@ -336,11 +339,11 @@ export function RegisterWizard({ onDone }: RegisterWizardProps) {
     try { const raw = localStorage.getItem(DRAFT_KEY); return raw ? JSON.parse(raw) : {}; } catch { return {}; }
   });
 
-  /* ── Save draft, excluding password fields ── */
+  /* ── Save draft, excluding password and OTP fields ── */
   const handleDataChange = useCallback((key: string, value: unknown) => {
     setDraft(prev => {
       const next = { ...prev, [key]: value };
-      const { password: _pw, confirmPassword: _cpw, ...safe } = next as Record<string, unknown>;
+      const { password: _pw, confirmPassword: _cpw, otp: _otp, ...safe } = next as Record<string, unknown>;
       localStorage.setItem(DRAFT_KEY, JSON.stringify(safe));
       return next;
     });
@@ -363,6 +366,7 @@ export function RegisterWizard({ onDone }: RegisterWizardProps) {
         bankName: data.bankName as string | undefined,
         bankAccount: data.bankAccount as string | undefined,
         bankAccountTitle: data.bankAccountTitle as string | undefined,
+        ...(data.otp ? { otp: data.otp as string } : {}),
       }) as { token?: string; user?: unknown };
       localStorage.removeItem(DRAFT_KEY);
       return { success: true, data: res };

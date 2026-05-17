@@ -9,6 +9,7 @@ export function AuthGuard() {
   const segments = useSegments();
   const redirectCountRef = useRef(0);
   const redirectResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const wrongAppRedirectedForRef = useRef<string | null>(null);
 
   const safeReplace = (path: Href) => {
     if (redirectCountRef.current >= AUTH_REDIRECT_CAP) {
@@ -65,7 +66,10 @@ export function AuthGuard() {
         })
         .catch(() => { safeReplace("/landing" as Href); });
     } else if (user && !hasRole(user, "customer") && !onWrongAppScreen) {
-      safeReplace("/auth/wrong-app");
+      if (wrongAppRedirectedForRef.current !== user.id) {
+        wrongAppRedirectedForRef.current = user.id;
+        safeReplace("/auth/wrong-app");
+      }
     } else if (user && hasRole(user, "customer") && (inAuthGroup || inRootIndex)) {
       safeReplace("/(tabs)");
     }

@@ -325,6 +325,11 @@ export const api = {
 
   /* Token helpers */
   storeTokens: (token: string, refreshToken?: string) => {
+    /* Update the shared _tokenStorage — both authClient and _vendorFetcher
+       read from the same object, so a single write syncs both clients.
+       No separate authClient.setAccessToken() call needed: authClient was
+       constructed with `tokenStorage: _tokenStorage` and reads the live value
+       on every request rather than caching it internally. */
     _tokenStorage.setAccessToken(token);
     if (refreshToken) _tokenStorage.setRefreshToken(refreshToken);
   },

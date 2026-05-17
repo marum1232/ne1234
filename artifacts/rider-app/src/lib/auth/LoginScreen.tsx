@@ -80,6 +80,11 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
   }, [login, navigate, T, onSuccess]);
 
   const confirmBiometric = async (enable: boolean) => {
+    if (!capturedTokenRef.current) {
+      setOverlay(null);
+      navigate("/");
+      return;
+    }
     if (enable) {
       const { setBiometricEnabled } = await import("../biometric").catch(() => ({} as never));
       if (setBiometricEnabled) await setBiometricEnabled(true);

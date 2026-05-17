@@ -99,6 +99,17 @@ router.post("/vendor-register", sharedValidateBody(VendorRegisterSchema), async 
     }
   }
 
+  /* ── Dual-role guard: riders may only add the vendor role when the
+     platform explicitly permits it (allow_dual_role=on). By default,
+     riders must create a separate account for vendor activity. ── */
+  if (existingRoles.includes("rider")) {
+    const vendorSettings = await getCachedSettings();
+    if (vendorSettings["allow_dual_role"] !== "on") {
+      sendError(res, "Rider accounts cannot register as vendors. Please create a separate vendor account or contact support.", 409);
+      return;
+    }
+  }
+
   const newRoles = existingRoles.includes("vendor") ? existingRoles : [...existingRoles, "vendor"];
   const settings = await getCachedSettings();
   const autoApprove = (settings["vendor_auto_approve"] ?? "off") === "on";

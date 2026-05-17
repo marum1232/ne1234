@@ -344,6 +344,20 @@ router.post("/verify-reset-otp", otpLimiter, verifyCaptcha, sharedValidateBody(V
       sendError(res, "Verification code has expired. Please request a new one.", 422);
       return;
     }
+    if (user.emailOtpUsed) {
+      sendError(res, "This code has already been used. Please request a new one.", 422);
+      return;
+    }
+  }
+
+  const settings = await getCachedSettings();
+  const maxAttempts = parseInt(settings["security_login_max_attempts"] ?? "5", 10);
+  const lockoutMinutes = parseInt(settings["security_lockout_minutes"] ?? "30", 10);
+  const lockoutKey = `reset:${user.id}`;
+  const lockout = await checkLockout(lockoutKey, maxAttempts, lockoutMinutes);
+  if (lockout.locked) {
+    sendTooManyRequests(res, `Too many attempts. Try again in ${lockout.minutesLeft} minute(s).`);
+    return;
   }
 
   writeAuthAuditLog("verify_reset_otp", { userId: user.id, ip, userAgent: req.headers["user-agent"] ?? undefined });
@@ -448,6 +462,15 @@ router.post("/reset-password", verifyCaptcha, sharedValidateBody(ResetPasswordSc
     AuditService.log({ action: "reset_password_failed", ip, details: `Invalid OTP for password reset: ${user.id}`, result: "fail" });
     sendUnauthorized(res, "Invalid or expired OTP");
     return;
+  }
+
+  /* Mark the OTP as consumed immediately after validation, before any
+     further checks (2FA). This prevents an attacker from retrying the
+     same OTP code while a 2FA challenge is pending. */
+  if (phone) {
+    await db.update(usersTable).set({ otpUsed: true, updatedAt: new Date() }).where(eq(usersTable.id, user.id));
+  } else {
+    await db.update(usersTable).set({ emailOtpUsed: true, updatedAt: new Date() }).where(eq(usersTable.id, user.id));
   }
 
   if (user.totpEnabled && isAuthMethodEnabled(settings, "auth_2fa_enabled", userRole)) {

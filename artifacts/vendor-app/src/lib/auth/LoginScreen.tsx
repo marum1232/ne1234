@@ -15,7 +15,7 @@ import { useAuth as useAuthContext } from "../vendor-auth";
 import { usePlatformConfig, getVendorAuthConfig } from "../useConfig";
 import { useLanguage } from "../useLanguage";
 import { tDual, type TranslationKey } from "@workspace/i18n";
-import { canonicalizePhone } from "@workspace/auth-utils";
+import { loadGoogleGSIToken, loadFacebookAccessToken } from "@workspace/auth-utils";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useLocation } from "wouter";
 
@@ -63,7 +63,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
 
     const token = res.token ?? "";
     capturedTokenRef.current = token;
-    api.storeTokens(token, undefined);
+    api.storeTokens(token, res.refreshToken);
     try {
       const profile = await api.getMe();
       login(token, profile, undefined);
@@ -76,6 +76,10 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
   }, [login, navigate, onSuccess]);
 
   const confirmBiometric = async (enable: boolean) => {
+    if (!capturedTokenRef.current) {
+      setOverlay(null);
+      return;
+    }
     if (enable) {
       const { setBiometricEnabled } = await import("../biometric").catch(() => ({} as never));
       if (setBiometricEnabled) await setBiometricEnabled(true);
@@ -85,18 +89,30 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
       login(capturedTokenRef.current, profile, undefined);
       setOverlay(null);
       navigate("/");
-    } catch { setOverlay(null); }
+    } catch (e: unknown) {
+      api.clearTokens();
+      setOverlay(null);
+      setLoginError(e instanceof Error ? e.message : "Failed to load profile. Please log in again.");
+    }
   };
 
   const handleGoogle = useCallback(async () => {
-    try { await doLogin(await api.socialGoogle({ idToken: "" }) as never); }
-    catch (e: unknown) { setLoginError(e instanceof Error ? e.message : "Google sign-in failed"); }
-  }, [doLogin]);
+    const vendorAuthCfg = getVendorAuthConfig(config);
+    if (!vendorAuthCfg.googleClientId) { setLoginError(T("socialLoginComingSoon")); return; }
+    try {
+      const idToken = await loadGoogleGSIToken(vendorAuthCfg.googleClientId);
+      await doLogin(await api.socialGoogle({ idToken }) as never);
+    } catch (e: unknown) { setLoginError(e instanceof Error ? e.message : "Google sign-in failed"); }
+  }, [doLogin, config, T]);
 
   const handleFacebook = useCallback(async () => {
-    try { await doLogin(await api.socialFacebook({ accessToken: "" }) as never); }
-    catch (e: unknown) { setLoginError(e instanceof Error ? e.message : "Facebook sign-in failed"); }
-  }, [doLogin]);
+    const vendorAuthCfg = getVendorAuthConfig(config);
+    if (!vendorAuthCfg.facebookAppId) { setLoginError(T("socialLoginComingSoon")); return; }
+    try {
+      const accessToken = await loadFacebookAccessToken(vendorAuthCfg.facebookAppId);
+      await doLogin(await api.socialFacebook({ accessToken }) as never);
+    } catch (e: unknown) { setLoginError(e instanceof Error ? e.message : "Facebook sign-in failed"); }
+  }, [doLogin, config, T]);
 
   const handleMagicLink = useCallback(async (identifier: string) => {
     try {

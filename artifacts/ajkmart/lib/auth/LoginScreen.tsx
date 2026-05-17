@@ -18,6 +18,7 @@ import { useAuthConfig } from "@/context/AuthConfigContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { tDual, type TranslationKey } from "@workspace/i18n";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as LocalAuthentication from "expo-local-authentication";
 import { MaintenanceOverlay, PendingOverlay, RejectedOverlay } from "./Overlay";
 
 const BIOMETRIC_ENABLED_KEY = "@ajkmart/biometric-enabled";
@@ -44,9 +45,18 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
   const pendingTokenRef = useRef<string>("");
   const pendingUserRef = useRef<SDKAuthUser | null>(null);
 
-  /* ── Check biometric enrollment flag ── */
+  /* ── Check biometric enrollment flag and hardware availability ── */
   useEffect(() => {
-    AsyncStorage.getItem(BIOMETRIC_ENABLED_KEY).then(v => setBiometricEnabled(v === "true")).catch(() => {});
+    const check = async () => {
+      try {
+        const stored = await AsyncStorage.getItem(BIOMETRIC_ENABLED_KEY);
+        if (stored !== "true") { setBiometricEnabled(false); return; }
+        const enrolled = await LocalAuthentication.isEnrolledAsync();
+        setBiometricEnabled(enrolled);
+        if (!enrolled) await AsyncStorage.removeItem(BIOMETRIC_ENABLED_KEY);
+      } catch { setBiometricEnabled(false); }
+    };
+    check();
   }, []);
 
   const completeLogin = useCallback((token: string, user: SDKAuthUser) => {
@@ -75,12 +85,22 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
   }, [biometricEnabled, completeLogin]);
 
   const confirmBiometric = async (enable: boolean) => {
-    if (enable) await AsyncStorage.setItem(BIOMETRIC_ENABLED_KEY, "true");
-    setOverlay(null);
-    /* Complete the pending login that was deferred for biometric prompt */
-    if (pendingTokenRef.current && pendingUserRef.current) {
-      completeLogin(pendingTokenRef.current, pendingUserRef.current);
+    if (!pendingTokenRef.current || !pendingUserRef.current) {
+      setOverlay(null);
+      return;
     }
+    if (enable) {
+      try {
+        const isAvailable = await LocalAuthentication.hasHardwareAsync();
+        const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+        if (isAvailable && isEnrolled) {
+          await AsyncStorage.setItem(BIOMETRIC_ENABLED_KEY, "true");
+          setBiometricEnabled(true);
+        }
+      } catch { /* biometric setup failed — proceed without it */ }
+    }
+    setOverlay(null);
+    completeLogin(pendingTokenRef.current, pendingUserRef.current);
   };
 
   const handleGoogle = useCallback(async () => {

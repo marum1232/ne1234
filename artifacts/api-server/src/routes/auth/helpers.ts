@@ -53,7 +53,7 @@ export async function isValidCanonicalPhone(phone: string): Promise<boolean> {
     return new RegExp(pattern).test(phone);
   } catch (err) {
     logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
-    return /^3\d{9}$/.test(phone);
+    return /^0?3\d{9}$/.test(phone);
   }
 }
 
@@ -288,7 +288,10 @@ export function parseUserAgent(ua?: string): { deviceName: string; browser: stri
 }
 
 export async function issueTokensForUser(user: any, ip: string, method: string, userAgent?: string, req?: Request, res?: Response) {
-  const accessToken = signAccessToken(user.id, user.phone ?? "", user.roles ?? "customer", user.roles ?? "customer", user.tokenVersion ?? 0);
+  if (user.tokenVersion == null) {
+    throw new Error(`[issueTokensForUser] tokenVersion is null for user ${user.id} — DB row may be corrupted`);
+  }
+  const accessToken = signAccessToken(user.id, user.phone ?? "", user.roles ?? "customer", user.roles ?? "customer", user.tokenVersion);
   const { raw: refreshRaw, hash: refreshHash } = generateRefreshToken();
   const refreshExpiresAt = new Date(Date.now() + getRefreshTokenTtlDays() * 24 * 60 * 60 * 1000);
 

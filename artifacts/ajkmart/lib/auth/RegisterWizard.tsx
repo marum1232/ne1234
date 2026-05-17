@@ -344,9 +344,26 @@ export function RegisterWizard({ onDone }: RegisterWizardProps) {
 
   const handleSubmit = async (data: Record<string, unknown>) => {
     try {
-      const domain = process.env.EXPO_PUBLIC_DOMAIN;
-      if (!domain) throw new Error("App is not configured correctly. Please try again later.");
+      const envDomain = process.env.EXPO_PUBLIC_DOMAIN?.trim();
+      const webDomain = Platform.OS === "web" && typeof window !== "undefined" ? window.location.hostname : "";
+      const domain = envDomain || webDomain;
+      if (!domain) {
+        return { success: false, error: "App is not configured correctly. Please contact support." };
+      }
       const API_BASE = `https://${domain}/api`;
+
+      if (data.otp && data.phone) {
+        const verifyRes = await fetch(`${API_BASE}/auth/verify-otp`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ phone: data.phone, otp: data.otp, role: "customer" }),
+        });
+        if (!verifyRes.ok) {
+          const verifyJson = await verifyRes.json() as Record<string, unknown>;
+          return { success: false, error: (verifyJson.message as string) ?? "OTP verification failed" };
+        }
+      }
+
       const res = await fetch(`${API_BASE}/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

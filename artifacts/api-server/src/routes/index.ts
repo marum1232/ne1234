@@ -100,7 +100,7 @@ router.use("/settings", settingsRouter);
 if (process.env["NODE_ENV"] !== "production") {
   router.use("/seed", seedRouter);
 }
-router.use("/admin/system", systemRouter);
+router.use("/admin/system", adminAuth, systemRouter);
 // Sentry webhook is public (HMAC-verified) — must be mounted BEFORE adminRouter
 // so it is NOT intercepted by adminAuth. The route is POST /admin/sentry-webhook.
 router.use(sentryWebhookRouter);
@@ -125,15 +125,15 @@ router.use("/sos", checkSessionRevocation, verifyTokenFamily, userApiLimiter, so
 router.use("/recommendations", publicGetLimiter, userApiLimiter, recommendationsRouter);
 router.use("/banners", publicGetLimiter, bannersRouter);
 router.use("/variants", variantsRouter);
-router.use("/push", verifyTokenFamily, userApiLimiter, pushRouter);
-router.use("/kyc", verifyTokenFamily, userApiLimiter, kycRouter);
-router.use("/wishlist", verifyTokenFamily, userApiLimiter, wishlistRouter);
+router.use("/push", checkSessionRevocation, verifyTokenFamily, userApiLimiter, pushRouter);
+router.use("/kyc", checkSessionRevocation, verifyTokenFamily, userApiLimiter, kycRouter);
+router.use("/wishlist", checkSessionRevocation, verifyTokenFamily, userApiLimiter, wishlistRouter);
 router.use("/van", vanRouter);
 router.use("/webhooks", webhooksRouter);
 router.use("/delivery/eligibility", deliveryEligibilityRouter);
 router.use("/popups", popupsRouter);
 router.use("/promotions", publicGetLimiter, promotionsRouter);
-router.use("/admin/promotions", promotionsRouter);
+router.use("/admin/promotions", adminAuth, promotionsRouter);
 router.use("/support-chat", supportChatRouter);
 router.use("/vendors", publicGetLimiter, publicVendorsRouter);
 router.use("/vendors", vendorRouter);

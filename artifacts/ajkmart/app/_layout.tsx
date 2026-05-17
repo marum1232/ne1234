@@ -408,17 +408,30 @@ function RootLayoutNav() {
 
 async function probeApiHealth(
   domain: string,
+  attempt = 0,
 ): Promise<{ reachable: boolean; url: string }> {
   const url = `https://${domain}/api/health`;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 5000);
   try {
     const res = await fetch(url, { signal: controller.signal });
-    return { reachable: res.ok, url };
-  } catch {
-    return { reachable: false, url };
-  } finally {
     clearTimeout(timer);
+    if (res.ok) return { reachable: true, url };
+    /* Server reachable but unhealthy — retry with backoff up to 3 times */
+    if (attempt < 3) {
+      const delay = Math.min(1000 * 2 ** attempt, 8000);
+      await new Promise<void>(r => setTimeout(r, delay));
+      return probeApiHealth(domain, attempt + 1);
+    }
+    return { reachable: false, url };
+  } catch {
+    clearTimeout(timer);
+    if (attempt < 3) {
+      const delay = Math.min(1000 * 2 ** attempt, 8000);
+      await new Promise<void>(r => setTimeout(r, delay));
+      return probeApiHealth(domain, attempt + 1);
+    }
+    return { reachable: false, url };
   }
 }
 

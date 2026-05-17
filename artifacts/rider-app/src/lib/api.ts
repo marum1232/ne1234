@@ -90,11 +90,12 @@ function localGet(): string {
 }
 function localSet(value: string): void {
   _inMemoryRefreshToken = value;
-  try { localStorage.removeItem(REFRESH_KEY); } catch (err) { console.warn('[artifacts/rider-app/src/lib/api.ts]', err); } // eslint-disable-line no-console
+  /* Note: localStorage migration is handled once at module boot (lines above).
+     Never write back to localStorage here — that defeats the XSS-safety goal. */
 }
 function localRemove(): void {
   _inMemoryRefreshToken = "";
-  try { localStorage.removeItem(REFRESH_KEY); } catch (err) { console.warn('[artifacts/rider-app/src/lib/api.ts]', err); } // eslint-disable-line no-console
+  /* Same as localSet — do not touch localStorage; boot-time migration already ran. */
 }
 
 /* ── Shared SDK auth client (typed HTTP client from @workspace/auth-react) ── */
@@ -285,7 +286,39 @@ export interface Ride {
 }
 export interface RiderRequestsResponse { orders: Order[]; rides: Ride[]; _serverTime: string | null; }
 
+/* ── CSRF token — Preferences-backed ──────────────────────────────────────────
+   Capacitor does not expose HttpOnly cookies to JavaScript, so document.cookie
+   is not a reliable source of the CSRF token in native contexts. Instead, we
+   read the `csrfToken` field that the server returns in auth response bodies,
+   persist it in @capacitor/preferences, and hold an in-memory copy for fast
+   synchronous access in `apiFetch`. Falls back to document.cookie on web builds
+   where the HttpOnly cookie is readable by XHR but Preferences is unavailable. */
+const CSRF_KEY = "ajkmart_rider_csrf_token";
+let _inMemoryCsrfToken = "";
+
+export async function storeCsrfToken(token: string): Promise<void> {
+  if (!token) return;
+  _inMemoryCsrfToken = token;
+  await preferencesSet(CSRF_KEY, token).catch(() => {});
+}
+
+/* Load persisted CSRF token from Preferences into memory (called from tokenStoreReady). */
+export const csrfStoreReady: Promise<void> = (async () => {
+  try {
+    _inMemoryCsrfToken = await preferencesGet(CSRF_KEY);
+  } catch {
+    /* Fall back to document.cookie on failure */
+    try {
+      const match = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]+)/);
+      if (match) _inMemoryCsrfToken = decodeURIComponent(match[1]);
+    } catch { /* ignore */ }
+  }
+})();
+
 function readCsrfFromCookie(): string {
+  /* Primary: in-memory value sourced from auth response body via storeCsrfToken */
+  if (_inMemoryCsrfToken) return _inMemoryCsrfToken;
+  /* Fallback: document.cookie (web-only; unreliable in Capacitor) */
   try {
     const match = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]+)/);
     return match ? decodeURIComponent(match[1]) : "";
@@ -419,6 +452,13 @@ export async function apiFetch(path: string, opts: RequestInit = {}, _returnEnve
   } catch (err) {
     console.warn('[artifacts/rider-app/src/lib/api.ts]', err); // eslint-disable-line no-console
     throw new Error("Failed to parse server response as JSON");
+  }
+  /* Capture CSRF token from auth responses. The server includes `csrfToken`
+     in login/OTP verify response bodies so we can store it in Preferences
+     rather than relying on document.cookie (which is unreliable in Capacitor). */
+  const csrfInBody = (json as Record<string, unknown>).csrfToken;
+  if (typeof csrfInBody === "string" && csrfInBody) {
+    storeCsrfToken(csrfInBody).catch(() => {});
   }
   /* When returnEnvelope is true, the caller receives the full JSON envelope
      (e.g. to read top-level fields like serverTime alongside data). */
