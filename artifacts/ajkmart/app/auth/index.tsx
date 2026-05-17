@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Linking from "expo-linking";
+import * as WebBrowser from "expo-web-browser";
 
 import Colors, { spacing, radii, shadows, typography } from "@/constants/colors";
 import { useAuth, type AppUser } from "@/context/AuthContext";
@@ -256,6 +257,42 @@ export default function AuthScreen() {
   };
 
   const showBiometric = authConfig.allowBiometric && biometricEnabled;
+
+  /* Social login — OAuth via expo-web-browser, delegated to host app so
+     LoginScreen.native.tsx stays free of OAuth/deep-link dependencies. */
+  const handleSocialLogin = async (provider: "google" | "facebook") => {
+    try {
+      const callbackUrl = Linking.createURL("/auth/callback");
+      const oauthUrl = `${API}/auth/oauth/${provider}/mobile?role=customer&redirectUri=${encodeURIComponent(callbackUrl)}`;
+      const result = await WebBrowser.openAuthSessionAsync(oauthUrl, callbackUrl);
+      if (result.type !== "success") return;
+      const parsed = Linking.parse(result.url);
+      const token = parsed.queryParams?.token as string | undefined;
+      const refreshToken = parsed.queryParams?.refreshToken as string | undefined;
+      const errorMsg = parsed.queryParams?.error as string | undefined;
+      if (errorMsg) { setError(decodeURIComponent(errorMsg)); return; }
+      if (!token) { setError("Social login failed. Please try again."); return; }
+      const rawUser = await fetch(`${API}/auth/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const userJson = await rawUser.json();
+      const user: AppUser | null = userJson?.data ?? userJson?.user ?? null;
+      if (!user) { setError("Could not retrieve user after social login."); return; }
+      await handleLoginResult({ user, token, refreshToken });
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Social login failed.");
+    }
+  };
+
+  /* Social method buttons derived from platform config — only show enabled providers */
+  const socialMethods = [
+    ...(authConfig.allowGoogle
+      ? [{ key: "google", label: "Google", color: "#4285F4" }]
+      : []),
+    ...(authConfig.allowFacebook
+      ? [{ key: "facebook", label: "Facebook", color: "#1877F2" }]
+      : []),
+  ];
 
   /* ── Guard: maintenance mode ─────────────────────────────────────────────── */
   if (platformCfg.appStatus === "maintenance") {
@@ -520,6 +557,13 @@ export default function AuthScreen() {
           enableBiometric={showBiometric}
           onBiometricPress={handleBiometricLogin}
           biometricLoading={biometricLoading}
+          /* Social login — provider list and handler both live here so LoginScreen
+             stays clean of OAuth/deep-link dependencies. force_google/force_facebook
+             from check-identifier also route through onSocialPress. */
+          socialMethods={socialMethods}
+          onSocialPress={socialMethods.length > 0 ? handleSocialLogin : undefined}
+          showMagicLink={authConfig.allowMagicLink}
+          onForgotPasswordPress={() => router.push("/auth/forgot-password")}
           renderTopBanner={() => (
             <>
               {isLowBandwidth && !lowBwDismissed && (

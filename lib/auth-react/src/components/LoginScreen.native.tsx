@@ -17,6 +17,12 @@ import { PhoneInput } from './PhoneInput.native';
 
 export type AppRole = 'customer' | 'vendor' | 'rider' | 'admin';
 
+export interface SocialMethod {
+  key: string;
+  label: string;
+  color?: string;
+}
+
 export interface LoginScreenProps {
   role?: AppRole;
   baseURL?: string;
@@ -34,7 +40,15 @@ export interface LoginScreenProps {
   onPrivacyPress?: () => void;
   footerText?: string;
   enabledMethods?: string[];
+  /** Social providers to show as buttons (Google, Facebook). Handler lives in host app. */
+  socialMethods?: SocialMethod[];
+  /** Called when user taps a social provider button or check-identifier forces one. */
+  onSocialPress?: (provider: 'google' | 'facebook') => void | Promise<void>;
+  /** Show magic link section below social buttons. */
   showMagicLink?: boolean;
+  /** Called when magic link section requests send. If not provided, LoginScreen handles internally. */
+  onMagicLinkRequest?: (email: string) => Promise<void>;
+  onForgotPasswordPress?: () => void;
 }
 
 type InternalStep =
@@ -82,8 +96,11 @@ export function LoginScreen({
   onTncPress,
   onPrivacyPress,
   footerText,
-  enabledMethods,
+  socialMethods = [],
+  onSocialPress,
   showMagicLink = false,
+  onMagicLinkRequest,
+  onForgotPasswordPress,
 }: LoginScreenProps) {
   const [step, setStep] = useState<InternalStep>('identifier');
   const [loading, setLoading] = useState(false);
@@ -99,9 +116,9 @@ export function LoginScreen({
   const [magicEmail, setMagicEmail] = useState('');
   const [magicSent, setMagicSent] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
+  const [socialLoading, setSocialLoading] = useState('');
 
   const fadeAnim = useRef(new Animated.Value(1)).current;
-
   const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   function startCooldown(secs = 60) {
@@ -149,56 +166,77 @@ export function LoginScreen({
 
       if (res.action === 'blocked' || res.isBanned) {
         setError('This account has been suspended. Please contact support.');
+        setLoading(false);
         return;
       }
       if (res.action === 'locked') {
         setError(
           `Account locked. Try again in ${res.lockedMinutes as number} minute(s).`
         );
+        setLoading(false);
         return;
       }
       if (res.action === 'registration_closed') {
         setError('New registrations are currently closed.');
+        setLoading(false);
         return;
       }
       if (res.action === 'no_method') {
         setError(
           'No login methods are currently available. Please contact support.'
         );
+        setLoading(false);
         return;
       }
       if (res.action === 'register') {
         onRegisterPress?.();
+        setLoading(false);
+        return;
+      }
+      /* Social-forced: account is linked to a social provider exclusively.
+         Delegate to the host app's social login handler (it owns OAuth WebBrowser). */
+      if (res.action === 'force_google') {
+        setLoading(false);
+        await onSocialPress?.('google');
+        return;
+      }
+      if (res.action === 'force_facebook') {
+        setLoading(false);
+        await onSocialPress?.('facebook');
         return;
       }
       if (res.action === 'send_phone_otp') {
         setPhone(id);
-        setStep('phone-send');
+        setLoading(false);
         await sendPhoneOtp(id);
         return;
       }
       if (res.action === 'send_email_otp') {
         setEmail(id);
-        setStep('email-send');
+        setLoading(false);
         await sendEmailOtp(id);
         return;
       }
-      if (
-        res.action === 'login_password' ||
-        res.action === 'send_magic_link'
-      ) {
+      if (res.action === 'send_magic_link') {
         setUsername(id);
-        setStep(res.action === 'send_magic_link' ? 'magic' : 'password');
+        setLoading(false);
+        setStep('magic');
+        return;
+      }
+      if (res.action === 'login_password') {
+        setUsername(id);
+        setLoading(false);
+        setStep('password');
         return;
       }
       setUsername(id);
+      setLoading(false);
       setStep('password');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Check failed. Try again.');
-    } finally {
       setLoading(false);
     }
-  }, [identifier, baseURL, role, onRegisterPress]);
+  }, [identifier, baseURL, role, onRegisterPress, onSocialPress]);
 
   async function sendPhoneOtp(phoneVal: string) {
     setLoading(true);
@@ -317,12 +355,26 @@ export function LoginScreen({
     setLoading(true);
     clearError();
     try {
-      await apiPost(baseURL, '/api/auth/magic-link/send', { email: addr });
+      if (onMagicLinkRequest) {
+        await onMagicLinkRequest(addr);
+      } else {
+        await apiPost(baseURL, '/api/auth/magic-link/send', { email: addr });
+      }
       setMagicSent(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to send magic link.');
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleSocialLogin(provider: 'google' | 'facebook') {
+    if (!onSocialPress) return;
+    setSocialLoading(provider);
+    try {
+      await onSocialPress(provider);
+    } finally {
+      setSocialLoading('');
     }
   }
 
@@ -333,6 +385,8 @@ export function LoginScreen({
   const otpOnVerify = step === 'phone-otp' ? verifyPhoneOtp : verifyEmailOtp;
   const otpSubtitle =
     step === 'phone-otp' ? `Code sent to ${phone}` : `Code sent to ${email}`;
+
+  const hasSocial = socialMethods.length > 0 && !!onSocialPress;
 
   return (
     <KeyboardAvoidingView
@@ -362,6 +416,7 @@ export function LoginScreen({
             </View>
           ) : null}
 
+          {/* ── Identifier step ─────────────────────────────────────── */}
           {step === 'identifier' && (
             <Animated.View style={{ opacity: fadeAnim }}>
               <Text style={styles.label}>Phone, email, or username</Text>
@@ -385,21 +440,95 @@ export function LoginScreen({
               <Btn label="Continue" onPress={checkIdentifier} loading={loading} />
 
               {enableBiometric && onBiometricPress ? (
-                <TouchableOpacity
-                  style={styles.biometricBtn}
-                  onPress={onBiometricPress}
-                  disabled={biometricLoading}
-                  accessibilityLabel="Login with Biometrics"
-                  accessibilityRole="button"
-                >
-                  {biometricLoading ? (
-                    <ActivityIndicator size="small" color="#f59e0b" />
+                <>
+                  <DividerRow text="or" />
+                  <TouchableOpacity
+                    style={styles.biometricBtn}
+                    onPress={onBiometricPress}
+                    disabled={biometricLoading}
+                    accessibilityLabel="Login with Biometrics"
+                    accessibilityRole="button"
+                  >
+                    {biometricLoading ? (
+                      <ActivityIndicator size="small" color="#f59e0b" />
+                    ) : (
+                      <Text style={styles.biometricBtnText}>
+                        Login with Biometrics
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                </>
+              ) : null}
+
+              {/* Social login buttons */}
+              {hasSocial ? (
+                <>
+                  <DividerRow text="or continue with" />
+                  {socialMethods.map((sm) => (
+                    <TouchableOpacity
+                      key={sm.key}
+                      style={[
+                        styles.socialBtn,
+                        { borderColor: sm.color ?? '#e5e7eb' },
+                      ]}
+                      onPress={() =>
+                        handleSocialLogin(sm.key as 'google' | 'facebook')
+                      }
+                      disabled={!!loading || !!socialLoading}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Continue with ${sm.label}`}
+                    >
+                      {socialLoading === sm.key ? (
+                        <ActivityIndicator
+                          size="small"
+                          color={sm.color ?? '#111827'}
+                        />
+                      ) : (
+                        <Text
+                          style={[
+                            styles.socialBtnText,
+                            { color: sm.color ?? '#111827' },
+                          ]}
+                        >
+                          Continue with {sm.label}
+                        </Text>
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </>
+              ) : null}
+
+              {/* Magic link section */}
+              {showMagicLink ? (
+                <>
+                  <DividerRow text="or magic link" />
+                  {!magicSent ? (
+                    <>
+                      <TextInput
+                        style={styles.input}
+                        value={magicEmail}
+                        onChangeText={setMagicEmail}
+                        placeholder="Email for magic link"
+                        placeholderTextColor="#9ca3af"
+                        keyboardType="email-address"
+                        autoCapitalize="none"
+                        editable={!loading}
+                      />
+                      <Btn
+                        label="Send Magic Link"
+                        onPress={handleMagicLink}
+                        loading={loading}
+                        style={{ backgroundColor: '#6b7280' }}
+                      />
+                    </>
                   ) : (
-                    <Text style={styles.biometricBtnText}>
-                      Login with Biometrics
-                    </Text>
+                    <View style={styles.successBox}>
+                      <Text style={styles.successText}>
+                        Magic link sent! Check your email.
+                      </Text>
+                    </View>
                   )}
-                </TouchableOpacity>
+                </>
               ) : null}
 
               {onRegisterPress ? (
@@ -417,6 +546,7 @@ export function LoginScreen({
             </Animated.View>
           )}
 
+          {/* ── Sending OTP spinner ──────────────────────────────────── */}
           {(step === 'phone-send' || step === 'email-send') && (
             <View style={styles.centerCol}>
               <ActivityIndicator size="large" color="#f59e0b" />
@@ -424,6 +554,7 @@ export function LoginScreen({
             </View>
           )}
 
+          {/* ── OTP verification step ────────────────────────────────── */}
           {isOtpStep && (
             <Animated.View style={{ opacity: fadeAnim }}>
               <TouchableOpacity
@@ -437,7 +568,7 @@ export function LoginScreen({
               <Text style={styles.sectionSub}>{otpSubtitle}</Text>
               <OtpInput
                 value={otp}
-                onChangeText={(v) => {
+                onChangeText={(v: string) => {
                   setOtp(v);
                   clearError();
                 }}
@@ -446,14 +577,11 @@ export function LoginScreen({
                 onResend={resendCooldown === 0 ? otpOnResend : undefined}
                 resendCooldownSeconds={60}
               />
-              <Btn
-                label="Verify"
-                onPress={otpOnVerify}
-                loading={loading}
-              />
+              <Btn label="Verify" onPress={otpOnVerify} loading={loading} />
             </Animated.View>
           )}
 
+          {/* ── Password step ────────────────────────────────────────── */}
           {step === 'password' && (
             <Animated.View style={{ opacity: fadeAnim }}>
               <TouchableOpacity
@@ -489,6 +617,15 @@ export function LoginScreen({
                   <Text style={styles.eyeText}>{showPwd ? '🙈' : '👁'}</Text>
                 </TouchableOpacity>
               </View>
+              {onForgotPasswordPress ? (
+                <TouchableOpacity
+                  style={styles.forgotBtn}
+                  onPress={onForgotPasswordPress}
+                  accessibilityRole="link"
+                >
+                  <Text style={styles.forgotText}>Forgot password?</Text>
+                </TouchableOpacity>
+              ) : null}
               <Btn
                 label="Sign In"
                 onPress={handlePasswordLogin}
@@ -498,6 +635,7 @@ export function LoginScreen({
             </Animated.View>
           )}
 
+          {/* ── Magic link step (accessed from identifier nav) ───────── */}
           {step === 'magic' && (
             <Animated.View style={{ opacity: fadeAnim }}>
               <TouchableOpacity
@@ -541,7 +679,7 @@ export function LoginScreen({
           )}
         </View>
 
-        {footerText || onTncPress || onPrivacyPress ? (
+        {onTncPress || onPrivacyPress || footerText ? (
           <View style={styles.footer}>
             {onTncPress && (
               <TouchableOpacity onPress={onTncPress} accessibilityRole="link">
@@ -597,39 +735,54 @@ function Btn({
   );
 }
 
-const C = {
-  primary: '#f59e0b',
-  surface: '#fff',
-  border: '#e5e7eb',
-  text: '#111827',
-  textMuted: '#6b7280',
-  error: '#ef4444',
-  success: '#10b981',
-};
+function DividerRow({ text }: { text: string }) {
+  return (
+    <View style={styles.dividerRow}>
+      <View style={styles.dividerLine} />
+      <Text style={styles.dividerText}>{text}</Text>
+      <View style={styles.dividerLine} />
+    </View>
+  );
+}
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   scrollContent: { flexGrow: 1, paddingBottom: 32 },
-  header: { alignItems: 'center', paddingTop: 32, paddingBottom: 24, paddingHorizontal: 24 },
-  title: { fontSize: 28, fontWeight: '700', color: '#fff', textAlign: 'center' },
-  subtitle: { fontSize: 14, color: 'rgba(255,255,255,0.85)', marginTop: 6, textAlign: 'center' },
+  header: {
+    alignItems: 'center',
+    paddingTop: 32,
+    paddingBottom: 24,
+    paddingHorizontal: 24,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#fff',
+    textAlign: 'center',
+  },
+  subtitle: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.85)',
+    marginTop: 6,
+    textAlign: 'center',
+  },
   card: {
-    backgroundColor: C.surface,
+    backgroundColor: '#fff',
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     flex: 1,
     padding: 24,
     paddingBottom: 40,
   },
-  label: { fontSize: 13, fontWeight: '500', color: C.textMuted, marginBottom: 8 },
+  label: { fontSize: 13, fontWeight: '500', color: '#6b7280', marginBottom: 8 },
   input: {
     borderWidth: 1.5,
-    borderColor: C.border,
+    borderColor: '#e5e7eb',
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 13,
     fontSize: 15,
-    color: C.text,
+    color: '#111827',
     backgroundColor: '#f9fafb',
     marginBottom: 12,
   },
@@ -637,7 +790,7 @@ const styles = StyleSheet.create({
   eyeBtn: { padding: 10 },
   eyeText: { fontSize: 18 },
   primaryBtn: {
-    backgroundColor: C.primary,
+    backgroundColor: '#f59e0b',
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
@@ -648,17 +801,34 @@ const styles = StyleSheet.create({
   primaryBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   biometricBtn: {
     borderWidth: 1.5,
-    borderColor: C.primary,
+    borderColor: '#f59e0b',
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
     marginBottom: 12,
-    backgroundColor: `${C.primary}12`,
+    backgroundColor: 'rgba(245,158,11,0.07)',
   },
-  biometricBtnText: { color: C.primary, fontSize: 15, fontWeight: '600' },
+  biometricBtnText: { color: '#f59e0b', fontSize: 15, fontWeight: '600' },
+  socialBtn: {
+    borderWidth: 1.5,
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginBottom: 10,
+    backgroundColor: '#fff',
+  },
+  socialBtnText: { fontSize: 15, fontWeight: '600' },
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 12,
+    gap: 8,
+  },
+  dividerLine: { flex: 1, height: 1, backgroundColor: '#e5e7eb' },
+  dividerText: { fontSize: 12, color: '#9ca3af', fontWeight: '500' },
   linkBtn: { alignItems: 'center', marginTop: 12, paddingVertical: 6 },
-  linkBtnText: { fontSize: 14, color: C.textMuted },
-  linkBtnBold: { fontWeight: '700', color: C.primary },
+  linkBtnText: { fontSize: 14, color: '#6b7280' },
+  linkBtnBold: { fontWeight: '700', color: '#f59e0b' },
   errorBox: {
     backgroundColor: '#fef2f2',
     borderRadius: 8,
@@ -667,7 +837,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#fecaca',
   },
-  errorText: { color: C.error, fontSize: 13, fontWeight: '500' },
+  errorText: { color: '#ef4444', fontSize: 13, fontWeight: '500' },
   successBox: {
     backgroundColor: '#f0fdf4',
     borderRadius: 8,
@@ -676,13 +846,25 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#bbf7d0',
   },
-  successText: { color: C.success, fontSize: 14, fontWeight: '600' },
+  successText: { color: '#10b981', fontSize: 14, fontWeight: '600' },
   backRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
-  backText: { fontSize: 14, fontWeight: '600', color: C.primary },
-  sectionTitle: { fontSize: 18, fontWeight: '700', color: C.text, marginBottom: 4 },
-  sectionSub: { fontSize: 13, color: C.textMuted, marginBottom: 16 },
-  centerCol: { alignItems: 'center', justifyContent: 'center', paddingVertical: 40, gap: 16 },
-  sendingText: { fontSize: 14, color: C.textMuted },
+  backText: { fontSize: 14, fontWeight: '600', color: '#f59e0b' },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 4,
+  },
+  sectionSub: { fontSize: 13, color: '#6b7280', marginBottom: 16 },
+  centerCol: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+    gap: 16,
+  },
+  sendingText: { fontSize: 14, color: '#6b7280' },
+  forgotBtn: { alignSelf: 'flex-end', marginTop: 4, marginBottom: 8 },
+  forgotText: { fontSize: 13, fontWeight: '600', color: '#f59e0b' },
   footer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -692,7 +874,11 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 4,
   },
-  footerLink: { fontSize: 12, color: C.primary, textDecorationLine: 'underline' },
-  footerSep: { fontSize: 12, color: C.textMuted },
-  footerText: { fontSize: 12, color: C.textMuted, textAlign: 'center' },
+  footerLink: {
+    fontSize: 12,
+    color: '#f59e0b',
+    textDecorationLine: 'underline',
+  },
+  footerSep: { fontSize: 12, color: '#9ca3af' },
+  footerText: { fontSize: 12, color: '#9ca3af', textAlign: 'center' },
 });
