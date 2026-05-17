@@ -8,15 +8,15 @@ export interface Country {
 }
 
 export const DEFAULT_COUNTRIES: Country[] = [
-  { code: 'PK', dial: '+92',  name: 'Pakistan',      flag: '🇵🇰' },
-  { code: 'AJ', dial: '+92',  name: 'AJK (Pakistan)', flag: '🏔️' },
-  { code: 'GB', dial: '+92',  name: 'Gilgit-Baltistan', flag: '🏔️' },
-  { code: 'US', dial: '+1',   name: 'United States',  flag: '🇺🇸' },
-  { code: 'GB2',dial: '+44',  name: 'United Kingdom', flag: '🇬🇧' },
-  { code: 'AE', dial: '+971', name: 'UAE',            flag: '🇦🇪' },
-  { code: 'SA', dial: '+966', name: 'Saudi Arabia',   flag: '🇸🇦' },
-  { code: 'IN', dial: '+91',  name: 'India',          flag: '🇮🇳' },
-  { code: 'AF', dial: '+93',  name: 'Afghanistan',    flag: '🇦🇫' },
+  { code: 'PK',  dial: '+92',  name: 'Pakistan',          flag: '🇵🇰' },
+  { code: 'AJ',  dial: '+92',  name: 'AJK (Pakistan)',    flag: '🏔️' },
+  { code: 'PKG', dial: '+92',  name: 'Gilgit-Baltistan',  flag: '🏔️' },
+  { code: 'US',  dial: '+1',   name: 'United States',     flag: '🇺🇸' },
+  { code: 'GB',  dial: '+44',  name: 'United Kingdom',    flag: '🇬🇧' },
+  { code: 'AE',  dial: '+971', name: 'UAE',                flag: '🇦🇪' },
+  { code: 'SA',  dial: '+966', name: 'Saudi Arabia',      flag: '🇸🇦' },
+  { code: 'IN',  dial: '+91',  name: 'India',             flag: '🇮🇳' },
+  { code: 'AF',  dial: '+93',  name: 'Afghanistan',       flag: '🇦🇫' },
 ];
 
 export interface PhoneInputProps {

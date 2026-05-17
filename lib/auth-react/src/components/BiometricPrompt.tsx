@@ -5,6 +5,12 @@ export interface BiometricPromptProps {
   onSuccess: (refreshToken: string) => void;
   onDismiss?: () => void;
   /**
+   * Called when the user taps "Continue with password to enroll" in the
+   * `not-enrolled` state. Lets the host app navigate to the password step
+   * with enrollment intent. Falls back to `onDismiss` when not provided.
+   */
+  onEnrollPress?: () => void;
+  /**
    * Called when no stored token is found after a *successful* biometric auth.
    * Receives a `storeToken` function so the caller can supply and persist
    * a token (e.g. after a password login). If not provided, the component
@@ -125,6 +131,7 @@ const s = {
 export function BiometricPrompt({
   onSuccess,
   onDismiss,
+  onEnrollPress,
   onEnroll,
   label = 'Sign in with biometrics',
   className,
@@ -234,16 +241,22 @@ export function BiometricPrompt({
         <p style={s.subtitle}>
           No biometric credential is stored yet. Sign in with your password first to enable fingerprint or face login.
         </p>
-        {onDismiss && (
-          <button type="button" style={s.btnPrimary} onClick={onDismiss}>
-            Continue with password to enroll
-          </button>
-        )}
-        {onDismiss && (
-          <button type="button" style={s.btnSecondary} onClick={onDismiss}>
-            Maybe later
-          </button>
-        )}
+        <button
+          type="button"
+          style={s.btnPrimary}
+          onClick={onEnrollPress ?? onDismiss}
+          aria-label="Continue with password to enroll biometrics"
+        >
+          Continue with password to enroll
+        </button>
+        <button
+          type="button"
+          style={s.btnSecondary}
+          onClick={onDismiss}
+          aria-label="Dismiss biometric enrollment"
+        >
+          Maybe later
+        </button>
       </div>
     );
   }

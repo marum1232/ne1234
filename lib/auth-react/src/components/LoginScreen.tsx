@@ -94,7 +94,7 @@ export function LoginScreen({
     if (!identifier.trim()) { setError('Please enter your phone number'); return; }
     clearError();
     try {
-      const result = await initiateLogin(identifier.trim());
+      const result = await initiateLogin(identifier.trim(), customValues);
       if (result.method === 'password') setStep('password');
       else setStep('otp');
     } catch {
@@ -368,7 +368,11 @@ export function LoginScreen({
           </div>
 
           {/* Error */}
-          {error && <div style={s.errorBox}>{error}</div>}
+          {error && (
+            <div style={s.errorBox} role="alert" aria-live="assertive">
+              {error}
+            </div>
+          )}
 
           {/* Step: Identifier */}
           {step === 'identifier' && (

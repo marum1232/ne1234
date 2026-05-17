@@ -95,6 +95,13 @@ export function OtpInput({
   const [cooldown, setCooldown] = useState(0);
   const refs = useRef<Array<HTMLInputElement | null>>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Guard against duplicate onComplete calls for the same filled OTP
+  const completedRef = useRef(false);
+
+  // Auto-focus first box on mount
+  useEffect(() => {
+    refs.current[0]?.focus();
+  }, []);
 
   // Start cooldown on mount if onResend is provided
   useEffect(() => {
@@ -117,7 +124,10 @@ export function OtpInput({
     (next: string[]) => {
       const otp = next.join('');
       if (otp.length === length && next.every((v) => v !== '')) {
-        if (autoSubmit) onComplete(otp);
+        if (autoSubmit && !completedRef.current) {
+          completedRef.current = true;
+          onComplete(otp);
+        }
       }
     },
     [length, autoSubmit, onComplete]
@@ -145,10 +155,13 @@ export function OtpInput({
       if (next[idx]) {
         next[idx] = '';
         setValues(next);
+        // Reset completion guard when user clears a digit
+        completedRef.current = false;
       } else if (idx > 0) {
         next[idx - 1] = '';
         setValues(next);
         refs.current[idx - 1]?.focus();
+        completedRef.current = false;
       }
     } else if (e.key === 'ArrowLeft' && idx > 0) {
       refs.current[idx - 1]?.focus();
@@ -162,6 +175,7 @@ export function OtpInput({
     const text = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, length);
     const next = Array(length).fill('');
     text.split('').forEach((ch, i) => { next[i] = ch; });
+    completedRef.current = false;
     setValues(next);
     refs.current[Math.min(text.length, length - 1)]?.focus();
     notifyIfComplete(next);
@@ -169,7 +183,9 @@ export function OtpInput({
 
   function handleResend() {
     if (cooldown > 0 || !onResend) return;
-    setValues(Array(length).fill(''));
+    const cleared = Array(length).fill('');
+    setValues(cleared);
+    completedRef.current = false;
     refs.current[0]?.focus();
     onResend();
     startCooldown();
@@ -177,8 +193,12 @@ export function OtpInput({
 
   return (
     <div style={s.wrapper} className={className}>
-      {label && <p style={s.label}>{label}</p>}
-      <div style={s.row}>
+      {label && (
+        <p style={s.label} id="otp-label">
+          {label}
+        </p>
+      )}
+      <div style={s.row} role="group" aria-labelledby={label ? 'otp-label' : undefined}>
         {values.map((val, idx) => (
           <input
             key={idx}
@@ -189,6 +209,7 @@ export function OtpInput({
             value={val}
             disabled={disabled}
             className={inputClassName}
+            aria-label={idx === 0 ? `OTP digit 1 of ${length}` : `digit ${idx + 1}`}
             style={{
               ...s.input,
               ...(focusedIdx === idx ? s.inputFocus : {}),

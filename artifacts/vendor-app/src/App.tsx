@@ -24,6 +24,7 @@ import { BOTTOM_PADDING } from "./lib/ui";
 import { AnnouncementBar } from "./components/AnnouncementBar";
 import { PopupEngine } from "./components/PopupEngine";
 import { MaintenanceScreen } from "./components/MaintenanceScreen";
+import GuestLanding from "./pages/GuestLanding";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
@@ -279,7 +280,11 @@ function AppRoutes() {
     return () => clearInterval(id);
   }, [config.platform.appStatus]);
 
-  if (!loading && !user && location === "/register") return <Register />;
+  if (!loading && !user) {
+    if (location === "/register") return <Register />;
+    if (location === "/login") return <Login />;
+    return <GuestLanding />;
+  }
 
   if (loading) return (
     <div className="min-h-screen bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center">

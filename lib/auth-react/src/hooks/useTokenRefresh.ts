@@ -51,17 +51,27 @@ export function useTokenRefresh({
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const attemptsRef = useRef(0);
 
+  // Use refs for callbacks to break the circular dependency between
+  // scheduleNextRefresh and refreshToken without forming stale closures.
+  const onLogoutRef = useRef(onLogout);
+  const onRefreshRef = useRef(onRefresh);
+  onLogoutRef.current = onLogout;
+  onRefreshRef.current = onRefresh;
+
+  // refreshTokenRef lets scheduleNextRefresh call refreshToken without listing
+  // it as a dependency (avoiding the circular useCallback dependency cycle).
+  const refreshTokenRef = useRef<() => Promise<void>>();
+
   const scheduleNextRefresh = useCallback(
     (token: string) => {
       if (timerRef.current) clearTimeout(timerRef.current);
       const remaining = getTokenExpiryRemaining(token);
       const delaySeconds = Math.max(0, remaining - effectiveLeeway);
       timerRef.current = setTimeout(
-        () => void refreshToken(),
+        () => void refreshTokenRef.current?.(),
         delaySeconds * 1000
       );
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [effectiveLeeway]
   );
 
@@ -75,7 +85,7 @@ export function useTokenRefresh({
         const newToken = await doRefresh(baseURL, refreshEndpoint);
         if (newToken) {
           tokenStorage.setAccessToken(newToken);
-          onRefresh?.(newToken);
+          onRefreshRef.current?.(newToken);
           attemptsRef.current = 0;
           scheduleNextRefresh(newToken);
           isRefreshingRef.current = false;
@@ -93,8 +103,11 @@ export function useTokenRefresh({
     }
 
     isRefreshingRef.current = false;
-    onLogout?.();
-  }, [baseURL, refreshEndpoint, tokenStorage, onRefresh, onLogout, scheduleNextRefresh]);
+    onLogoutRef.current?.();
+  }, [baseURL, refreshEndpoint, tokenStorage, scheduleNextRefresh]);
+
+  // Keep the ref in sync so scheduleNextRefresh always calls the latest version
+  refreshTokenRef.current = refreshToken;
 
   // On mount: if there's already a token in storage, schedule the first refresh.
   useEffect(() => {

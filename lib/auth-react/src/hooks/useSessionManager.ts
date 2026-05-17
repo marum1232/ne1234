@@ -243,7 +243,8 @@ export function useSessionManager(
       );
       setSessions([]);
       setHistory([]);
-      /* All sessions gone — log the user out of this device too */
+      /* All sessions gone — clear loading state then log out */
+      setRevokingId(null);
       ctx.logout();
     } catch (err) {
       setError(

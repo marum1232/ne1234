@@ -342,6 +342,7 @@ export function SessionManagerScreen({
   showRevokeAll = false,
 }: SessionManagerScreenProps) {
   const [activeTab, setActiveTab] = useState<'sessions' | 'history'>('sessions');
+  const [confirmRevokeAll, setConfirmRevokeAll] = useState(false);
 
   const {
     sessions,
@@ -419,20 +420,75 @@ export function SessionManagerScreen({
                   {revokingId === '__others__' ? 'Signing out…' : 'Sign out other devices'}
                 </button>
               )}
-              {showRevokeAll && sessions.length > 0 && (
+              {showRevokeAll && sessions.length > 0 && !confirmRevokeAll && (
                 <button
                   style={s.bulkBtn('danger', anyBulkLoading)}
-                  onClick={() => {
-                    if (window.confirm('This will sign you out of ALL devices including this one. Continue?')) {
-                      void revokeAll();
-                    }
-                  }}
+                  onClick={() => setConfirmRevokeAll(true)}
                   disabled={anyBulkLoading}
                 >
                   {revokingId === '__all__' ? 'Signing out all…' : 'Sign out all devices'}
                 </button>
               )}
             </div>
+
+            {/* Inline revoke-all confirmation — replaces window.confirm() */}
+            {confirmRevokeAll && (
+              <div
+                style={{
+                  background: '#fef2f2',
+                  border: '1px solid #fecaca',
+                  borderRadius: 10,
+                  padding: '16px 20px',
+                  marginBottom: 16,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 12,
+                }}
+                role="alert"
+                aria-live="assertive"
+              >
+                <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: '#b91c1c' }}>
+                  Sign out of ALL devices?
+                </p>
+                <p style={{ margin: 0, fontSize: 13, color: '#6b7280' }}>
+                  This will immediately end every active session including this one. You will need to sign in again.
+                </p>
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <button
+                    style={{
+                      padding: '8px 18px',
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: '#fff',
+                      background: palette.danger,
+                      border: 'none',
+                      borderRadius: 8,
+                      cursor: anyBulkLoading ? 'not-allowed' : 'pointer',
+                      opacity: anyBulkLoading ? 0.7 : 1,
+                    }}
+                    disabled={anyBulkLoading}
+                    onClick={() => { setConfirmRevokeAll(false); void revokeAll(); }}
+                  >
+                    Yes, sign out all
+                  </button>
+                  <button
+                    style={{
+                      padding: '8px 18px',
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: palette.text,
+                      background: '#f3f4f6',
+                      border: '1px solid #e5e7eb',
+                      borderRadius: 8,
+                      cursor: 'pointer',
+                    }}
+                    onClick={() => setConfirmRevokeAll(false)}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* List */}
             {loadingSessions && sessions.length === 0 ? (

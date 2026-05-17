@@ -25,6 +25,32 @@ const basicSteps: StepConfig[] = [
   },
 ];
 
+// 3-step form so the first step shows "Next →", not "Submit Registration"
+const threeSteps: StepConfig[] = [
+  {
+    id: "step1",
+    title: "Step 1",
+    subtitle: "First step",
+    fields: [
+      { id: "name", type: "text", label: "Full Name", required: true, placeholder: "Enter name" },
+    ],
+  },
+  {
+    id: "step2",
+    title: "Step 2",
+    fields: [
+      { id: "city", type: "text", label: "City", placeholder: "Enter city" },
+    ],
+  },
+  {
+    id: "step3",
+    title: "Step 3",
+    fields: [
+      { id: "email", type: "email", label: "Email", required: true, placeholder: "Email" },
+    ],
+  },
+];
+
 const stepsWithPassword: StepConfig[] = [
   {
     id: "info",
@@ -92,14 +118,15 @@ describe("RegisterScreen", () => {
   });
 
   it("shows validation error for required fields when advancing", async () => {
-    renderScreen("customer", basicSteps);
+    // Use 3-step form so step 1 button says "Next →"
+    renderScreen("customer", threeSteps);
     const nextBtn = screen.getByRole("button", { name: /next/i });
     await act(async () => { fireEvent.click(nextBtn); });
     expect(screen.getByText(/required/i)).toBeInTheDocument();
   });
 
   it("advances to next step when form is valid", async () => {
-    renderScreen("customer", basicSteps);
+    renderScreen("customer", threeSteps);
     const input = screen.getByPlaceholderText("Enter name");
     await act(async () => { await userEvent.type(input, "Ali Khan"); });
     const nextBtn = screen.getByRole("button", { name: /next/i });
@@ -110,7 +137,7 @@ describe("RegisterScreen", () => {
   });
 
   it("shows back button on second step", async () => {
-    renderScreen("customer", basicSteps);
+    renderScreen("customer", threeSteps);
     const input = screen.getByPlaceholderText("Enter name");
     await act(async () => { await userEvent.type(input, "Ali Khan"); });
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: /next/i })); });
@@ -120,7 +147,7 @@ describe("RegisterScreen", () => {
   });
 
   it("goes back when back button is clicked", async () => {
-    renderScreen("customer", basicSteps);
+    renderScreen("customer", threeSteps);
     await act(async () => { await userEvent.type(screen.getByPlaceholderText("Enter name"), "Ali Khan"); });
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: /next/i })); });
     await waitFor(() => screen.getByText("Step 2"));
@@ -131,14 +158,16 @@ describe("RegisterScreen", () => {
   });
 
   it("calls onComplete with accumulated form data on last step", async () => {
+    const user = userEvent.setup();
     const onComplete = vi.fn();
     renderScreen("customer", basicSteps, onComplete);
 
-    await act(async () => { await userEvent.type(screen.getByPlaceholderText("Enter name"), "Ali Khan"); });
-    await act(async () => { fireEvent.click(screen.getByRole("button", { name: /next/i })); });
+    await user.type(screen.getByPlaceholderText("Enter name"), "Ali Khan");
+    // Step 1 of a 2-step form shows "Submit Registration"
+    await user.click(screen.getByRole("button", { name: /submit registration/i }));
     await waitFor(() => screen.getByText("Step 2"));
-    await act(async () => { await userEvent.type(screen.getByPlaceholderText("Email"), "ali@test.com"); });
-    await act(async () => { fireEvent.click(screen.getByRole("button", { name: /complete/i })); });
+    await user.type(screen.getByPlaceholderText("Email"), "ali@test.com");
+    await user.click(screen.getByRole("button", { name: /go to login/i }));
 
     await waitFor(() => {
       expect(onComplete).toHaveBeenCalledWith(
@@ -150,12 +179,13 @@ describe("RegisterScreen", () => {
   it("shows confirm-password mismatch error", async () => {
     const { container } = renderScreen("customer", stepsWithPassword);
     await act(async () => { await userEvent.type(screen.getByPlaceholderText("Enter name"), "Test"); });
-    await act(async () => { fireEvent.click(screen.getByRole("button", { name: /next/i })); });
+    // First step of 2 shows "Submit Registration"
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: /submit registration/i })); });
     await waitFor(() => screen.getByText("Confirm Password"));
     const [pw1, pw2] = Array.from(container.querySelectorAll('input[type="password"]')) as HTMLInputElement[];
     await act(async () => { await userEvent.type(pw1, "password123"); });
     await act(async () => { await userEvent.type(pw2, "different"); });
-    await act(async () => { fireEvent.click(screen.getByRole("button", { name: /complete/i })); });
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: /go to login/i })); });
     await waitFor(() => {
       expect(screen.getByText(/passwords do not match/i)).toBeInTheDocument();
     });
@@ -241,9 +271,32 @@ describe("RegisterScreen", () => {
     ];
     renderScreen("customer", stepsWithCustomValidation, vi.fn());
     await act(async () => { await userEvent.type(screen.getByRole("textbox"), "15"); });
-    await act(async () => { fireEvent.click(screen.getByRole("button", { name: /complete/i })); });
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: /go to login/i })); });
     await waitFor(() => {
       expect(screen.getByText("Must be 18 or older")).toBeInTheDocument();
+    });
+  });
+
+  it("re-syncs form data when initialData reference changes", async () => {
+    const { rerender } = render(
+      <RegisterScreen
+        role="customer"
+        steps={basicSteps}
+        initialData={{ name: "Original" }}
+      />
+    );
+    expect((screen.getByPlaceholderText("Enter name") as HTMLInputElement).value).toBe("Original");
+
+    rerender(
+      <RegisterScreen
+        role="customer"
+        steps={basicSteps}
+        initialData={{ name: "Updated" }}
+      />
+    );
+
+    await waitFor(() => {
+      expect((screen.getByPlaceholderText("Enter name") as HTMLInputElement).value).toBe("Updated");
     });
   });
 });

@@ -208,9 +208,13 @@ export function RegisterScreen({
   /* Sync initialData changes (e.g. async draft load) */
   useEffect(() => {
     if (initialData && Object.keys(initialData).length > 0) {
-      setFormData(initialData);
+      setFormData((prev) => {
+        // Only update if the new initialData is meaningfully different
+        if (JSON.stringify(prev) === JSON.stringify(initialData)) return prev;
+        return initialData;
+      });
     }
-  }, []);  // eslint-disable-line react-hooks/exhaustive-deps
+  }, [initialData]);
 
   const currentStep = steps[stepIndex];
   const isLastStep = stepIndex === steps.length - 1;
@@ -326,17 +330,18 @@ export function RegisterScreen({
     }
 
     const nextIndex = stepIndex + 1;
-    const isAdvancingToLast = !isLastStep && nextIndex === steps.length - 1;
     const isOnLastStep = isLastStep;
+    // Last step is "display-only" (success/confirm screen) when it has no fields and no component
+    const lastStepIsDisplayOnly =
+      (steps[steps.length - 1]?.fields ?? []).length === 0 &&
+      !steps[steps.length - 1]?.component;
+    // "Submit" happens when advancing to a display-only last step, or when ON the last step if it has fields
+    const isSubmitPoint = isOnLastStep
+      ? !lastStepIsDisplayOnly
+      : !isLastStep && nextIndex === steps.length - 1 && lastStepIsDisplayOnly;
 
-    /* ── On the last (display-only) step — just navigate away ── */
-    if (isOnLastStep) {
-      onDone?.();
-      return;
-    }
-
-    /* ── Advancing to the last step — submit registration data ── */
-    if (isAdvancingToLast && (onSubmit || onComplete)) {
+    /* ── Submission point — accumulate + call onSubmit / onComplete ── */
+    if (isSubmitPoint && (onSubmit || onComplete)) {
       setLoading(true);
       try {
         if (onSubmit) {
@@ -355,7 +360,18 @@ export function RegisterScreen({
         return;
       }
       setLoading(false);
-      setStepIndex(nextIndex);
+      if (isOnLastStep) {
+        setCompleted(true);
+        onDone?.();
+      } else {
+        setStepIndex(nextIndex);
+      }
+      return;
+    }
+
+    /* ── On the last (display-only) step — just navigate away ── */
+    if (isOnLastStep) {
+      onDone?.();
       return;
     }
 
@@ -563,11 +579,17 @@ export function RegisterScreen({
   );
 
   /* ── Bare mode: caller owns the container ── */
+  const isDev = typeof import.meta !== 'undefined' ? !import.meta.env?.PROD : process.env.NODE_ENV !== 'production';
+
   if (bare) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }} className={className}>
-        {error && <div style={s.errorBox}>{error}</div>}
-        {process.env.NODE_ENV !== 'production' && devOtp && (
+        {error && (
+          <div style={s.errorBox} role="alert" aria-live="assertive">
+            {error}
+          </div>
+        )}
+        {isDev && devOtp && (
           <div style={{ background: '#fef3c7', border: '1px solid #fcd34d', borderRadius: '8px', padding: '8px 12px', fontSize: '13px', color: '#92400e' }}>
             Dev OTP: <strong style={{ letterSpacing: '0.3em' }}>{devOtp}</strong>
           </div>
@@ -593,8 +615,12 @@ export function RegisterScreen({
             </div>
           )}
         </div>
-        {error && <div style={s.errorBox}>{error}</div>}
-        {process.env.NODE_ENV !== 'production' && devOtp && (
+        {error && (
+          <div style={s.errorBox} role="alert" aria-live="assertive">
+            {error}
+          </div>
+        )}
+        {isDev && devOtp && (
           <div style={{ background: '#fef3c7', border: '1px solid #fcd34d', borderRadius: '8px', padding: '8px 12px', fontSize: '13px', color: '#92400e' }}>
             Dev OTP: <strong style={{ letterSpacing: '0.3em' }}>{devOtp}</strong>
           </div>

@@ -28,6 +28,7 @@ import { AnnouncementBar } from "./components/AnnouncementBar";
 import { PwaInstallBanner } from "./components/PwaInstallBanner";
 import { PopupEngine } from "./components/PopupEngine";
 import { MaintenanceScreen } from "./components/MaintenanceScreen";
+import GuestLanding from "./pages/GuestLanding";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import ForgotPassword from "./pages/ForgotPassword";
@@ -390,7 +391,8 @@ function AppRoutes() {
     <Switch>
       <Route path="/register">{() => <Register />}</Route>
       <Route path="/forgot-password" component={ForgotPassword} />
-      <Route><Login /></Route>
+      <Route path="/login">{() => <Login />}</Route>
+      <Route><GuestLanding /></Route>
     </Switch>
   );
 

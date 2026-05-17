@@ -63,15 +63,22 @@ export function useLoginFlow({ baseURL = '', role, onSuccess }: UseLoginFlowOpti
    * Step 1 — Check whether the identifier (phone/email/username) exists,
    * which login method the server recommends, then trigger OTP delivery
    * when the action is phone/email OTP.
+   *
+   * @param id - The identifier (phone/email/username)
+   * @param metadata - Optional extra fields (e.g. customValues from LoginScreen)
+   *                   that are forwarded to both check-identifier and send-otp.
    */
   const initiateLogin = useCallback(
-    async (id: string): Promise<IdentifierCheckResult> => {
+    async (id: string, metadata?: Record<string, unknown>): Promise<IdentifierCheckResult> => {
       setLoading(true);
       setError(null);
       setIdentifier(id);
       try {
         const checkBody: Record<string, unknown> = { identifier: id };
         if (role && role !== 'admin') checkBody.role = role;
+        if (metadata && Object.keys(metadata).length > 0) {
+          Object.assign(checkBody, metadata);
+        }
 
         const res = await apiFetch<IdentifierCheckResult & { action?: string; availableMethods?: string[] }>(
           '/api/auth/check-identifier',
@@ -110,6 +117,9 @@ export function useLoginFlow({ baseURL = '', role, onSuccess }: UseLoginFlowOpti
           if (looksLikePhone) {
             const sendBody: Record<string, unknown> = { phone: id };
             if (role && role !== 'admin') sendBody.role = role;
+            if (metadata && Object.keys(metadata).length > 0) {
+              Object.assign(sendBody, metadata);
+            }
             // Fire-and-forget: errors here are surfaced in verifyOtp if OTP wasn't sent
             try {
               await apiFetch('/api/auth/send-otp', sendBody);

@@ -24,8 +24,34 @@ interface AuthClient {
   delete<T>(path: string, options?: RequestOptions): Promise<T>;
 }
 
+/**
+ * Thrown when a 401 response cannot be recovered by a token refresh.
+ * `withRetry` checks for this type and does NOT retry — 401 is not transient.
+ */
+export class UnauthorizedError extends Error {
+  constructor(message = 'Unauthorized') {
+    super(message);
+    this.name = 'UnauthorizedError';
+  }
+}
+
+/**
+ * Thrown when the server returns a 2xx response but the body is not valid JSON.
+ * `withRetry` checks for this type and does NOT retry — a parse failure is not transient.
+ */
+export class JsonParseError extends Error {
+  constructor(cause?: unknown) {
+    super(`Response body is not valid JSON: ${cause instanceof Error ? cause.message : String(cause)}`);
+    this.name = 'JsonParseError';
+  }
+}
+
 async function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isNonRetryableError(err: unknown): boolean {
+  return err instanceof UnauthorizedError || err instanceof JsonParseError;
 }
 
 async function withRetry<T>(
@@ -39,6 +65,8 @@ async function withRetry<T>(
       return await fn();
     } catch (err) {
       lastError = err;
+      // Non-transient errors must not be retried
+      if (isNonRetryableError(err)) throw err;
       if (attempt < maxRetries) {
         await sleep(baseDelayMs * 2 ** attempt);
       }
@@ -70,7 +98,13 @@ export function createAuthClient(options: AuthClientOptions): AuthClient {
           headers: { 'Content-Type': 'application/json' },
         });
         if (!res.ok) return null;
-        const data = (await res.json()) as { accessToken?: string };
+        const text = await res.text();
+        let data: { accessToken?: string } = {};
+        try {
+          data = JSON.parse(text) as { accessToken?: string };
+        } catch {
+          return null;
+        }
         if (data.accessToken) {
           tokenStorage.setAccessToken(data.accessToken);
           return data.accessToken;
@@ -122,12 +156,12 @@ export function createAuthClient(options: AuthClientOptions): AuthClient {
         const newToken = await refreshAccessToken();
         if (!newToken) {
           onUnauthorized?.();
-          throw new Error('Unauthorized');
+          throw new UnauthorizedError();
         }
         res = await doRequest(newToken);
         if (res.status === 401) {
           onUnauthorized?.();
-          throw new Error('Unauthorized');
+          throw new UnauthorizedError();
         }
       }
 
@@ -137,7 +171,13 @@ export function createAuthClient(options: AuthClientOptions): AuthClient {
       }
 
       const text = await res.text();
-      return (text ? JSON.parse(text) : null) as T;
+      if (!text) return null as T;
+
+      try {
+        return JSON.parse(text) as T;
+      } catch (err) {
+        throw new JsonParseError(err);
+      }
     });
   }
 
