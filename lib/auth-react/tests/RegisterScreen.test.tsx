@@ -29,7 +29,7 @@ const stepsWithPassword: StepConfig[] = [
   {
     id: "info",
     title: "Info",
-    fields: [{ id: "name", type: "text", label: "Name", required: true }],
+    fields: [{ id: "name", type: "text", label: "Name", placeholder: "Enter name", required: true }],
   },
   {
     id: "password",
@@ -148,11 +148,11 @@ describe("RegisterScreen", () => {
   });
 
   it("shows confirm-password mismatch error", async () => {
-    renderScreen("customer", stepsWithPassword);
+    const { container } = renderScreen("customer", stepsWithPassword);
     await act(async () => { await userEvent.type(screen.getByPlaceholderText("Enter name"), "Test"); });
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: /next/i })); });
-    await waitFor(() => screen.getByText("Password"));
-    const [pw1, pw2] = screen.getAllByRole("textbox") as HTMLInputElement[];
+    await waitFor(() => screen.getByText("Confirm Password"));
+    const [pw1, pw2] = Array.from(container.querySelectorAll('input[type="password"]')) as HTMLInputElement[];
     await act(async () => { await userEvent.type(pw1, "password123"); });
     await act(async () => { await userEvent.type(pw2, "different"); });
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: /complete/i })); });

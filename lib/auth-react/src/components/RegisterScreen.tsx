@@ -326,7 +326,8 @@ export function RegisterScreen({
       <div style={s.card}>
         <div style={s.header}>
           <h1 style={s.title}>{displayTitle}</h1>
-          <p style={s.subtitle}>{currentStep.subtitle ?? currentStep.title}</p>
+          <p style={s.subtitle}>{currentStep.title}</p>
+          {currentStep.subtitle && <p style={{ ...s.subtitle, marginTop: '2px' }}>{currentStep.subtitle}</p>}
           {totalVisibleSteps > 1 && (
             <div style={{ ...s.stepIndicator, marginTop: '12px' }}>
               {Array.from({ length: totalVisibleSteps }).map((_, i) => (
@@ -364,7 +365,7 @@ export function RegisterScreen({
             />
           </div>
         ) : (
-          <form onSubmit={(e) => { e.preventDefault(); void handleNext(); }} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <form noValidate onSubmit={(e) => { e.preventDefault(); void handleNext(); }} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             {currentStep.fields.filter((f) => f.type !== 'otp').map((field) => (
               <div key={field.id}>
                 {field.type === 'phone' ? (

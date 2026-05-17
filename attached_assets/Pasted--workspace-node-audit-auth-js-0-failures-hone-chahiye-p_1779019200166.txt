@@ -1,0 +1,839 @@
+~/workspace$ node audit-auth.js          # 0 failures hone chahiye
+pnpm lint                   # no errors
+pnpm --filter @workspace/auth-react test   # all pass
+
+🔍 DEEP AUDIT OF AUTH SYSTEM (artifacts/)
+
+
+📌 TASK 1: Security & Critical Fixes
+✅ 1.0 helpers.ts exists
+✅ 1.1 No `req.body.token` fallback
+✅ 1.2 Customer no hardcoded OTP
+✅ 1.3 Vendor no hardcoded OTP
+✅ 1.5 Token family breach detection present
+✅ 1.6 TOTP secrets not in-memory
+
+📌 TASK 2: Backend Auth Router Split
+✅ 2.1 Auth router split into modular files
+✅ 2.2 Main index.ts <5000 lines (was 5k)
+
+📌 TASK 3: Duplicate Schemas & Helpers
+✅ 3.1 Helpers exports schemas
+✅ 3.2 No schema redefinition in index.ts
+
+📌 TASK 4: Missing Backend Features
+✅ 4.1 Session revocation API exists
+✅ 4.2 Admin account recovery endpoint exists
+✅ 4.3 OpenAPI spec generation exists
+
+📌 TASK 5: Auth-React Package Scaffolding
+✅ 5.1 @workspace/auth-react package.json exists
+✅ 5.2 Package name correct
+✅ 5.3 Package builds (dist/index.js exists)
+
+📌 TASK 6: Unified Token Storage & API Client
+✅ 6.1 tokenStorage.ts exists
+✅ 6.2 authClient.ts exists
+✅ 6.3 jwtUtils.ts exists
+
+📌 TASK 7: Shared Hooks
+✅ 7.1 hooks directory exists
+✅ 7.2 useTokenRefresh.ts exists
+✅ 7.2 useAuth.ts exists
+✅ 7.2 useLoginFlow.ts exists
+
+📌 TASK 8: Shared UI Components
+✅ 8.1 OtpInput.tsx exists
+✅ 8.1 PhoneInput.tsx exists
+✅ 8.1 PasswordInput.tsx exists
+✅ 8.1 SocialButtons.tsx exists
+✅ 8.1 BiometricPrompt.tsx exists
+✅ 8.1 LoginScreen.tsx exists
+
+📌 TASK 9: Vendor App Migrated
+✅ 9.1 Vendor Login uses LoginScreen from shared package
+✅ 9.2 Vendor custom auth.tsx removed
+✅ 9.3 Vendor separate Register.tsx exists
+
+📌 TASK 10: Rider App Migrated
+✅ 10.1 Rider Login uses LoginScreen
+✅ 10.2 Rider custom auth.tsx removed
+
+📌 TASK 11: Customer App Migrated
+✅ 11.1 Customer AuthContext uses shared package
+✅ 11.2 Customer login uses LoginScreen
+
+📌 TASK 12: Tests & Documentation
+✅ 12.1 Backend auth tests exist
+✅ 12.2 Shared component tests exist
+✅ 12.3 OpenAPI spec exists
+✅ 12.4 AUTH.md documentation exists
+
+📌 PROFESSIONAL DESIGN CHECKS
+✅ Design: Longest auth-related file is artifacts/rider-app/src/pages/Wallet.tsx with 999 lines (should be <1500)
+✅ DRY: getDeviceFingerprint defined in 2 places (should be only in shared package or minimal)
+
+📊 AUDIT SUMMARY: Passed: 42, Failed: 0, Partial: 0
+
+🎉 ALL CHECKS PASSED! System is fully compliant and professional.
+
+> workspace@0.0.0 lint /home/runner/workspace
+> pnpm -r --filter './artifacts/**' --filter './lib/logger' --if-present run lint
+
+Scope: 6 of 20 workspace projects
+artifacts/api-server lint$ eslint src --max-warnings 0
+└─ Done in 5.3s
+artifacts/admin lint$ eslint src --ext .ts,.tsx --max-warnings 0
+└─ Done in 9.4s
+artifacts/ajkmart lint$ eslint . --max-warnings 0
+└─ Done in 14.1s
+artifacts/vendor-app lint$ eslint src --ext .ts,.tsx --max-warnings 0
+└─ Done in 5.6s
+artifacts/rider-app lint$ eslint src --ext .ts,.tsx --max-warnings 0
+└─ Done in 6.1s
+
+> @workspace/auth-react@0.0.1 test /home/runner/workspace/lib/auth-react
+> vitest run
+
+
+ RUN  v4.1.5 /home/runner/workspace/lib/auth-react
+
+ ❯ tests/RegisterScreen.test.tsx (17 tests | 6 failed) 3494ms
+     × renders the first step title and subtitle 76ms
+     × shows validation error for required fields when advancing 40ms
+     × advances to next step when form is valid 1079ms
+     × goes back when back button is clicked 1058ms
+     × calls onComplete with accumulated form data on last step 1064ms
+     × shows confirm-password mismatch error 7ms
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯ Failed Tests 6 ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/RegisterScreen.test.tsx > RegisterScreen > renders the first step title and subtitle
+TestingLibraryElementError: Unable to find an element with the text: Step 1. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+<body>
+  <div>
+    <div
+      style="min-height: 100vh; display: flex; align-items: center; justify-content: center; background: rgb(249, 250, 251); padding: 24px 16px;"
+    >
+      <div
+        style="width: 100%; max-width: 420px; background: rgb(255, 255, 255); border-radius: 16px; padding: 32px 28px; box-shadow: 0 4px 24px rgba(0,0,0,0.08); display: flex; flex-direction: column; gap: 20px;"
+      >
+        <div
+          style="text-align: center;"
+        >
+          <h1
+            style="font-size: 22px; font-weight: 800; color: rgb(17, 24, 39); margin: 0px 0px 4px;"
+          >
+            Create Account
+          </h1>
+          <p
+            style="font-size: 14px; color: rgb(107, 114, 128); margin: 0px;"
+          >
+            First step
+          </p>
+          <div
+            style="display: flex; gap: 6px; align-items: center; justify-content: center; margin-top: 12px;"
+          >
+            <div
+              style="width: 24px; height: 8px; border-radius: 4px; background: rgb(245, 158, 11); transition: all 0.2s;"
+            />
+            <div
+              style="width: 8px; height: 8px; border-radius: 4px; background: rgb(229, 231, 235); transition: all 0.2s;"
+            />
+            <div
+              style="width: 8px; height: 8px; border-radius: 4px; background: rgb(229, 231, 235); transition: all 0.2s;"
+            />
+          </div>
+        </div>
+        <form
+          style="display: flex; flex-direction: column; gap: 16px;"
+        >
+          <div>
+            <label
+              style="font-size: 13px; font-weight: 600; color: rgb(55, 65, 81); margin-bottom: 4px; display: block;"
+            >
+              Full Name
+            </label>
+            <input
+              placeholder="Enter name"
+              required=""
+              style="width: 100%; padding: 12px; border: 2px solid rgb(209, 213, 219); border-radius: 8px; font-size: 15px; outline: none; box-sizing: border-box; transition: border-color 0.15s;"
+              type="text"
+              value=""
+            />
+          </div>
+          <button
+            style="width: 100%; padding: 13px; border-radius: 8px; background: rgb(245, 158, 11); color: rgb(255, 255, 255); font-weight: 700; font-size: 15px; cursor: pointer; transition: opacity 0.15s;"
+            type="submit"
+          >
+            Next →
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</body>
+ ❯ Object.getElementError ../../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/config.js:37:19
+ ❯ ../../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:76:38
+ ❯ ../../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:52:17
+ ❯ ../../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+ ❯ tests/RegisterScreen.test.tsx:69:19
+     67|   it("renders the first step title and subtitle", () => {
+     68|     renderScreen("customer", basicSteps);
+     69|     expect(screen.getByText("Step 1")).toBeInTheDocument();
+       |                   ^
+     70|     expect(screen.getByText("First step")).toBeInTheDocument();
+     71|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/6]⎯
+
+ FAIL  tests/RegisterScreen.test.tsx > RegisterScreen > shows validation error for required fields when advancing
+TestingLibraryElementError: Unable to find an element with the text: /required/i. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+<body>
+  <div>
+    <div
+      style="min-height: 100vh; display: flex; align-items: center; justify-content: center; background: rgb(249, 250, 251); padding: 24px 16px;"
+    >
+      <div
+        style="width: 100%; max-width: 420px; background: rgb(255, 255, 255); border-radius: 16px; padding: 32px 28px; box-shadow: 0 4px 24px rgba(0,0,0,0.08); display: flex; flex-direction: column; gap: 20px;"
+      >
+        <div
+          style="text-align: center;"
+        >
+          <h1
+            style="font-size: 22px; font-weight: 800; color: rgb(17, 24, 39); margin: 0px 0px 4px;"
+          >
+            Create Account
+          </h1>
+          <p
+            style="font-size: 14px; color: rgb(107, 114, 128); margin: 0px;"
+          >
+            First step
+          </p>
+          <div
+            style="display: flex; gap: 6px; align-items: center; justify-content: center; margin-top: 12px;"
+          >
+            <div
+              style="width: 24px; height: 8px; border-radius: 4px; background: rgb(245, 158, 11); transition: all 0.2s;"
+            />
+            <div
+              style="width: 8px; height: 8px; border-radius: 4px; background: rgb(229, 231, 235); transition: all 0.2s;"
+            />
+            <div
+              style="width: 8px; height: 8px; border-radius: 4px; background: rgb(229, 231, 235); transition: all 0.2s;"
+            />
+          </div>
+        </div>
+        <form
+          style="display: flex; flex-direction: column; gap: 16px;"
+        >
+          <div>
+            <label
+              style="font-size: 13px; font-weight: 600; color: rgb(55, 65, 81); margin-bottom: 4px; display: block;"
+            >
+              Full Name
+            </label>
+            <input
+              placeholder="Enter name"
+              required=""
+              style="width: 100%; padding: 12px; border: 2px solid rgb(209, 213, 219); border-radius: 8px; font-size: 15px; outline: none; box-sizing: border-box; transition: border-color 0.15s;"
+              type="text"
+              value=""
+            />
+          </div>
+          <button
+            style="width: 100%; padding: 13px; border-radius: 8px; background: rgb(245, 158, 11); color: rgb(255, 255, 255); font-weight: 700; font-size: 15px; cursor: pointer; transition: opacity 0.15s;"
+            type="submit"
+          >
+            Next →
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</body>
+ ❯ Object.getElementError ../../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/config.js:37:19
+ ❯ ../../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:76:38
+ ❯ ../../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:52:17
+ ❯ ../../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+ ❯ tests/RegisterScreen.test.tsx:98:19
+     96|     const nextBtn = screen.getByRole("button", { name: /next/i });
+     97|     await act(async () => { fireEvent.click(nextBtn); });
+     98|     expect(screen.getByText(/required/i)).toBeInTheDocument();
+       |                   ^
+     99|   });
+    100|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/6]⎯
+
+ FAIL  tests/RegisterScreen.test.tsx > RegisterScreen > advances to next step when form is valid
+TestingLibraryElementError: Unable to find an element with the text: Step 2. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+<body>
+  <div>
+    <div
+      style="min-height: 100vh; display: flex; align-items: center; justify-content: center; background: rgb(249, 250, 251); padding: 24px 16px;"
+    >
+      <div
+        style="width: 100%; max-width: 420px; background: rgb(255, 255, 255); border-radius: 16px; padding: 32px 28px; box-shadow: 0 4px 24px rgba(0,0,0,0.08); display: flex; flex-direction: column; gap: 20px;"
+      >
+        <div
+          style="text-align: center;"
+        >
+          <h1
+            style="font-size: 22px; font-weight: 800; color: rgb(17, 24, 39); margin: 0px 0px 4px;"
+          >
+            Create Account
+          </h1>
+          <p
+            style="font-size: 14px; color: rgb(107, 114, 128); margin: 0px;"
+          >
+            Second step
+          </p>
+          <div
+            style="display: flex; gap: 6px; align-items: center; justify-content: center; margin-top: 12px;"
+          >
+            <div
+              style="width: 8px; height: 8px; border-radius: 4px; background: rgb(245, 158, 11); transition: all 0.2s;"
+            />
+            <div
+              style="width: 24px; height: 8px; border-radius: 4px; transition: all 0.2s; background: rgb(245, 158, 11);"
+            />
+            <div
+              style="width: 8px; height: 8px; border-radius: 4px; background: rgb(229, 231, 235); transition: all 0.2s;"
+            />
+          </div>
+        </div>
+        <form
+          style="display: flex; flex-direction: column; gap: 16px;"
+        >
+          <div>
+            <label
+              style="font-size: 13px; font-weight: 600; color: rgb(55, 65, 81); margin-bottom: 4px; display: block;"
+            >
+              Email
+            </label>
+            <input
+              placeholder="Email"
+              required=""
+              style="width: 100%; padding: 12px; border: 2px solid rgb(209, 213, 219); border-radius: 8px; font-size: 15px; outline: none; box-sizing: border-box; transition: border-color 0.15s;"
+              type="email"
+              value=""
+            />
+          </div>
+          <button
+            style="width: 100%; padding: 13px; border-radius: 8px; background: rgb(245, 158, 11); color: rgb(255, 255, 255); font-weight: 700; font-size: 15px; cursor: pointer; transition: opacity 0.15s;"
+            type="submit"
+          >
+            Complete Registration
+          </button>
+          <button
+            style="background: none; color: rgb(245, 158, 11); cursor: pointer; font-size: 13px; font-weight: 600; padding: 0px; text-align: center;"
+            type="button"
+          >
+            ← Back
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</body>
+
+Ignored nodes: comments, script, style
+<html>
+  <head />
+  <body>
+    <div>
+      <div
+        style="min-height: 100vh; display: flex; align-items: center; justify-content: center; background: rgb(249, 250, 251); padding: 24px 16px;"
+      >
+        <div
+          style="width: 100%; max-width: 420px; background: rgb(255, 255, 255); border-radius: 16px; padding: 32px 28px; box-shadow: 0 4px 24px rgba(0,0,0,0.08); display: flex; flex-direction: column; gap: 20px;"
+        >
+          <div
+            style="text-align: center;"
+          >
+            <h1
+              style="font-size: 22px; font-weight: 800; color: rgb(17, 24, 39); margin: 0px 0px 4px;"
+            >
+              Create Account
+            </h1>
+            <p
+              style="font-size: 14px; color: rgb(107, 114, 128); margin: 0px;"
+            >
+              Second step
+            </p>
+            <div
+              style="display: flex; gap: 6px; align-items: center; justify-content: center; margin-top: 12px;"
+            >
+              <div
+                style="width: 8px; height: 8px; border-radius: 4px; background: rgb(245, 158, 11); transition: all 0.2s;"
+              />
+              <div
+                style="width: 24px; height: 8px; border-radius: 4px; transition: all 0.2s; background: rgb(245, 158, 11);"
+              />
+              <div
+                style="width: 8px; height: 8px; border-radius: 4px; background: rgb(229, 231, 235); transition: all 0.2s;"
+              />
+            </div>
+          </div>
+          <form
+            style="display: flex; flex-direction: column; gap: 16px;"
+          >
+            <div>
+              <label
+                style="font-size: 13px; font-weight: 600; color: rgb(55, 65, 81); margin-bottom: 4px; display: block;"
+              >
+                Email
+              </label>
+              <input
+                placeholder="Email"
+                required=""
+                style="width: 100%; padding: 12px; border: 2px solid rgb(209, 213, 219); border-radius: 8px; font-size: 15px; outline: none; box-sizing: border-box; transition: border-color 0.15s;"
+                type="email"
+                value=""
+              />
+            </div>
+            <button
+              style="width: 100%; padding: 13px; border-radius: 8px; background: rgb(245, 158, 11); color: rgb(255, 255, 255); font-weight: 700; font-size: 15px; cursor: pointer; transition: opacity 0.15s;"
+              type="submit"
+            >
+              Complete Registration
+            </button>
+            <button
+              style="background: none; color: rgb(245, 158, 11); cursor: pointer; font-size: 13px; font-weight: 600; padding: 0px; text-align: center;"
+              type="button"
+            >
+              ← Back
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
+ ❯ waitForWrapper ../../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ tests/RegisterScreen.test.tsx:107:11
+    105|     const nextBtn = screen.getByRole("button", { name: /next/i });
+    106|     await act(async () => { fireEvent.click(nextBtn); });
+    107|     await waitFor(() => {
+       |           ^
+    108|       expect(screen.getByText("Step 2")).toBeInTheDocument();
+    109|     });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/6]⎯
+
+ FAIL  tests/RegisterScreen.test.tsx > RegisterScreen > goes back when back button is clicked
+TestingLibraryElementError: Unable to find an element with the text: Step 2. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+<body>
+  <div>
+    <div
+      style="min-height: 100vh; display: flex; align-items: center; justify-content: center; background: rgb(249, 250, 251); padding: 24px 16px;"
+    >
+      <div
+        style="width: 100%; max-width: 420px; background: rgb(255, 255, 255); border-radius: 16px; padding: 32px 28px; box-shadow: 0 4px 24px rgba(0,0,0,0.08); display: flex; flex-direction: column; gap: 20px;"
+      >
+        <div
+          style="text-align: center;"
+        >
+          <h1
+            style="font-size: 22px; font-weight: 800; color: rgb(17, 24, 39); margin: 0px 0px 4px;"
+          >
+            Create Account
+          </h1>
+          <p
+            style="font-size: 14px; color: rgb(107, 114, 128); margin: 0px;"
+          >
+            Second step
+          </p>
+          <div
+            style="display: flex; gap: 6px; align-items: center; justify-content: center; margin-top: 12px;"
+          >
+            <div
+              style="width: 8px; height: 8px; border-radius: 4px; background: rgb(245, 158, 11); transition: all 0.2s;"
+            />
+            <div
+              style="width: 24px; height: 8px; border-radius: 4px; transition: all 0.2s; background: rgb(245, 158, 11);"
+            />
+            <div
+              style="width: 8px; height: 8px; border-radius: 4px; background: rgb(229, 231, 235); transition: all 0.2s;"
+            />
+          </div>
+        </div>
+        <form
+          style="display: flex; flex-direction: column; gap: 16px;"
+        >
+          <div>
+            <label
+              style="font-size: 13px; font-weight: 600; color: rgb(55, 65, 81); margin-bottom: 4px; display: block;"
+            >
+              Email
+            </label>
+            <input
+              placeholder="Email"
+              required=""
+              style="width: 100%; padding: 12px; border: 2px solid rgb(209, 213, 219); border-radius: 8px; font-size: 15px; outline: none; box-sizing: border-box; transition: border-color 0.15s;"
+              type="email"
+              value=""
+            />
+          </div>
+          <button
+            style="width: 100%; padding: 13px; border-radius: 8px; background: rgb(245, 158, 11); color: rgb(255, 255, 255); font-weight: 700; font-size: 15px; cursor: pointer; transition: opacity 0.15s;"
+            type="submit"
+          >
+            Complete Registration
+          </button>
+          <button
+            style="background: none; color: rgb(245, 158, 11); cursor: pointer; font-size: 13px; font-weight: 600; padding: 0px; text-align: center;"
+            type="button"
+          >
+            ← Back
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</body>
+
+Ignored nodes: comments, script, style
+<html>
+  <head />
+  <body>
+    <div>
+      <div
+        style="min-height: 100vh; display: flex; align-items: center; justify-content: center; background: rgb(249, 250, 251); padding: 24px 16px;"
+      >
+        <div
+          style="width: 100%; max-width: 420px; background: rgb(255, 255, 255); border-radius: 16px; padding: 32px 28px; box-shadow: 0 4px 24px rgba(0,0,0,0.08); display: flex; flex-direction: column; gap: 20px;"
+        >
+          <div
+            style="text-align: center;"
+          >
+            <h1
+              style="font-size: 22px; font-weight: 800; color: rgb(17, 24, 39); margin: 0px 0px 4px;"
+            >
+              Create Account
+            </h1>
+            <p
+              style="font-size: 14px; color: rgb(107, 114, 128); margin: 0px;"
+            >
+              Second step
+            </p>
+            <div
+              style="display: flex; gap: 6px; align-items: center; justify-content: center; margin-top: 12px;"
+            >
+              <div
+                style="width: 8px; height: 8px; border-radius: 4px; background: rgb(245, 158, 11); transition: all 0.2s;"
+              />
+              <div
+                style="width: 24px; height: 8px; border-radius: 4px; transition: all 0.2s; background: rgb(245, 158, 11);"
+              />
+              <div
+                style="width: 8px; height: 8px; border-radius: 4px; background: rgb(229, 231, 235); transition: all 0.2s;"
+              />
+            </div>
+          </div>
+          <form
+            style="display: flex; flex-direction: column; gap: 16px;"
+          >
+            <div>
+              <label
+                style="font-size: 13px; font-weight: 600; color: rgb(55, 65, 81); margin-bottom: 4px; display: block;"
+              >
+                Email
+              </label>
+              <input
+                placeholder="Email"
+                required=""
+                style="width: 100%; padding: 12px; border: 2px solid rgb(209, 213, 219); border-radius: 8px; font-size: 15px; outline: none; box-sizing: border-box; transition: border-color 0.15s;"
+                type="email"
+                value=""
+              />
+            </div>
+            <button
+              style="width: 100%; padding: 13px; border-radius: 8px; background: rgb(245, 158, 11); color: rgb(255, 255, 255); font-weight: 700; font-size: 15px; cursor: pointer; transition: opacity 0.15s;"
+              type="submit"
+            >
+              Complete Registration
+            </button>
+            <button
+              style="background: none; color: rgb(245, 158, 11); cursor: pointer; font-size: 13px; font-weight: 600; padding: 0px; text-align: center;"
+              type="button"
+            >
+              ← Back
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
+ ❯ waitForWrapper ../../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ tests/RegisterScreen.test.tsx:126:11
+    124|     await act(async () => { await userEvent.type(screen.getByPlaceholderText("Enter name"), "Ali Khan"); });
+    125|     await act(async () => { fireEvent.click(screen.getByRole("button", { name: /next/i })); });
+    126|     await waitFor(() => screen.getByText("Step 2"));
+       |           ^
+    127|     await act(async () => { fireEvent.click(screen.getByRole("button", { name: /back/i })); });
+    128|     await waitFor(() => {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/6]⎯
+
+ FAIL  tests/RegisterScreen.test.tsx > RegisterScreen > calls onComplete with accumulated form data on last step
+TestingLibraryElementError: Unable to find an element with the text: Step 2. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+<body>
+  <div>
+    <div
+      style="min-height: 100vh; display: flex; align-items: center; justify-content: center; background: rgb(249, 250, 251); padding: 24px 16px;"
+    >
+      <div
+        style="width: 100%; max-width: 420px; background: rgb(255, 255, 255); border-radius: 16px; padding: 32px 28px; box-shadow: 0 4px 24px rgba(0,0,0,0.08); display: flex; flex-direction: column; gap: 20px;"
+      >
+        <div
+          style="text-align: center;"
+        >
+          <h1
+            style="font-size: 22px; font-weight: 800; color: rgb(17, 24, 39); margin: 0px 0px 4px;"
+          >
+            Create Account
+          </h1>
+          <p
+            style="font-size: 14px; color: rgb(107, 114, 128); margin: 0px;"
+          >
+            Second step
+          </p>
+          <div
+            style="display: flex; gap: 6px; align-items: center; justify-content: center; margin-top: 12px;"
+          >
+            <div
+              style="width: 8px; height: 8px; border-radius: 4px; background: rgb(245, 158, 11); transition: all 0.2s;"
+            />
+            <div
+              style="width: 24px; height: 8px; border-radius: 4px; transition: all 0.2s; background: rgb(245, 158, 11);"
+            />
+            <div
+              style="width: 8px; height: 8px; border-radius: 4px; background: rgb(229, 231, 235); transition: all 0.2s;"
+            />
+          </div>
+        </div>
+        <form
+          style="display: flex; flex-direction: column; gap: 16px;"
+        >
+          <div>
+            <label
+              style="font-size: 13px; font-weight: 600; color: rgb(55, 65, 81); margin-bottom: 4px; display: block;"
+            >
+              Email
+            </label>
+            <input
+              placeholder="Email"
+              required=""
+              style="width: 100%; padding: 12px; border: 2px solid rgb(209, 213, 219); border-radius: 8px; font-size: 15px; outline: none; box-sizing: border-box; transition: border-color 0.15s;"
+              type="email"
+              value=""
+            />
+          </div>
+          <button
+            style="width: 100%; padding: 13px; border-radius: 8px; background: rgb(245, 158, 11); color: rgb(255, 255, 255); font-weight: 700; font-size: 15px; cursor: pointer; transition: opacity 0.15s;"
+            type="submit"
+          >
+            Complete Registration
+          </button>
+          <button
+            style="background: none; color: rgb(245, 158, 11); cursor: pointer; font-size: 13px; font-weight: 600; padding: 0px; text-align: center;"
+            type="button"
+          >
+            ← Back
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</body>
+
+Ignored nodes: comments, script, style
+<html>
+  <head />
+  <body>
+    <div>
+      <div
+        style="min-height: 100vh; display: flex; align-items: center; justify-content: center; background: rgb(249, 250, 251); padding: 24px 16px;"
+      >
+        <div
+          style="width: 100%; max-width: 420px; background: rgb(255, 255, 255); border-radius: 16px; padding: 32px 28px; box-shadow: 0 4px 24px rgba(0,0,0,0.08); display: flex; flex-direction: column; gap: 20px;"
+        >
+          <div
+            style="text-align: center;"
+          >
+            <h1
+              style="font-size: 22px; font-weight: 800; color: rgb(17, 24, 39); margin: 0px 0px 4px;"
+            >
+              Create Account
+            </h1>
+            <p
+              style="font-size: 14px; color: rgb(107, 114, 128); margin: 0px;"
+            >
+              Second step
+            </p>
+            <div
+              style="display: flex; gap: 6px; align-items: center; justify-content: center; margin-top: 12px;"
+            >
+              <div
+                style="width: 8px; height: 8px; border-radius: 4px; background: rgb(245, 158, 11); transition: all 0.2s;"
+              />
+              <div
+                style="width: 24px; height: 8px; border-radius: 4px; transition: all 0.2s; background: rgb(245, 158, 11);"
+              />
+              <div
+                style="width: 8px; height: 8px; border-radius: 4px; background: rgb(229, 231, 235); transition: all 0.2s;"
+              />
+            </div>
+          </div>
+          <form
+            style="display: flex; flex-direction: column; gap: 16px;"
+          >
+            <div>
+              <label
+                style="font-size: 13px; font-weight: 600; color: rgb(55, 65, 81); margin-bottom: 4px; display: block;"
+              >
+                Email
+              </label>
+              <input
+                placeholder="Email"
+                required=""
+                style="width: 100%; padding: 12px; border: 2px solid rgb(209, 213, 219); border-radius: 8px; font-size: 15px; outline: none; box-sizing: border-box; transition: border-color 0.15s;"
+                type="email"
+                value=""
+              />
+            </div>
+            <button
+              style="width: 100%; padding: 13px; border-radius: 8px; background: rgb(245, 158, 11); color: rgb(255, 255, 255); font-weight: 700; font-size: 15px; cursor: pointer; transition: opacity 0.15s;"
+              type="submit"
+            >
+              Complete Registration
+            </button>
+            <button
+              style="background: none; color: rgb(245, 158, 11); cursor: pointer; font-size: 13px; font-weight: 600; padding: 0px; text-align: center;"
+              type="button"
+            >
+              ← Back
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
+ ❯ waitForWrapper ../../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ tests/RegisterScreen.test.tsx:139:11
+    137|     await act(async () => { await userEvent.type(screen.getByPlaceholderText("Enter name"), "Ali Khan"); });
+    138|     await act(async () => { fireEvent.click(screen.getByRole("button", { name: /next/i })); });
+    139|     await waitFor(() => screen.getByText("Step 2"));
+       |           ^
+    140|     await act(async () => { await userEvent.type(screen.getByPlaceholderText("Email"), "ali@test.com"); });
+    141|     await act(async () => { fireEvent.click(screen.getByRole("button", { name: /complete/i })); });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/6]⎯
+
+ FAIL  tests/RegisterScreen.test.tsx > RegisterScreen > shows confirm-password mismatch error
+TestingLibraryElementError: Unable to find an element with the placeholder text of: Enter name
+
+Ignored nodes: comments, script, style
+<body>
+  <div>
+    <div
+      style="min-height: 100vh; display: flex; align-items: center; justify-content: center; background: rgb(249, 250, 251); padding: 24px 16px;"
+    >
+      <div
+        style="width: 100%; max-width: 420px; background: rgb(255, 255, 255); border-radius: 16px; padding: 32px 28px; box-shadow: 0 4px 24px rgba(0,0,0,0.08); display: flex; flex-direction: column; gap: 20px;"
+      >
+        <div
+          style="text-align: center;"
+        >
+          <h1
+            style="font-size: 22px; font-weight: 800; color: rgb(17, 24, 39); margin: 0px 0px 4px;"
+          >
+            Create Account
+          </h1>
+          <p
+            style="font-size: 14px; color: rgb(107, 114, 128); margin: 0px;"
+          >
+            Info
+          </p>
+          <div
+            style="display: flex; gap: 6px; align-items: center; justify-content: center; margin-top: 12px;"
+          >
+            <div
+              style="width: 24px; height: 8px; border-radius: 4px; background: rgb(245, 158, 11); transition: all 0.2s;"
+            />
+            <div
+              style="width: 8px; height: 8px; border-radius: 4px; background: rgb(229, 231, 235); transition: all 0.2s;"
+            />
+            <div
+              style="width: 8px; height: 8px; border-radius: 4px; background: rgb(229, 231, 235); transition: all 0.2s;"
+            />
+          </div>
+        </div>
+        <form
+          style="display: flex; flex-direction: column; gap: 16px;"
+        >
+          <div>
+            <label
+              style="font-size: 13px; font-weight: 600; color: rgb(55, 65, 81); margin-bottom: 4px; display: block;"
+            >
+              Name
+            </label>
+            <input
+              required=""
+              style="width: 100%; padding: 12px; border: 2px solid rgb(209, 213, 219); border-radius: 8px; font-size: 15px; outline: none; box-sizing: border-box; transition: border-color 0.15s;"
+              type="text"
+              value=""
+            />
+          </div>
+          <button
+            style="width: 100%; padding: 13px; border-radius: 8px; background: rgb(245, 158, 11); color: rgb(255, 255, 255); font-weight: 700; font-size: 15px; cursor: pointer; transition: opacity 0.15s;"
+            type="submit"
+          >
+            Next →
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</body>
+ ❯ Object.getElementError ../../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/config.js:37:19
+ ❯ ../../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:76:38
+ ❯ ../../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:52:17
+ ❯ ../../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+ ❯ tests/RegisterScreen.test.tsx:152:57
+    150|   it("shows confirm-password mismatch error", async () => {
+    151|     renderScreen("customer", stepsWithPassword);
+    152|     await act(async () => { await userEvent.type(screen.getByPlaceholderText("Enter name"), "Test"); });
+       |                                                         ^
+    153|     await act(async () => { fireEvent.click(screen.getByRole("button", { name: /next/i })); });
+    154|     await waitFor(() => screen.getByText("Password"));
+ ❯ ../../node_modules/.pnpm/@testing-library+react@16.3.2_@testing-library+dom@10.4.1_@types+react-dom@19.2.3_@type_4fb512a4971c83f0bde1ddec20a6d431/node_modules/@testing-library/react/dist/act-compat.js:47:24
+ ❯ process.env.NODE_ENV.exports.act ../../node_modules/.pnpm/react@19.1.0/node_modules/react/cjs/react.development.js:789:22
+ ❯ ../../node_modules/.pnpm/@testing-library+react@16.3.2_@testing-library+dom@10.4.1_@types+react-dom@19.2.3_@type_4fb512a4971c83f0bde1ddec20a6d431/node_modules/@testing-library/react/dist/act-compat.js:46:25
+ ❯ tests/RegisterScreen.test.tsx:152:11
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/6]⎯
+
+
+ Test Files  1 failed | 8 passed (9)
+      Tests  6 failed | 121 passed (127)
+   Start at  11:59:25
+   Duration  4.94s (transform 802ms, setup 623ms, import 1.59s, tests 4.46s, environment 4.29s)
+
+/home/runner/workspace/lib/auth-react:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @workspace/auth-react@0.0.1 test: `vitest run`
+Exit status 1
