@@ -150,7 +150,6 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
 
       <SDKLoginScreen
         role="rider"
-        customFields={["vehicleType", "licenseNumber"]}
         onSuccess={(user, token) => { void handleSuccess(user, token); }}
         onRegisterPress={() => navigate("/register")}
         enableSocial={auth.googleEnabled || auth.facebookEnabled}

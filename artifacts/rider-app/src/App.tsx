@@ -547,6 +547,7 @@ function AppRoutes() {
             <Route path="/chat">{() => <ErrorBoundary><Chat /></ErrorBoundary>}</Route>
             <Route path="/chat/:id">{() => <ErrorBoundary><Chat /></ErrorBoundary>}</Route>
             <Route path="/reviews">{() => <ErrorBoundary><Reviews /></ErrorBoundary>}</Route>
+            <Route path="/dashboard">{() => <ErrorBoundary><Home /></ErrorBoundary>}</Route>
             <Route component={NotFound} />
           </Switch>
         </Suspense>
