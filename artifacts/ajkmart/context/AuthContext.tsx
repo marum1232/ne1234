@@ -18,6 +18,7 @@ import {
 import {
   decodeJwt as sdkDecodeJwt,
   AuthProvider as SdkAuthProvider,
+  useAuthContext as useSdkAuth,
 } from "@workspace/auth-react";
 import type { AuthUser as BaseAuthUser } from "@workspace/auth-react";
 
@@ -132,55 +133,41 @@ async function secureDelete(key: string) {
 const MIGRATED_KEY = "ajkmart_legacy_migration_v1";
 async function migrateLegacyInsecureTokens(): Promise<boolean> {
   try {
-    /* Check if already migrated on this device */
-    const alreadyMigrated = await SecureStore.getItemAsync(MIGRATED_KEY).catch(
-      () => null,
-    );
+    const alreadyMigrated = await SecureStore.getItemAsync(MIGRATED_KEY).catch(() => null);
     if (alreadyMigrated === "1") return false;
 
-    const legacyEntries = await AsyncStorage.multiGet([
-      LEGACY_TOKEN_KEY,
-      LEGACY_REFRESH_KEY,
-    ]);
+    const legacyEntries = await AsyncStorage.multiGet([LEGACY_TOKEN_KEY, LEGACY_REFRESH_KEY]);
     const legacyToken =
-      legacyEntries.length >= 1 &&
-      Array.isArray(legacyEntries[0]) &&
-      legacyEntries[0].length >= 2
+      legacyEntries.length >= 1 && Array.isArray(legacyEntries[0]) && legacyEntries[0].length >= 2
         ? legacyEntries[0][1]
         : null;
     const legacyRefresh =
-      legacyEntries.length >= 2 &&
-      Array.isArray(legacyEntries[1]) &&
-      legacyEntries[1].length >= 2
+      legacyEntries.length >= 2 && Array.isArray(legacyEntries[1]) && legacyEntries[1].length >= 2
         ? legacyEntries[1][1]
         : null;
     const hadLegacy = !!(legacyToken || legacyRefresh);
 
     if (hadLegacy) {
-      /* Migrate tokens to SecureStore if not already present */
-      const existingToken = await SecureStore.getItemAsync(TOKEN_KEY).catch(
-        () => null,
-      );
-      const existingRefresh = await SecureStore.getItemAsync(
-        REFRESH_TOKEN_KEY,
-      ).catch(() => null);
+      const existingToken = await SecureStore.getItemAsync(TOKEN_KEY).catch(() => null);
+      const existingRefresh = await SecureStore.getItemAsync(REFRESH_TOKEN_KEY).catch(() => null);
       if (!existingToken && legacyToken) {
-        await SecureStore.setItemAsync(TOKEN_KEY, legacyToken).catch((e) => { log.debug("[auth] Migration: failed to store access token — will retry next launch:", e); });
+        await SecureStore.setItemAsync(TOKEN_KEY, legacyToken).catch((e) => {
+          log.debug("[auth] Migration: failed to store access token:", e);
+        });
       }
       if (!existingRefresh && legacyRefresh) {
-        await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, legacyRefresh).catch(
-          (e) => { log.debug("[auth] Migration: failed to store refresh token — will retry next launch:", e); },
-        );
+        await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, legacyRefresh).catch((e) => {
+          log.debug("[auth] Migration: failed to store refresh token:", e);
+        });
       }
-      /* Remove the insecure copies */
-      await AsyncStorage.multiRemove([
-        LEGACY_TOKEN_KEY,
-        LEGACY_REFRESH_KEY,
-      ]).catch((err) => { log.debug("[AuthContext] Legacy token cleanup failed:", err); });
+      await AsyncStorage.multiRemove([LEGACY_TOKEN_KEY, LEGACY_REFRESH_KEY]).catch((err) => {
+        log.debug("[AuthContext] Legacy token cleanup failed:", err);
+      });
     }
 
-    /* Mark migration as complete for this device */
-    await SecureStore.setItemAsync(MIGRATED_KEY, "1").catch((e) => { log.debug("[auth] Migration: failed to persist migration flag — will re-run on next launch:", e); });
+    await SecureStore.setItemAsync(MIGRATED_KEY, "1").catch((e) => {
+      log.debug("[auth] Migration: failed to persist migration flag:", e);
+    });
     return hadLegacy;
   } catch (e) {
     log.warn("migrateSecureStore failed — skipping migration:", e);
@@ -205,7 +192,19 @@ function decodeJwtExp(tok: string): number | null {
   return sdkDecodeJwt(tok)?.exp ?? null;
 }
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+/**
+ * CustomerAuthInner — renders inside SdkAuthProvider so it can call useSdkAuth().
+ *
+ * This is the primary implementation layer for all customer auth state:
+ * token management (SecureStore), proactive refresh, socket.io, biometric,
+ * and offline queue. It bi-directionally syncs with the shared SDK auth state
+ * via sdkCtx.login() / sdkCtx.logout() so that SDK hooks (useSessionManager,
+ * useAuth from the SDK) see the same token that this context manages.
+ */
+function CustomerAuthInner({ children }: { children: React.ReactNode }) {
+  /* ── Primary SDK auth context (SdkAuthProvider is the outer wrapper) ── */
+  const sdkCtx = useSdkAuth();
+
   const queryClient = useQueryClient();
   const [user, setUser] = useState<AppUser | null>(null);
   const [token, setToken] = useState<string | null>(null);
@@ -221,17 +220,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const refreshFailCountRef = useRef(0);
   const REFRESH_FAIL_CAP = 6;
 
-  /* FIX 4: Refs so callbacks always see the latest user/token without stale closure */
   const userRef = useRef<AppUser | null>(null);
   const tokenRef = useRef<string | null>(null);
-  useEffect(() => {
-    userRef.current = user;
-  }, [user]);
-  useEffect(() => {
-    tokenRef.current = token;
-  }, [token]);
+  useEffect(() => { userRef.current = user; }, [user]);
+  useEffect(() => { tokenRef.current = token; }, [token]);
 
-  /* Ref to doLogout so registerAuth (empty-deps useCallback) can always call latest version */
   const doLogoutRef = useRef<() => Promise<void>>(async () => {});
 
   const clearRefreshTimer = () => {
@@ -252,21 +245,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let refreshIn: number;
 
     if (backoffMs !== undefined) {
-      // Retry/backoff path — use the explicit backoff delay as-is.
       refreshIn = backoffMs;
     } else {
       const claims = decodeJwtClaims(tok);
       if (!claims) return;
 
       const { exp, iat } = claims;
-      const lifetimeMs = (exp - iat) * 1000; // Server-stated duration — device-clock-independent
-      if (lifetimeMs <= 0) return; // Defensive: invalid token
+      const lifetimeMs = (exp - iat) * 1000;
+      if (lifetimeMs <= 0) return;
 
-      // Primary: 85% of the server-stated token lifetime from now.
-      // This is a pure duration — unaffected by device clock skew.
       const lifetimeBased = lifetimeMs * 0.85;
-      // Safety ceiling: never schedule past (expiry − 60 s) per device clock.
-      // Device clock is used only as a ceiling here, not as the primary source.
       const clockCap = Math.max(exp * 1000 - Date.now() - 60_000, 10_000);
       refreshIn = Math.max(Math.min(lifetimeBased, clockCap), 10_000);
     }
@@ -277,7 +265,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         const refreshToken = await secureGet(REFRESH_TOKEN_KEY);
         if (!refreshToken) {
-          /* Use ref so we always call the latest doLogout */
           await doLogoutRef.current();
           return;
         }
@@ -292,33 +279,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             await doLogoutRef.current();
             return;
           }
-          // Exponential backoff: 60s * 2^n, capped at 15 minutes
-          const backoff = Math.min(
-            60_000 * Math.pow(2, refreshFailCountRef.current - 1),
-            15 * 60_000,
-          );
+          const backoff = Math.min(60_000 * Math.pow(2, refreshFailCountRef.current - 1), 15 * 60_000);
           scheduleProactiveRefresh(tok, backoff);
           return;
         }
-        const data = (await res.json()) as {
-          token?: string;
-          refreshToken?: string;
-        };
+        const data = (await res.json()) as { token?: string; refreshToken?: string };
         if (!data.token) {
           refreshFailCountRef.current = (refreshFailCountRef.current ?? 0) + 1;
           if (refreshFailCountRef.current > REFRESH_FAIL_CAP) {
             await doLogoutRef.current();
             return;
           }
-          const backoff = Math.min(
-            60_000 * Math.pow(2, refreshFailCountRef.current - 1),
-            15 * 60_000,
-          );
+          const backoff = Math.min(60_000 * Math.pow(2, refreshFailCountRef.current - 1), 15 * 60_000);
           scheduleProactiveRefresh(tok, backoff);
           return;
         }
 
-        // Success: reset failure count
         refreshFailCountRef.current = 0;
 
         const meRes = await fetch(`${API_BASE}/users/profile`, {
@@ -332,6 +308,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
         setToken(data.token);
         await secureSet(TOKEN_KEY, data.token);
+        /* Sync refreshed token to the shared SDK primary auth state */
+        syncedStorage.setAccessToken(data.token);
         if (data.refreshToken) {
           await secureSet(REFRESH_TOKEN_KEY, data.refreshToken);
           setRefreshTokenGetter(() => data.refreshToken!);
@@ -344,10 +322,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           await doLogoutRef.current();
           return;
         }
-        const backoff = Math.min(
-          60_000 * Math.pow(2, refreshFailCountRef.current - 1),
-          15 * 60_000,
-        );
+        const backoff = Math.min(60_000 * Math.pow(2, refreshFailCountRef.current - 1), 15 * 60_000);
         scheduleProactiveRefresh(tok, backoff);
       } finally {
         refreshingRef.current = false;
@@ -359,10 +334,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       await fetch(`${API_BASE}/locations/clear`, {
         method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${userToken}`,
-        },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${userToken}` },
         body: JSON.stringify({ userId }),
       });
     } catch (e) {
@@ -374,7 +346,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const tok = tokenRef.current;
     const u = userRef.current;
     if (u && hasRole(u, "customer") && tok) {
-      clearCustomerLocation(u.id, tok).catch((err) => { log.warn("[AuthContext] Failed to clear customer location on logout:", err); });
+      clearCustomerLocation(u.id, tok).catch((err) => {
+        log.warn("[AuthContext] Failed to clear customer location on logout:", err);
+      });
     }
 
     if (socketRef.current) {
@@ -384,13 +358,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     clearRefreshTimer();
-    /* Clear SDK auth client in-memory tokens before wiping SecureStore */
     clearSdkTokens();
-    await AsyncStorage.multiRemove([
-      USER_KEY,
-      "@ajkmart_cart",
-      "@ajkmart_auth_return_to",
-    ]);
+    /* Sync logout to the shared SDK primary auth state */
+    try { sdkCtx.logout(); } catch { /* non-fatal if SDK context not mounted */ }
+    await AsyncStorage.multiRemove([USER_KEY, "@ajkmart_cart", "@ajkmart_auth_return_to"]);
     await secureDelete(TOKEN_KEY);
     await secureDelete(REFRESH_TOKEN_KEY);
     await secureDelete(BIOMETRIC_TOKEN);
@@ -407,18 +378,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     queryClient.clear();
   };
 
-  /* FIX 4: Keep doLogoutRef always pointing to the latest doLogout */
-  useEffect(() => {
-    doLogoutRef.current = doLogout;
-  });
+  useEffect(() => { doLogoutRef.current = doLogout; });
 
   const registerAuth = useCallback((tok: string, refreshTok: string | null) => {
     setAuthTokenGetter(() => tok);
     setRefreshTokenGetter(refreshTok ? () => refreshTok : null);
 
     setOnTokenRefreshed(async (newToken: string, newRefreshToken: string) => {
-      /* Explicitly disconnect the existing socket so the token-change useEffect
-         below reconnects it with the new auth token immediately. */
       if (socketRef.current) {
         socketRef.current.disconnect();
         socketRef.current = null;
@@ -434,19 +400,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       scheduleProactiveRefresh(newToken);
     });
 
-    /* FIX 4 + FIX 8: Use doLogoutRef so we always call the latest doLogout, and await it */
     setOnUnauthorized(async (statusCode?: number, errorMsg?: string) => {
       if (statusCode === 403) {
-        /* wallet_frozen is a wallet-specific restriction — NOT account suspension.
-           Let the wallet screen handle it locally; do not show the suspension screen. */
         if (errorMsg === "wallet_frozen") return;
-        /* ROLE_DENIED means the user lacks a role for this feature (e.g. customer).
-           Let the individual screen handle it; do not show the suspension screen. */
         if (errorMsg === "Access denied. Customer account required.") return;
         setIsSuspended(true);
-        setSuspendedMessage(
-          errorMsg || "Your account has been suspended. Contact support.",
-        );
+        setSuspendedMessage(errorMsg || "Your account has been suspended. Contact support.");
         return;
       }
       await doLogoutRef.current();
@@ -455,7 +414,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     scheduleProactiveRefresh(tok);
   }, []);
 
-  /* ── SDK bridge: sync access token whenever AuthContext token state changes ── */
+  /* ── SDK bridge: sync access token whenever customer token state changes ── */
   useEffect(() => {
     syncAccessToken(token);
   }, [token]);
@@ -463,21 +422,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const loadAuth = async () => {
       try {
-        /* Bootstrap the shared SDK auth client (seeds in-memory token cache). */
         await bootstrapSdkAuth();
-
-        /* Migrate any legacy unencrypted AsyncStorage tokens to SecureStore.
-           If migration succeeds the tokens are now available via SecureStore below. */
         await migrateLegacyInsecureTokens();
 
-        const [[, storedUser], [, bioPref]] = await AsyncStorage.multiGet([
-          USER_KEY,
-          BIOMETRIC_KEY,
-        ]);
+        const [[, storedUser], [, bioPref]] = await AsyncStorage.multiGet([USER_KEY, BIOMETRIC_KEY]);
 
-        /* If SecureStore is unavailable, secureGet throws. Catch separately to
-           distinguish hardware encryption failure from other errors — in both cases
-           we clear stored session data and require fresh login. */
         let storedToken: string | null = null;
         let storedRefresh: string | null = null;
         try {
@@ -493,11 +442,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (storedUser && storedToken) {
           const parsedUser = JSON.parse(storedUser);
           const exp = decodeJwtExp(storedToken);
-          // Tolerate up to CLOCK_SKEW_TOLERANCE_MS of device clock drift before
-          // treating a stored token as expired; avoids false-expiry on skewed clocks.
-          const isExpired = exp
-            ? exp * 1000 < Date.now() - CLOCK_SKEW_TOLERANCE_MS
-            : false;
+          const isExpired = exp ? exp * 1000 < Date.now() - CLOCK_SKEW_TOLERANCE_MS : false;
 
           if (isExpired && storedRefresh) {
             try {
@@ -507,44 +452,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 body: JSON.stringify({ refreshToken: storedRefresh }),
               });
               if (refreshRes.ok) {
-                const data = (await refreshRes.json()) as {
-                  token?: string;
-                  refreshToken?: string;
-                  user?: AppUser;
-                };
+                const data = (await refreshRes.json()) as { token?: string; refreshToken?: string; user?: AppUser };
                 if (data.token) {
                   await secureSet(TOKEN_KEY, data.token);
-                  if (data.refreshToken)
-                    await secureSet(REFRESH_TOKEN_KEY, data.refreshToken);
-                  /* Always fetch fresh profile from server (role-agnostic endpoint) to get latest roles */
+                  if (data.refreshToken) await secureSet(REFRESH_TOKEN_KEY, data.refreshToken);
                   let freshUser: AppUser = data.user || parsedUser;
                   try {
-                    const profileRes = await fetch(
-                      `${API_BASE}/users/profile`,
-                      {
-                        headers: { Authorization: `Bearer ${data.token}` },
-                      },
-                    );
+                    const profileRes = await fetch(`${API_BASE}/users/profile`, {
+                      headers: { Authorization: `Bearer ${data.token}` },
+                    });
                     if (profileRes.ok) {
                       const profileData = await profileRes.json();
-                      freshUser =
-                        profileData.data ||
-                        profileData.user ||
-                        profileData ||
-                        freshUser;
+                      freshUser = profileData.data || profileData.user || profileData || freshUser;
                     }
                   } catch (e) {
                     log.warn("Failed to fetch profile after token refresh:", e);
                   }
-                  await AsyncStorage.setItem(
-                    USER_KEY,
-                    JSON.stringify(freshUser),
-                  );
+                  await AsyncStorage.setItem(USER_KEY, JSON.stringify(freshUser));
                   setUser(freshUser);
                   setToken(data.token);
                   setAuthToken(data.token);
                   registerAuth(data.token, data.refreshToken ?? storedRefresh);
-                  syncToServer(data.token).catch((err) => { log.warn("[AuthContext] syncToServer after token refresh failed:", err); });
+                  syncToServer(data.token).catch((err) => {
+                    log.warn("[AuthContext] syncToServer after token refresh failed:", err);
+                  });
                   setIsLoading(false);
                   return;
                 }
@@ -560,8 +491,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             await secureDelete(TOKEN_KEY);
             await secureDelete(REFRESH_TOKEN_KEY);
           } else {
-            /* Token still valid: fetch fresh profile BEFORE resolving auth state so that
-               role-gated route guards always see authoritative server roles, never stale cache. */
             let resolvedUser: AppUser = parsedUser;
             try {
               const profileRes = await fetch(`${API_BASE}/users/profile`, {
@@ -569,14 +498,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               });
               if (profileRes.ok) {
                 const profileData = await profileRes.json();
-                const freshUser: AppUser =
-                  profileData.data || profileData.user || profileData;
+                const freshUser: AppUser = profileData.data || profileData.user || profileData;
                 if (freshUser && freshUser.id) {
                   resolvedUser = freshUser;
-                  await AsyncStorage.setItem(
-                    USER_KEY,
-                    JSON.stringify(freshUser),
-                  );
+                  await AsyncStorage.setItem(USER_KEY, JSON.stringify(freshUser));
                 }
               }
             } catch (e) {
@@ -586,7 +511,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setToken(storedToken);
             setAuthToken(storedToken);
             registerAuth(storedToken, storedRefresh);
-            syncToServer(storedToken).catch((err) => { log.warn("[AuthContext] syncToServer with stored token failed:", err); });
+            syncToServer(storedToken).catch((err) => {
+              log.warn("[AuthContext] syncToServer with stored token failed:", err);
+            });
           }
         }
       } catch (e) {
@@ -602,15 +529,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const Location = await import("expo-location");
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") return;
-      const pos = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
+      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
       await fetch(`${API_BASE}/locations/update`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${userToken}`,
-        },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${userToken}` },
         body: JSON.stringify({
           userId,
           latitude: pos.coords.latitude,
@@ -624,11 +546,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const login = async (
-    userData: AppUser,
-    userToken: string,
-    refreshToken?: string,
-  ) => {
+  const login = async (userData: AppUser, userToken: string, refreshToken?: string) => {
     await AsyncStorage.setItem(USER_KEY, JSON.stringify(userData));
     await secureSet(TOKEN_KEY, userToken);
     if (refreshToken) await secureSet(REFRESH_TOKEN_KEY, refreshToken);
@@ -637,18 +555,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setTwoFactorPending(null);
     setAuthToken(userToken);
     registerAuth(userToken, refreshToken ?? null);
-    syncToServer(userToken).catch((err) => { log.warn("[AuthContext] syncToServer after login failed:", err); });
-    /* Capture customer location on login (foreground only) */
+    syncToServer(userToken).catch((err) => {
+      log.warn("[AuthContext] syncToServer after login failed:", err);
+    });
+    /* Sync to the shared SDK primary auth state so SDK hooks (useSessionManager, etc.) see the token */
+    try {
+      const sdkUser: BaseAuthUser = {
+        id: userData.id,
+        role: "customer",
+        phone: userData.phone,
+        email: userData.email,
+      };
+      sdkCtx.login(sdkUser, userToken);
+    } catch { /* non-fatal */ }
     if (hasRole(userData, "customer")) {
-      captureCustomerLocation(userData.id, userToken).catch((err) => { log.warn("[AuthContext] captureCustomerLocation after login failed:", err); });
+      captureCustomerLocation(userData.id, userToken).catch((err) => {
+        log.warn("[AuthContext] captureCustomerLocation after login failed:", err);
+      });
     }
   };
 
-  const completeTwoFactorLogin = async (
-    userData: AppUser,
-    userToken: string,
-    refreshToken?: string,
-  ) => {
+  const completeTwoFactorLogin = async (userData: AppUser, userToken: string, refreshToken?: string) => {
     setTwoFactorPending(null);
     await login(userData, userToken, refreshToken);
   };
@@ -699,18 +626,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const setBiometricEnabled = async (enabled: boolean) => {
     setBiometricEnabledState(enabled);
     await AsyncStorage.setItem(BIOMETRIC_KEY, enabled ? "true" : "false");
-    /* biometric pref is non-sensitive — stays in AsyncStorage */
     if (enabled && token) {
       try {
         const refreshTok = await secureGet(REFRESH_TOKEN_KEY);
-        if (refreshTok) {
-          await secureSet(BIOMETRIC_TOKEN, refreshTok);
-        }
-      } catch (e) { log.warn("[auth] Failed to store biometric token — biometric login may not work:", e); }
+        if (refreshTok) await secureSet(BIOMETRIC_TOKEN, refreshTok);
+      } catch (e) {
+        log.warn("[auth] Failed to store biometric token:", e);
+      }
     } else if (!enabled) {
       try {
         await secureDelete(BIOMETRIC_TOKEN);
-      } catch (e) { log.debug("[auth] Failed to remove biometric token — SecureStore may already be empty:", e); }
+      } catch (e) {
+        log.debug("[auth] Failed to remove biometric token:", e);
+      }
     }
   };
 
@@ -730,19 +658,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         disableDeviceFallback: false,
       });
       if (!result.success) {
-        /* FIX 7: Only permanently disable biometric on actual hardware/lockout failures.
-           User cancel or fallback should NOT disable it. */
-        const nonFatalErrors = [
-          "user_cancel",
-          "system_cancel",
-          "user_fallback",
-          "app_cancel",
-        ];
-        const isFatal =
-          !!result.error && !nonFatalErrors.includes(result.error as string);
-        if (isFatal) {
-          await setBiometricEnabled(false);
-        }
+        const nonFatalErrors = ["user_cancel", "system_cancel", "user_fallback", "app_cancel"];
+        const isFatal = !!result.error && !nonFatalErrors.includes(result.error as string);
+        if (isFatal) await setBiometricEnabled(false);
         return null;
       }
 
@@ -757,31 +675,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           body: JSON.stringify({ refreshToken: storedRefreshToken }),
         });
       } catch {
-        /* Network/connectivity error — do NOT disable biometrics; signal transient failure */
         return "transient_error";
       }
       if (res.status === 401 || res.status === 403) {
-        /* Confirmed auth failure (token revoked/expired) — disable biometrics */
         await secureDelete(BIOMETRIC_TOKEN);
         setBiometricEnabledState(false);
         await AsyncStorage.setItem(BIOMETRIC_KEY, "false");
         return null;
       }
-      if (!res.ok) {
-        /* Other server error (5xx, etc.) — transient; do NOT disable biometrics */
-        return "transient_error";
-      }
-      const data = (await res.json()) as {
-        token?: string;
-        refreshToken?: string;
-      };
+      if (!res.ok) return "transient_error";
+      const data = (await res.json()) as { token?: string; refreshToken?: string };
       if (!data.token) return null;
 
       const meRes = await fetch(`${API_BASE}/users/profile`, {
         headers: { Authorization: `Bearer ${data.token}` },
       });
       if (!meRes.ok) {
-        /* Profile fetch failure is transient if it's a server error */
         if (meRes.status >= 500) return "transient_error";
         return null;
       }
@@ -789,12 +698,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const freshUser: AppUser = meData.data || meData.user || meData;
 
       await login(freshUser, data.token, data.refreshToken);
-      if (data.refreshToken) {
-        await secureSet(BIOMETRIC_TOKEN, data.refreshToken);
-      }
+      if (data.refreshToken) await secureSet(BIOMETRIC_TOKEN, data.refreshToken);
       return (freshUser.roles ?? [])[0] ?? "customer";
     } catch {
-      /* Unexpected error — treat as transient to allow retry */
       return "transient_error";
     }
   };
@@ -818,18 +724,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const handleWalletBalance = (payload: { balance: number }) => {
       if (typeof payload?.balance === "number") {
-        setUser((prev) =>
-          prev ? { ...prev, walletBalance: String(payload.balance) } : prev,
-        );
+        setUser((prev) => prev ? { ...prev, walletBalance: String(payload.balance) } : prev);
         AsyncStorage.getItem(USER_KEY).then((stored) => {
           if (!stored) return;
           try {
             const parsed = JSON.parse(stored);
-            AsyncStorage.setItem(
-              USER_KEY,
-              JSON.stringify({ ...parsed, walletBalance: payload.balance }),
-            );
-          } catch (e) { log.debug("[auth] wallet:update — failed to persist updated wallet balance to AsyncStorage:", e); }
+            AsyncStorage.setItem(USER_KEY, JSON.stringify({ ...parsed, walletBalance: payload.balance }));
+          } catch (e) {
+            log.debug("[auth] wallet:update — failed to persist balance:", e);
+          }
         });
       }
     };
@@ -847,35 +750,51 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const isCustomer = hasRole(user, "customer");
 
   return (
+    <AuthContext.Provider
+      value={{
+        user,
+        token,
+        isLoading,
+        isSuspended,
+        suspendedMessage,
+        biometricEnabled,
+        twoFactorPending,
+        isCustomer,
+        login,
+        logout,
+        updateUser,
+        clearSuspended,
+        setBiometricEnabled,
+        setTwoFactorPending,
+        completeTwoFactorLogin,
+        attemptBiometricLogin,
+        refreshToken,
+        socket: socketState,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+/**
+ * AuthProvider — wraps children with:
+ *   SdkAuthProvider (primary shared auth state — manages token in syncedStorage)
+ *   └─ CustomerAuthInner (customer-specific auth: SecureStore, socket.io, biometric, proactive refresh)
+ *      └─ AuthContext.Provider (customer auth context shape consumed by all screens)
+ *
+ * SdkAuthProvider is the *primary* auth owner so SDK hooks (useSessionManager,
+ * useAuth from the SDK) work anywhere in the tree. CustomerAuthInner bi-directionally
+ * syncs with it via sdkCtx.login() / sdkCtx.logout() in its own login/logout functions.
+ */
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  return (
     <SdkAuthProvider
       baseURL={API_BASE}
       tokenStorage={syncedStorage}
       refreshEndpoint={`${API_BASE}/auth/refresh`}
     >
-      <AuthContext.Provider
-        value={{
-          user,
-          token,
-          isLoading,
-          isSuspended,
-          suspendedMessage,
-          biometricEnabled,
-          twoFactorPending,
-          isCustomer,
-          login,
-          logout,
-          updateUser,
-          clearSuspended,
-          setBiometricEnabled,
-          setTwoFactorPending,
-          completeTwoFactorLogin,
-          attemptBiometricLogin,
-          refreshToken,
-          socket: socketState,
-        }}
-      >
-        {children}
-      </AuthContext.Provider>
+      <CustomerAuthInner>{children}</CustomerAuthInner>
     </SdkAuthProvider>
   );
 }

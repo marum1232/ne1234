@@ -31,19 +31,14 @@ import { enqueueRequest, drainQueue } from "@/lib/offline/queue";
 import { compressImage } from "@/utils/image";
 import { compressImage as compressImageToDataUrl } from "@/lib/imageUtils";
 
-/**
- * React Native auth primitives used throughout this screen.
- *
- * OtpInput and PhoneInput are available from @workspace/auth-react but use
- * HTML elements (div/input/select) and therefore cannot render in React Native.
- * OtpDigitInput and PhoneInput below are the Expo-native equivalents from
- * auth-shared.tsx that implement the same UX using RN primitives.
- */
+/* OtpInput and PhoneInput from @workspace/auth-react — Metro auto-resolves to
+   the .native.tsx platform siblings for Expo builds, which use React Native
+   primitives (View/Text/TextInput) instead of HTML elements. */
+import { OtpInput, PhoneInput } from "@workspace/auth-react";
+
 import {
-  OtpDigitInput,
   AuthButton,
   AlertBox,
-  PhoneInput,
   InputField,
   PasswordStrengthBar,
   StepProgress,
@@ -884,7 +879,7 @@ export default function RegisterScreen() {
                   <Text style={s.fieldLabel}>Phone Number</Text>
                   <PhoneInput
                     value={phone}
-                    onChangeText={v => { setPhone(v); clearError(); }}
+                    onChangeText={(v: string) => { setPhone(v); clearError(); }}
                     autoFocus
                   />
                 </>
@@ -902,9 +897,9 @@ export default function RegisterScreen() {
                   <Text style={s.fieldLabel}>Enter Verification Code</Text>
                   <Text style={s.fieldSub}>Code sent to +92 {phone}</Text>
 
-                  <OtpDigitInput
+                  <OtpInput
                     value={otp}
-                    onChangeText={v => { setOtp(v); clearError(); }}
+                    onChangeText={(v: string) => { setOtp(v); clearError(); }}
                     hasError={!!error}
                     onComplete={() => handleVerifyOtp()}
                   />
@@ -958,9 +953,9 @@ export default function RegisterScreen() {
                   <Text style={s.fieldLabel}>Enter Verification Code</Text>
                   <Text style={s.fieldSub}>Code sent to {emailReg}</Text>
 
-                  <OtpDigitInput
+                  <OtpInput
                     value={emailRegOtp}
-                    onChangeText={v => { setEmailRegOtp(v); clearError(); }}
+                    onChangeText={(v: string) => { setEmailRegOtp(v); clearError(); }}
                     hasError={!!error}
                     onComplete={() => handleVerifyEmailReg()}
                   />
