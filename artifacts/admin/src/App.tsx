@@ -16,6 +16,8 @@ import { registerPush } from "@/lib/push";
 import { initErrorReporter, reportError } from "@/lib/error-reporter";
 import { AdminAuthProvider, useAdminAuth } from "@/lib/adminAuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
+import { ThemeProvider } from "@/lib/auth/ThemeContext";
+import { adminTheme } from "@/lib/auth/theme";
 import { setupAdminFetcherHandlers } from "@/lib/adminFetcher";
 import { auditAdminEnv } from "@/lib/envValidation";
 import { bootAccessibilitySettings } from "@/lib/useAccessibilitySettings";
@@ -537,6 +539,7 @@ function App() {
   return (
     <ErrorBoundary>
       <AdminAuthProvider>
+        <ThemeProvider theme={adminTheme}>
         <QueryClientProvider client={queryClient}>
           <TooltipProvider>
             <WouterRouter base={_adminEnv.baseUrl.replace(/\/$/, "")}>
@@ -551,6 +554,7 @@ function App() {
             <OnlineStatusBanner />
           </TooltipProvider>
         </QueryClientProvider>
+        </ThemeProvider>
       </AdminAuthProvider>
     </ErrorBoundary>
   );

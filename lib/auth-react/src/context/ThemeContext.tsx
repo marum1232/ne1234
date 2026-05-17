@@ -31,6 +31,8 @@ export interface AuthTheme {
   rejectedOverlay: string;
   /** Full-screen maintenance overlay background */
   maintenanceOverlay: string;
+  /** Card / elevated surface background (dark mode dark surface, light mode white card) */
+  surface: string;
 }
 
 export const DEFAULT_THEMES: Record<string, AuthTheme> = {
@@ -45,6 +47,7 @@ export const DEFAULT_THEMES: Record<string, AuthTheme> = {
     pendingOverlay:     '#f0fdf4',
     rejectedOverlay:    '#fef2f2',
     maintenanceOverlay: '#fffbeb',
+    surface:            '#0F1217',
   },
   vendor: {
     primary:            '#f97316',
@@ -57,6 +60,7 @@ export const DEFAULT_THEMES: Record<string, AuthTheme> = {
     pendingOverlay:     '#fff7ed',
     rejectedOverlay:    '#fef2f2',
     maintenanceOverlay: '#fffbeb',
+    surface:            '#ffffff',
   },
   customer: {
     primary:            '#0066ff',
@@ -69,6 +73,7 @@ export const DEFAULT_THEMES: Record<string, AuthTheme> = {
     pendingOverlay:     '#eff6ff',
     rejectedOverlay:    '#fef2f2',
     maintenanceOverlay: '#fffbeb',
+    surface:            '#ffffff',
   },
   admin: {
     primary:            '#6366f1',
@@ -81,6 +86,7 @@ export const DEFAULT_THEMES: Record<string, AuthTheme> = {
     pendingOverlay:     '#eef2ff',
     rejectedOverlay:    '#fef2f2',
     maintenanceOverlay: '#fffbeb',
+    surface:            '#131720',
   },
 };
 

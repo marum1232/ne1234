@@ -3,6 +3,8 @@ import { useVersionCheck } from "@/hooks/useVersionCheck";
 import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider, useAuth } from "./lib/vendor-auth";
+import { ThemeProvider } from "./lib/auth/ThemeContext";
+import { vendorTheme } from "./lib/auth/theme";
 import { usePlatformConfig } from "./lib/useConfig";
 import { useLanguage } from "./lib/useLanguage";
 import { registerPush, consumePendingNotificationTap, type PushErrorHandler } from "./lib/push";
@@ -450,6 +452,7 @@ export default function App() {
       <QueryClientProvider client={queryClient}>
         <VersionCheckInit />
         <AuthProvider>
+          <ThemeProvider theme={vendorTheme}>
           <WouterRouter base={(() => {
               /* Use BASE_URL exactly as Vite computed it from vite.config's
                  `base` option:
@@ -465,6 +468,7 @@ export default function App() {
             <AppRoutes />
           </WouterRouter>
           <PwaInstallBanner />
+          </ThemeProvider>
         </AuthProvider>
       </QueryClientProvider>
     </ErrorBoundary>

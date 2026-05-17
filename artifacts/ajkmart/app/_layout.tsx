@@ -60,6 +60,8 @@ import {
 import { AuthConfigProvider } from "@/context/AuthConfigContext";
 import { PerformanceProvider } from "@/context/PerformanceContext";
 import { ThemeProvider } from "@/context/ThemeContext";
+import { ThemeProvider as AuthThemeProvider } from "@/lib/auth/ThemeContext";
+import { ajkmartTheme } from "@/lib/auth/theme";
 import { ToastProvider } from "@/context/ToastContext";
 import { OfflineBar, SlowConnectionBar } from "@/components/OfflineBar";
 
@@ -579,6 +581,7 @@ export default function RootLayout() {
               <KeyboardProvider>
                 <FontSizeProvider>
                   <ThemeProvider>
+                    <AuthThemeProvider theme={ajkmartTheme}>
                     <PlatformConfigProvider>
                       <AuthConfigProvider>
                       <PerformanceProvider>
@@ -595,6 +598,7 @@ export default function RootLayout() {
                       </PerformanceProvider>
                       </AuthConfigProvider>
                     </PlatformConfigProvider>
+                    </AuthThemeProvider>
                   </ThemeProvider>
                 </FontSizeProvider>
               </KeyboardProvider>
