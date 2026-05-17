@@ -132,12 +132,12 @@ function BiometricPromptOverlay({ onAccept, onDecline }: { onAccept: () => void;
         <Text style={[styles.cardBody, { color: theme.textMuted }]}>
           Use Face ID or fingerprint to sign in faster next time.
         </Text>
-        <View style={[styles.btn, { backgroundColor: theme.primary }]} onTouchEnd={onAccept}>
+        <TouchableOpacity style={[styles.btn, { backgroundColor: theme.primary }]} onPress={onAccept} activeOpacity={0.85}>
           <Text style={[styles.btnText, { color: theme.surface }]}>Enable</Text>
-        </View>
-        <View style={[styles.btnSecondary, { borderColor: theme.border }]} onTouchEnd={onDecline}>
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.btnSecondary, { borderColor: theme.border }]} onPress={onDecline} activeOpacity={0.7}>
           <Text style={[styles.btnSecondaryText, { color: theme.textMuted }]}>Skip for now</Text>
-        </View>
+        </TouchableOpacity>
       </View>
     </View>
   );

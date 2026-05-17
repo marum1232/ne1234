@@ -2,12 +2,14 @@
  * RegisterWizard.tsx — vendor-app
  *
  * Multi-step registration wizard for vendors:
- *   Store Info → Documents → Bank/Wallet → OTP → Done
+ *   Store Info → Documents → Bank/Wallet → OTP + Password → Done
  *
  * Wraps @workspace/auth-react RegisterScreen with vendor-specific
  * step configuration, API wiring, and theme tokens.
+ *
+ * Passwords are excluded from the draft to avoid plain-text storage.
  */
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useLocation } from "wouter";
 import { RegisterScreen } from "@workspace/auth-react";
 import type { StepConfig, StepComponentProps } from "@workspace/auth-react";
@@ -18,11 +20,23 @@ import { usePlatformConfig, getVendorAuthConfig } from "../useConfig";
 import { useLanguage } from "../useLanguage";
 import { tDual, type TranslationKey } from "@workspace/i18n";
 import { executeCaptcha } from "@workspace/auth-utils";
+import { Eye, EyeOff } from "lucide-react";
 
 const DRAFT_KEY = "vendor_reg_draft";
 
 const STORE_CATS = ["Grocery","Restaurant","Bakery","Pharmacy","Electronics","Clothing","General Store","Fast Food","Fruits & Vegetables","Dairy","Meat & Poultry","Other"];
 const CITIES = ["Muzaffarabad","Mirpur","Rawalakot","Bagh","Kotli","Bhimber","Jhelum","Rawalpindi","Islamabad","Lahore","Other"];
+
+/* ── Validate CNIC: XXXXX-XXXXXXX-X ── */
+function isValidCnic(cnic: string): boolean {
+  return /^\d{5}-\d{7}-\d$/.test(cnic.trim());
+}
+
+/* ── Validate Pakistani phone: 03XXXXXXXXX ── */
+function isValidPakistaniPhone(phone: string): boolean {
+  const digits = phone.replace(/\D/g, "");
+  return digits.length === 11 && digits.startsWith("03");
+}
 
 /* ── Step 1: Store Info ──────────────────────────────────────────────── */
 function StoreInfoStep({ data, onChange, onError }: StepComponentProps) {
@@ -70,6 +84,13 @@ function DocumentsStep({ data, onChange, onError }: StepComponentProps) {
   const { language } = useLanguage();
   const T = (key: TranslationKey) => tDual(key, language);
 
+  const formatCnic = (val: string) => {
+    const digits = val.replace(/\D/g, "").slice(0, 13);
+    if (digits.length <= 5) return digits;
+    if (digits.length <= 12) return `${digits.slice(0, 5)}-${digits.slice(5)}`;
+    return `${digits.slice(0, 5)}-${digits.slice(5, 12)}-${digits.slice(12)}`;
+  };
+
   return (
     <div className="space-y-4">
       <h3 className="font-extrabold text-lg mb-1 text-gray-800">{T("documents")}</h3>
@@ -78,12 +99,19 @@ function DocumentsStep({ data, onChange, onError }: StepComponentProps) {
       <div>
         <label className="text-xs font-extrabold text-gray-400 mb-1.5 block uppercase tracking-wider">{T("cnicNumber")} *</label>
         <input className="w-full h-12 px-4 bg-gray-50 border border-gray-200 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-green-500 transition-all"
-          value={(data.cnic as string) ?? ""} onChange={e => { onChange("cnic", e.target.value); onError(""); }} placeholder="XXXXX-XXXXXXX-X" maxLength={15} />
+          value={(data.cnic as string) ?? ""}
+          onChange={e => { onChange("cnic", formatCnic(e.target.value)); onError(""); }}
+          placeholder="XXXXX-XXXXXXX-X" maxLength={15} inputMode="numeric" />
+        {(data.cnic as string)?.length > 0 && !isValidCnic((data.cnic as string) ?? "") && (
+          <p className="text-gray-400 text-xs mt-1">Format: XXXXX-XXXXXXX-X</p>
+        )}
       </div>
       <div>
         <label className="text-xs font-extrabold text-gray-400 mb-1.5 block uppercase tracking-wider">{T("phoneNumber")} *</label>
         <input className="w-full h-12 px-4 bg-gray-50 border border-gray-200 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-green-500 transition-all"
-          value={(data.phone as string) ?? ""} onChange={e => { onChange("phone", e.target.value); onError(""); }} placeholder="+92300XXXXXXX" />
+          value={(data.phone as string) ?? ""}
+          onChange={e => { onChange("phone", e.target.value); onError(""); }}
+          placeholder="03XXXXXXXXX" inputMode="tel" maxLength={11} />
       </div>
       <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-center">
         <p className="text-gray-400 text-sm">{T("documentUploadComingSoon")}</p>
@@ -125,7 +153,51 @@ function BankStep({ data, onChange, onError }: StepComponentProps) {
 function OtpPasswordStep({ data, onChange, onError, onComplete }: StepComponentProps & { onComplete?: (otp: string) => void }) {
   const { language } = useLanguage();
   const T = (key: TranslationKey) => tDual(key, language);
+  const { sendOtp } = useAuth();
   const [otp, setOtp] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(30);
+  const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+  const handleOtpChange = (i: number, raw: string) => {
+    const v = raw.replace(/\D/g, "").slice(0, 1);
+    const chars = otp.split("");
+    chars[i] = v;
+    const next = chars.join("").slice(0, 6);
+    setOtp(next);
+    onChange("otp", next);
+    onError("");
+    if (v && i < 5) inputRefs.current[i + 1]?.focus();
+    if (next.length === 6) onComplete?.(next);
+  };
+
+  const handleKeyDown = (i: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Backspace" && !otp[i] && i > 0) {
+      inputRefs.current[i - 1]?.focus();
+    }
+  };
+
+  const handlePaste = (e: React.ClipboardEvent) => {
+    const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
+    if (!pasted) return;
+    e.preventDefault();
+    setOtp(pasted);
+    onChange("otp", pasted);
+    onError("");
+    inputRefs.current[Math.min(pasted.length, 5)]?.focus();
+    if (pasted.length === 6) onComplete?.(pasted);
+  };
+
+  const handleResend = async () => {
+    const phone = (data.phone as string) ?? "";
+    if (!phone || resending || resendCooldown > 0) return;
+    setResending(true);
+    await sendOtp(phone);
+    setResending(false);
+    setResendCooldown(30);
+  };
 
   return (
     <div className="space-y-4">
@@ -134,33 +206,50 @@ function OtpPasswordStep({ data, onChange, onError, onComplete }: StepComponentP
 
       <div>
         <label className="text-xs font-extrabold text-gray-400 mb-1.5 block uppercase tracking-wider">{T("otpCode")} *</label>
-        <div className="flex justify-center gap-2">
+        <div className="flex justify-center gap-2" onPaste={handlePaste}>
           {Array.from({ length: 6 }).map((_, i) => (
-            <input key={i} type="text" inputMode="numeric" maxLength={1} value={otp[i] ?? ""}
-              onChange={e => {
-                const v = e.target.value.replace(/\D/g, "");
-                const next = otp.slice(0, i) + v + otp.slice(i + 1);
-                setOtp(next.slice(0, 6));
-                onChange("otp", next.slice(0, 6));
-                onError("");
-                if (next.length === 6) onComplete?.(next);
-              }}
+            <input key={i} ref={el => { inputRefs.current[i] = el; }} type="text" inputMode="numeric" maxLength={1} value={otp[i] ?? ""}
+              onChange={e => handleOtpChange(i, e.target.value)}
+              onKeyDown={e => handleKeyDown(i, e)}
               className="w-12 h-14 bg-gray-50 border border-gray-200 rounded-xl text-center text-xl font-bold text-gray-800 focus:ring-2 focus:ring-green-500 focus:outline-none transition-all"
             />
           ))}
         </div>
+        <p className="text-center text-gray-400 text-xs mt-2">
+          {T("didntReceiveOtp")}{" "}
+          {resendCooldown > 0
+            ? <span className="text-gray-300">Resend in {resendCooldown}s</span>
+            : <button type="button" onClick={handleResend} disabled={resending} className="text-green-600 font-semibold disabled:opacity-50">
+                {resending ? "Sending…" : T("resend")}
+              </button>
+          }
+        </p>
       </div>
 
       <div>
         <label className="text-xs font-extrabold text-gray-400 mb-1.5 block uppercase tracking-wider">{T("password")} *</label>
-        <input type="password" className="w-full h-12 px-4 bg-gray-50 border border-gray-200 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-green-500 transition-all"
-          value={(data.password as string) ?? ""} onChange={e => { onChange("password", e.target.value); onError(""); }} placeholder="Min 8 characters" />
+        <div className="relative">
+          <input type={showPassword ? "text" : "password"}
+            className="w-full h-12 px-4 pr-10 bg-gray-50 border border-gray-200 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-green-500 transition-all"
+            value={(data.password as string) ?? ""} onChange={e => { onChange("password", e.target.value); onError(""); }} placeholder="Min 8 characters" />
+          <button type="button" tabIndex={-1} onClick={() => setShowPassword(v => !v)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
+            {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+          </button>
+        </div>
       </div>
 
       <div>
         <label className="text-xs font-extrabold text-gray-400 mb-1.5 block uppercase tracking-wider">{T("confirmPassword")} *</label>
-        <input type="password" className="w-full h-12 px-4 bg-gray-50 border border-gray-200 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-green-500 transition-all"
-          value={(data.confirmPassword as string) ?? ""} onChange={e => { onChange("confirmPassword", e.target.value); onError(""); }} placeholder="Re-enter password" />
+        <div className="relative">
+          <input type={showConfirm ? "text" : "password"}
+            className="w-full h-12 px-4 pr-10 bg-gray-50 border border-gray-200 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-green-500 transition-all"
+            value={(data.confirmPassword as string) ?? ""} onChange={e => { onChange("confirmPassword", e.target.value); onError(""); }} placeholder="Re-enter password" />
+          <button type="button" tabIndex={-1} onClick={() => setShowConfirm(v => !v)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
+            {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -188,10 +277,46 @@ function SuccessStep() {
 }
 
 const STEPS: StepConfig[] = [
-  { id: "store", title: "Store", component: StoreInfoStep },
-  { id: "documents", title: "Docs", component: DocumentsStep },
+  {
+    id: "store",
+    title: "Store",
+    component: StoreInfoStep,
+    validate: (data) => {
+      if (!String(data.storeName ?? "").trim()) return "Store name is required";
+      if (!String(data.storeCategory ?? "").trim()) return "Please select a category";
+      if (!String(data.ownerName ?? "").trim()) return "Owner name is required";
+      if (!String(data.city ?? "").trim()) return "Please select a city";
+      return null;
+    },
+  },
+  {
+    id: "documents",
+    title: "Docs",
+    component: DocumentsStep,
+    validate: (data) => {
+      const cnic = String(data.cnic ?? "").trim();
+      if (!cnic) return "CNIC number is required";
+      if (!isValidCnic(cnic)) return "CNIC must be in format XXXXX-XXXXXXX-X";
+      const phone = String(data.phone ?? "").trim();
+      if (!phone) return "Phone number is required";
+      if (!isValidPakistaniPhone(phone)) return "Enter a valid Pakistani mobile number (03XXXXXXXXX)";
+      return null;
+    },
+  },
   { id: "bank", title: "Bank", component: BankStep },
-  { id: "verify", title: "Verify", component: OtpPasswordStep },
+  {
+    id: "verify",
+    title: "Verify",
+    component: OtpPasswordStep,
+    validate: (data) => {
+      if (String(data.otp ?? "").length !== 6) return "Enter the 6-digit verification code";
+      const pw = String(data.password ?? "");
+      if (!pw) return "Password is required";
+      if (pw.length < 8) return "Password must be at least 8 characters";
+      if (pw !== String(data.confirmPassword ?? "")) return "Passwords do not match";
+      return null;
+    },
+  },
   { id: "success", title: "Done", component: SuccessStep },
 ];
 
@@ -211,8 +336,14 @@ export function RegisterWizard({ onDone }: RegisterWizardProps) {
     try { const raw = localStorage.getItem(DRAFT_KEY); return raw ? JSON.parse(raw) : {}; } catch { return {}; }
   });
 
+  /* ── Save draft, excluding password fields ── */
   const handleDataChange = useCallback((key: string, value: unknown) => {
-    setDraft(prev => { const next = { ...prev, [key]: value }; localStorage.setItem(DRAFT_KEY, JSON.stringify(next)); return next; });
+    setDraft(prev => {
+      const next = { ...prev, [key]: value };
+      const { password: _pw, confirmPassword: _cpw, ...safe } = next as Record<string, unknown>;
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(safe));
+      return next;
+    });
   }, []);
 
   const handleOtpRequest = async (phone: string) => {

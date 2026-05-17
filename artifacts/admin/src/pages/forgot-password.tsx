@@ -20,7 +20,7 @@ export default function ForgotPassword() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: email.trim().toLowerCase() }),
       });
-      if (!response.ok && response.status !== 200) {
+      if (!response.ok) {
         // eslint-disable-next-line ajk-local/no-silent-catch -- error body parse failure falls back to generic success message
         const data = await response.json().catch(() => ({}));
         if (response.status === 400 && data?.error) {

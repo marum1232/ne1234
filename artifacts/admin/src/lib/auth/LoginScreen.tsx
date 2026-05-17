@@ -165,7 +165,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
                 <label style={{ display: "block", fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.12em", color: "rgba(255,255,255,0.4)", marginBottom: 6 }}>Username</label>
                 <Input
                   type="text" value={username} onChange={e => setUsername(e.target.value)}
-                  placeholder="admin" autoComplete="username" autoFocus
+                  placeholder="Enter your username" autoComplete="username" autoFocus
                   disabled={isLoading}
                   className="h-11 rounded-xl border-white/10 bg-white/[0.06] text-sm text-white placeholder:text-white/25 focus:border-indigo-500/60 focus:ring-indigo-500/15 focus:bg-white/[0.08] transition-all"
                 />

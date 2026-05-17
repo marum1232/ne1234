@@ -7,8 +7,9 @@
  * Wraps @workspace/auth-react RegisterScreen with customer-specific
  * step configuration, API wiring, and theme tokens.
  * Uses AsyncStorage for form drafts (React Native compatible).
+ * Passwords are excluded from the draft to avoid plain-text storage.
  */
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { router } from "expo-router";
 import { RegisterScreen } from "@workspace/auth-react";
 import type { StepConfig, StepComponentProps } from "@workspace/auth-react";
@@ -33,6 +34,12 @@ const PAKISTAN_CITIES = [
   "Abbottabad", "Bahawalpur", "Sargodha", "Sukkur", "Mardan",
   "Mansehra", "Gilgit", "Skardu",
 ];
+
+/* ── Validate Pakistani phone: 03XXXXXXXXX ── */
+function isValidPakistaniPhone(phone: string): boolean {
+  const digits = phone.replace(/\D/g, "");
+  return digits.length === 11 && digits.startsWith("03");
+}
 
 /* ── Step 1: Phone ───────────────────────────────────────────────────────── */
 function PhoneStep({ data, onChange, onError }: StepComponentProps) {
@@ -61,8 +68,45 @@ function PhoneStep({ data, onChange, onError }: StepComponentProps) {
 function OtpStep({ data, onChange, onError, onComplete }: StepComponentProps & { onComplete?: (otp: string) => void }) {
   const { language } = useLanguage();
   const T = (key: TranslationKey) => tDual(key, language);
+  const { sendOtp } = useAuth();
   const theme = useTheme();
   const [otp, setOtp] = useState("");
+  const [resending, setResending] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(30);
+  const inputRefs = useRef<(TextInput | null)[]>([]);
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const t = setTimeout(() => setResendCooldown(c => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [resendCooldown]);
+
+  const handleChange = (i: number, v: string) => {
+    const digit = v.replace(/\D/g, "").slice(-1);
+    const chars = otp.split("");
+    chars[i] = digit;
+    const next = chars.join("").slice(0, 6);
+    setOtp(next);
+    onChange("otp", next);
+    onError("");
+    if (digit && i < 5) inputRefs.current[i + 1]?.focus();
+    if (next.length === 6) onComplete?.(next);
+  };
+
+  const handleKeyPress = (i: number, e: { nativeEvent: { key: string } }) => {
+    if (e.nativeEvent.key === "Backspace" && !otp[i] && i > 0) {
+      inputRefs.current[i - 1]?.focus();
+    }
+  };
+
+  const handleResend = async () => {
+    const phone = (data.phone as string) ?? "";
+    if (!phone || resending || resendCooldown > 0) return;
+    setResending(true);
+    await sendOtp(phone);
+    setResending(false);
+    setResendCooldown(30);
+  };
 
   return (
     <View style={{ gap: 14, alignItems: "center" }}>
@@ -72,22 +116,31 @@ function OtpStep({ data, onChange, onError, onComplete }: StepComponentProps & {
       </Text>
       <View style={{ flexDirection: "row", gap: 8, marginVertical: 12 }}>
         {Array.from({ length: 6 }).map((_, i) => (
-          <TextInput key={i} style={[styles.otpBox, { borderColor: theme.border, color: theme.text }]} value={otp[i] ?? ""}
-            onChangeText={v => {
-              const digits = v.replace(/\D/g, "");
-              const next = otp.slice(0, i) + digits + otp.slice(i + 1);
-              setOtp(next.slice(0, 6));
-              onChange("otp", next.slice(0, 6));
-              onError("");
-              if (next.length === 6) onComplete?.(next);
-            }}
-            keyboardType="number-pad" maxLength={1} textAlign="center"
+          <TextInput
+            key={i}
+            ref={el => { inputRefs.current[i] = el; }}
+            style={[styles.otpBox, { borderColor: otp[i] ? theme.primary : theme.border, color: theme.text }]}
+            value={otp[i] ?? ""}
+            onChangeText={v => handleChange(i, v)}
+            onKeyPress={e => handleKeyPress(i, e)}
+            keyboardType="number-pad"
+            maxLength={1}
+            textAlign="center"
+            selectTextOnFocus
           />
         ))}
       </View>
-      <Text style={{ color: theme.textMuted, fontSize: 12 }}>
-        {T("didntReceive")} <Text style={{ color: theme.primary, fontWeight: "700" }}>{T("resend")}</Text>
-      </Text>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+        <Text style={{ color: theme.textMuted, fontSize: 13 }}>{T("didntReceive")}</Text>
+        {resendCooldown > 0
+          ? <Text style={{ color: theme.textMuted, fontSize: 13 }}>Resend in {resendCooldown}s</Text>
+          : <TouchableOpacity onPress={handleResend} disabled={resending} activeOpacity={0.7}>
+              <Text style={{ color: theme.primary, fontWeight: "700", fontSize: 13 }}>
+                {resending ? "Sending…" : T("resend")}
+              </Text>
+            </TouchableOpacity>
+        }
+      </View>
     </View>
   );
 }
@@ -124,7 +177,7 @@ function CityStep({ data, onChange, onError }: StepComponentProps) {
       <Text style={[styles.stepTitle, { color: theme.text }]}>{T("selectYourCity")}</Text>
       <Text style={[styles.stepBody, { color: theme.textMuted }]}>{T("chooseDeliveryCity")}</Text>
       <View style={{ gap: 8 }}>
-        {PAKISTAN_CITIES.slice(0, 8).map(city => (
+        {PAKISTAN_CITIES.map(city => (
           <TouchableOpacity key={city}
             style={[styles.cityBtn, { borderColor: data.city === city ? theme.primary : theme.border, backgroundColor: data.city === city ? `${theme.primary}12` : theme.surface }]}
             onPress={() => { onChange("city", city); onError(""); }}
@@ -143,27 +196,49 @@ function PasswordStep({ data, onChange, onError }: StepComponentProps) {
   const { language } = useLanguage();
   const T = (key: TranslationKey) => tDual(key, language);
   const theme = useTheme();
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   return (
     <View style={{ gap: 14 }}>
       <Text style={[styles.stepTitle, { color: theme.text }]}>{T("createPassword")}</Text>
       <Text style={[styles.stepBody, { color: theme.textMuted }]}>{T("secureYourAccount")}</Text>
-      <TextInput
-        style={[styles.input, { borderColor: theme.border, color: theme.text, backgroundColor: theme.surface }]}
-        value={(data.password as string) ?? ""}
-        onChangeText={v => { onChange("password", v); onError(""); }}
-        placeholder="Min 8 characters"
-        placeholderTextColor={theme.textMuted}
-        secureTextEntry
-      />
-      <TextInput
-        style={[styles.input, { borderColor: theme.border, color: theme.text, backgroundColor: theme.surface }]}
-        value={(data.confirmPassword as string) ?? ""}
-        onChangeText={v => { onChange("confirmPassword", v); onError(""); }}
-        placeholder="Re-enter password"
-        placeholderTextColor={theme.textMuted}
-        secureTextEntry
-      />
+      <View style={{ position: "relative" }}>
+        <TextInput
+          style={[styles.input, { borderColor: theme.border, color: theme.text, backgroundColor: theme.surface, paddingRight: 48 }]}
+          value={(data.password as string) ?? ""}
+          onChangeText={v => { onChange("password", v); onError(""); }}
+          placeholder="Min 8 characters"
+          placeholderTextColor={theme.textMuted}
+          secureTextEntry={!showPassword}
+        />
+        <TouchableOpacity
+          style={styles.eyeBtn}
+          onPress={() => setShowPassword(v => !v)}
+          activeOpacity={0.7}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Text style={{ color: theme.textMuted, fontSize: 13 }}>{showPassword ? "Hide" : "Show"}</Text>
+        </TouchableOpacity>
+      </View>
+      <View style={{ position: "relative" }}>
+        <TextInput
+          style={[styles.input, { borderColor: theme.border, color: theme.text, backgroundColor: theme.surface, paddingRight: 48 }]}
+          value={(data.confirmPassword as string) ?? ""}
+          onChangeText={v => { onChange("confirmPassword", v); onError(""); }}
+          placeholder="Re-enter password"
+          placeholderTextColor={theme.textMuted}
+          secureTextEntry={!showConfirm}
+        />
+        <TouchableOpacity
+          style={styles.eyeBtn}
+          onPress={() => setShowConfirm(v => !v)}
+          activeOpacity={0.7}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Text style={{ color: theme.textMuted, fontSize: 13 }}>{showConfirm ? "Hide" : "Show"}</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -186,11 +261,50 @@ function SuccessStep() {
 }
 
 const STEPS: StepConfig[] = [
-  { id: "phone", title: "Phone", component: PhoneStep },
+  {
+    id: "phone",
+    title: "Phone",
+    component: PhoneStep,
+    validate: (data) => {
+      const phone = String(data.phone ?? "").trim();
+      if (!phone) return "Phone number is required";
+      if (!isValidPakistaniPhone(phone)) return "Enter a valid Pakistani mobile number (03XXXXXXXXX)";
+      return null;
+    },
+  },
   { id: "otp", title: "Verify", component: OtpStep },
-  { id: "name", title: "Name", component: NameStep },
-  { id: "city", title: "City", component: CityStep },
-  { id: "password", title: "Password", component: PasswordStep },
+  {
+    id: "name",
+    title: "Name",
+    component: NameStep,
+    validate: (data) => {
+      const name = String(data.name ?? "").trim();
+      if (!name) return "Full name is required";
+      if (name.length < 2) return "Please enter your full name";
+      return null;
+    },
+  },
+  {
+    id: "city",
+    title: "City",
+    component: CityStep,
+    validate: (data) => {
+      if (!String(data.city ?? "").trim()) return "Please select your city";
+      return null;
+    },
+  },
+  {
+    id: "password",
+    title: "Password",
+    component: PasswordStep,
+    validate: (data) => {
+      const pw = String(data.password ?? "");
+      if (!pw) return "Password is required";
+      if (pw.length < 8) return "Password must be at least 8 characters";
+      if (pw !== String(data.confirmPassword ?? "")) return "Passwords do not match";
+      return null;
+    },
+  },
   { id: "success", title: "Done", component: SuccessStep },
 ];
 
@@ -213,8 +327,14 @@ export function RegisterWizard({ onDone }: RegisterWizardProps) {
     }).catch(() => {});
   }, []);
 
+  /* ── Save draft, excluding password fields ── */
   const handleDataChange = useCallback((key: string, value: unknown) => {
-    setDraft(prev => { const next = { ...prev, [key]: value }; AsyncStorage.setItem(DRAFT_KEY, JSON.stringify(next)).catch(() => {}); return next; });
+    setDraft(prev => {
+      const next = { ...prev, [key]: value };
+      const { password: _pw, confirmPassword: _cpw, ...safe } = next as Record<string, unknown>;
+      AsyncStorage.setItem(DRAFT_KEY, JSON.stringify(safe)).catch(() => {});
+      return next;
+    });
   }, []);
 
   const handleOtpRequest = async (phone: string) => {
@@ -224,7 +344,9 @@ export function RegisterWizard({ onDone }: RegisterWizardProps) {
 
   const handleSubmit = async (data: Record<string, unknown>) => {
     try {
-      const API_BASE = `https://${process.env.EXPO_PUBLIC_DOMAIN ?? ""}/api`;
+      const domain = process.env.EXPO_PUBLIC_DOMAIN;
+      if (!domain) throw new Error("App is not configured correctly. Please try again later.");
+      const API_BASE = `https://${domain}/api`;
       const res = await fetch(`${API_BASE}/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -237,7 +359,7 @@ export function RegisterWizard({ onDone }: RegisterWizardProps) {
         }),
       });
       const json = await res.json() as Record<string, unknown>;
-      if (!res.ok) throw new Error(json.message as string ?? "Registration failed");
+      if (!res.ok) throw new Error((json.message as string) ?? "Registration failed");
       await AsyncStorage.removeItem(DRAFT_KEY);
       return { success: true, data: json };
     } catch (err: unknown) {
@@ -279,5 +401,10 @@ const styles = StyleSheet.create({
   successCircle: {
     width: 88, height: 88, borderRadius: 44, borderWidth: 1,
     alignItems: "center", justifyContent: "center",
+  },
+  eyeBtn: {
+    position: "absolute", right: 14,
+    top: 0, bottom: 0,
+    justifyContent: "center",
   },
 });
