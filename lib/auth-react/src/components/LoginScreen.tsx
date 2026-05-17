@@ -80,7 +80,7 @@ export function LoginScreen({
     return () => window.removeEventListener('resize', onResize);
   }, []);
 
-  const { initiateLogin, verifyOtp, verifyPassword, twoFactorVerify, loading, error, twoFactorPending, clearError } =
+  const { initiateLogin, verifyOtp, verifyPassword, twoFactorVerify, loading, error, setError, twoFactorPending, clearError } =
     useLoginFlow({ baseURL, onSuccess });
 
   useEffect(() => {
@@ -91,7 +91,7 @@ export function LoginScreen({
 
   async function handleIdentifierSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!identifier.trim()) return;
+    if (!identifier.trim()) { setError('Please enter your phone number'); return; }
     clearError();
     try {
       const result = await initiateLogin(identifier.trim());
@@ -112,7 +112,7 @@ export function LoginScreen({
 
   async function handlePasswordSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!password) return;
+    if (!password) { setError('Please enter your password'); return; }
     clearError();
     try {
       await verifyPassword(password);

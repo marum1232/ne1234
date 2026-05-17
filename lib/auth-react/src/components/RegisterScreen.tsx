@@ -1,4 +1,4 @@
-import React, { useState, type FormEvent } from 'react';
+import React, { useState, useEffect, type FormEvent } from 'react';
 import { OtpInput } from './OtpInput';
 import { PhoneInput } from './PhoneInput';
 import { PasswordInput } from './PasswordInput';
@@ -27,7 +27,8 @@ export interface StepConfig {
   id: string;
   title: string;
   subtitle?: string;
-  fields: FieldConfig[];
+  /** Optional for component-based steps; required for field-based steps. */
+  fields?: FieldConfig[];
   component?: React.ComponentType<StepComponentProps>;
   validate?: (data: Record<string, unknown>) => string | null;
 }
@@ -35,10 +36,32 @@ export interface StepConfig {
 export interface RegisterScreenProps {
   role: RegisterRole;
   steps: StepConfig[];
-  onComplete: (data: Record<string, unknown>) => void | Promise<void>;
+  /** Called on final step completion (throws on error). */
+  onComplete?: (data: Record<string, unknown>) => void | Promise<void>;
+  /**
+   * Alternative to onComplete — accepts a result envelope
+   * `{ success, error?, data? }`. Use this from wizard wrappers.
+   */
+  onSubmit?: (data: Record<string, unknown>) => Promise<{ success: boolean; error?: string; data?: unknown }>;
+  /** Called after successful completion (navigate away, etc.). */
+  onDone?: () => void;
+  /** Called whenever a field value changes (e.g. to persist a draft). */
+  onDataChange?: (key: string, value: unknown) => void;
+  /**
+   * Custom OTP sender. Called when advancing to an OTP step.
+   * Return true if OTP was sent successfully.
+   */
+  onOtpRequest?: (phone: string) => Promise<boolean>;
+  /** Pre-populate form data (e.g. restored draft). */
+  initialData?: Record<string, unknown>;
   baseURL?: string;
   title?: string;
   className?: string;
+  /**
+   * When true, strips the outer screen/card wrapper so the caller
+   * can provide their own container and theme (e.g. dark mode wizard).
+   */
+  bare?: boolean;
 }
 
 const ROLE_ACCENT: Record<RegisterRole, string> = {
@@ -144,8 +167,9 @@ const s = {
   }),
 };
 
+/** Returns true only for field-based OTP steps (not component-based). */
 function isOtpStep(step: StepConfig): boolean {
-  return step.fields.some((f) => f.type === 'otp');
+  return (step.fields ?? []).some((f) => f.type === 'otp');
 }
 
 function getOtpPhone(data: Record<string, unknown>): string {
@@ -160,27 +184,44 @@ export function RegisterScreen({
   role,
   steps,
   onComplete,
+  onSubmit,
+  onDone,
+  onDataChange,
+  onOtpRequest,
+  initialData,
   baseURL = '',
   title,
   className,
+  bare = false,
 }: RegisterScreenProps) {
   const accent = ROLE_ACCENT[role];
   const displayTitle = title ?? ROLE_LABELS[role];
 
   const [stepIndex, setStepIndex] = useState(0);
-  const [formData, setFormData] = useState<Record<string, unknown>>({});
+  const [formData, setFormData] = useState<Record<string, unknown>>(initialData ?? {});
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
   const [devOtp, setDevOtp] = useState('');
   const [completed, setCompleted] = useState(false);
 
+  /* Sync initialData changes (e.g. async draft load) */
+  useEffect(() => {
+    if (initialData && Object.keys(initialData).length > 0) {
+      setFormData(initialData);
+    }
+  }, []);  // eslint-disable-line react-hooks/exhaustive-deps
+
   const currentStep = steps[stepIndex];
   const isLastStep = stepIndex === steps.length - 1;
   const totalVisibleSteps = steps.filter((s) => !isOtpStep(s)).length + 1;
 
   function updateField(key: string, value: unknown) {
-    setFormData((prev) => ({ ...prev, [key]: value }));
+    setFormData((prev) => {
+      const next = { ...prev, [key]: value };
+      onDataChange?.(key, value);
+      return next;
+    });
     setError('');
   }
 
@@ -188,7 +229,7 @@ export function RegisterScreen({
     if (currentStep.validate) {
       return currentStep.validate(formData);
     }
-    for (const field of currentStep.fields) {
+    for (const field of currentStep.fields ?? []) {
       if (field.type === 'otp') continue;
       const val = formData[field.id];
       if (field.required && !val) {
@@ -205,7 +246,7 @@ export function RegisterScreen({
     return null;
   }
 
-  async function sendOtp() {
+  async function sendOtpBuiltIn() {
     const phone = getOtpPhone(formData);
     const email = getOtpEmail(formData);
     setLoading(true);
@@ -254,7 +295,8 @@ export function RegisterScreen({
       setFormData(merged);
       if (isLastStep) {
         setCompleted(true);
-        await onComplete(merged);
+        await onComplete?.(merged);
+        onDone?.();
       } else {
         setStepIndex((i) => i + 1);
         setOtpSent(false);
@@ -269,9 +311,10 @@ export function RegisterScreen({
     e?.preventDefault();
     setError('');
 
+    /* ── Field-based OTP step ── */
     if (isOtpStep(currentStep)) {
       if (!otpSent) {
-        await sendOtp();
+        await sendOtpBuiltIn();
       }
       return;
     }
@@ -282,18 +325,60 @@ export function RegisterScreen({
       return;
     }
 
-    if (isLastStep) {
+    const nextIndex = stepIndex + 1;
+    const isAdvancingToLast = !isLastStep && nextIndex === steps.length - 1;
+    const isOnLastStep = isLastStep;
+
+    /* ── On the last (display-only) step — just navigate away ── */
+    if (isOnLastStep) {
+      onDone?.();
+      return;
+    }
+
+    /* ── Advancing to the last step — submit registration data ── */
+    if (isAdvancingToLast && (onSubmit || onComplete)) {
       setLoading(true);
       try {
-        await onComplete(formData);
-        setCompleted(true);
+        if (onSubmit) {
+          const result = await onSubmit(formData);
+          if (!result.success) {
+            setError(result.error ?? 'Registration failed');
+            setLoading(false);
+            return;
+          }
+        } else if (onComplete) {
+          await onComplete(formData);
+        }
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Registration failed');
+        setLoading(false);
+        return;
       }
       setLoading(false);
-    } else {
-      setStepIndex((i) => i + 1);
+      setStepIndex(nextIndex);
+      return;
     }
+
+    /* ── Advance to next step ── */
+    const nextStep = steps[nextIndex];
+
+    /* If next step is a component-based OTP step and we have onOtpRequest, fire it */
+    if (nextStep?.component && onOtpRequest) {
+      const phone = getOtpPhone(formData);
+      if (phone) {
+        setLoading(true);
+        try {
+          await onOtpRequest(phone);
+        } catch (e) {
+          setError(e instanceof Error ? e.message : 'Failed to send OTP');
+          setLoading(false);
+          return;
+        }
+        setLoading(false);
+      }
+    }
+
+    setStepIndex(nextIndex);
   }
 
   function handleBack() {
@@ -306,21 +391,193 @@ export function RegisterScreen({
   }
 
   if (completed) {
+    const completedContent = (
+      <div style={s.header}>
+        <div style={{ fontSize: '48px', marginBottom: '12px' }}>✅</div>
+        <h2 style={s.title}>Registration Complete</h2>
+        <p style={s.subtitle}>Your application has been submitted successfully.</p>
+      </div>
+    );
+    if (bare) return <>{completedContent}</>;
     return (
       <div style={s.screen} className={className}>
-        <div style={s.card}>
-          <div style={s.header}>
-            <div style={{ fontSize: '48px', marginBottom: '12px' }}>✅</div>
-            <h2 style={s.title}>Registration Complete</h2>
-            <p style={s.subtitle}>Your application has been submitted successfully.</p>
-          </div>
-        </div>
+        <div style={s.card}>{completedContent}</div>
       </div>
     );
   }
 
   const stepNum = steps.filter((_, i) => !isOtpStep(steps[i]) && i <= stepIndex).length;
 
+  const stepContent = (
+    <>
+      {currentStep.component ? (
+        /* ── Component-based step ── */
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <currentStep.component
+            data={formData}
+            onChange={updateField}
+            onError={setError}
+            onNext={() => void handleNext()}
+            role={role}
+          />
+          <button
+            type="button"
+            style={{ ...s.btnPrimary(accent), ...(loading ? s.btnDisabled : {}) }}
+            disabled={loading}
+            onClick={() => void handleNext()}
+          >
+            {loading
+              ? 'Please wait…'
+              : isLastStep
+              ? 'Go to Login'
+              : stepIndex === steps.length - 2
+              ? 'Submit Registration'
+              : 'Next →'}
+          </button>
+          {stepIndex > 0 && (
+            <button type="button" style={s.btnBack(accent)} onClick={handleBack}>
+              ← Back
+            </button>
+          )}
+        </div>
+      ) : isOtpStep(currentStep) && otpSent ? (
+        /* ── Field-based OTP input ── */
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <OtpInput
+            onComplete={(otp) => void verifyOtp(otp)}
+            onResend={() => void sendOtpBuiltIn()}
+            autoSubmit
+          />
+        </div>
+      ) : (
+        /* ── Field-based step ── */
+        <form noValidate onSubmit={(e) => { e.preventDefault(); void handleNext(); }} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {(currentStep.fields ?? []).filter((f) => f.type !== 'otp').map((field) => (
+            <div key={field.id}>
+              {field.type === 'phone' ? (
+                <>
+                  {field.label && <label style={s.label}>{field.label}</label>}
+                  <PhoneInput
+                    value={(formData[field.id] as string) ?? ''}
+                    onChange={(e164) => { updateField(field.id, e164); }}
+                  />
+                </>
+              ) : field.type === 'password' || field.type === 'confirm-password' ? (
+                <>
+                  {field.label && <label style={s.label}>{field.label}</label>}
+                  <PasswordInput
+                    value={(formData[field.id] as string) ?? ''}
+                    onChange={(v) => { updateField(field.id, v); }}
+                    showStrength={field.type === 'password'}
+                    placeholder={field.placeholder}
+                    autoComplete={field.type === 'password' ? 'new-password' : 'new-password'}
+                  />
+                </>
+              ) : field.type === 'select' ? (
+                <>
+                  {field.label && <label style={s.label}>{field.label}</label>}
+                  <select
+                    style={s.select}
+                    value={(formData[field.id] as string) ?? ''}
+                    onChange={(e) => { updateField(field.id, e.target.value); }}
+                    required={field.required}
+                  >
+                    <option value="">Select {field.label ?? field.id}</option>
+                    {field.options?.map((o) => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
+                  </select>
+                </>
+              ) : field.type === 'checkbox' ? (
+                <label style={s.checkboxRow}>
+                  <input
+                    type="checkbox"
+                    checked={!!(formData[field.id])}
+                    onChange={(e) => { updateField(field.id, e.target.checked); }}
+                  />
+                  <span style={{ fontSize: '13px', color: '#6b7280' }}>{field.label}</span>
+                </label>
+              ) : (
+                <>
+                  {field.label && <label style={s.label}>{field.label}</label>}
+                  <input
+                    style={s.input}
+                    type={field.type === 'email' ? 'email' : 'text'}
+                    value={(formData[field.id] as string) ?? ''}
+                    onChange={(e) => { updateField(field.id, e.target.value); }}
+                    placeholder={field.placeholder}
+                    required={field.required}
+                  />
+                </>
+              )}
+            </div>
+          ))}
+
+          <button
+            type="submit"
+            style={{ ...s.btnPrimary(accent), ...(loading ? s.btnDisabled : {}) }}
+            disabled={loading}
+          >
+            {loading
+              ? 'Please wait…'
+              : isOtpStep(currentStep)
+              ? 'Send OTP'
+              : isLastStep
+              ? 'Go to Login'
+              : stepIndex === steps.length - 2
+              ? 'Submit Registration'
+              : 'Next →'}
+          </button>
+
+          {stepIndex > 0 && (
+            <button type="button" style={s.btnBack(accent)} onClick={handleBack}>
+              ← Back
+            </button>
+          )}
+        </form>
+      )}
+
+      {isOtpStep(currentStep) && otpSent && (
+        <button type="button" style={s.btnBack(accent)} onClick={handleBack}>
+          ← Change number
+        </button>
+      )}
+
+      {isOtpStep(currentStep) && !otpSent && (
+        <form onSubmit={(e) => void handleNext(e)} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <button
+            type="submit"
+            style={{ ...s.btnPrimary(accent), ...(loading ? s.btnDisabled : {}) }}
+            disabled={loading}
+          >
+            {loading ? 'Sending…' : 'Send Verification Code'}
+          </button>
+          {stepIndex > 0 && (
+            <button type="button" style={s.btnBack(accent)} onClick={handleBack}>
+              ← Back
+            </button>
+          )}
+        </form>
+      )}
+    </>
+  );
+
+  /* ── Bare mode: caller owns the container ── */
+  if (bare) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }} className={className}>
+        {error && <div style={s.errorBox}>{error}</div>}
+        {process.env.NODE_ENV !== 'production' && devOtp && (
+          <div style={{ background: '#fef3c7', border: '1px solid #fcd34d', borderRadius: '8px', padding: '8px 12px', fontSize: '13px', color: '#92400e' }}>
+            Dev OTP: <strong style={{ letterSpacing: '0.3em' }}>{devOtp}</strong>
+          </div>
+        )}
+        {stepContent}
+      </div>
+    );
+  }
+
+  /* ── Default: full screen + white card ── */
   return (
     <div style={s.screen} className={className}>
       <div style={s.card}>
@@ -331,146 +588,18 @@ export function RegisterScreen({
           {totalVisibleSteps > 1 && (
             <div style={{ ...s.stepIndicator, marginTop: '12px' }}>
               {Array.from({ length: totalVisibleSteps }).map((_, i) => (
-                <div
-                  key={i}
-                  style={s.progressDot(i + 1 === stepNum, i + 1 < stepNum, accent)}
-                />
+                <div key={i} style={s.progressDot(i + 1 === stepNum, i + 1 < stepNum, accent)} />
               ))}
             </div>
           )}
         </div>
-
         {error && <div style={s.errorBox}>{error}</div>}
-
         {process.env.NODE_ENV !== 'production' && devOtp && (
           <div style={{ background: '#fef3c7', border: '1px solid #fcd34d', borderRadius: '8px', padding: '8px 12px', fontSize: '13px', color: '#92400e' }}>
             Dev OTP: <strong style={{ letterSpacing: '0.3em' }}>{devOtp}</strong>
           </div>
         )}
-
-        {currentStep.component ? (
-          <currentStep.component
-            data={formData}
-            onChange={updateField}
-            onError={setError}
-            onNext={() => void handleNext()}
-            role={role}
-          />
-        ) : isOtpStep(currentStep) && otpSent ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <OtpInput
-              onComplete={(otp) => void verifyOtp(otp)}
-              onResend={() => void sendOtp()}
-              autoSubmit
-            />
-          </div>
-        ) : (
-          <form noValidate onSubmit={(e) => { e.preventDefault(); void handleNext(); }} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {currentStep.fields.filter((f) => f.type !== 'otp').map((field) => (
-              <div key={field.id}>
-                {field.type === 'phone' ? (
-                  <>
-                    {field.label && <label style={s.label}>{field.label}</label>}
-                    <PhoneInput
-                      value={(formData[field.id] as string) ?? ''}
-                      onChange={(e164) => { updateField(field.id, e164); }}
-                    />
-                  </>
-                ) : field.type === 'password' || field.type === 'confirm-password' ? (
-                  <>
-                    {field.label && <label style={s.label}>{field.label}</label>}
-                    <PasswordInput
-                      value={(formData[field.id] as string) ?? ''}
-                      onChange={(v) => { updateField(field.id, v); }}
-                      showStrength={field.type === 'password'}
-                      placeholder={field.placeholder}
-                      autoComplete={field.type === 'password' ? 'new-password' : 'new-password'}
-                    />
-                  </>
-                ) : field.type === 'select' ? (
-                  <>
-                    {field.label && <label style={s.label}>{field.label}</label>}
-                    <select
-                      style={s.select}
-                      value={(formData[field.id] as string) ?? ''}
-                      onChange={(e) => { updateField(field.id, e.target.value); }}
-                      required={field.required}
-                    >
-                      <option value="">Select {field.label ?? field.id}</option>
-                      {field.options?.map((o) => (
-                        <option key={o.value} value={o.value}>{o.label}</option>
-                      ))}
-                    </select>
-                  </>
-                ) : field.type === 'checkbox' ? (
-                  <label style={s.checkboxRow}>
-                    <input
-                      type="checkbox"
-                      checked={!!(formData[field.id])}
-                      onChange={(e) => { updateField(field.id, e.target.checked); }}
-                    />
-                    <span style={{ fontSize: '13px', color: '#6b7280' }}>{field.label}</span>
-                  </label>
-                ) : (
-                  <>
-                    {field.label && <label style={s.label}>{field.label}</label>}
-                    <input
-                      style={s.input}
-                      type={field.type === 'email' ? 'email' : 'text'}
-                      value={(formData[field.id] as string) ?? ''}
-                      onChange={(e) => { updateField(field.id, e.target.value); }}
-                      placeholder={field.placeholder}
-                      required={field.required}
-                    />
-                  </>
-                )}
-              </div>
-            ))}
-
-            <button
-              type="submit"
-              style={{ ...s.btnPrimary(accent), ...(loading ? s.btnDisabled : {}) }}
-              disabled={loading}
-            >
-              {loading
-                ? 'Please wait…'
-                : isOtpStep(currentStep)
-                ? 'Send OTP'
-                : isLastStep
-                ? 'Complete Registration'
-                : 'Next →'}
-            </button>
-
-            {stepIndex > 0 && (
-              <button type="button" style={s.btnBack(accent)} onClick={handleBack}>
-                ← Back
-              </button>
-            )}
-          </form>
-        )}
-
-        {isOtpStep(currentStep) && otpSent && (
-          <button type="button" style={s.btnBack(accent)} onClick={handleBack}>
-            ← Change number
-          </button>
-        )}
-
-        {isOtpStep(currentStep) && !otpSent && (
-          <form onSubmit={(e) => void handleNext(e)} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <button
-              type="submit"
-              style={{ ...s.btnPrimary(accent), ...(loading ? s.btnDisabled : {}) }}
-              disabled={loading}
-            >
-              {loading ? 'Sending…' : 'Send Verification Code'}
-            </button>
-            {stepIndex > 0 && (
-              <button type="button" style={s.btnBack(accent)} onClick={handleBack}>
-                ← Back
-              </button>
-            )}
-          </form>
-        )}
+        {stepContent}
       </div>
     </div>
   );

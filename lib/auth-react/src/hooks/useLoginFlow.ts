@@ -187,6 +187,7 @@ export function useLoginFlow({ baseURL = '', onSuccess }: UseLoginFlowOptions = 
     twoFactorVerify,
     loading,
     error,
+    setError,
     method,
     twoFactorPending,
     clearError,

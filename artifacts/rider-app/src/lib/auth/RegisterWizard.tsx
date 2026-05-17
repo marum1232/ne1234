@@ -211,10 +211,43 @@ function SuccessStep({ data }: StepComponentProps) {
 
 /* ── Wizard config ─────────────────────────────────────────────────────────── */
 const STEPS: StepConfig[] = [
-  { id: "phone", title: "Phone", component: PhoneInfoStep },
+  {
+    id: "phone",
+    title: "Phone",
+    component: PhoneInfoStep,
+    validate: (data) => {
+      if (!String(data.name ?? "").trim()) return "Full name is required";
+      const phone = String(data.phone ?? "").trim();
+      if (!phone) return "Phone number is required";
+      if (phone.replace(/\D/g, "").length < 10) return "Enter a valid phone number";
+      return null;
+    },
+  },
   { id: "otp", title: "Verify", component: OtpStep },
-  { id: "vehicle", title: "Vehicle", component: VehicleStep },
-  { id: "password", title: "Password", component: PasswordStep },
+  {
+    id: "vehicle",
+    title: "Vehicle",
+    component: VehicleStep,
+    validate: (data) => {
+      if (!String(data.cnic ?? "").trim()) return "CNIC number is required";
+      if (!String(data.vehicleType ?? "").trim()) return "Please select a vehicle type";
+      if (!String(data.drivingLicense ?? "").trim()) return "Driving license number is required";
+      if (!String(data.vehicleRegistration ?? "").trim()) return "Vehicle registration number is required";
+      return null;
+    },
+  },
+  {
+    id: "password",
+    title: "Password",
+    component: PasswordStep,
+    validate: (data) => {
+      const pw = String(data.password ?? "");
+      if (!pw) return "Password is required";
+      if (pw.length < 8) return "Password must be at least 8 characters";
+      if (pw !== String(data.confirmPassword ?? "")) return "Passwords do not match";
+      return null;
+    },
+  },
   { id: "success", title: "Done", component: SuccessStep },
 ];
 
@@ -273,20 +306,39 @@ export function RegisterWizard({ onDone }: RegisterWizardProps) {
   return (
     <div style={{ minHeight: "100vh", background: theme.background }}>
       <div className="max-w-sm mx-auto px-5 py-8">
-        <button onClick={() => navigate("/login")} className="flex items-center gap-2 text-gray-500 hover:text-gray-100 text-sm font-medium mb-6 transition-colors">
+        <button
+          onClick={() => navigate("/")}
+          className="flex items-center gap-2 text-gray-500 hover:text-gray-100 text-sm font-medium mb-6 transition-colors"
+        >
           <ArrowLeft size={16} /> {T("backToLogin")}
         </button>
 
-        <RegisterScreen
-          role="rider"
-          steps={STEPS}
-          initialData={draft}
-          onDataChange={handleDataChange}
-          onOtpRequest={handleOtpRequest}
-          onSubmit={handleSubmit}
-          onDone={() => { onDone?.(); navigate("/login"); }}
-          title={T("riderRegistration") as string}
-        />
+        <div
+          style={{
+            background: theme.surface,
+            border: `1px solid ${theme.border}`,
+            borderRadius: 18,
+            padding: "28px 24px",
+            boxShadow: "0 20px 60px rgba(0,0,0,0.4)",
+          }}
+        >
+          <div className="text-center mb-6">
+            <h1 className="text-gray-100 font-extrabold text-2xl mb-1">
+              {T("riderRegistration")}
+            </h1>
+          </div>
+
+          <RegisterScreen
+            role="rider"
+            steps={STEPS}
+            bare
+            initialData={draft}
+            onDataChange={handleDataChange}
+            onOtpRequest={handleOtpRequest}
+            onSubmit={handleSubmit}
+            onDone={() => { onDone?.(); navigate("/"); }}
+          />
+        </div>
       </div>
     </div>
   );
