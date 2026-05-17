@@ -55,37 +55,37 @@ outputType = "webview"
 name = "Rider App"
 author = "agent"
 
+[workflows.workflow.metadata]
+outputType = "console"
+
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "pnpm --filter @workspace/rider-app run dev"
 waitForPort = 3002
 
-[workflows.workflow.metadata]
-outputType = "console"
-
 [[workflows.workflow]]
 name = "Admin App"
 author = "agent"
+
+[workflows.workflow.metadata]
+outputType = "console"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "pnpm --filter @workspace/admin run dev"
 waitForPort = 3001
 
-[workflows.workflow.metadata]
-outputType = "console"
-
 [[workflows.workflow]]
 name = "Vendor App"
 author = "agent"
+
+[workflows.workflow.metadata]
+outputType = "console"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "pnpm --filter @workspace/vendor-app run dev"
 waitForPort = 3003
-
-[workflows.workflow.metadata]
-outputType = "console"
 
 [[ports]]
 localPort = 3000
@@ -97,15 +97,11 @@ externalPort = 3001
 
 [[ports]]
 localPort = 3002
-externalPort = 5173
+externalPort = 3002
 
 [[ports]]
 localPort = 3003
 externalPort = 3003
-
-[[ports]]
-localPort = 3005
-externalPort = 6000
 
 [[ports]]
 localPort = 3006

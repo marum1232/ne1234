@@ -13,7 +13,7 @@
     "not op_mini all"
   ],
   "scripts": {
-    "dev": "{ [ -d ../../node_modules/.pnpm ] || (cd ../.. && pnpm install --no-frozen-lockfile); }; fuser -k ${ADMIN_DEV_PORT:-3000}/tcp 2>/dev/null || true; BASE_PATH=/admin/ ../../node_modules/.bin/vite --config vite.config.ts --host 0.0.0.0",
+    "dev": "{ [ -d ../../node_modules/.pnpm ] || (cd ../.. && pnpm install --no-frozen-lockfile); }; fuser -k ${ADMIN_DEV_PORT:-3001}/tcp 2>/dev/null || true; NODE_ENV=development BASE_PATH=/admin/ ../../node_modules/.bin/vite --config vite.config.ts --host 0.0.0.0",
     "build": "vite build --config vite.config.ts",
     "serve": "vite preview --config vite.config.ts --host 0.0.0.0",
     "typecheck": "tsc -p tsconfig.json --noEmit",

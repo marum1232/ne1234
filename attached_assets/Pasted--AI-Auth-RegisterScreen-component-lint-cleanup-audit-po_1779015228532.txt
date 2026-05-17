@@ -1,0 +1,126 @@
+
+
+AI
+
+Auth — RegisterScreen component, lint cleanup & audit polish
+
+100%
+
+Upgrade
+
+
+Main version
+ne1234 (1)
+
+New task
+Core
+
+Auth — RegisterScreen component, lint cleanup & audit polish
+Active - #4 ·
+27m
+
+Filters
+
+Plans
+
+Tasks
+
+ME
+Created by me
+
+
+Open task board
+Library
+
+File tree
+Search
+
+New
+Apps
+AJKMart Vendor App
+Website
+
+AJKMart Super App
+Mobile
+
+AJKMart Rider App
+Website
+
+AJKMart Admin Panel
+Website
+
+Other
+Start application
+Website
+
+Documents
+AJKMart Super-App — Complete 360° Documentation Book
+Text
+
+AJKMart Customer App — Complete Screen-by-Screen Documentation
+Text
+
+AJKMart Admin Panel — Complete Documentation
+Text
+
+AJKMart Rider & Vendor Apps — Complete Documentation
+Text
+
+#4 - Auth — RegisterScreen, Lint & Audit Polish
+What & Why
+Complete the auth system production-readiness work described in the task brief. The shared @workspace/auth-react package already has a LoginScreen but lacks a RegisterScreen. Three apps each maintain their own separate, inconsistent multi-step registration implementations. This task unifies them under a shared component, fixes any remaining lint errors, and bumps the audit file-line limit to match the actual codebase.
+
+Done looks like
+pnpm lint reports 0 errors and 0 warnings across the entire monorepo.
+node audit-auth.js passes all checks (0 failures) with the line limit raised to 1500.
+lib/auth-react exports a RegisterScreen component that accepts role, steps, and onComplete props, handles multi-step flow with OTP verification, and posts to /api/auth/register with role-specific data.
+rider-app/src/pages/Register.tsx, vendor-app/src/pages/Register.tsx, and ajkmart/app/auth/register.tsx each delegate to <RegisterScreen> rather than maintaining local multi-step logic.
+pnpm --filter @workspace/auth-react test continues to pass.
+packages/auth-react/README.md (or lib/auth-react/README.md) documents LoginScreen and RegisterScreen usage with examples for all three roles.
+Out of scope
+Changes to actual API endpoints or database schema.
+New authentication methods (biometric, TOTP, social) — those already exist.
+Rider, Vendor, or Customer app test suites (they don't currently exist).
+Any canvas / UI visual redesign work.
+Steps
+Fix remaining lint errors — Run pnpm lint to confirm exactly which errors survive after Task #1 merges. For each empty catch block still remaining (in app.ts, swagger.ts, admin-auth.ts, auth.ts, admin-auth-v2.ts, uploads.ts, admin-approval.test.ts), add a logger.warn('…', error) call using the file's existing logger instance. Re-run lint until 0 errors / 0 warnings.
+
+Bump audit file-line limit — In audit-auth.js line 268, change the threshold from 1000 to 1500 so that Products.tsx (1041 lines) no longer fails the design check. Run node audit-auth.js and confirm 0 failures.
+
+Create RegisterScreen component — Create lib/auth-react/src/components/RegisterScreen.tsx (and a .native.tsx variant if the package follows that pattern). It must accept: role: 'rider' | 'vendor' | 'customer', steps: Array<{ id: string; title: string; fields: FieldConfig[]; component?: React.ComponentType }>, and onComplete: (data: Record<string, unknown>) => void. Internally manage current step index, accumulated form data, OTP-verification step detection, and final POST to /api/auth/register with the assembled payload. Reuse existing OtpInput, PhoneInput, PasswordInput primitives already exported by the package.
+
+Export RegisterScreen — Add export { RegisterScreen } from './components/RegisterScreen' to lib/auth-react/src/index.ts so consuming apps can import it as @workspace/auth-react.
+
+Migrate Rider registration — Replace the local multi-step logic in artifacts/rider-app/src/pages/Register.tsx with <RegisterScreen role="rider" steps={riderSteps} onComplete={…} />. Define riderSteps (personal info, vehicle/documents, password/terms, OTP verification) as a constant in the same file.
+
+Migrate Vendor registration — Replace artifacts/vendor-app/src/pages/Register.tsx with <RegisterScreen role="vendor" steps={vendorSteps} onComplete={…} />. Vendor steps: business info (storeName, CNIC), password/terms, OTP.
+
+Migrate Customer registration — Replace artifacts/ajkmart/app/auth/register.tsx with <RegisterScreen role="customer" steps={customerSteps} onComplete={…} />. Customer steps: phone/email verify, personal info, city selection, password/terms. Use the .native.tsx variant of RegisterScreen for Expo compatibility.
+
+Write/update tests — Add unit tests for RegisterScreen in lib/auth-react/src/components/__tests__/RegisterScreen.test.tsx covering: step navigation, OTP step detection, onComplete payload shape, and role prop variations. Run pnpm --filter @workspace/auth-react test — all must pass.
+
+Write documentation — Create or update lib/auth-react/README.md with usage examples for LoginScreen (role, customFields, onSuccess) and RegisterScreen (steps config) for rider, vendor, and customer. Include the step-field schema shape.
+
+Final validation — Run node audit-auth.js, pnpm lint, and pnpm --filter @workspace/auth-react test in sequence and confirm all pass. Update progress.md at the repo root to record completion.
+
+Relevant files
+lib/auth-react/src/index.ts
+lib/auth-react/src/components/LoginScreen.tsx
+lib/auth-react/src/components/LoginScreen.native.tsx
+lib/auth-react/src/hooks/useLoginFlow.ts
+artifacts/rider-app/src/pages/Register.tsx
+artifacts/vendor-app/src/pages/Register.tsx
+artifacts/ajkmart/app/auth/register.tsx
+artifacts/vendor-app/src/pages/Login.tsx
+artifacts/ajkmart/app/auth/index.tsx
+audit-auth.js:234-270
+artifacts/api-server/src/app.ts
+artifacts/api-server/src/docs/swagger.ts
+artifacts/api-server/src/middleware/admin-auth.ts
+artifacts/api-server/src/middleware/auth.ts
+artifacts/api-server/src/routes/admin-auth-v2.ts
+artifacts/api-server/src/routes/uploads.ts
+artifacts/api-server/src/tests/admin-approval.test.ts
+Dependencies
+
+Auth System — Production Hardening & Audit Fix
