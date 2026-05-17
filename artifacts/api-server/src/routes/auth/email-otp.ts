@@ -9,7 +9,7 @@ import { generateId } from "../../lib/id.js";
 import { getPlatformSettings } from "../admin.js";
 import { emitWebhookEvent } from "../../lib/webhook-emitter.js";
 import { fireAndForget } from "../../lib/fireAndForget.js";
-import { checkLockout, recordFailedAttempt, resetAttempts, addAuditEntry, addSecurityEvent, getClientIp, getCachedSettings, signUserJwt, signAccessToken, sign2faChallengeToken, verify2faChallengeToken, generateRefreshToken, hashRefreshToken, isRefreshTokenValid, revokeRefreshToken, revokeAllUserRefreshTokens, verifyUserJwt, blacklistJti, writeAuthAuditLog, getRefreshTokenTtlDays, getAccessTokenTtlSec, verifyCaptcha, checkAvailableRateLimit } from "../../middleware/security.js";
+import { checkLockout, recordFailedAttempt, resetAttempts, addSecurityEvent, getClientIp, getCachedSettings, signUserJwt, signAccessToken, sign2faChallengeToken, verify2faChallengeToken, generateRefreshToken, hashRefreshToken, isRefreshTokenValid, revokeRefreshToken, revokeAllUserRefreshTokens, verifyUserJwt, blacklistJti, writeAuthAuditLog, getRefreshTokenTtlDays, getAccessTokenTtlSec, verifyCaptcha, checkAvailableRateLimit } from "../../middleware/security.js";
 import { sendOtpSMS, isSMSProviderConfigured, isSMSConsoleActive } from "../../services/sms.js";
 import { sendOtpWithFailover, getWhitelistBypass } from "../../services/smsGateway.js";
 import { sendWhatsAppOTP, isWhatsAppProviderConfigured } from "../../services/whatsapp.js";
@@ -27,6 +27,7 @@ import { validateBody as sharedValidateBody } from "../../middleware/validate.js
 import { authLimiter, loginLimiter, otpLimiter } from "../../middleware/rate-limit.js";
 import { hashOtp, isValidCanonicalPhone, normalizeVehicleTypeForStorage, generateVerificationToken, hashVerificationToken, tryEncrypt, decryptPii, setRiderRefreshCookie, clearRiderRefreshCookie, setVendorRefreshCookie, clearVendorRefreshCookie, RIDER_REFRESH_COOKIE, RIDER_REFRESH_COOKIE_PATH, VENDOR_REFRESH_COOKIE, VENDOR_REFRESH_COOKIE_PATH } from "./helpers.js";
 import { rotateRefreshToken, invalidateTokenFamily } from "../../services/auth/tokenRotation.js";
+import { AuditService } from "../../services/admin-audit.service.js";
 import {
   AUTH_OTP_TTL_MS,
   CNIC_REGEX,
@@ -94,7 +95,7 @@ router.post("/send-email-otp", otpLimiter, verifyCaptcha, sharedValidateBody(Sen
     const issuedAgoMs   = otpValidityMs - (existingExpiry.getTime() - Date.now());
     if (issuedAgoMs < otpCooldownMs) {
       const waitSec = Math.ceil((otpCooldownMs - issuedAgoMs) / 1000);
-      addAuditEntry({ action: "email_otp_throttle", ip, details: `Email OTP resend too soon for ${normalized} — ${waitSec}s remaining`, result: "fail" });
+      AuditService.log({ action: "email_otp_throttle", ip, details: `Email OTP resend too soon for ${normalized} — ${waitSec}s remaining`, result: "fail" });
       sendErrorWithData(res, `Please wait ${waitSec} second(s) before requesting a new email OTP.`, { retryAfterSeconds: waitSec }, 429);
       return;
     }
@@ -106,7 +107,7 @@ router.post("/send-email-otp", otpLimiter, verifyCaptcha, sharedValidateBody(Sen
     const label = emailRateCheck.reason === "ip"
       ? "Too many OTP requests from your network"
       : "Too many OTP requests for this email";
-    addAuditEntry({ action: "email_otp_rate_limit", ip, details: `${label} (${normalized}) — retry in ${emailRateCheck.retryAfterSeconds}s`, result: "fail" });
+    AuditService.log({ action: "email_otp_rate_limit", ip, details: `${label} (${normalized}) — retry in ${emailRateCheck.retryAfterSeconds}s`, result: "fail" });
     sendErrorWithData(res, `${label}. Please wait ${emailRateCheck.retryAfterSeconds} second(s) before trying again.`, { retryAfterSeconds: emailRateCheck.retryAfterSeconds }, 429);
     return;
   }
@@ -136,7 +137,7 @@ router.post("/send-email-otp", otpLimiter, verifyCaptcha, sharedValidateBody(Sen
     }
   }
 
-  addAuditEntry({ action: "email_otp_sent", ip, details: `Email OTP for: ${normalized} (delivered: ${emailResult.sent})`, result: "success" });
+  AuditService.log({ action: "email_otp_sent", ip, details: `Email OTP for: ${normalized} (delivered: ${emailResult.sent})`, result: "success" });
 
   const emailConsoleFallback = !emailResult.sent;
   /* Dev console fallback: OTP already logged to server at lines above — never expose in API response */
@@ -228,7 +229,7 @@ router.post("/verify-email-otp", otpLimiter, verifyCaptcha, sharedValidateBody(V
   if (!emailOtpBypassed && user.emailOtpCode !== hashOtp(otp)) {
     const updated = await recordFailedAttempt(normalized, maxAttempts, lockoutMinutes);
     const remaining = maxAttempts - updated.attempts;
-    addAuditEntry({ action: "email_otp_failed", ip, details: `Wrong email OTP for: ${normalized}`, result: "fail" });
+    AuditService.log({ action: "email_otp_failed", ip, details: `Wrong email OTP for: ${normalized}`, result: "fail" });
     if (updated.locked) {
       sendTooManyRequests(res, `Too many failed attempts. Locked for ${lockoutMinutes} minutes.`);
     } else {
@@ -249,7 +250,7 @@ router.post("/verify-email-otp", otpLimiter, verifyCaptcha, sharedValidateBody(V
 
   await resetAttempts(normalized);
 
-  addAuditEntry({ action: "email_login", ip, details: `Email OTP login for: ${normalized}`, result: "success" });
+  AuditService.log({ action: "email_login", ip, details: `Email OTP login for: ${normalized}`, result: "success" });
 
   /* ── 2FA challenge ── */
   if (user.totpEnabled && isAuthMethodEnabled(settings, "auth_2fa_enabled", user.roles ?? undefined)) {

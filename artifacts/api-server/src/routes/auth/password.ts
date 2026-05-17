@@ -9,7 +9,7 @@ import { generateId } from "../../lib/id.js";
 import { getPlatformSettings } from "../admin.js";
 import { emitWebhookEvent } from "../../lib/webhook-emitter.js";
 import { fireAndForget } from "../../lib/fireAndForget.js";
-import { checkLockout, recordFailedAttempt, resetAttempts, addAuditEntry, addSecurityEvent, getClientIp, getCachedSettings, signUserJwt, signAccessToken, sign2faChallengeToken, verify2faChallengeToken, generateRefreshToken, hashRefreshToken, isRefreshTokenValid, revokeRefreshToken, revokeAllUserRefreshTokens, verifyUserJwt, blacklistJti, writeAuthAuditLog, getRefreshTokenTtlDays, getAccessTokenTtlSec, verifyCaptcha, checkAvailableRateLimit } from "../../middleware/security.js";
+import { checkLockout, recordFailedAttempt, resetAttempts, addSecurityEvent, getClientIp, getCachedSettings, signUserJwt, signAccessToken, sign2faChallengeToken, verify2faChallengeToken, generateRefreshToken, hashRefreshToken, isRefreshTokenValid, revokeRefreshToken, revokeAllUserRefreshTokens, verifyUserJwt, blacklistJti, writeAuthAuditLog, getRefreshTokenTtlDays, getAccessTokenTtlSec, verifyCaptcha, checkAvailableRateLimit } from "../../middleware/security.js";
 import { sendOtpSMS, isSMSProviderConfigured, isSMSConsoleActive } from "../../services/sms.js";
 import { sendOtpWithFailover, getWhitelistBypass } from "../../services/smsGateway.js";
 import { sendWhatsAppOTP, isWhatsAppProviderConfigured } from "../../services/whatsapp.js";
@@ -27,6 +27,7 @@ import { validateBody as sharedValidateBody } from "../../middleware/validate.js
 import { authLimiter, loginLimiter, otpLimiter } from "../../middleware/rate-limit.js";
 import { hashOtp, isValidCanonicalPhone, normalizeVehicleTypeForStorage, generateVerificationToken, hashVerificationToken, tryEncrypt, decryptPii, setRiderRefreshCookie, clearRiderRefreshCookie, setVendorRefreshCookie, clearVendorRefreshCookie, RIDER_REFRESH_COOKIE, RIDER_REFRESH_COOKIE_PATH, VENDOR_REFRESH_COOKIE, VENDOR_REFRESH_COOKIE_PATH } from "./helpers.js";
 import { rotateRefreshToken, invalidateTokenFamily } from "../../services/auth/tokenRotation.js";
+import { AuditService } from "../../services/admin-audit.service.js";
 import {
   AUTH_OTP_TTL_MS,
   CNIC_REGEX,
@@ -444,7 +445,7 @@ router.post("/reset-password", verifyCaptcha, sharedValidateBody(ResetPasswordSc
 
   if (!otpValid) {
     await recordFailedAttempt(lockoutKey, maxAttempts, lockoutMinutes);
-    addAuditEntry({ action: "reset_password_failed", ip, details: `Invalid OTP for password reset: ${user.id}`, result: "fail" });
+    AuditService.log({ action: "reset_password_failed", ip, details: `Invalid OTP for password reset: ${user.id}`, result: "fail" });
     sendUnauthorized(res, "Invalid or expired OTP");
     return;
   }
@@ -466,7 +467,7 @@ router.post("/reset-password", verifyCaptcha, sharedValidateBody(ResetPasswordSc
     const decryptedSecret = decryptTotpSecret(user.totpSecret);
     if (!verifyTotpCode(decryptedSecret, totpCode)) {
       await recordFailedAttempt(lockoutKey, maxAttempts, lockoutMinutes);
-      addAuditEntry({ action: "reset_password_2fa_failed", ip, details: `Invalid TOTP for password reset: ${user.id}`, result: "fail" });
+      AuditService.log({ action: "reset_password_2fa_failed", ip, details: `Invalid TOTP for password reset: ${user.id}`, result: "fail" });
       sendUnauthorized(res, "Invalid two-factor authentication code");
       return;
     }

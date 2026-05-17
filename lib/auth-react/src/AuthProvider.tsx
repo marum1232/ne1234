@@ -13,6 +13,8 @@ export interface AuthUser {
   phone?: string;
   email?: string;
   role: 'customer' | 'rider' | 'vendor' | 'admin';
+  approvalStatus?: string;
+  rejectionReason?: string | null;
 }
 
 export interface AuthContextValue {

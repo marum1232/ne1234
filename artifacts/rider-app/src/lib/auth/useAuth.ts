@@ -61,7 +61,7 @@ export function useAuth() {
     return wrap(async () => {
       try {
         const res = await api.verifyOtp({ phone, otp }) as Record<string, unknown>;
-        return { success: true, data: { token: res.token as string, refreshToken: res.refreshToken as string | undefined } };
+        return { success: true, data: { token: res.accessToken as string, refreshToken: res.refreshToken as string | undefined } };
       } catch (err: unknown) {
         await captureException(err);
         return { success: false, error: networkError(err) };
@@ -114,7 +114,7 @@ export function useAuth() {
         });
         if (!res.ok) throw new Error("Biometric login failed");
         const data = await res.json() as Record<string, unknown>;
-        const token = (data.token ?? data.accessToken) as string | undefined;
+        const token = data.accessToken as string | undefined;
         if (!token) throw new Error("Biometric login failed — no token in response");
         return { success: true, data: { token, refreshToken: storedRefreshToken } };
       } catch (err: unknown) {
@@ -134,7 +134,7 @@ export function useAuth() {
         });
         if (!res.ok) throw new Error("Token refresh failed");
         const data = await res.json() as Record<string, unknown>;
-        const token = (data.token ?? data.accessToken) as string | undefined;
+        const token = data.accessToken as string | undefined;
         if (!token) throw new Error("Refresh failed — no token in response");
         return { success: true, data: { token, refreshToken: data.refreshToken as string | undefined } };
       } catch (err: unknown) {

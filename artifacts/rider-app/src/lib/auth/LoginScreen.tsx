@@ -53,16 +53,10 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
     check();
   }, []);
 
-  interface ExtendedSDKUser extends SDKAuthUser {
-    approvalStatus?: string;
-    rejectionReason?: string | null;
-  }
-
   const handleSuccess = useCallback(async (sdkUser: SDKAuthUser, _sdkToken: string) => {
     setLoginError(null);
-    const u = sdkUser as ExtendedSDKUser;
-    const approvalStatus = u.approvalStatus;
-    const rejReason = u.rejectionReason;
+    const approvalStatus = sdkUser.approvalStatus;
+    const rejReason = sdkUser.rejectionReason;
 
     if (approvalStatus === "pending") { setOverlay("pending"); return; }
     if (approvalStatus === "rejected") { setRejectionReason(rejReason ?? null); setOverlay("rejected"); return; }

@@ -29,7 +29,6 @@ import {
   blacklistJti,
   blacklistSessionHash,
   writeAuthAuditLog,
-  addAuditEntry,
   verifyUserJwt,
 } from "../../middleware/security.js";
 import {
@@ -39,6 +38,7 @@ import {
   sendSuccess,
 } from "../../lib/response.js";
 import { logger } from "../../lib/logger.js";
+import { AuditService } from "../../services/admin-audit.service.js";
 
 const router: IRouter = Router();
 
@@ -191,7 +191,7 @@ router.post("/sessions/revoke", async (req, res) => {
           currentTokenHashPrefix: currentTokenHash.slice(0, 8),
         },
       });
-      addAuditEntry({
+      AuditService.log({
         action: "sessions_revoked_except_current",
         ip,
         result: "success",
@@ -264,7 +264,7 @@ router.post("/sessions/revoke", async (req, res) => {
       ip,
       metadata: { sessionId, isSelf: session.tokenHash === currentTokenHash },
     });
-    addAuditEntry({
+    AuditService.log({
       action: "session_revoked",
       ip,
       result: "success",

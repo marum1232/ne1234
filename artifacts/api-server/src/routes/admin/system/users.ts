@@ -1054,7 +1054,7 @@ router.post("/users/:id/otp/bypass", requirePermission("users.edit"), async (req
     await db.update(usersTable).set({ otpBypassUntil: bypassUntil, updatedAt: new Date() }).where(eq(usersTable.id, userId));
 
     const ip = getClientIp(req);
-    const adminReq = req as unknown as AdminRequest;
+    const adminReq = req as AdminRequest;
     addAuditEntry({ action: "admin_otp_bypass_set", ip, adminId: adminReq.adminId, details: `Admin set ${minutes}min OTP bypass for user ${userId} (${user.phone}), expires ${bypassUntil.toISOString()}`, result: "success" });
     writeAuthAuditLog("admin_otp_bypass_set", {
       userId,
@@ -1081,7 +1081,7 @@ router.delete("/users/:id/otp/bypass", requirePermission("users.edit"), async (r
     await db.update(usersTable).set({ otpBypassUntil: null, updatedAt: new Date() }).where(eq(usersTable.id, userId));
 
     const ip = getClientIp(req);
-    const adminReq = req as unknown as AdminRequest;
+    const adminReq = req as AdminRequest;
     addAuditEntry({ action: "admin_otp_bypass_cancel", ip, adminId: adminReq.adminId, details: `Admin cancelled OTP bypass for user ${userId} (${user.phone})`, result: "success" });
     writeAuthAuditLog("admin_otp_bypass_cancel", {
       userId,

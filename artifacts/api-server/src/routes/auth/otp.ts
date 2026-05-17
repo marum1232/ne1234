@@ -9,7 +9,7 @@ import { generateId } from "../../lib/id.js";
 import { getPlatformSettings } from "../admin.js";
 import { emitWebhookEvent } from "../../lib/webhook-emitter.js";
 import { fireAndForget } from "../../lib/fireAndForget.js";
-import { checkLockout, recordFailedAttempt, resetAttempts, addAuditEntry, addSecurityEvent, getClientIp, getCachedSettings, signUserJwt, signAccessToken, sign2faChallengeToken, verify2faChallengeToken, generateRefreshToken, hashRefreshToken, isRefreshTokenValid, revokeRefreshToken, revokeAllUserRefreshTokens, verifyUserJwt, blacklistJti, writeAuthAuditLog, getRefreshTokenTtlDays, getAccessTokenTtlSec, verifyCaptcha, checkAvailableRateLimit } from "../../middleware/security.js";
+import { checkLockout, recordFailedAttempt, resetAttempts, addSecurityEvent, getClientIp, getCachedSettings, signUserJwt, signAccessToken, sign2faChallengeToken, verify2faChallengeToken, generateRefreshToken, hashRefreshToken, isRefreshTokenValid, revokeRefreshToken, revokeAllUserRefreshTokens, verifyUserJwt, blacklistJti, writeAuthAuditLog, getRefreshTokenTtlDays, getAccessTokenTtlSec, verifyCaptcha, checkAvailableRateLimit } from "../../middleware/security.js";
 import { sendOtpSMS, isSMSProviderConfigured, isSMSConsoleActive } from "../../services/sms.js";
 import { sendOtpWithFailover, getWhitelistBypass } from "../../services/smsGateway.js";
 import { sendWhatsAppOTP, isWhatsAppProviderConfigured } from "../../services/whatsapp.js";
@@ -27,6 +27,7 @@ import { validateBody as sharedValidateBody } from "../../middleware/validate.js
 import { authLimiter, loginLimiter, otpLimiter } from "../../middleware/rate-limit.js";
 import { hashOtp, isValidCanonicalPhone, normalizeVehicleTypeForStorage, generateVerificationToken, hashVerificationToken, tryEncrypt, decryptPii, setRiderRefreshCookie, clearRiderRefreshCookie, setVendorRefreshCookie, clearVendorRefreshCookie, RIDER_REFRESH_COOKIE, RIDER_REFRESH_COOKIE_PATH, VENDOR_REFRESH_COOKIE, VENDOR_REFRESH_COOKIE_PATH } from "./helpers.js";
 import { rotateRefreshToken, invalidateTokenFamily } from "../../services/auth/tokenRotation.js";
+import { AuditService } from "../../services/admin-audit.service.js";
 import { handleLoginVerifyOtp } from "./otp-login-verify.js";
 import {
   AUTH_OTP_TTL_MS,
@@ -458,7 +459,7 @@ router.post("/send-otp", otpLimiter, verifyCaptcha, sharedValidateBody(sendOtpSc
  *                 data:
  *                   type: object
  *                   properties:
- *                     token: { type: string }
+ *                     accessToken: { type: string }
  *                     refreshToken: { type: string }
  *                     user: { type: object }
  *                     isNewUser: { type: boolean }
@@ -491,7 +492,7 @@ router.post("/verify-otp", otpLimiter, verifyCaptcha, sharedValidateBody(verifyO
   const otpGlobalDisabledUntil = otpGlobalDisabledUntilStr ? new Date(otpGlobalDisabledUntilStr) : null;
   const isTimedGlobalDisableActive = !!(otpGlobalDisabledUntil && otpGlobalDisabledUntil > new Date());
   if (isTimedGlobalDisableActive) {
-    addAuditEntry({ action: "user_login_timed_otp_disable_bypass", ip, details: `Timed global OTP disable active — auto-pass for ${phone}`, result: "success" });
+    AuditService.log({ action: "user_login_timed_otp_disable_bypass", ip, details: `Timed global OTP disable active — auto-pass for ${phone}`, result: "success" });
     writeAuthAuditLog("login_global_otp_bypass", { ip, userAgent: req.headers["user-agent"] ?? undefined, metadata: { phone, reason: "timed_disable" } });
   }
 
@@ -501,7 +502,7 @@ router.post("/verify-otp", otpLimiter, verifyCaptcha, sharedValidateBody(verifyO
   /* ── Lockout check ── (skipped during global disable for emergency recovery) */
   const lockoutStatus = await checkLockout(phone, maxAttempts, lockoutMinutes);
   if (lockoutStatus.locked && !isTimedGlobalDisableActive) {
-    addAuditEntry({ action: "verify_otp_lockout", ip, details: `Locked account OTP attempt: ${phone}`, result: "fail" });
+    AuditService.log({ action: "verify_otp_lockout", ip, details: `Locked account OTP attempt: ${phone}`, result: "fail" });
     sendErrorWithData(res, `Account temporarily locked. Please try again in ${lockoutStatus.minutesLeft} minute(s).`, { lockedMinutes: lockoutStatus.minutesLeft }, 429);
     return;
   }
@@ -613,7 +614,7 @@ router.post("/verify-otp", otpLimiter, verifyCaptcha, sharedValidateBody(verifyO
     setRiderRefreshCookie(req, res, refreshRaw, { roles: "customer" });
 
     sendSuccess(res, {
-      token: accessToken,
+      accessToken,
       refreshToken: refreshRaw,
       expiresAt: new Date(Date.now() + getAccessTokenTtlSec() * 1000).toISOString(),
       user: { id: newUserId, phone, name: null, email: null, username: null, roles: "customer",
@@ -710,7 +711,7 @@ router.post("/verify-otp", otpLimiter, verifyCaptcha, sharedValidateBody(verifyO
     const whitelistCode = await getWhitelistBypass(phone);
     if (!whitelistCode) {
       if (!user.totpEnabled || !user.totpSecret) {
-        addAuditEntry({ action: "verify_totp_not_enrolled", ip, details: `TOTP primary login for ${phone} — user not enrolled`, result: "fail" });
+        AuditService.log({ action: "verify_totp_not_enrolled", ip, details: `TOTP primary login for ${phone} — user not enrolled`, result: "fail" });
         sendErrorWithData(res, "Authenticator app is not set up for this account. Please contact your administrator.", { code: "TOTP_NOT_ENROLLED" }, 400);
         return;
       }
@@ -718,7 +719,7 @@ router.post("/verify-otp", otpLimiter, verifyCaptcha, sharedValidateBody(verifyO
       if (!verifyTotpToken(otp, totpSecret)) {
         const updated = await recordFailedAttempt(phone, maxAttempts, lockoutMinutes);
         const remaining = maxAttempts - updated.attempts;
-        addAuditEntry({ action: "verify_totp_failed", ip, details: `Wrong TOTP for ${phone}, attempt ${updated.attempts}/${maxAttempts}`, result: "fail" });
+        AuditService.log({ action: "verify_totp_failed", ip, details: `Wrong TOTP for ${phone}, attempt ${updated.attempts}/${maxAttempts}`, result: "fail" });
         writeAuthAuditLog("totp_failed", { userId: user.id, ip, userAgent: req.headers["user-agent"] ?? undefined });
         if (updated.locked) {
           addSecurityEvent({ type: "account_locked", ip, userId: user.id, details: `Account locked after ${maxAttempts} failed TOTP attempts`, severity: "high" });
@@ -731,7 +732,7 @@ router.post("/verify-otp", otpLimiter, verifyCaptcha, sharedValidateBody(verifyO
       await db.update(usersTable)
         .set({ phoneVerified: true, lastLoginAt: now, updatedAt: now })
         .where(eq(usersTable.phone, phone));
-      addAuditEntry({ action: "user_login_totp_primary", ip, details: `TOTP primary auth success for ${phone} (role: ${user.roles})`, result: "success" });
+      AuditService.log({ action: "user_login_totp_primary", ip, details: `TOTP primary auth success for ${phone} (role: ${user.roles})`, result: "success" });
       writeAuthAuditLog("totp_primary_login", { userId: user.id, ip, userAgent: req.headers["user-agent"] ?? undefined, metadata: { phone } });
       totpPrimaryVerified = true;
     }
@@ -749,7 +750,7 @@ router.post("/verify-otp", otpLimiter, verifyCaptcha, sharedValidateBody(verifyO
         await tx.update(usersTable)
           .set({ phoneVerified: true, lastLoginAt: now, updatedAt: now, otpBypassUntil: null })
           .where(eq(usersTable.phone, phone));
-        addAuditEntry({ action: "user_login_otp_bypass", ip, details: `OTP bypass login for ${phone} (bypass until ${user.otpBypassUntil!.toISOString()})`, result: "success" });
+        AuditService.log({ action: "user_login_otp_bypass", ip, details: `OTP bypass login for ${phone} (bypass until ${user.otpBypassUntil!.toISOString()})`, result: "success" });
         writeAuthAuditLog("login_otp_bypass", { userId: user.id, ip, userAgent: req.headers["user-agent"] ?? undefined, metadata: { phone } });
         return { id: user.id, lastLoginAt: now };
       }
@@ -760,7 +761,7 @@ router.post("/verify-otp", otpLimiter, verifyCaptcha, sharedValidateBody(verifyO
         await tx.update(usersTable)
           .set({ phoneVerified: true, lastLoginAt: now, updatedAt: now })
           .where(eq(usersTable.phone, phone));
-        addAuditEntry({ action: "user_login_global_otp_bypass", ip, details: `Global OTP bypass login for ${phone}`, result: "success" });
+        AuditService.log({ action: "user_login_global_otp_bypass", ip, details: `Global OTP bypass login for ${phone}`, result: "success" });
         /* Skip duplicate writeAuthAuditLog when timed disable already logged it above */
         if (!isTimedGlobalDisableActive) {
           writeAuthAuditLog("login_global_otp_bypass", { userId: user.id, ip, userAgent: req.headers["user-agent"] ?? undefined, metadata: { phone } });
@@ -774,7 +775,7 @@ router.post("/verify-otp", otpLimiter, verifyCaptcha, sharedValidateBody(verifyO
         await tx.update(usersTable)
           .set({ phoneVerified: true, lastLoginAt: now, updatedAt: now })
           .where(eq(usersTable.phone, phone));
-        addAuditEntry({ action: "user_login_whitelist_bypass", ip, details: `Whitelist bypass login for ${phone}`, result: "success" });
+        AuditService.log({ action: "user_login_whitelist_bypass", ip, details: `Whitelist bypass login for ${phone}`, result: "success" });
         writeAuthAuditLog("login_whitelist_bypass", { userId: user.id, ip, userAgent: req.headers["user-agent"] ?? undefined, metadata: { phone } });
         return { id: user.id, lastLoginAt: now };
       }
@@ -839,7 +840,7 @@ router.post("/verify-otp", otpLimiter, verifyCaptcha, sharedValidateBody(verifyO
       } else {
         const updated = await recordFailedAttempt(phone, maxAttempts, lockoutMinutes);
         const remaining = maxAttempts - updated.attempts;
-        addAuditEntry({ action: "verify_otp_failed", ip, details: `Wrong OTP for phone: ${phone}, attempt ${updated.attempts}/${maxAttempts}`, result: "fail" });
+        AuditService.log({ action: "verify_otp_failed", ip, details: `Wrong OTP for phone: ${phone}, attempt ${updated.attempts}/${maxAttempts}`, result: "fail" });
         writeAuthAuditLog("otp_failed", { userId: user.id, ip, userAgent: req.headers["user-agent"] ?? undefined });
         if (updated.locked) {
           addSecurityEvent({ type: "account_locked", ip, userId: user.id, details: `Account locked after ${maxAttempts} failed OTP attempts`, severity: "high" });
@@ -861,10 +862,10 @@ router.post("/verify-otp", otpLimiter, verifyCaptcha, sharedValidateBody(verifyO
   /* ── Admin approval check ──
      approvalStatus is the source of truth; the setting only controls NEW user creation. ── */
   if (u.approvalStatus === "pending") {
-    addAuditEntry({ action: "user_login_pending", ip, details: `Pending approval login for phone: ${phone}`, result: "pending" });
-    const token = signAccessToken(u.id, phone, u.roles ?? "customer", u.roles ?? "customer", u.tokenVersion ?? 0);
+    AuditService.log({ action: "user_login_pending", ip, details: `Pending approval login for phone: ${phone}`, result: "pending" });
+    const accessToken = signAccessToken(u.id, phone, u.roles ?? "customer", u.roles ?? "customer", u.tokenVersion ?? 0);
     sendSuccess(res, {
-      token, pendingApproval: true,
+      accessToken, pendingApproval: true,
       message: "Aapka account admin approval ke liye bheja gaya hai. Approve hone par aap login kar sakenge.",
       user: { id: u.id, phone: u.phone, name: u.name, role: u.roles, roles: u.roles, approvalStatus: "pending" },
     });
@@ -887,7 +888,7 @@ router.post("/verify-otp", otpLimiter, verifyCaptcha, sharedValidateBody(verifyO
     }
   }
 
-  addAuditEntry({ action: "user_login", ip, details: `Successful login for phone: ${phone} (role: ${u.roles})`, result: "success" });
+  AuditService.log({ action: "user_login", ip, details: `Successful login for phone: ${phone} (role: ${u.roles})`, result: "success" });
   writeAuthAuditLog("otp_verified", { userId: u.id, ip, userAgent: req.headers["user-agent"] ?? undefined, metadata: { phone, role: u.roles, method: "phone_otp", result: "success" } });
   writeAuthAuditLog("login_success", { userId: u.id, ip, userAgent: req.headers["user-agent"] ?? undefined, metadata: { phone, role: u.roles, method: "phone_otp" } });
 
@@ -924,7 +925,7 @@ router.post("/verify-otp", otpLimiter, verifyCaptcha, sharedValidateBody(verifyO
   if (isCustomerAppContext && !uRoles.includes("customer")) {
     addSecurityEvent({ type: "cross_role_login_attempt", ip, userId: u.id, details: `User with roles [${u.roles}] logged in to customer app context — offering add-role`, severity: "low" });
     sendSuccess(res, {
-      token:        accessToken,
+      accessToken,
       refreshToken: refreshRaw,
       expiresAt:    new Date(Date.now() + getAccessTokenTtlSec() * 1000).toISOString(),
       sessionDays:  getRefreshTokenTtlDays(),
@@ -957,7 +958,7 @@ router.post("/verify-otp", otpLimiter, verifyCaptcha, sharedValidateBody(verifyO
     : false;
 
   sendSuccess(res, {
-    token:        accessToken,
+    accessToken,
     refreshToken: refreshRaw,
     expiresAt:    new Date(Date.now() + getAccessTokenTtlSec() * 1000).toISOString(),
     sessionDays:  getRefreshTokenTtlDays(),

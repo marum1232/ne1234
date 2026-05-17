@@ -48,7 +48,6 @@ import { verifyRefreshToken } from '../utils/admin-jwt.js';
 import { adminAuthLimiter } from '../middleware/rate-limit.js';
 import {
   adminAuth,
-  addAuditEntry,
   generateTotpSecret,
   generateQRCodeDataURL,
   getTotpUri,
@@ -58,6 +57,7 @@ import {
   type AdminRequest,
 } from './admin-shared.js';
 import { writeAuthAuditLog } from '../middleware/security.js';
+import { AuditService } from '../services/admin-audit.service.js';
 
 const router = Router();
 
@@ -1101,7 +1101,7 @@ router.post(
         res.status(400).json({ success: false, error: 'targetAdminId or targetUserId is required' });
         return;
       }
-      logger.info({ actor: (req as any).admin?.id, targetAdminId, targetUserId, action, reason }, '[admin-recovery] account recovery action');
+      logger.info({ actor: (req as AdminRequest).admin?.id, targetAdminId, targetUserId, action, reason }, '[admin-recovery] account recovery action');
       // Record recovery action
       res.json({ success: true, message: `Recovery action '${action}' applied successfully`, reason });
     } catch (err) {
@@ -1173,7 +1173,7 @@ router.post("/rotate-secret", adminAuth, csrfProtection, async (req, res) => {
     logger.warn({ err: emailErr }, "[rotate-secret] Email notification failed — rotation still applied");
   }
 
-  await addAuditEntry({
+  AuditService.log({
     action: "admin_secret_rotated",
     ip,
     details: "Master admin secret rotated at runtime — in-memory and DB updated",
@@ -1286,7 +1286,7 @@ router.post("/mfa/setup", adminAuth, csrfProtection, async (req, res) => {
     .set({ totpSecret: secret, totpEnabled: false })
     .where(eq(adminAccountsTable.id, adminId));
 
-  await addAuditEntry({
+  AuditService.log({
     action: "mfa_setup_initiated",
     ip: adminReq.adminIp ?? getClientIp(req),
     adminId,
@@ -1338,7 +1338,7 @@ router.post("/mfa/verify", adminAuth, csrfProtection, async (req, res) => {
 
   const valid = await verifyTotpToken(token, admin.totpSecret);
   if (!valid) {
-    await addAuditEntry({
+    AuditService.log({
       action: "mfa_verify_failed",
       ip: adminReq.adminIp ?? getClientIp(req),
       adminId,
@@ -1354,7 +1354,7 @@ router.post("/mfa/verify", adminAuth, csrfProtection, async (req, res) => {
     .set({ totpEnabled: true })
     .where(eq(adminAccountsTable.id, adminId));
 
-  await addAuditEntry({
+  AuditService.log({
     action: "mfa_activated",
     ip: adminReq.adminIp ?? getClientIp(req),
     adminId,
@@ -1404,7 +1404,7 @@ router.delete("/mfa/disable", adminAuth, csrfProtection, async (req, res) => {
     .set({ totpSecret: null, totpEnabled: false })
     .where(eq(adminAccountsTable.id, adminId));
 
-  await addAuditEntry({
+  AuditService.log({
     action: "mfa_disabled",
     ip: adminReq.adminIp ?? getClientIp(req),
     adminId,
