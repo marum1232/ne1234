@@ -142,7 +142,17 @@ export default defineConfig(async ({ mode: _mode }) => {
     fs: {
       strict: true,
       deny: ["**/.*"],
-      allow: [".", "../../lib/ui", "../../lib/i18n"],
+      allow: [
+        ".",
+        "../../lib/ui",
+        "../../lib/i18n",
+        "../../lib/api-client-react",
+        "../../lib/auth-utils",
+        "../../lib/auth-react",
+        "../../lib/api-zod",
+        "../../lib/service-constants",
+        "../../lib/phone-utils",
+      ],
     },
   },
   preview: {

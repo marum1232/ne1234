@@ -557,7 +557,7 @@ export async function createServer() {
       // Expo customer app serves at "/", so /customer/* → strip prefix.
       // Absolute asset URLs Expo embeds (e.g. /_expo/static/...) are caught
       // by the Expo fallback proxy registered at the bottom of this file.
-      { prefix: "/customer", target: `http://127.0.0.1:${process.env.EXPO_DEV_PORT   ?? "20716"}`, ws: true, rewriteToRoot: true },
+      { prefix: "/customer", target: `http://localhost:${process.env.EXPO_DEV_PORT   ?? "20716"}`, ws: true, rewriteToRoot: true },
     ];
     for (const p of devProxies) {
       // Mount at root with a path filter so the original `/admin/...` URL is
@@ -810,7 +810,7 @@ export async function createServer() {
         at the root path. Only kicks in in development, AFTER the
         /admin /vendor /rider /__mockup proxies and the /api router. ─────── */
   if (process.env.NODE_ENV !== "production") {
-    const expoTarget = `http://127.0.0.1:${process.env.EXPO_DEV_PORT ?? "20716"}`;
+    const expoTarget = `http://localhost:${process.env.EXPO_DEV_PORT ?? "20716"}`;
     const expoProxy = createProxyMiddleware({
       target: expoTarget,
       changeOrigin: true,
