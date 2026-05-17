@@ -1,4 +1,4 @@
-import React, { useState, useEffect, type ChangeEvent } from 'react';
+import React, { useState, useEffect, useRef, type ChangeEvent } from 'react';
 
 export interface Country {
   code: string;   // e.g. 'PK'
@@ -62,9 +62,48 @@ const s = {
 
 function toE164(dial: string, local: string): string {
   const digits = local.replace(/\D/g, '');
-  // Remove leading zero common in Pakistani numbers
   const trimmed = digits.startsWith('0') ? digits.slice(1) : digits;
   return `${dial}${trimmed}`;
+}
+
+/**
+ * Given an e164 string (e.g. "+923001234567") and a dial code (e.g. "+92"),
+ * returns just the local subscriber digits (e.g. "3001234567").
+ * Falls back to returning the raw string (stripped of leading +) if dial code
+ * doesn't match, so the input never shows the country prefix.
+ */
+function e164ToLocal(e164: string, dial: string): string {
+  if (!e164) return '';
+  const dialDigits = dial.replace(/\D/g, '');
+  const stripped = e164.replace(/^\+/, '');
+  if (stripped.startsWith(dialDigits)) {
+    return stripped.slice(dialDigits.length);
+  }
+  return stripped;
+}
+
+/**
+ * Strip a country-code prefix the user may have typed or pasted into the
+ * local-number field (e.g. "+92300..." or "0092300...").
+ * Returns only the subscriber digits, spaces, dashes, and parentheses.
+ */
+function stripDialPrefix(raw: string, dial: string): string {
+  let s = raw.trim();
+
+  // "+92XXXX" → strip leading "+" then dial digits
+  const dialDigits = dial.replace(/\D/g, '');
+  if (s.startsWith('+')) {
+    s = s.slice(1);
+    if (s.startsWith(dialDigits)) s = s.slice(dialDigits.length);
+  }
+
+  // "0092XXXX" → strip leading "00" then dial digits
+  if (s.startsWith('00') && s.slice(2).startsWith(dialDigits)) {
+    s = s.slice(2 + dialDigits.length);
+  }
+
+  // Only keep digits, spaces, dashes, parentheses
+  return s.replace(/[^\d\s\-()]/g, '');
 }
 
 export function PhoneInput({
@@ -77,23 +116,37 @@ export function PhoneInput({
   className,
 }: PhoneInputProps) {
   const [selectedCode, setSelectedCode] = useState(defaultCountryCode);
-  const [localNumber, setLocalNumber] = useState(value ?? '');
+
+  const country = countries.find((c) => c.code === selectedCode) ?? countries[0]!;
+
+  // Derive initial local number from e164 value prop
+  const [localNumber, setLocalNumber] = useState(() => e164ToLocal(value ?? '', country.dial));
+
+  // Track whether the last change came from user input so we don't
+  // overwrite the controlled input during the onChange → value feedback loop.
+  const userChangingRef = useRef(false);
 
   useEffect(() => {
-    setLocalNumber(value ?? '');
-  }, [value]);
-
-  const country = countries.find((c) => c.code === selectedCode) ?? countries[0];
+    if (userChangingRef.current) {
+      userChangingRef.current = false;
+      return;
+    }
+    // External value change (e.g. form reset) — re-derive local from e164
+    setLocalNumber(e164ToLocal(value ?? '', country.dial));
+  }, [value, country.dial]);
 
   function handleCountryChange(e: ChangeEvent<HTMLSelectElement>) {
-    const c = countries.find((x) => x.code === e.target.value) ?? countries[0];
+    const c = countries.find((x) => x.code === e.target.value) ?? countries[0]!;
     setSelectedCode(c.code);
+    userChangingRef.current = true;
     onChange(toE164(c.dial, localNumber), localNumber, c);
   }
 
   function handleNumberChange(e: ChangeEvent<HTMLInputElement>) {
-    const local = e.target.value.replace(/[^\d\s\-()]/g, '');
+    // Strip any country code prefix the user may have typed/pasted
+    const local = stripDialPrefix(e.target.value, country.dial);
     setLocalNumber(local);
+    userChangingRef.current = true;
     onChange(toE164(country.dial, local), local, country);
   }
 
@@ -120,7 +173,7 @@ export function PhoneInput({
         placeholder={placeholder}
         style={s.input}
         aria-label="Phone number"
-        autoComplete="tel"
+        autoComplete="tel-national"
       />
     </div>
   );

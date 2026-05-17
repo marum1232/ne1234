@@ -535,9 +535,13 @@ router.post("/verify-otp", otpLimiter, verifyCaptcha, sharedValidateBody(verifyO
       .limit(1);
 
     /* During global disable or whitelist bypass, allow new-user registration even
-       with no pending OTP row (send-otp short-circuited and never created a pending entry). */
+       with no pending OTP row (send-otp short-circuited and never created a pending entry).
+       Also bypass when no real OTP provider is configured — mirrors send-otp auto_bypass
+       so environments without Twilio/SendGrid can still register new accounts. */
     const whitelistBypassNew = await getWhitelistBypass(phone);
-    const globalBypassForNew = settings["security_otp_bypass"] === "on" || isTimedGlobalDisableActive || whitelistBypassNew !== null;
+    const _hasRealOtpProviderNew = !!(process.env["TWILIO_ACCOUNT_SID"] || process.env["TWILIO_AUTH_TOKEN"] || process.env["SENDGRID_API_KEY"]);
+    const _noProviderBypassNew = !_hasRealOtpProviderNew && settings["otp_require_when_no_provider"] !== "on";
+    const globalBypassForNew = settings["security_otp_bypass"] === "on" || isTimedGlobalDisableActive || whitelistBypassNew !== null || _noProviderBypassNew;
     if (!pending && !globalBypassForNew) {
       sendNotFound(res, "User not found. Please request a new OTP.");
       return;

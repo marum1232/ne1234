@@ -20,7 +20,7 @@ export default function AccessibilityPage() {
   const mountedRef = useRef(false);
 
   useEffect(() => {
-    adminFetch("/me/preferences")
+    adminFetch("/system/me/preferences")
       .then((data: any) => {
         const prefs = data?.preferences ?? {};
         if (prefs.font_scale) setFontScale(prefs.font_scale as AdminFontScale);
@@ -37,7 +37,7 @@ export default function AccessibilityPage() {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     setSyncStatus("saving");
     debounceRef.current = setTimeout(() => {
-      adminFetch("/me/preferences", {
+      adminFetch("/system/me/preferences", {
         method: "PUT",
         body: JSON.stringify({
           font_scale: settings.fontScale,

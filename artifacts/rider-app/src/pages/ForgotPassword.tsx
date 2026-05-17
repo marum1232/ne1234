@@ -248,7 +248,14 @@ export default function ForgotPassword() {
                   <h3 className="text-lg font-bold text-gray-800 mb-1">{T("resetViaPhone")}</h3>
                   <div className="flex gap-2">
                     <div className="h-12 px-3 bg-gray-50 border border-gray-200 rounded-xl flex items-center text-sm font-medium text-gray-600">+92</div>
-                    <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder={phoneHint}
+                    <input type="tel" value={phone}
+                      onChange={e => {
+                        let v = e.target.value.replace(/\D/g, "");
+                        if (v.startsWith("92")) v = v.slice(2);
+                        if (v.startsWith("0")) v = v.slice(1);
+                        setPhone(v.slice(0, 10));
+                      }}
+                      placeholder={phoneHint}
                       onKeyDown={e => e.key === "Enter" && sendOtp()}
                       className={`flex-1 ${INPUT}`} autoFocus />
                   </div>

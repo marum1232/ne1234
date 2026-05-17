@@ -33,18 +33,42 @@ function toE164(dial: string, local: string): string {
   return `${dial}${trimmed}`;
 }
 
+/**
+ * Strip any country-code prefix the user may have typed/pasted.
+ * Returns only subscriber digits (max 10 for Pakistani numbers after 0 removal).
+ */
+function stripDialPrefix(raw: string, dial: string): string {
+  let s = raw.trim();
+  const dialDigits = dial.replace(/\D/g, ''); // e.g. "92"
+
+  // "+92XXXX" or "+1XXXX" style
+  if (s.startsWith('+')) {
+    s = s.slice(1);
+    if (s.startsWith(dialDigits)) s = s.slice(dialDigits.length);
+  }
+
+  // "0092XXXX" style
+  if (s.startsWith('00') && s.slice(2).startsWith(dialDigits)) {
+    s = s.slice(2 + dialDigits.length);
+  }
+
+  // Keep only digits
+  return s.replace(/\D/g, '');
+}
+
 export function PhoneInput({
   value,
   onChangeText,
   onChange,
   disabled = false,
-  placeholder = '03XXXXXXXXX',
+  placeholder = '3001234567',
   autoFocus = false,
 }: PhoneInputProps) {
   const country = DEFAULT_COUNTRY;
 
   function handleChange(raw: string) {
-    const clean = raw.replace(/[^\d]/g, '').slice(0, 11);
+    // Strip dial prefix in case user pastes/types the full international number
+    const clean = stripDialPrefix(raw, country.dial).slice(0, 10);
     onChangeText(clean);
     onChange?.(toE164(country.dial, clean), clean, country);
   }
@@ -62,11 +86,11 @@ export function PhoneInput({
         placeholder={placeholder}
         placeholderTextColor="#9ca3af"
         keyboardType="phone-pad"
-        maxLength={11}
+        maxLength={10}
         editable={!disabled}
         autoFocus={autoFocus}
         accessibilityLabel="Phone number"
-        autoComplete="tel"
+        autoComplete="tel-national"
       />
     </View>
   );

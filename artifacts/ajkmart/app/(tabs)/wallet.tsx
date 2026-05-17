@@ -2163,7 +2163,14 @@ function WalletScreenInner() {
                         </View>
                         <TextInput
                           value={sendPhone}
-                          onChangeText={(t) => { setSendPhone(t); if (sendPhoneError) setSendPhoneError(""); setSendNetworkError(false); }}
+                          onChangeText={(t) => {
+                            let v = t.replace(/\D/g, "");
+                            if (v.startsWith("92")) v = v.slice(2);
+                            if (v.startsWith("0")) v = v.slice(1);
+                            setSendPhone(v.slice(0, 10));
+                            if (sendPhoneError) setSendPhoneError("");
+                            setSendNetworkError(false);
+                          }}
                           placeholder="3XX XXXXXXX"
                           placeholderTextColor={C.textMuted}
                           style={ws.sendInput}

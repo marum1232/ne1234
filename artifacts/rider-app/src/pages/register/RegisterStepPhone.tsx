@@ -120,8 +120,14 @@ export function RegisterStepPhone({
         </label>
         <div className="flex gap-2">
           <div className="h-12 px-3 bg-gray-50 border border-gray-200 rounded-xl flex items-center text-sm font-medium text-gray-600">+92</div>
-          <input type="tel" value={emergencyContact} onChange={e => setEmergencyContact(e.target.value)}
-            placeholder="Family member / friend" className={`flex-1 ${INPUT}`} />
+          <input type="tel" value={emergencyContact}
+            onChange={e => {
+              let v = e.target.value.replace(/\D/g, "");
+              if (v.startsWith("92")) v = v.slice(2);
+              if (v.startsWith("0")) v = v.slice(1);
+              setEmergencyContact(v.slice(0, 10));
+            }}
+            placeholder="3001234567" className={`flex-1 ${INPUT}`} />
         </div>
         <p className="text-[10px] text-gray-400 mt-1">In case of emergency during delivery</p>
       </div>

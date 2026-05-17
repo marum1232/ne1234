@@ -296,6 +296,16 @@ function makeAlertStyles(C: typeof Colors.light) {
   });
 }
 
+/** Strip leading country-code prefix so users can type/paste the full
+ *  international number (e.g. +923001234567 or 00923001234567) and still
+ *  get the correct local subscriber digits (3001234567). */
+function stripPkPrefix(raw: string): string {
+  let s = raw.replace(/\D/g, ""); // keep only digits
+  if (s.startsWith("92")) s = s.slice(2);
+  if (s.startsWith("0")) s = s.slice(1);
+  return s.slice(0, 10);
+}
+
 export function PhoneInput({
   value,
   onChangeText,
@@ -319,11 +329,11 @@ export function PhoneInput({
       <TextInput
         style={phoneS.input}
         value={value}
-        onChangeText={onChangeText}
-        placeholder="03XXXXXXXXX"
+        onChangeText={v => onChangeText(stripPkPrefix(v))}
+        placeholder="3001234567"
         placeholderTextColor={C.textMuted}
         keyboardType="phone-pad"
-        maxLength={11}
+        maxLength={10}
         autoFocus={autoFocus}
         accessibilityLabel="Phone number"
       />
