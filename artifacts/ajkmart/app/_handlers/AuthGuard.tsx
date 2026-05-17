@@ -47,19 +47,23 @@ export function AuthGuard() {
     const onWrongAppScreen = segs[0] === "auth" && segs[1] === "wrong-app";
 
     if (!user && !isPublicRoute) {
+      const capturedSegment = segments[0];
       hasSeenOnboarding()
         .then((seen) => {
+          if ((segments as string[])[0] !== capturedSegment) return;
           if (!seen) safeReplace("/onboarding");
           else safeReplace("/auth");
         })
         .catch(() => { safeReplace("/auth"); });
     } else if (!user && inRootIndex) {
+      const capturedLen = (segments as string[]).length;
       hasSeenOnboarding()
         .then((seen) => {
+          if ((segments as string[]).length !== capturedLen) return;
           if (!seen) safeReplace("/onboarding");
-          else safeReplace("/auth");
+          else safeReplace("/landing" as Href);
         })
-        .catch(() => { safeReplace("/auth"); });
+        .catch(() => { safeReplace("/landing" as Href); });
     } else if (user && !hasRole(user, "customer") && !onWrongAppScreen) {
       safeReplace("/auth/wrong-app");
     } else if (user && hasRole(user, "customer") && (inAuthGroup || inRootIndex)) {

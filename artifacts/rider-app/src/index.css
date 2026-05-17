@@ -57,6 +57,10 @@
   --login-brand: #F0B90B;
   --login-brand-hover: #D97706;
   --login-brand-shadow: rgba(240, 185, 11, 0.25);
+  --login-brand-glow-sm: rgba(240, 185, 11, 0.30);
+  --login-brand-glow-md: rgba(240, 185, 11, 0.35);
+  --login-brand-glow-blob: rgba(240, 185, 11, 0.07);
+  --login-brand-border: rgba(240, 185, 11, 0.20);
   --login-hero-from: #0B0E11;
   --login-hero-via: #0D1017;
   --login-hero-to: #0F1117;

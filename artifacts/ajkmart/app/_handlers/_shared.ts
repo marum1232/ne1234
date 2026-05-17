@@ -16,6 +16,7 @@ export const _domain = _envDomain || _webHost;
 if (_domain) setBaseUrl(`https://${_domain}/api`);
 
 export const GUEST_BROWSABLE = new Set([
+  "landing",
   "product",
   "vendor",
   "categories",

@@ -1,14 +1,13 @@
-import { Redirect } from "expo-router";
+import { Redirect, type Href } from "expo-router";
 import { useAuth } from "@/context/AuthContext";
 import { ActivityIndicator, View } from "react-native";
-import Colors from "@/constants/colors";
 import { hasSeenOnboarding } from "./onboarding";
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState } from "react";
 import { useTheme } from "@/context/ThemeContext";
 
 export default function RootIndex() {
   const { colors: C } = useTheme();
-  const { isLoading } = useAuth();
+  const { isLoading, user } = useAuth();
   const [onboardingChecked, setOnboardingChecked] = useState(false);
   const [hasOnboarded, setHasOnboarded] = useState(false);
 
@@ -34,6 +33,10 @@ export default function RootIndex() {
 
   if (!hasOnboarded) {
     return <Redirect href="/onboarding" />;
+  }
+
+  if (!user) {
+    return <Redirect href={"/landing" as Href} />;
   }
 
   return <Redirect href="/(tabs)" />;
