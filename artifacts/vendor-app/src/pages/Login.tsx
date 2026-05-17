@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
-import { OtpInput, PhoneInput, PasswordInput, SocialButtons, useLoginFlow } from "@workspace/auth-react";
+import { OtpInput, PhoneInput, PasswordInput, SocialButtons, useLoginFlow, LoginScreen } from "@workspace/auth-react";
 import type { Country } from "@workspace/auth-react";
 import { useAuth } from "../lib/vendor-auth";
 import { api, apiFetch } from "../lib/api";
@@ -8,7 +8,7 @@ import { usePlatformConfig, getVendorAuthConfig } from "../lib/useConfig";
 import { useLanguage } from "../lib/useLanguage";
 import { tDual, type TranslationKey } from "@workspace/i18n";
 import { canonicalizePhone, executeCaptcha } from "@workspace/auth-utils";
-import { getDeviceFingerprint } from "../lib/deviceFingerprint";
+import { getDeviceFingerprint } from "@workspace/auth-react";
 import { getVendorApiBase } from "../lib/envValidation";
 
 type LoginStep = "identifier" | "otp" | "password" | "2fa" | "pending";
@@ -339,6 +339,22 @@ export default function Login() {
       </div>
     </div>
   );
+
+  const useSharedLogin = (config.platform as Record<string, unknown>).vendorSharedLoginScreen === true;
+  if (useSharedLogin && step === "identifier") {
+    return (
+      <LoginScreen
+        role="vendor"
+        baseURL={apiOrigin}
+        onSuccess={(user, token) => void doLogin({ token, user: user as AuthResponse["user"] } as AuthResponse)}
+        onRegisterPress={() => navigate("/register")}
+        enableSocial={vendorAuth.google || vendorAuth.facebook}
+        onGoogle={handleGoogleClick}
+        onFacebook={handleFacebookClick}
+        enableMagicLink={vendorAuth.magicLink}
+      />
+    );
+  }
 
   const showSocial = step === "identifier" && (vendorAuth.google || vendorAuth.facebook);
 

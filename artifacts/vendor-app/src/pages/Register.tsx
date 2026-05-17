@@ -7,7 +7,7 @@ import { useLanguage } from "../lib/useLanguage";
 import { tDual, type TranslationKey } from "@workspace/i18n";
 import { executeCaptcha } from "@workspace/auth-utils";
 import { OtpInput, PhoneInput } from "@workspace/auth-react";
-import { getDeviceFingerprint } from "../lib/deviceFingerprint";
+import { getDeviceFingerprint } from "@workspace/auth-react";
 
 interface UploadedDoc { label: string; url: string; preview: string; }
 

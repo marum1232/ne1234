@@ -9,20 +9,17 @@ import { useAuth } from "../lib/vendor-auth";
 import { tDual, type TranslationKey } from "@workspace/i18n";
 import { PageHeader } from "../components/PageHeader";
 import { PullToRefresh } from "../components/PullToRefresh";
-import { ImageUploader } from "../components/ImageUploader";
 import { SafeImage } from "../components/ui/SafeImage";
-import { fc, fd, CARD, INPUT, SELECT, TEXTAREA, BTN_PRIMARY, BTN_SECONDARY, LABEL, errMsg } from "../lib/ui";
+import { fc, fd, CARD, errMsg } from "../lib/ui";
 import { ErrorState } from "../components/ui/ErrorState";
 import { useOfflineQueue } from "../hooks/useOfflineQueue";
+import { ProductFormView } from "../components/products/ProductFormView";
+import { ProductBulkView } from "../components/products/ProductBulkView";
 
 const EMPTY = { name:"", description:"", price:"", originalPrice:"", category:"", unit:"", stock:"", image:"", type:"mart", videoUrl:"", tags:"", isHidden: false };
 const EMPTY_ROW = { name:"", price:"", description:"", image:"", category:"", unit:"", stock:"", type:"mart" };
 const CATS_FALLBACK = ["food","grocery","bakery","pharmacy","electronics","clothing","mart","general"];
 const TYPES = ["mart","food","pharmacy","parcel"];
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return <div><label className={LABEL}>{label}</label>{children}</div>;
-}
 
 function StockHistoryPanel({ productId }: { productId: string }) {
   const { data, isLoading, isError } = useQuery({
@@ -248,8 +245,7 @@ export default function Products() {
     return ["all", ...Array.from(s)];
   }, [products]);
 
-  /* ── Per-product low-stock thresholds (localStorage — fallback for products
-     not yet updated via API; server value takes precedence when available) ── */
+  /* ── Per-product low-stock thresholds (localStorage fallback; server value takes precedence) ── */
   const [productThresholds, setProductThresholds] = useState<Record<string, number>>(() => {
     try {
       const stored = localStorage.getItem("vendor_product_thresholds");
@@ -356,8 +352,6 @@ export default function Products() {
   const [duplicateWarning, setDuplicateWarning] = useState<string[]>([]);
   const csvListInputRef = useRef<HTMLInputElement>(null);
 
-
-
   /* ── Bulk Edit Mode ── */
   const [bulkEditMode, setBulkEditMode] = useState(false);
   const [bulkEditSelected, setBulkEditSelected] = useState<Set<string>>(new Set());
@@ -410,7 +404,6 @@ export default function Products() {
     onError: (e: Error) => setBulkEditError(errMsg(e)),
   });
 
-  /* ── Download sample CSV template ── */
   const downloadSampleCsv = () => {
     const headers = ["name", "price", "stock", "category", "description", "unit", "type", "image"];
     const rows = [
@@ -441,8 +434,7 @@ export default function Products() {
         showToast("❌ CSV must have 'name' and 'price' column headers");
         return;
       }
-      /* Full parse on the original File object via worker, with step-based
-         early abort so files over 500 data rows never finish parsing */
+      /* Full parse via worker; step-based early abort at 500 data rows */
       let rowCount = 0;
       const rowErrors: string[] = [];
       const parsed: typeof bulkRows = [];
@@ -636,463 +628,70 @@ export default function Products() {
 
   /* ── Add/Edit Form ── */
   if (showAdd) return (
-    <div className="bg-gray-50 md:bg-transparent">
-      <PageHeader
-        title={editProd ? T("editProduct") : T("addProduct")}
-        subtitle={T("fillProductDetails")}
-        actions={
-          <button onClick={closeForm} className="h-10 px-4 bg-white/20 md:bg-gray-100 md:text-gray-700 text-white font-bold rounded-xl text-sm android-press min-h-0">
-            ✕ {T("cancel")}
-          </button>
-        }
-      />
-      <div className="px-4 py-4 md:px-0 md:py-4">
-        <div className="md:grid md:grid-cols-2 md:gap-6 space-y-4 md:space-y-0">
-          <div className={`${CARD} p-4 space-y-3`}>
-            <Field label={T("productNameRequired")}>
-              <input value={form.name} onChange={e => f("name",e.target.value)} placeholder="e.g. Chicken Biryani" className={`${INPUT}${formErrors.name ? " !border-red-400 focus:!border-red-500" : ""}`}/>
-              {formErrors.name && <p className="text-xs text-red-500 mt-1 font-medium">{formErrors.name}</p>}
-            </Field>
-            <div className="grid grid-cols-2 gap-3">
-              <Field label={T("priceRequired")}>
-                <input type="number" inputMode="numeric" value={form.price} onChange={e => f("price",e.target.value)} placeholder="0" className={`${INPUT}${formErrors.price ? " !border-red-400 focus:!border-red-500" : ""}`}/>
-                {formErrors.price && <p className="text-xs text-red-500 mt-1 font-medium">{formErrors.price}</p>}
-              </Field>
-              <Field label="Sale Price (crossed-out)">
-                <input type="number" inputMode="numeric" value={form.originalPrice} onChange={e => f("originalPrice",e.target.value)} placeholder="Original price" className={INPUT}/>
-              </Field>
-              <Field label={T("categoryLabel")}>
-                <select value={form.category} onChange={e => f("category",e.target.value)} className={`${SELECT}${formErrors.category ? " !border-red-400 focus:!border-red-500" : ""}`}>
-                  <option value="">Select...</option>
-                  {catList.map(c => <option key={c} value={c} className="capitalize">{c}</option>)}
-                </select>
-                {formErrors.category && <p className="text-xs text-red-500 mt-1 font-medium">{formErrors.category}</p>}
-              </Field>
-              <Field label={T("typeLabel")}>
-                <select value={form.type} onChange={e => f("type",e.target.value)} className={SELECT}>
-                  {TYPES.map(t => <option key={t} value={t} className="capitalize">{t}</option>)}
-                </select>
-              </Field>
-              <Field label={T("unitLabel")}>
-                <input value={form.unit} onChange={e => f("unit",e.target.value)} placeholder="kg / pcs / ltr" className={INPUT}/>
-              </Field>
-              <Field label={T("stockQtyLabel")}>
-                <input type="number" inputMode="numeric" min="0" value={form.stock} onChange={e => {
-                  const v = e.target.value;
-                  /* Block negative stock at UI level */
-                  if (v !== "" && Number(v) < 0) return;
-                  f("stock", v);
-                }} placeholder="Blank = unlimited" className={INPUT}/>
-              </Field>
-              {editProd && (
-                <Field label="Low-Stock Alert Threshold">
-                  <input type="number" inputMode="numeric" min="0" value={editThreshold}
-                    onChange={e => setEditThreshold(e.target.value)}
-                    placeholder={`Default: ${lowStockThreshold}`}
-                    className={INPUT}/>
-                  <p className="text-[10px] text-gray-400 mt-1">Show warning badge when stock ≤ this number</p>
-                </Field>
-              )}
-            </div>
-            <Field label={T("descriptionLabel")}>
-              <textarea value={form.description} onChange={e => f("description",e.target.value)} placeholder="Short description..." rows={2} className={TEXTAREA}/>
-            </Field>
-            <Field label="Tags (comma-separated)">
-              <input value={form.tags} onChange={e => f("tags", e.target.value)} placeholder="e.g. spicy, bestseller, new" className={INPUT}/>
-              <p className="text-[10px] text-gray-400 mt-1">Tags help customers discover your product</p>
-            </Field>
-            <div className="flex items-center justify-between py-2">
-              <div>
-                <p className="text-sm font-bold text-gray-700">Hide from customers</p>
-                <p className="text-[11px] text-gray-400">Product won't appear in listings</p>
-              </div>
-              <button type="button" onClick={() => f("isHidden", !form.isHidden)}
-                className={`w-12 h-6 rounded-full relative transition-colors ${form.isHidden ? "bg-gray-400" : "bg-green-400"}`}>
-                <div className={`w-4 h-4 bg-white rounded-full absolute top-1 shadow transition-all ${form.isHidden ? "left-1" : "left-7"}`}/>
-              </button>
-            </div>
-          </div>
-          <div className="space-y-4">
-            <div className={`${CARD} p-4`}>
-              <ImageUploader
-                value={form.image}
-                onChange={url => f("image", url)}
-                label={T("imageUrlLabel")}
-                placeholder="https://..."
-              />
-            </div>
-            <div className={`${CARD} p-4 space-y-3`}>
-              <label className={LABEL}>Upload Video (optional, ≤{maxVideoDurationSec}s)</label>
-              {form.videoUrl ? (
-                <div className="space-y-2">
-                  <div className="relative rounded-xl overflow-hidden bg-black aspect-video">
-                    <video
-                      src={form.videoUrl}
-                      className="w-full h-full object-contain"
-                      controls
-                      muted
-                      playsInline
-                    />
-                  </div>
-                  <div className="flex gap-2">
-                    <label className="flex-1 h-9 bg-orange-50 text-orange-600 font-bold rounded-xl text-sm flex items-center justify-center gap-1.5 cursor-pointer android-press">
-                      <span>🔄 Replace</span>
-                      <input
-                        type="file"
-                        accept={allowedVideoFormats.join(",")}
-                        className="hidden"
-                        onChange={e => { const file = e.target.files?.[0]; if (file) handleVideoUpload(file); e.target.value = ""; }}
-                      />
-                    </label>
-                    <button
-                      onClick={() => f("videoUrl", "")}
-                      className="flex-1 h-9 bg-red-50 text-red-500 font-bold rounded-xl text-sm android-press"
-                    >
-                      🗑️ Remove
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <label className={`flex flex-col items-center justify-center gap-2 p-6 border-2 border-dashed rounded-xl cursor-pointer transition-colors ${videoUploading ? "border-orange-300 bg-orange-50" : "border-gray-200 hover:border-orange-300 hover:bg-orange-50/50"}`}>
-                  {videoUploading ? (
-                    <>
-                      <div className="w-8 h-8 border-3 border-orange-400 border-t-transparent rounded-full animate-spin" />
-                      <span className="text-sm font-semibold text-orange-600">Uploading video...</span>
-                    </>
-                  ) : (
-                    <>
-                      <span className="text-2xl">🎬</span>
-                      <span className="text-sm font-semibold text-gray-600">Tap to upload a product video</span>
-                      <span className="text-xs text-gray-400">{(config.uploads?.allowedVideoFormats ?? ["mp4", "mov", "webm"]).map(f => f.toUpperCase()).join(", ")} · Max {maxVideoMb}MB · ≤{maxVideoDurationSec}s</span>
-                    </>
-                  )}
-                  <input
-                    type="file"
-                    accept={allowedVideoFormats.join(",")}
-                    className="hidden"
-                    disabled={videoUploading}
-                    onChange={e => { const file = e.target.files?.[0]; if (file) handleVideoUpload(file); e.target.value = ""; }}
-                  />
-                </label>
-              )}
-            </div>
-            <div className="flex gap-3">
-              <button onClick={closeForm} className={BTN_SECONDARY}>Cancel</button>
-              <button onClick={() => { if (!validateForm()) return; editProd ? updateMut.mutate() : createMut.mutate(); }} disabled={createMut.isPending || updateMut.isPending} className={BTN_PRIMARY}>
-                {createMut.isPending || updateMut.isPending ? "Saving..." : editProd ? "✓ Update Product" : "+ Add Product"}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-      {Toast}
-    </div>
+    <ProductFormView
+      editProd={editProd}
+      form={form}
+      f={f}
+      formErrors={formErrors}
+      validateForm={validateForm}
+      catList={catList}
+      config={config}
+      videoUploading={videoUploading}
+      handleVideoUpload={handleVideoUpload}
+      allowedVideoFormats={allowedVideoFormats}
+      maxVideoMb={maxVideoMb}
+      maxVideoDurationSec={maxVideoDurationSec}
+      editThreshold={editThreshold}
+      setEditThreshold={setEditThreshold}
+      lowStockThreshold={lowStockThreshold}
+      createMut={createMut}
+      updateMut={updateMut}
+      closeForm={closeForm}
+      Toast={Toast}
+      T={T}
+      PageHeader={PageHeader}
+      TYPES={TYPES}
+    />
   );
 
   /* ── Bulk Add ── */
-  const B_INPUT = "w-full h-9 px-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:border-orange-400 text-xs";
   const validRows = bulkRows.filter(r => r.name.trim() && r.price);
 
   if (view === "bulk") return (
-    <div className="bg-gray-50 md:bg-transparent">
-      <PageHeader title={T("bulkAdd")} subtitle={`${validRows.length} ${T("readyToAdd")}`}
-        actions={
-          <div className="flex gap-2">
-            <button onClick={downloadSampleCsv} className="h-10 px-3 bg-white/20 md:bg-blue-50 md:text-blue-600 text-white font-bold rounded-xl text-xs android-press min-h-0">⬇ Sample CSV</button>
-            <button onClick={() => setView("list")} className="h-10 px-4 bg-white/20 md:bg-gray-100 md:text-gray-700 text-white font-bold rounded-xl text-sm android-press min-h-0">← Back</button>
-          </div>
-        }
-      />
-      <div className="px-4 py-4 space-y-4 md:px-0 md:py-4">
-
-        {/* ── Controls Bar ── */}
-        <div className={`${CARD} p-4`}>
-          <div className="md:grid md:grid-cols-3 md:gap-4 space-y-3 md:space-y-0">
-            <div>
-              <label className={LABEL}>Default Category (for all rows)</label>
-              <select value={bulkCat} onChange={e => setBulkCat(e.target.value)} className="w-full h-10 px-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-orange-400">
-                <option value="">— applies per row if set —</option>
-                {catList.map(c => <option key={c} value={c} className="capitalize">{c}</option>)}
-              </select>
-            </div>
-            <div className="flex gap-2 items-end">
-              <button onClick={() => setBulkRows(r => [...r, {...EMPTY_ROW}])}
-                className="flex-1 h-10 border-2 border-dashed border-orange-300 text-orange-500 font-bold rounded-xl text-sm android-press">+ Add Row</button>
-              <button onClick={() => setBulkRows(r => [...r, {...EMPTY_ROW},{...EMPTY_ROW},{...EMPTY_ROW},{...EMPTY_ROW},{...EMPTY_ROW}])}
-                className="flex-1 h-10 border-2 border-dashed border-gray-200 text-gray-500 font-bold rounded-xl text-sm android-press">+5 Rows</button>
-            </div>
-            <div className="flex gap-2 items-end">
-              <button onClick={() => setShowPaste(!showPaste)}
-                className="flex-1 h-10 bg-blue-50 text-blue-600 font-bold rounded-xl text-sm android-press">📋 Paste Data</button>
-              <label className="flex-1 h-10 bg-green-50 text-green-700 font-bold rounded-xl text-sm android-press flex items-center justify-center cursor-pointer">
-                📂 Import CSV
-                <input
-                  ref={csvInputRef}
-                  type="file"
-                  accept=".csv,text/csv"
-                  className="hidden"
-                  onChange={e => {
-                    const file = e.target.files?.[0];
-                    if (file) handleCsvImport(file);
-                    e.target.value = "";
-                  }}
-                />
-              </label>
-              <button onClick={() => setBulkRows([{...EMPTY_ROW},{...EMPTY_ROW},{...EMPTY_ROW}])}
-                className="h-10 px-3 bg-red-50 text-red-500 font-bold rounded-xl text-sm android-press">Clear</button>
-            </div>
-          </div>
-
-          {/* Paste Panel */}
-          {showPaste && (
-            <div className="mt-4 p-4 bg-blue-50 rounded-2xl space-y-3">
-              <div>
-                <p className="text-sm font-bold text-blue-800 mb-1">📋 Paste from Spreadsheet</p>
-                <p className="text-xs text-blue-600 mb-2">Format: <span className="font-mono bg-white px-1 rounded">Name | Price | Description | Image URL | Category | Unit | Stock</span> (tab or comma separated)</p>
-                <textarea value={pasteText} onChange={e => setPasteText(e.target.value)} rows={4}
-                  placeholder={"Chicken Biryani\t350\tDelicious rice dish\t\tfood\tpcs\t50\nVegetable Pulao\t280\t\t\tfood"}
-                  className="w-full px-3 py-2.5 bg-white border border-blue-200 rounded-xl text-xs font-mono focus:outline-none focus:border-blue-400 resize-none"/>
-              </div>
-              <div className="flex gap-2">
-                <button onClick={() => setShowPaste(false)} className="flex-1 h-9 border border-blue-200 text-blue-500 font-bold rounded-xl text-sm android-press min-h-0">Cancel</button>
-                <button onClick={parsePaste} disabled={!pasteText.trim()} className="flex-1 h-9 bg-blue-500 text-white font-bold rounded-xl text-sm android-press min-h-0">Parse & Import</button>
-              </div>
-            </div>
-          )}
-          {/* Batch limit info */}
-          <div className="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-2xl flex items-start gap-2">
-            <span className="text-base flex-shrink-0">ℹ️</span>
-            <p className="text-xs text-blue-700">
-              <span className="font-bold">CSV limit: 500 rows per file.</span> Uploads are automatically sent to the server in batches — no manual splitting needed. Sample CSV columns: <span className="font-mono bg-white px-1 rounded">name, price, stock, category, description, unit, type, image</span>.
-            </p>
-          </div>
-
-          {/* Duplicate name warning */}
-          {duplicateWarning.length > 0 && (
-            <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-2xl">
-              <div className="flex items-center justify-between mb-1.5">
-                <p className="text-xs font-bold text-amber-800">⚠️ {duplicateWarning.length} product name{duplicateWarning.length !== 1 ? "s" : ""} already exist in your catalogue</p>
-                <button onClick={() => setDuplicateWarning([])} className="text-xs text-amber-500 hover:underline font-medium">Dismiss</button>
-              </div>
-              <ul className="space-y-0.5 mb-2 max-h-24 overflow-y-auto">
-                {duplicateWarning.map((n, i) => <li key={i} className="text-xs text-amber-700 font-mono">• {n}</li>)}
-              </ul>
-              <p className="text-xs text-amber-600">Importing will create additional listings with these names. Remove matching rows to skip them, or proceed to import anyway.</p>
-            </div>
-          )}
-
-          {/* Parse errors */}
-          {parseErrors.length > 0 && (
-            <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-2xl">
-              <div className="flex items-center justify-between mb-1">
-                <p className="text-xs font-bold text-red-700">⚠️ {parseErrors.length} row{parseErrors.length !== 1 ? "s" : ""} skipped — fix and re-upload to include them</p>
-                <button onClick={() => setParseErrors([])} className="text-xs text-red-400 hover:underline">Dismiss</button>
-              </div>
-              <ul className="space-y-0.5 max-h-32 overflow-y-auto">
-                {parseErrors.map((e, i) => <li key={i} className="text-xs text-red-600 font-mono">{e}</li>)}
-              </ul>
-            </div>
-          )}
-        </div>
-
-        {/* ── Desktop Table View ── */}
-        <div className={`${CARD} hidden md:block`}>
-          <div className="text-[10px] text-gray-400 font-medium px-3 py-1.5 bg-gray-50 border-b border-gray-100 flex items-center gap-1">
-            <span>↔</span><span>Scroll horizontally if columns are too narrow</span>
-          </div>
-          <div className="overflow-x-auto">
-            <div style={{ minWidth: "900px" }}>
-              <div className="grid gap-1 px-3 py-2.5 bg-gray-50 border-b border-gray-100"
-                style={{ gridTemplateColumns: "minmax(140px,2fr) minmax(80px,1fr) minmax(140px,2fr) minmax(120px,1.5fr) minmax(90px,1fr) minmax(60px,0.7fr) minmax(60px,0.7fr) minmax(60px,0.7fr) 32px" }}>
-                {["Name *","Price *","Short Description","Image URL","Category","Unit","Stock","Type",""].map((h,i) => (
-                  <p key={i} className="text-[9px] font-extrabold text-gray-400 uppercase tracking-widest">{h}</p>
-                ))}
-              </div>
-              {bulkRows.map((row, i) => {
-                const hasErr = !!(bulkRows[i]?.name && !bulkRows[i]?.price) || false;
-                return (
-                  <div key={i} className={`grid gap-1 px-2 py-1.5 border-b border-gray-50 last:border-0 ${hasErr ? "bg-red-50/30" : ""}`}
-                    style={{ gridTemplateColumns: "minmax(140px,2fr) minmax(80px,1fr) minmax(140px,2fr) minmax(120px,1.5fr) minmax(90px,1fr) minmax(60px,0.7fr) minmax(60px,0.7fr) minmax(60px,0.7fr) 32px" }}>
-                    <input className={`${B_INPUT} ${!row.name && row.price ? "border-red-300 bg-red-50" : ""}`}
-                      value={row.name} onChange={e => setBulkRows(r => r.map((x,j) => j===i ? {...x,name:e.target.value} : x))} placeholder="Product name *"/>
-                    <input className={`${B_INPUT} ${row.name && !row.price ? "border-red-300 bg-red-50" : ""}`}
-                      type="number" inputMode="numeric" value={row.price} onChange={e => setBulkRows(r => r.map((x,j) => j===i ? {...x,price:e.target.value} : x))} placeholder={`${currencySymbol} *`}/>
-                    <input className={B_INPUT} value={row.description}
-                      onChange={e => setBulkRows(r => r.map((x,j) => j===i ? {...x,description:e.target.value} : x))} placeholder="Short description"/>
-                    <input className={B_INPUT} type="url" value={row.image}
-                      onChange={e => setBulkRows(r => r.map((x,j) => j===i ? {...x,image:e.target.value} : x))} placeholder="https://img.url"/>
-                    <select className={`${B_INPUT} appearance-none`} value={row.category}
-                      onChange={e => setBulkRows(r => r.map((x,j) => j===i ? {...x,category:e.target.value} : x))}>
-                      <option value="">{bulkCat || "category"}</option>
-                      {catList.map(c => <option key={c} value={c}>{c}</option>)}
-                    </select>
-                    <input className={B_INPUT} value={row.unit}
-                      onChange={e => setBulkRows(r => r.map((x,j) => j===i ? {...x,unit:e.target.value} : x))} placeholder="kg/pcs"/>
-                    <input className={B_INPUT} type="number" inputMode="numeric" value={row.stock}
-                      onChange={e => setBulkRows(r => r.map((x,j) => j===i ? {...x,stock:e.target.value} : x))} placeholder="qty"/>
-                    <select className={`${B_INPUT} appearance-none`} value={row.type || "mart"}
-                      onChange={e => setBulkRows(r => r.map((x,j) => j===i ? {...x,type:e.target.value} : x))}>
-                      {TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                    </select>
-                    <button onClick={() => setBulkRows(r => r.filter((_,j) => j!==i))}
-                      className="w-8 h-9 text-red-400 hover:text-red-600 font-bold flex items-center justify-center text-base min-h-0">✕</button>
-                  </div>
-                );
-              })}
-              {bulkRows.length === 0 && (
-                <div className="px-4 py-8 text-center text-gray-400 text-sm">No rows yet — add rows or paste data above</div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* ── Mobile Card View ── */}
-        <div className="md:hidden space-y-3">
-          {bulkRows.map((row, i) => (
-            <div key={i} className={`${CARD} p-4 space-y-2.5 border-2 ${row.name && row.price ? "border-orange-100" : "border-gray-100"}`}>
-              <div className="flex items-center justify-between mb-1">
-                <p className="text-xs font-extrabold text-gray-400 uppercase tracking-wider">Row {i+1} {row.name && row.price ? "✓" : ""}</p>
-                <button onClick={() => setBulkRows(r => r.filter((_,j) => j!==i))} className="w-7 h-7 bg-red-50 text-red-500 rounded-lg font-bold text-sm min-h-0">✕</button>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="col-span-2">
-                  <p className="text-[10px] font-bold text-gray-400 mb-1">NAME *</p>
-                  <input className={`${B_INPUT} h-10`} value={row.name}
-                    onChange={e => setBulkRows(r => r.map((x,j) => j===i ? {...x,name:e.target.value} : x))} placeholder="Product name"/>
-                </div>
-                <div>
-                  <p className="text-[10px] font-bold text-gray-400 mb-1">PRICE ({currencySymbol}) *</p>
-                  <input className={`${B_INPUT} h-10`} type="number" inputMode="numeric" value={row.price}
-                    onChange={e => setBulkRows(r => r.map((x,j) => j===i ? {...x,price:e.target.value} : x))} placeholder="0"/>
-                </div>
-                <div>
-                  <p className="text-[10px] font-bold text-gray-400 mb-1">CATEGORY</p>
-                  <select className={`${B_INPUT} h-10 appearance-none`} value={row.category}
-                    onChange={e => setBulkRows(r => r.map((x,j) => j===i ? {...x,category:e.target.value} : x))}>
-                    <option value="">{bulkCat || "select"}</option>
-                    {catList.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                </div>
-                <div className="col-span-2">
-                  <p className="text-[10px] font-bold text-gray-400 mb-1">SHORT DESCRIPTION</p>
-                  <input className={`${B_INPUT} h-10`} value={row.description}
-                    onChange={e => setBulkRows(r => r.map((x,j) => j===i ? {...x,description:e.target.value} : x))} placeholder="Brief product description"/>
-                </div>
-                <div>
-                  <p className="text-[10px] font-bold text-gray-400 mb-1">UNIT</p>
-                  <input className={`${B_INPUT} h-10`} value={row.unit}
-                    onChange={e => setBulkRows(r => r.map((x,j) => j===i ? {...x,unit:e.target.value} : x))} placeholder="kg/pcs/ltr"/>
-                </div>
-                <div>
-                  <p className="text-[10px] font-bold text-gray-400 mb-1">STOCK</p>
-                  <input className={`${B_INPUT} h-10`} type="number" inputMode="numeric" value={row.stock}
-                    onChange={e => setBulkRows(r => r.map((x,j) => j===i ? {...x,stock:e.target.value} : x))} placeholder="qty"/>
-                </div>
-                <div className="col-span-2">
-                  <p className="text-[10px] font-bold text-gray-400 mb-1">IMAGE URL</p>
-                  <input className={`${B_INPUT} h-10`} type="url" value={row.image}
-                    onChange={e => setBulkRows(r => r.map((x,j) => j===i ? {...x,image:e.target.value} : x))} placeholder="https://..."/>
-                </div>
-                <div>
-                  <p className="text-[10px] font-bold text-gray-400 mb-1">TYPE</p>
-                  <select className={`${B_INPUT} h-10 appearance-none`} value={row.type || "mart"}
-                    onChange={e => setBulkRows(r => r.map((x,j) => j===i ? {...x,type:e.target.value} : x))}>
-                    {TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                  </select>
-                </div>
-              </div>
-            </div>
-          ))}
-          <button onClick={() => setBulkRows(r => [...r, {...EMPTY_ROW}])}
-            className="w-full h-12 border-2 border-dashed border-orange-300 text-orange-500 font-bold rounded-2xl text-sm android-press">+ Add Row</button>
-        </div>
-
-        {/* ── Summary + Submit ── */}
-        <div className={`${CARD} p-4`}>
-          <div className="flex items-center gap-4 mb-4">
-            <div className="flex-1 bg-gray-50 rounded-xl p-3 text-center">
-              <p className="text-2xl font-extrabold text-gray-800">{bulkRows.length}</p>
-              <p className="text-xs text-gray-500">Total rows</p>
-            </div>
-            <div className="flex-1 bg-green-50 rounded-xl p-3 text-center">
-              <p className="text-2xl font-extrabold text-green-600">{validRows.length}</p>
-              <p className="text-xs text-gray-500">Ready to add</p>
-            </div>
-            <div className="flex-1 bg-red-50 rounded-xl p-3 text-center">
-              <p className="text-2xl font-extrabold text-red-500">{bulkRows.length - validRows.length}</p>
-              <p className="text-xs text-gray-500">Incomplete</p>
-            </div>
-          </div>
-          {bulkRows.length - validRows.length > 0 && (
-            <div className="bg-amber-50 rounded-xl px-3 py-2.5 mb-4">
-              <p className="text-xs text-amber-700 font-medium">⚠️ Rows missing Name or Price will be skipped. Only {validRows.length} complete rows will be added.</p>
-            </div>
-          )}
-          {bulkImportResults && (
-            <div className="mt-4 space-y-1.5">
-              {/* Progress counter */}
-              {bulkImportProgress && (
-                <div className="mb-3">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <p className="text-xs font-bold text-gray-600 uppercase tracking-wider">
-                      {bulkImporting ? "Uploading…" : "Import complete"}
-                    </p>
-                    <p className="text-sm font-extrabold text-orange-600 tabular-nums">
-                      {bulkImportProgress.done} / {bulkImportProgress.total}
-                    </p>
-                  </div>
-                  <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-orange-400 rounded-full transition-all duration-300"
-                      style={{ width: `${(bulkImportProgress.done / bulkImportProgress.total) * 100}%` }}
-                    />
-                  </div>
-                  {!bulkImporting && (() => {
-                    const added = bulkImportResults.filter(r => r.status === "success").length;
-                    const failed = bulkImportResults.filter(r => r.status === "error").length;
-                    return (
-                      <div className="flex gap-3 mt-2">
-                        <span className="text-xs font-bold text-green-600">✅ {added} added</span>
-                        {failed > 0 && <span className="text-xs font-bold text-red-500">❌ {failed} failed</span>}
-                      </div>
-                    );
-                  })()}
-                </div>
-              )}
-              <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Row details</p>
-              <div className="max-h-64 overflow-y-auto space-y-1">
-                {bulkImportResults.map((r, i) => (
-                  <div key={i} className={`flex items-center gap-3 px-3 py-2 rounded-xl text-sm ${r.status === "success" ? "bg-green-50" : r.status === "error" ? "bg-red-50" : "bg-gray-50"}`}>
-                    <span className="text-base flex-shrink-0">
-                      {r.status === "success" ? "✅" : r.status === "error" ? "❌" : <span className="w-4 h-4 border-2 border-orange-400 border-t-transparent rounded-full animate-spin inline-block"/>}
-                    </span>
-                    <span className="flex-1 font-medium text-gray-800 truncate">{r.name}</span>
-                    {r.status === "error" && r.message && <span className="text-xs text-red-500 truncate max-w-[140px]" title={r.message}>{r.message}</span>}
-                    {r.status === "success" && <span className="text-xs text-green-600 font-bold">Added</span>}
-                    {r.status === "pending" && <span className="text-xs text-gray-400">Waiting…</span>}
-                  </div>
-                ))}
-              </div>
-              {!bulkImporting && (
-                <button onClick={() => { setBulkImportResults(null); setBulkImportProgress(null); setDuplicateWarning([]); setParseErrors([]); setView("list"); setBulkRows([{...EMPTY_ROW},{...EMPTY_ROW},{...EMPTY_ROW}]); setBulkCat(""); }} className={`mt-3 ${BTN_PRIMARY}`}>
-                  ✓ Done — View Products
-                </button>
-              )}
-            </div>
-          )}
-          {!bulkImportResults && (
-            <div className="flex gap-3">
-              <button onClick={() => { setView("list"); setDuplicateWarning([]); setParseErrors([]); }} className={BTN_SECONDARY}>Cancel</button>
-              <button onClick={() => setView("list")} className={BTN_SECONDARY}>Cancel</button>
-              <button onClick={runBulkImport} disabled={bulkImporting || validRows.length === 0 || allDataLoading} className={BTN_PRIMARY}>
-                {allDataLoading ? "Checking limit..." : bulkImporting ? "Adding..." : `➕ Add ${validRows.length} Products`}
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-      {Toast}
-    </div>
+    <ProductBulkView
+      validRows={validRows}
+      bulkRows={bulkRows}
+      setBulkRows={setBulkRows}
+      bulkCat={bulkCat}
+      setBulkCat={setBulkCat}
+      catList={catList}
+      currencySymbol={currencySymbol}
+      parseErrors={parseErrors}
+      setParseErrors={setParseErrors}
+      duplicateWarning={duplicateWarning}
+      setDuplicateWarning={setDuplicateWarning}
+      bulkImportResults={bulkImportResults}
+      setBulkImportResults={setBulkImportResults}
+      bulkImporting={bulkImporting}
+      bulkImportProgress={bulkImportProgress}
+      setBulkImportProgress={setBulkImportProgress}
+      allDataLoading={allDataLoading}
+      runBulkImport={runBulkImport}
+      setView={setView}
+      pasteText={pasteText}
+      setPasteText={setPasteText}
+      showPaste={showPaste}
+      setShowPaste={setShowPaste}
+      parsePaste={parsePaste}
+      csvInputRef={csvInputRef}
+      downloadSampleCsv={downloadSampleCsv}
+      handleCsvImport={handleCsvImport}
+      EMPTY_ROW={EMPTY_ROW}
+      TYPES={TYPES}
+      T={T}
+      Toast={Toast}
+      PageHeader={PageHeader}
+    />
   );
 
   /* ── Product List ── */

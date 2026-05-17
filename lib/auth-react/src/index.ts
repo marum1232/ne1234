@@ -16,6 +16,9 @@ export type { AuthClientOptions } from './api/authClient';
 export { decodeJwt, isTokenExpired, getTokenExpiryRemaining } from './utils/jwtUtils';
 export type { JwtPayload } from './utils/jwtUtils';
 
+// Device fingerprint
+export { getDeviceFingerprint } from './utils/deviceFingerprint';
+
 // Hooks
 export { useAuth } from './hooks/useAuth';
 export { useTokenRefresh } from './hooks/useTokenRefresh';

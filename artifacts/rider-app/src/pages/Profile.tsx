@@ -6,11 +6,14 @@ import {
   Bell, MapPin, Circle, Bike, User, Landmark, Home, Wallet,
   ClipboardList, BarChart2, Pencil, Star, Camera, Truck,
   Shield, Clock, CheckCircle, AlertTriangle, X,
-  CreditCard, Phone, Mail, Facebook, Instagram, MessageCircle,
-  FileText, Lock, HelpCircle, Info, LogOut, RefreshCcw,
-  ChevronRight, ChevronDown, ChevronUp, Ban,
-  Languages, Settings, Moon, Sun,
+  CreditCard, Phone, Mail, FileText, Lock, Info, LogOut, RefreshCcw,
+  ChevronDown,
 } from "lucide-react";
+import { SkeletonProfile, InfoRow, SavedCheckmark } from "../components/profile/ProfileHelpers";
+import { ProfileReviews } from "../components/profile/ProfileReviews";
+import { ProfilePenaltyHistory } from "../components/profile/ProfilePenaltyHistory";
+import { ProfileSettings } from "../components/profile/ProfileSettings";
+import { ProfileFooter } from "../components/profile/ProfileFooter";
 import { SafeImage } from "../components/ui/SafeImage";
 import { useAuth } from "../lib/rider-auth";
 import { api } from "../lib/api";
@@ -40,59 +43,6 @@ type ProfilePayload = {
   bankName?: string; bankAccount?: string; bankAccountTitle?: string;
 };
 
-function SkeletonBlock({ className }: { className?: string }) {
-  return <div className={`animate-pulse bg-gray-200 rounded-xl ${className || ""}`} />;
-}
-
-function SkeletonProfile() {
-  return (
-    <div className="bg-[#F5F6F8] min-h-screen">
-      <div className="bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800 px-5 pb-24 rounded-b-[2rem]"
-        style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 3.5rem)" }} />
-      <div className="px-4 -mt-20 space-y-4">
-        <div className="bg-white rounded-3xl shadow-lg p-5">
-          <div className="flex items-start gap-4">
-            <SkeletonBlock className="w-16 h-16 rounded-2xl" />
-            <div className="flex-1 space-y-2">
-              <SkeletonBlock className="h-5 w-32" />
-              <SkeletonBlock className="h-3 w-24" />
-              <SkeletonBlock className="h-3 w-20" />
-            </div>
-          </div>
-        </div>
-        <div className="flex gap-2">
-          {[1,2,3,4].map(i => <SkeletonBlock key={i} className="flex-1 h-20 rounded-2xl" />)}
-        </div>
-        <div className="grid grid-cols-3 gap-2">
-          {[1,2,3,4,5,6].map(i => <SkeletonBlock key={i} className="h-20 rounded-2xl" />)}
-        </div>
-        <SkeletonBlock className="h-48 rounded-3xl" />
-      </div>
-    </div>
-  );
-}
-
-function InfoRow({ label, value, empty, icon }: { label: string; value?: string | null; empty?: string; icon?: React.ReactElement }) {
-  return (
-    <div className="flex justify-between items-center py-3.5 border-b border-gray-50 last:border-0 gap-3 px-5">
-      <span className="text-xs text-gray-500 font-semibold flex items-center gap-2 flex-shrink-0">
-        {icon}{label}
-      </span>
-      <span className={`text-sm font-semibold text-right ${value ? "text-gray-800" : "text-gray-300 italic text-xs"}`}>
-        {value || empty || "—"}
-      </span>
-    </div>
-  );
-}
-
-function SavedCheckmark({ show, label }: { show: boolean; label: string }) {
-  if (!show) return null;
-  return (
-    <span className="inline-flex items-center gap-1 text-green-600 text-xs font-bold animate-[fadeIn_0.3s_ease-out]">
-      <CheckCircle size={14} className="text-green-500" /> {label}
-    </span>
-  );
-}
 
 export default function Profile() {
   const { user, logout, refreshUser, loading: authLoading } = useAuth();
@@ -113,7 +63,6 @@ export default function Profile() {
   const [toast, setToast]       = useState("");
   const [toastIsError, setToastIsError] = useState(false);
   const [pendingVerification, setPendingVerification] = useState(false);
-  const [penaltyHistoryOpen, setPenaltyHistoryOpen] = useState(false);
   const [logoutConfirm, setLogoutConfirm] = useState(false);
   const [activeTab, setActiveTab] = useState<"personal" | "vehicle" | "bank">("personal");
   const [payoutOpen, setPayoutOpen] = useState(false);
@@ -130,18 +79,6 @@ export default function Profile() {
   const logoutTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const { data: reviewsData } = useQuery({
-    queryKey: ["rider-my-reviews"],
-    queryFn: () => api.getMyReviews(),
-    staleTime: 60000,
-  });
-
-  const { data: penaltyData } = useQuery({
-    queryKey: ["rider-penalty-history"],
-    queryFn: () => api.getPenaltyHistory(),
-    enabled: penaltyHistoryOpen,
-    staleTime: 60000,
-  });
 
   const { language, setLanguage } = useLanguage();
   const { isDark, toggleDark } = useTheme();
@@ -408,7 +345,7 @@ export default function Profile() {
 
   const totalDeliveries = user?.stats?.totalDeliveries || 0;
   const totalEarnings = user?.stats?.totalEarnings || 0;
-  const rating = reviewsData?.avgRating ?? user?.stats?.rating ?? 5.0;
+  const rating = user?.stats?.rating ?? 5.0;
 
   const quickActions = [
     { href: "/wallet",        icon: <Wallet size={20}/>,       label: T("wallet"),            bg: "bg-emerald-50 text-emerald-600" },
@@ -947,83 +884,7 @@ export default function Profile() {
           </div>
         </div>
 
-        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden animate-[slideUp_0.7s_ease-out]">
-          <div className="px-5 py-3.5">
-            <p className="font-bold text-gray-900 text-[15px] flex items-center gap-2"><Settings size={15} className="text-gray-500"/> {T("settingsLabel")}</p>
-          </div>
-          <div className="border-t border-gray-100">
-            <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-50">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 bg-indigo-50 rounded-xl flex items-center justify-center">
-                  <Languages size={17} className="text-indigo-500"/>
-                </div>
-                <span className="text-sm font-semibold text-gray-800">{T("languageLabel")}</span>
-              </div>
-              <div className="flex flex-wrap bg-gray-100 rounded-xl p-0.5 gap-0.5">
-                {(["en","ur","roman","en_roman","en_ur"] as const).map(lang => (
-                  <button
-                    key={lang}
-                    onClick={() => setLanguage(lang)}
-                    className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-all ${language === lang ? "bg-white text-gray-900 shadow-sm" : "text-gray-500"}`}>
-                    {lang === "en" ? "EN" : lang === "ur" ? "اردو" : lang === "roman" ? "Roman" : lang === "en_roman" ? "EN+Ro" : "EN+اردو"}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-50">
-              <div className="flex items-center gap-3">
-                <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${isDark ? "bg-indigo-100" : "bg-gray-100"}`}>
-                  {isDark ? <Moon size={17} className="text-indigo-500"/> : <Sun size={17} className="text-gray-500"/>}
-                </div>
-                <div>
-                  <span className="text-sm font-semibold text-gray-800 block">Dark Mode</span>
-                  <span className="text-[10px] text-gray-400">{isDark ? "Dark theme active" : "Light theme active"}</span>
-                </div>
-              </div>
-              <button
-                onClick={toggleDark}
-                className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${isDark ? "bg-indigo-500" : "bg-gray-300"}`}
-                aria-label="Toggle dark mode"
-              >
-                <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${isDark ? "translate-x-5" : "translate-x-0.5"}`}/>
-              </button>
-            </div>
-
-            <Link href="/settings/security"
-              className="flex items-center justify-between px-5 py-3.5 border-b border-gray-50 active:bg-gray-50 transition-colors">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 bg-red-50 rounded-xl flex items-center justify-center">
-                  <Shield size={17} className="text-red-500"/>
-                </div>
-                <div>
-                  <span className="text-sm font-semibold text-gray-800 block">{T("securitySettingsLink")}</span>
-                  <span className="text-[10px] text-gray-400">{T("manageSecuritySettings")}</span>
-                </div>
-              </div>
-              <ChevronRight size={16} className="text-gray-300"/>
-            </Link>
-
-            <Link href="/notifications"
-              className="flex items-center justify-between px-5 py-3.5 active:bg-gray-50 transition-colors">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 bg-blue-50 rounded-xl flex items-center justify-center relative">
-                  <Bell size={17} className="text-blue-500"/>
-                  {unread > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[8px] font-extrabold rounded-full w-4 h-4 flex items-center justify-center">
-                      {unread > 9 ? "9+" : unread}
-                    </span>
-                  )}
-                </div>
-                <div>
-                  <span className="text-sm font-semibold text-gray-800 block">{T("notificationsLink")}</span>
-                  <span className="text-[10px] text-gray-400">{T("viewNotifications")}</span>
-                </div>
-              </div>
-              <ChevronRight size={16} className="text-gray-300"/>
-            </Link>
-          </div>
-        </div>
+        <ProfileSettings language={language} setLanguage={setLanguage} isDark={isDark} toggleDark={toggleDark} unread={unread} />
 
         <div className="bg-gray-900 rounded-3xl overflow-hidden animate-[slideUp_0.75s_ease-out]">
           <button
@@ -1051,154 +912,9 @@ export default function Profile() {
           </div>
         </div>
 
-        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden animate-[slideUp_0.7s_ease-out]">
-          <button
-            onClick={() => setPenaltyHistoryOpen(v => !v)}
-            className="w-full px-5 py-4 flex items-center justify-between active:bg-gray-50 transition-colors">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 bg-red-50 rounded-xl flex items-center justify-center flex-shrink-0">
-                <Ban size={16} className="text-red-500"/>
-              </div>
-              <div className="text-left">
-                <p className="font-bold text-gray-900 text-[14px]">Penalty History</p>
-                <p className="text-[10px] text-gray-400">Deductions, ignores &amp; cancellation penalties</p>
-              </div>
-            </div>
-            {penaltyHistoryOpen ? <ChevronUp size={16} className="text-gray-300"/> : <ChevronDown size={16} className="text-gray-300"/>}
-          </button>
-          {penaltyHistoryOpen && (
-            <div className="border-t border-gray-50">
-              {!penaltyData ? (
-                <div className="px-5 py-8 flex items-center justify-center">
-                  <div className="w-5 h-5 border-2 border-gray-300 border-t-gray-700 rounded-full animate-spin"/>
-                </div>
-              ) : (() => {
-                const penalties: any[] = penaltyData?.penalties ?? [];
-                if (penalties.length === 0) return (
-                  <div className="px-5 py-8 text-center">
-                    <p className="text-sm text-gray-400 font-medium">No penalties on record</p>
-                  </div>
-                );
-                const typeColor: Record<string, string> = {
-                  ignore: "bg-amber-100 text-amber-700",
-                  cancel: "bg-red-100 text-red-700",
-                  ignore_penalty: "bg-orange-100 text-orange-700",
-                  cancel_penalty: "bg-red-100 text-red-700",
-                };
-                return (
-                  <div className="divide-y divide-gray-50">
-                    {penalties.map((p: any) => (
-                      <div key={p.id} className="px-5 py-3.5 flex items-start gap-3">
-                        <div className="w-9 h-9 bg-red-50 rounded-2xl flex items-center justify-center flex-shrink-0 mt-0.5">
-                          <Ban size={15} className="text-red-400"/>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${typeColor[p.type] ?? "bg-gray-100 text-gray-600"}`}>
-                              {(p.type || "penalty").replace(/_/g, " ")}
-                            </span>
-                            {Number(p.amount) > 0 && (
-                              <span className="text-xs font-black text-red-600">−{fc(p.amount, currency)}</span>
-                            )}
-                          </div>
-                          {p.reason && <p className="text-xs text-gray-600 mt-1 leading-relaxed">{p.reason}</p>}
-                          <p className="text-[10px] text-gray-400 mt-0.5 flex items-center gap-1">
-                            <Clock size={9}/> {new Date(p.createdAt).toLocaleDateString("en-PK", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                );
-              })()}
-            </div>
-          )}
-        </div>
+        <ProfilePenaltyHistory currency={currency} />
 
-        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden animate-[slideUp_0.7s_ease-out]">
-          <div className="px-5 pt-4 pb-3 border-b border-gray-100 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl bg-yellow-50 flex items-center justify-center">
-                <Star size={16} className="text-yellow-500" />
-              </div>
-              <div>
-                <p className="text-sm font-bold text-gray-900">{T("customerReviews")}</p>
-                <p className="text-[11px] text-gray-400">
-                  {reviewsData?.total
-                    ? `${reviewsData.total} ${T("reviews")} · ${reviewsData.avgRating?.toFixed(1)} avg`
-                    : T("noReviewsYet")}
-                </p>
-              </div>
-            </div>
-            {(reviewsData?.avgRating ?? 0) > 0 && (
-              <div className="flex items-center gap-0.5">
-                {[1,2,3,4,5].map(s => (
-                  <Star key={s} size={12} className={s <= Math.round(reviewsData.avgRating || 0) ? "fill-yellow-400 text-yellow-400" : "text-gray-200 fill-gray-200"} />
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Star breakdown — shown whenever there are reviews */}
-          {(reviewsData?.total ?? 0) > 0 && (
-            <div className="px-5 py-3 border-b border-gray-50 space-y-1.5">
-              {[5,4,3,2,1].map(star => {
-                const cnt = (reviewsData?.starBreakdown?.[star] ?? 0) as number;
-                const pct = reviewsData?.total ? Math.round((cnt / reviewsData.total) * 100) : 0;
-                const barColors: Record<number,string> = {5:"bg-green-400",4:"bg-lime-400",3:"bg-yellow-400",2:"bg-orange-400",1:"bg-red-400"};
-                return (
-                  <div key={star} className="flex items-center gap-2 text-[11px]">
-                    <span className="w-2.5 text-right font-bold text-gray-500">{star}</span>
-                    <Star size={9} className="text-amber-400 fill-amber-400 flex-shrink-0" />
-                    <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all duration-500 ${barColors[star]}`}
-                        style={{ width: `${pct}%` }}
-                      />
-                    </div>
-                    <span className="w-5 text-right text-gray-400 tabular-nums">{cnt}</span>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {(reviewsData?.reviews?.length ?? 0) === 0 ? (
-            <div className="px-5 py-8 text-center">
-              <div className="w-12 h-12 bg-yellow-50 rounded-2xl flex items-center justify-center mx-auto mb-3">
-                <Star size={22} className="text-yellow-400" />
-              </div>
-              <p className="text-sm font-bold text-gray-700">{T("noReviewsYet")}</p>
-              <p className="text-[11px] text-gray-400 mt-1">{T("completeMoreRidesFeedback")}</p>
-            </div>
-          ) : (
-            <div className="divide-y divide-gray-50 max-h-96 overflow-y-auto">
-              {(reviewsData?.reviews ?? []).map((r: any) => (
-                <div key={r.id} className="px-5 py-3.5">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-full bg-gradient-to-br from-yellow-100 to-orange-100 flex items-center justify-center text-[11px] font-bold text-orange-600">
-                        {(r.customerName || "C")[0].toUpperCase()}
-                      </div>
-                      <span className="text-xs font-semibold text-gray-700">{r.customerName || T("customerFallback")}</span>
-                    </div>
-                    <div className="flex items-center gap-0.5">
-                      {[1,2,3,4,5].map(s => (
-                        <Star key={s} size={10} className={s <= r.rating ? "fill-yellow-400 text-yellow-400" : "text-gray-200 fill-gray-200"} />
-                      ))}
-                    </div>
-                  </div>
-                  {r.comment && (
-                    <p className="text-xs text-gray-600 leading-relaxed pl-9 italic">"{r.comment}"</p>
-                  )}
-                  <p className="text-[10px] text-gray-300 mt-1 pl-9">
-                    {new Date(r.createdAt).toLocaleDateString("en-PK", { day: "numeric", month: "short", year: "numeric" })}
-                  </p>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        <ProfileReviews language={language} currency={currency} />
 
         <button onClick={handleLogout}
           className={`w-full h-12 font-bold rounded-3xl text-sm flex items-center justify-center gap-2 transition-all duration-300 ${
@@ -1210,63 +926,7 @@ export default function Profile() {
           {logoutConfirm ? T("tapAgainLogout") : T("logoutFromDevice")}
         </button>
 
-        <div className="bg-white rounded-3xl border border-gray-100 p-5 space-y-3">
-          <p className="text-center text-xs text-gray-500 leading-relaxed font-medium">
-            {config.platform.appName} {T("riderPortal")} · {T("contactSupport")}:{" "}
-            <a href={`tel:${config.platform.supportPhone}`} className="text-gray-900 font-semibold">{config.platform.supportPhone}</a>
-          </p>
-          {config.platform.supportHours && (
-            <p className="text-xs text-gray-400 text-center flex items-center justify-center gap-1"><Clock size={11}/> {config.platform.supportHours}</p>
-          )}
-          {config.platform.supportEmail && (
-            <p className="text-xs text-gray-500 text-center flex items-center justify-center gap-1">
-              <Mail size={11}/>
-              <a href={`mailto:${config.platform.supportEmail}`} className="text-gray-900 hover:text-gray-700">{config.platform.supportEmail}</a>
-            </p>
-          )}
-          {(config.platform.socialFacebook || config.platform.socialInstagram) && (
-            <div className="flex gap-3 justify-center pt-1">
-              {config.platform.socialFacebook && (
-                <a href={config.platform.socialFacebook} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 flex items-center gap-1 font-medium">
-                  <Facebook size={13}/> {T("followUsLabel")}
-                </a>
-              )}
-              {config.platform.socialInstagram && (
-                <a href={config.platform.socialInstagram} target="_blank" rel="noopener noreferrer" className="text-xs text-pink-600 flex items-center gap-1 font-medium">
-                  <Instagram size={13}/> {T("followUsLabel")}
-                </a>
-              )}
-            </div>
-          )}
-          {(config.content.tncUrl || config.content.privacyUrl || config.content.refundPolicyUrl || config.content.faqUrl || config.content.aboutUrl || config.features.chat) && (
-            <div className="flex flex-wrap gap-x-3 gap-y-1.5 justify-center pt-1">
-              {config.content.tncUrl && (
-                <a href={config.content.tncUrl} target="_blank" rel="noopener noreferrer"
-                  className="text-[11px] text-gray-600 underline underline-offset-2 flex items-center gap-0.5"><FileText size={10}/> {T("termsConditions")}</a>
-              )}
-              {config.content.privacyUrl && (
-                <a href={config.content.privacyUrl} target="_blank" rel="noopener noreferrer"
-                  className="text-[11px] text-gray-600 underline underline-offset-2 flex items-center gap-0.5"><Lock size={10}/> {T("privacyPolicy")}</a>
-              )}
-              {config.content.refundPolicyUrl && (
-                <a href={config.content.refundPolicyUrl} target="_blank" rel="noopener noreferrer"
-                  className="text-[11px] text-gray-600 underline underline-offset-2 flex items-center gap-0.5"><RefreshCcw size={10}/> {T("refundPolicy")}</a>
-              )}
-              {config.content.faqUrl && (
-                <a href={config.content.faqUrl} target="_blank" rel="noopener noreferrer"
-                  className="text-[11px] text-gray-600 underline underline-offset-2 flex items-center gap-0.5"><HelpCircle size={10}/> {T("faqLabel")}</a>
-              )}
-              {config.content.aboutUrl && (
-                <a href={config.content.aboutUrl} target="_blank" rel="noopener noreferrer"
-                  className="text-[11px] text-gray-600 underline underline-offset-2 flex items-center gap-0.5"><Info size={10}/> {T("aboutLabel")}</a>
-              )}
-              {config.features.chat && (
-                <a href={`https://wa.me/${config.platform.supportPhone.replace(/^0/, "92")}`} target="_blank" rel="noopener noreferrer"
-                  className="text-[11px] text-gray-600 underline underline-offset-2 flex items-center gap-0.5"><MessageCircle size={10}/> {T("liveChatLabel")}</a>
-              )}
-            </div>
-          )}
-        </div>
+        <ProfileFooter config={config as any} language={language} />
 
       </div>
     </div>
