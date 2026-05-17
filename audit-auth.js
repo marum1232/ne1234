@@ -275,7 +275,10 @@ function countFingerprint(dir) {
     const files = fs.readdirSync(dir);
     for (const file of files) {
         const full = path.join(dir, file);
-        if (fs.statSync(full).isDirectory()) countFingerprint(full);
+        if (fs.statSync(full).isDirectory()) {
+            if (!full.includes("node_modules") && !full.includes(".git"))
+                countFingerprint(full);
+        }
         else if (full.endsWith(".tsx") || full.endsWith(".ts")) {
             const content = fs.readFileSync(full, "utf8");
             if (content.includes("getDeviceFingerprint")) fingerprintCount++;

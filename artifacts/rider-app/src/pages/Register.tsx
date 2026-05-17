@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Link, useLocation } from "wouter";
-import { OtpInput, PasswordInput, PhoneInput } from "@workspace/auth-react";
+import { OtpInput, PasswordInput } from "@workspace/auth-react";
 import { api, isApiError, setApiTimeoutMs } from "../lib/api";
 import { createLogger } from "@/lib/logger";
 const log = createLogger("[Register]");
@@ -13,104 +13,14 @@ import { compressImage } from "../lib/imageUtils";
 import { useAuth, type AuthUser } from "../lib/rider-auth";
 import {
   Bike, ArrowLeft, ArrowRight, Loader2,
-  Clock, User, Phone, Mail, FileText, Car, Shield, Lightbulb,
-  MapPin, AlertCircle, Camera, Upload, X, CheckCircle2, Image, Wrench, Lock,
+  Clock, Shield, Lightbulb, AlertCircle, CheckCircle2, Wrench, Lock, Phone,
 } from "lucide-react";
-import { SafeImage } from "../components/ui/SafeImage";
 
-function getPasswordStrength(pw: string): { level: number; label: TranslationKey; color: string; width: string } {
-  let score = 0;
-  if (pw.length >= 8) score++;
-  if (pw.length >= 12) score++;
-  if (/[A-Z]/.test(pw) && /[a-z]/.test(pw)) score++;
-  if (/\d/.test(pw)) score++;
-  if (/[^A-Za-z0-9]/.test(pw)) score++;
-  if (score <= 1) return { level: 1, label: "passwordWeak", color: "bg-red-500", width: "w-1/4" };
-  if (score <= 2) return { level: 2, label: "passwordFair", color: "bg-orange-500", width: "w-2/4" };
-  if (score <= 3) return { level: 3, label: "passwordGood", color: "bg-yellow-500", width: "w-3/4" };
-  return { level: 4, label: "passwordStrong", color: "bg-green-500", width: "w-full" };
-}
+import { RegisterStepPhone } from "./register/RegisterStepPhone";
+import { RegisterStepPersonal } from "./register/RegisterStepPersonal";
+import type { UploadedDoc } from "./register/RegisterStepDocuments";
 
-function formatCnic(val: string): string {
-  const digits = val.replace(/\D/g, "").slice(0, 13);
-  if (digits.length <= 5) return digits;
-  if (digits.length <= 12) return `${digits.slice(0, 5)}-${digits.slice(5)}`;
-  return `${digits.slice(0, 5)}-${digits.slice(5, 12)}-${digits.slice(12)}`;
-}
-
-const VEHICLE_TYPES = [
-  { value: "bike", labelKey: "bikeMotorcycle" as TranslationKey },
-  { value: "car", labelKey: "carVehicle" as TranslationKey },
-  { value: "rickshaw", labelKey: "rickshawVan" as TranslationKey },
-  { value: "van", labelKey: "vanVehicle" as TranslationKey },
-];
-
-const AJK_CITIES = [
-  "Muzaffarabad", "Mirpur", "Rawalakot", "Bagh", "Kotli",
-  "Bhimber", "Pallandri", "Hajira", "Athmuqam", "Hattian Bala",
-  "Neelum", "Haveli", "Jhelum Valley", "Other",
-];
-
-const INPUT = "w-full h-12 px-4 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:bg-white transition-all";
-const SELECT = "w-full h-12 px-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 appearance-none transition-all";
 const DRAFT_KEY = "rider_reg_draft";
-
-interface UploadedDoc {
-  label: string;
-  url: string;
-  preview: string;
-}
-
-function FileUploadBox({ label, icon, value, onChange, required, optimising, uploading, error, onRetry }: {
-  label: string; icon: React.ReactNode; value: UploadedDoc | null;
-  onChange: (file: File) => void; required?: boolean;
-  optimising?: boolean; uploading?: boolean; error?: string; onRetry?: () => void;
-}) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const { language } = useLanguage();
-  const T = (key: TranslationKey) => tDual(key, language);
-  const busy = optimising || uploading;
-  return (
-    <div>
-      <div className={`border-2 border-dashed rounded-xl p-3 transition-all ${error ? "border-red-400 bg-red-50/50" : value ? "border-green-300 bg-green-50/50" : "border-gray-200 bg-gray-50/50 hover:border-gray-400"}`}>
-        <input ref={inputRef} type="file" accept="image/*" capture="environment" className="hidden"
-          onChange={e => { if (e.target.files?.[0]) onChange(e.target.files[0]); }} />
-        {value && !busy ? (
-          <div className="flex items-center gap-3">
-            <SafeImage src={value.preview} alt={label} className="w-14 h-14 rounded-lg object-cover border border-green-200" loading="eager" />
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-bold text-green-700 flex items-center gap-1"><CheckCircle2 size={12} /> {label}</p>
-              <p className="text-[10px] text-green-600 truncate">{value.url ? T("photoUploaded") : T("photoReady2")}</p>
-            </div>
-            <button onClick={() => inputRef.current?.click()} className="text-[10px] text-gray-600 font-bold hover:text-gray-900 px-2 py-1 rounded-lg hover:bg-gray-100">
-              {T("changePhoto")}
-            </button>
-          </div>
-        ) : (
-          <button onClick={() => inputRef.current?.click()} disabled={busy}
-            className="w-full flex flex-col items-center gap-1.5 py-2 disabled:opacity-50">
-            <Loader2 size={20} className={`animate-spin ${busy ? "text-gray-500" : "hidden"}`} />
-            {!busy && icon}
-            <span className={`text-xs font-semibold ${error ? "text-red-600" : "text-gray-600"}`}>{label} {required && <span className="text-red-500">*</span>}</span>
-            {optimising && <span className="text-[10px] text-amber-600 font-semibold">Optimising…</span>}
-            {uploading && !optimising && <span className="text-[10px] text-gray-400">{T("tapCaptureUpload")}</span>}
-            {!busy && <span className="text-[10px] text-gray-400">{T("tapCaptureUpload")}</span>}
-          </button>
-        )}
-      </div>
-      {error && (
-        <div className="flex items-center gap-2 mt-1">
-          <p className="text-[10px] text-red-500 font-medium flex-1">{error}</p>
-          {onRetry && (
-            <button onClick={onRetry} className="text-[10px] font-bold text-red-600 hover:text-red-800 px-2 py-0.5 border border-red-200 rounded-lg bg-red-50 hover:bg-red-100">
-              Retry
-            </button>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
 
 export default function Register() {
   const { config } = usePlatformConfig();
@@ -303,14 +213,8 @@ export default function Register() {
   useEffect(() => {
     const phoneReady = !auth.phoneEnabled || (phone && phone.length >= 10);
     const emailReady = !auth.emailEnabled || (email && email.includes("@"));
-    if (!phoneReady || !emailReady) {
-      setAvailabilityStatus("idle");
-      return;
-    }
-    if (!auth.phoneEnabled && !auth.emailEnabled) {
-      setAvailabilityStatus("idle");
-      return;
-    }
+    if (!phoneReady || !emailReady) { setAvailabilityStatus("idle"); return; }
+    if (!auth.phoneEnabled && !auth.emailEnabled) { setAvailabilityStatus("idle"); return; }
     if (availabilityTimer.current) clearTimeout(availabilityTimer.current);
     availabilityTimer.current = setTimeout(async () => {
       setAvailabilityStatus("checking");
@@ -478,28 +382,6 @@ export default function Register() {
               if (res.token) {
                 api.storeTokens(res.token, res.refreshToken);
                 if (res.pendingApproval) { sessionStorage.removeItem(DRAFT_KEY); setCompleted(true); setLoading(false); return; }
-                let profile: AuthUser | null = res.user ?? null;
-                if (!profile) {
-                  try { profile = await api.getMe() as AuthUser; } catch { api.clearTokens(); sessionStorage.removeItem(DRAFT_KEY); setCompleted(true); setLoading(false); return; }
-                }
-                sessionStorage.removeItem(DRAFT_KEY);
-                authLogin(res.token, profile!, res.refreshToken);
-                navigate("/");
-              } else {
-                sessionStorage.removeItem(DRAFT_KEY);
-                setCompleted(true);
-              }
-              setLoading(false); return;
-            }
-            if (res.otpRequired === false) {
-              /* OTP globally bypassed by admin — skip Step 4 */
-              if (res.token) {
-                api.storeTokens(res.token, res.refreshToken);
-                if (res.pendingApproval) {
-                  sessionStorage.removeItem(DRAFT_KEY);
-                  setCompleted(true);
-                  setLoading(false); return;
-                }
                 let profile: AuthUser | null = res.user ?? null;
                 if (!profile) {
                   try { profile = await api.getMe() as AuthUser; } catch { api.clearTokens(); sessionStorage.removeItem(DRAFT_KEY); setCompleted(true); setLoading(false); return; }
@@ -687,6 +569,8 @@ export default function Register() {
               <p className="text-amber-700 text-xs font-medium leading-relaxed">{config.content.riderNotice}</p>
             </div>
           )}
+
+          {/* ── Step progress indicator ── */}
           <div className="flex items-center gap-1 mb-6">
             {[1, 2, 3, 4].map(s => (
               <button key={s} type="button"
@@ -700,251 +584,53 @@ export default function Register() {
             ))}
           </div>
 
+          {/* ── Step 1: Personal info + phone ── */}
           {step === 1 && (
-            <div className="space-y-3">
-              <div>
-                <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 block flex items-center gap-1">
-                  <User size={11} /> {T("nameRequired")}
-                </label>
-                <input value={name} onChange={e => setName(e.target.value)} placeholder={T("fullName")} className={INPUT} autoFocus />
-              </div>
-              {auth.phoneEnabled && (
-              <div>
-                <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 block flex items-center gap-1">
-                  <Phone size={11} /> {T("phoneRequired")}
-                </label>
-                <PhoneInput
-                  value={phone}
-                  defaultCountryCode="PK"
-                  placeholder="300 1234567"
-                  onChange={(e164, local) => {
-                    setPhoneE164(e164);
-                    setPhone(local);
-                  }}
-                />
-              </div>
-              )}
-              {auth.emailEnabled && (
-              <div>
-                <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 block flex items-center gap-1">
-                  <Mail size={11} /> {T("emailRequired")}
-                </label>
-                <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="email@example.com" className={INPUT} />
-              </div>
-              )}
-              <div>
-                <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 block flex items-center gap-1">
-                  <MapPin size={11} /> Home Address <span className="text-red-500">*</span>
-                </label>
-                <input value={address} onChange={e => setAddress(e.target.value)} placeholder="Full home address" className={INPUT} />
-              </div>
-              <div>
-                <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 block flex items-center gap-1">
-                  <MapPin size={11} /> City <span className="text-red-500">*</span>
-                </label>
-                <select value={city} onChange={e => setCity(e.target.value)} className={SELECT}>
-                  <option value="">Select your city</option>
-                  {AJK_CITIES.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-                {city === "Other" && (
-                  <input value={customCity} onChange={e => setCustomCity(e.target.value)}
-                    placeholder="Enter your city name" className={`${INPUT} mt-2`} />
-                )}
-              </div>
-              <div>
-                <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 block flex items-center gap-1">
-                  <Phone size={11} /> Emergency Contact <span className="text-red-500">*</span>
-                </label>
-                <div className="flex gap-2">
-                  <div className="h-12 px-3 bg-gray-50 border border-gray-200 rounded-xl flex items-center text-sm font-medium text-gray-600">+92</div>
-                  <input type="tel" value={emergencyContact} onChange={e => setEmergencyContact(e.target.value)}
-                    placeholder="Family member / friend" className={`flex-1 ${INPUT}`} />
-                </div>
-                <p className="text-[10px] text-gray-400 mt-1">In case of emergency during delivery</p>
-              </div>
-              <div>
-                <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 block flex items-center gap-1">
-                  <User size={11} /> Username *
-                </label>
-                <input value={username} onChange={e => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
-                  placeholder="e.g. rider_ali" className={INPUT} maxLength={20} />
-                {usernameStatus !== "idle" && (
-                  <p className={`text-[10px] mt-1 font-medium ${
-                    usernameStatus === "checking" ? "text-gray-400" :
-                    usernameStatus === "available" ? "text-green-600" : "text-red-500"
-                  }`}>
-                    {usernameStatus === "checking" ? T("checkingAvailability") :
-                     usernameStatus === "available" ? T("usernameAvailable") : T("usernameTakenShort")}
-                  </p>
-                )}
-                <p className="text-[10px] text-gray-400 mt-0.5">You can use this to log in with username + password later</p>
-              </div>
-
-              {availabilityStatus !== "idle" && (
-                <div className={`text-xs font-medium px-3 py-1.5 rounded-lg ${
-                  availabilityStatus === "checking" ? "bg-gray-50 text-gray-500" :
-                  availabilityStatus === "available" ? "bg-green-50 text-green-700" :
-                  "bg-red-50 text-red-600"
-                }`}>
-                  {availabilityStatus === "checking" ? T("checkingAvailability") :
-                   availabilityStatus === "available" ? T("phoneEmailAvailable") :
-                   T("alreadyRegistered")}
-                </div>
-              )}
-
-              {(auth.googleEnabled || auth.facebookEnabled) && (
-                <div className="pt-2">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="flex-1 h-px bg-gray-200" />
-                    <span className="text-xs text-gray-400 font-medium">{T("orContinueWith")}</span>
-                    <div className="flex-1 h-px bg-gray-200" />
-                  </div>
-                  <div className="space-y-2">
-                    {auth.googleEnabled && (() => {
-                      const hasClientId = !!(auth.googleClientId ?? config.auth?.googleClientId);
-                      return (
-                        <button onClick={() => handleSocialAutofill("google")} disabled={loading}
-                          className="w-full h-11 border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 disabled:opacity-60 relative">
-                          {T("signInWithGoogle")}
-                          {!hasClientId && (
-                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-400 border border-gray-200">
-                              {T("socialLoginComingSoon")}
-                            </span>
-                          )}
-                        </button>
-                      );
-                    })()}
-                    {auth.facebookEnabled && (() => {
-                      const hasAppId = !!(auth.facebookAppId ?? config.auth?.facebookAppId);
-                      return (
-                        <button onClick={() => handleSocialAutofill("facebook")} disabled={loading}
-                          className="w-full h-11 bg-[#1877F2] rounded-xl text-sm font-semibold text-white hover:bg-[#166FE5] transition-colors flex items-center justify-center gap-2 disabled:opacity-60 relative">
-                          {T("signInWithFacebook")}
-                          {!hasAppId && (
-                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-white/20 text-white border border-white/30">
-                              {T("socialLoginComingSoon")}
-                            </span>
-                          )}
-                        </button>
-                      );
-                    })()}
-                  </div>
-                </div>
-              )}
-            </div>
+            <RegisterStepPhone
+              name={name} setName={setName}
+              phone={phone} setPhone={setPhone} setPhoneE164={setPhoneE164}
+              email={email} setEmail={setEmail}
+              address={address} setAddress={setAddress}
+              city={city} setCity={setCity}
+              customCity={customCity} setCustomCity={setCustomCity}
+              emergencyContact={emergencyContact} setEmergencyContact={setEmergencyContact}
+              username={username} setUsername={setUsername}
+              usernameStatus={usernameStatus}
+              availabilityStatus={availabilityStatus}
+              loading={loading}
+              phoneEnabled={auth.phoneEnabled}
+              emailEnabled={auth.emailEnabled}
+              googleEnabled={auth.googleEnabled}
+              facebookEnabled={auth.facebookEnabled}
+              googleClientId={auth.googleClientId ?? config.auth?.googleClientId}
+              facebookAppId={auth.facebookAppId ?? config.auth?.facebookAppId}
+              handleSocialAutofill={handleSocialAutofill}
+              T={T}
+            />
           )}
 
+          {/* ── Step 2: Vehicle info + documents ── */}
           {step === 2 && (
-            <div className="space-y-3">
-              <div>
-                <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 block flex items-center gap-1">
-                  <FileText size={11} /> {T("cnicRequired")}
-                </label>
-                <input value={cnic} onChange={e => setCnic(formatCnic(e.target.value))} placeholder="00000-0000000-0"
-                  className={INPUT} inputMode="numeric" autoFocus />
-                <p className="text-[10px] text-gray-400 mt-1">{T("cnicFormat")}</p>
-              </div>
-              <div>
-                <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 block flex items-center gap-1">
-                  <Car size={11} /> {T("vehicleTypeRequired")}
-                </label>
-                <select value={vehicleType} onChange={e => setVehicleType(e.target.value)} className={SELECT}>
-                  <option value="">{T("selectVehicleType")}</option>
-                  {VEHICLE_TYPES.map(v => (
-                    <option key={v.value} value={v.value}>{T(v.labelKey)}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 block flex items-center gap-1">
-                  <Car size={11} /> Registration / Plate # <span className="text-red-500">*</span>
-                </label>
-                <input value={vehicleReg} onChange={e => setVehicleReg(e.target.value.toUpperCase())} placeholder="e.g. AJK 1234"
-                  className={`${INPUT} uppercase`} />
-              </div>
-              <div>
-                <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 block">
-                  {T("drivingLicenseRequired")}
-                </label>
-                <input value={drivingLicense} onChange={e => setDrivingLicense(e.target.value)} placeholder="License number"
-                  className={INPUT} />
-              </div>
-
-              <div className="border-t border-gray-100 pt-3 mt-1">
-                <p className="text-[11px] font-bold text-gray-600 uppercase tracking-wider mb-2 flex items-center gap-1">
-                  <Camera size={12} /> KYC Documents <span className="text-red-500">*</span>
-                </p>
-                <div className="space-y-2">
-                  <FileUploadBox
-                    label="Vehicle Photo"
-                    icon={<Image size={20} className="text-gray-500" />}
-                    value={vehiclePhoto}
-                    onChange={f => handleFileUpload(f, "vehicle", setVehiclePhoto)}
-                    required
-                    optimising={optimisingField === "vehicle"}
-                    uploading={uploadingField === "vehicle"}
-                    error={uploadErrors["vehicle"]}
-                    onRetry={uploadErrors["vehicle"] && lastFiles["vehicle"] ? () => handleFileUpload(lastFiles["vehicle"], "vehicle", setVehiclePhoto) : undefined}
-                  />
-                  <FileUploadBox
-                    label="CNIC Front"
-                    icon={<FileText size={20} className="text-blue-500" />}
-                    value={cnicPhoto}
-                    onChange={f => handleFileUpload(f, "cnic", setCnicPhoto)}
-                    required
-                    optimising={optimisingField === "cnic"}
-                    uploading={uploadingField === "cnic"}
-                    error={uploadErrors["cnic"]}
-                    onRetry={uploadErrors["cnic"] && lastFiles["cnic"] ? () => handleFileUpload(lastFiles["cnic"], "cnic", setCnicPhoto) : undefined}
-                  />
-                  <FileUploadBox
-                    label="CNIC Back"
-                    icon={<FileText size={20} className="text-blue-400" />}
-                    value={cnicBackPhoto}
-                    onChange={f => handleFileUpload(f, "cnicBack", setCnicBackPhoto)}
-                    required
-                    optimising={optimisingField === "cnicBack"}
-                    uploading={uploadingField === "cnicBack"}
-                    error={uploadErrors["cnicBack"]}
-                    onRetry={uploadErrors["cnicBack"] && lastFiles["cnicBack"] ? () => handleFileUpload(lastFiles["cnicBack"], "cnicBack", setCnicBackPhoto) : undefined}
-                  />
-                  <FileUploadBox
-                    label="Driving License Photo"
-                    icon={<FileText size={20} className="text-purple-500" />}
-                    value={licensePhoto}
-                    onChange={f => handleFileUpload(f, "license", setLicensePhoto)}
-                    required
-                    optimising={optimisingField === "license"}
-                    uploading={uploadingField === "license"}
-                    error={uploadErrors["license"]}
-                    onRetry={uploadErrors["license"] && lastFiles["license"] ? () => handleFileUpload(lastFiles["license"], "license", setLicensePhoto) : undefined}
-                  />
-                </div>
-                <div className="bg-blue-50 border border-blue-100 rounded-xl p-2.5 mt-2 flex items-start gap-2">
-                  <AlertCircle size={13} className="text-blue-500 flex-shrink-0 mt-0.5" />
-                  <p className="text-[10px] text-blue-700 leading-relaxed">
-                    <strong>All 4 documents are mandatory.</strong> Upload clear, legible photos for faster admin approval. Your account will be activated after document verification.
-                  </p>
-                </div>
-              </div>
-
-              <div className="border-t border-gray-100 pt-3 mt-1">
-                <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 block flex items-center gap-1">
-                  <FileText size={11} /> Additional Notes (Optional)
-                </label>
-                <textarea
-                  value={registrationNote}
-                  onChange={e => setRegistrationNote(e.target.value)}
-                  placeholder="Any additional information you'd like to share with the admin (e.g., experience, availability, preferred areas...)"
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:bg-white transition-all resize-none"
-                  rows={3}
-                  maxLength={500}
-                />
-                <p className="text-[10px] text-gray-400 mt-1 text-right">{registrationNote.length}/500</p>
-              </div>
-            </div>
+            <RegisterStepPersonal
+              cnic={cnic} setCnic={setCnic}
+              vehicleType={vehicleType} setVehicleType={setVehicleType}
+              vehicleReg={vehicleReg} setVehicleReg={setVehicleReg}
+              drivingLicense={drivingLicense} setDrivingLicense={setDrivingLicense}
+              registrationNote={registrationNote} setRegistrationNote={setRegistrationNote}
+              vehiclePhoto={vehiclePhoto} setVehiclePhoto={setVehiclePhoto}
+              cnicPhoto={cnicPhoto} setCnicPhoto={setCnicPhoto}
+              cnicBackPhoto={cnicBackPhoto} setCnicBackPhoto={setCnicBackPhoto}
+              licensePhoto={licensePhoto} setLicensePhoto={setLicensePhoto}
+              handleFileUpload={handleFileUpload}
+              uploadErrors={uploadErrors}
+              lastFiles={lastFiles}
+              optimisingField={optimisingField}
+              uploadingField={uploadingField}
+              T={T}
+            />
           )}
 
+          {/* ── Step 3: Password + terms ── */}
           {step === 3 && (
             <div className="space-y-3">
               <div>
@@ -991,6 +677,7 @@ export default function Register() {
             </div>
           )}
 
+          {/* ── Step 4: OTP verification ── */}
           {step === 4 && (
             <div className="space-y-3">
               <div className="text-center mb-2">
@@ -1105,6 +792,7 @@ export default function Register() {
             </div>
           )}
 
+          {/* ── Error display ── */}
           {error && (
             <div className="mt-3 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
               <p className="text-red-600 text-sm">{error}</p>
@@ -1116,6 +804,7 @@ export default function Register() {
             </div>
           )}
 
+          {/* ── Navigation buttons ── */}
           <div className="flex gap-2 mt-5">
             {step > 1 && (
               <button onClick={() => { setStep(step - 1); clearError(); }}

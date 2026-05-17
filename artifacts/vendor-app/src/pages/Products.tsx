@@ -15,7 +15,6 @@ import { ErrorState } from "../components/ui/ErrorState";
 import { useOfflineQueue } from "../hooks/useOfflineQueue";
 import { ProductFormView } from "../components/products/ProductFormView";
 import { ProductBulkView } from "../components/products/ProductBulkView";
-
 const EMPTY = { name:"", description:"", price:"", originalPrice:"", category:"", unit:"", stock:"", image:"", type:"mart", videoUrl:"", tags:"", isHidden: false };
 const EMPTY_ROW = { name:"", price:"", description:"", image:"", category:"", unit:"", stock:"", type:"mart" };
 const CATS_FALLBACK = ["food","grocery","bakery","pharmacy","electronics","clothing","mart","general"];

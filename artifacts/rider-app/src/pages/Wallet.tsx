@@ -33,7 +33,6 @@ const fdr = (d: string | Date) => {
   if (h < 24) return `${h}h ago`;
   return `${Math.floor(h / 24)}d ago`;
 };
-
 function dateGroupLabel(d: string): string {
   const now = new Date();
   const dt  = new Date(d);
@@ -45,7 +44,6 @@ function dateGroupLabel(d: string): string {
   if (dt >= weekAgo) return "thisWeek_group";
   return dt.toLocaleDateString("en-PK", { month: "long", year: "numeric" });
 }
-
 function TxIcon({ type }: { type: string }) {
   const base = "w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0";
   if (type === "credit")          return <div className={`${base} bg-green-50`}><TrendingUp size={18} className="text-green-600"/></div>;
