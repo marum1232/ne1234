@@ -5,7 +5,8 @@ import { ordersTable, usersTable, walletTransactionsTable, promoCodesTable, prod
 import { eq, and, gte, count, sum, desc, SQL, sql, inArray, ilike, isNull } from "drizzle-orm";
 import { generateId } from "../lib/id.js";
 import { getPlatformSettings } from "./admin.js";
-import { addSecurityEvent, addAuditEntry, getClientIp, getCachedSettings, customerAuth, idorGuard } from "../middleware/security.js";
+import { addSecurityEvent, getClientIp, getCachedSettings, customerAuth, idorGuard } from "../middleware/security.js";
+import { AuditService } from "../services/admin-audit.service.js";
 import { adminAuth, type AdminRequest } from "./admin-shared.js";
 import { verifyOwnership } from "../middleware/verifyOwnership.js";
 import { getIO, emitRiderNewRequest } from "../lib/socketio.js";
@@ -128,7 +129,7 @@ async function broadcastStockUpdates(
       if (row.stock !== null && row.stock < LOW_STOCK_THRESHOLD) {
         io.to("admin-fleet").emit("product:stock_low", { ...payload, isLow: true, threshold: LOW_STOCK_THRESHOLD });
       }
-      addAuditEntry({
+      AuditService.log({
         action: "stock:updated",
         ip: "system",
         details: `Stock updated: "${row.name}" (${row.id}) → ${row.stock ?? 0} units [order decrement]`,

@@ -18,7 +18,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import {
   ShoppingBag, ArrowRight, Loader2, Eye, EyeOff,
-  ShieldCheck, KeyRound, ChevronLeft,
+  ShieldCheck, ChevronLeft, KeyRound,
 } from "lucide-react";
 
 export interface LoginScreenProps {
@@ -255,6 +255,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
               : "Don't have your authenticator code? Contact your administrator."}
           </p>
         </div>
+
 
         <p style={{ textAlign: "center", fontSize: 11, color: "rgba(255,255,255,0.2)", marginTop: 24 }}>
           AJKMart Admin &copy; {new Date().getFullYear()}

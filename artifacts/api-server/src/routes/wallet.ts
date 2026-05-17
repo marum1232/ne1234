@@ -6,7 +6,8 @@ import { usersTable, walletTransactionsTable, notificationsTable, adminAccountsT
 import { eq, and, gte, sum, desc, sql } from "drizzle-orm";
 import { generateId } from "../lib/id.js";
 import { adminAuth } from "./admin.js";
-import { customerAuth, checkAvailableRateLimit, getClientIp, JWT_SECRET, addAuditEntry, getCachedSettings } from "../middleware/security.js";
+import { customerAuth, checkAvailableRateLimit, getClientIp, JWT_SECRET, getCachedSettings } from "../middleware/security.js";
+import { AuditService } from "../services/admin-audit.service.js";
 import { t } from "@workspace/i18n";
 import { getUserLanguage } from "../lib/getUserLanguage.js";
 import { getIO } from "../lib/socketio.js";
@@ -357,7 +358,7 @@ router.post("/topup", adminAuth, async (req, res) => {
     broadcastWalletUpdate(userId, result);
     const io = getIO();
     if (io) io.to("admin-fleet").emit("wallet:admin-topup", { userId, amount: topupAmt, balance: result, method: method || "admin_topup" });
-    addAuditEntry({ action: "wallet_topup", adminId: req.adminId, ip: getClientIp(req), details: `Admin topup Rs. ${topupAmt} via ${method || "admin_topup"} for user ${userId}`, result: "success", affectedUserId: userId });
+    AuditService.log({ action: "wallet_topup", adminId: req.adminId, ip: getClientIp(req), details: `Admin topup Rs. ${topupAmt} via ${method || "admin_topup"} for user ${userId}`, result: "success", affectedUserId: userId });
     const transactions = await db.select().from(walletTransactionsTable).where(eq(walletTransactionsTable.userId, userId));
     sendSuccess(res, { balance: result, transactions: transactions.map(mapTx) });
   } catch (e: unknown) {

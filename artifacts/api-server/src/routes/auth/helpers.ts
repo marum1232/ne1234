@@ -347,6 +347,7 @@ export async function issueTokensForUser(user: any, ip: string, method: string, 
 
   return {
     token: accessToken,
+    accessToken,
     refreshToken: refreshRaw,
     expiresAt: new Date(Date.now() + getAccessTokenTtlSec() * 1000).toISOString(),
     sessionDays: getRefreshTokenTtlDays(),

@@ -41,32 +41,6 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
   const [biometricEnabled, setBiometricEnabled] = useState(false);
 
   const capturedTokenRef = useRef("");
-  const capturedRefreshRef = useRef<string | undefined>();
-
-  /* ── fetch interceptor: captures token/refreshToken from auth responses ── */
-  useEffect(() => {
-    const AUTH_PATHS = ["/api/auth/verify-otp", "/api/auth/login", "/api/auth/2fa/verify"];
-    const origFetch = window.fetch;
-    window.fetch = async (...args: Parameters<typeof fetch>): Promise<Response> => {
-      const res = await origFetch(...args);
-      const url = typeof args[0] === "string" ? args[0] : (args[0] as Request).url;
-      if (!AUTH_PATHS.some(p => url.includes(p))) return res;
-      try {
-        const json = await res.json() as Record<string, unknown>;
-        const data = json?.data as Record<string, unknown> | undefined;
-        const rawToken = (data?.token ?? json?.token) as string | undefined;
-        const rawRefresh = (data?.refreshToken ?? json?.refreshToken) as string | undefined;
-        if (rawToken) capturedTokenRef.current = rawToken;
-        if (rawRefresh) capturedRefreshRef.current = rawRefresh;
-        if (data && rawToken && !data.accessToken) {
-          (data as Record<string, unknown>).accessToken = rawToken;
-          json.data = data;
-        }
-        return new Response(JSON.stringify(json), { status: res.status, headers: { "Content-Type": "application/json" } });
-      } catch { return res; }
-    };
-    return () => { window.fetch = origFetch; };
-  }, []);
 
   /* ── check biometric enrollment ── */
   useEffect(() => {
@@ -79,19 +53,24 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
     check();
   }, []);
 
+  interface ExtendedSDKUser extends SDKAuthUser {
+    approvalStatus?: string;
+    rejectionReason?: string | null;
+  }
+
   const handleSuccess = useCallback(async (sdkUser: SDKAuthUser, _sdkToken: string) => {
     setLoginError(null);
-    const u = sdkUser as unknown as Record<string, unknown>;
-    const approvalStatus = u.approvalStatus as string | undefined;
-    const rejReason = u.rejectionReason as string | null | undefined;
+    const u = sdkUser as ExtendedSDKUser;
+    const approvalStatus = u.approvalStatus;
+    const rejReason = u.rejectionReason;
 
     if (approvalStatus === "pending") { setOverlay("pending"); return; }
     if (approvalStatus === "rejected") { setRejectionReason(rejReason ?? null); setOverlay("rejected"); return; }
 
-    const accessToken = capturedTokenRef.current || (_sdkToken ?? "");
-    const refreshToken = capturedRefreshRef.current;
+    const accessToken = _sdkToken ?? "";
+    capturedTokenRef.current = accessToken;
+    api.storeTokens(accessToken, undefined);
 
-    api.storeTokens(accessToken, refreshToken);
     let profile: SDKAuthUser;
     try {
       profile = await api.getMe() as SDKAuthUser;
@@ -101,25 +80,20 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
       return;
     }
 
-    const { isBiometricAvailable } = await import("../biometric").catch(() => ({ isBiometricAvailable: async () => false }));
-    const bioAvail = await isBiometricAvailable();
-    if (bioAvail && !biometricEnabled && refreshToken) {
-      setOverlay("biometric");
-      return;
-    }
-
-    login(accessToken, profile, refreshToken);
+    login(accessToken, profile, undefined);
     onSuccess?.(accessToken, profile);
     navigate("/");
-  }, [biometricEnabled, login, navigate, T, onSuccess]);
+  }, [login, navigate, T, onSuccess]);
 
   const confirmBiometric = async (enable: boolean) => {
-    if (enable && capturedRefreshRef.current) {
-      const { setBiometricEnabled, storeBiometricToken } = await import("../biometric").catch(() => ({} as never));
+    if (enable) {
+      const { setBiometricEnabled } = await import("../biometric").catch(() => ({} as never));
       if (setBiometricEnabled) await setBiometricEnabled(true);
-      if (storeBiometricToken) await storeBiometricToken(capturedRefreshRef.current);
     }
-    login(capturedTokenRef.current, await api.getMe() as SDKAuthUser, capturedRefreshRef.current);
+    try {
+      const profile = await api.getMe() as SDKAuthUser;
+      login(capturedTokenRef.current, profile, undefined);
+    } catch { /* profile fetch failed, just navigate */ }
     setOverlay(null);
     navigate("/");
   };

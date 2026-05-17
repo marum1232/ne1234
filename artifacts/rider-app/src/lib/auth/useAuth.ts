@@ -76,7 +76,7 @@ export function useAuth() {
         return {
           success: true,
           data: {
-            token: (res.token ?? res.accessToken) as string,
+            token: res.accessToken as string,
             refreshToken: res.refreshToken as string | undefined,
             requires2FA: res.requires2FA as boolean | undefined,
             tempToken: res.tempToken as string | undefined,

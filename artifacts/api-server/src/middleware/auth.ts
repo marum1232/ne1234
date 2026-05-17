@@ -6,6 +6,14 @@ import { eq } from "drizzle-orm";
 import { logger } from "../lib/logger.js";
 import { addSecurityEvent, getClientIp, verifyUserJwt, writeAuthAuditLog, isSessionHashBlacklisted } from "./security.js";
 
+/** Extended JWT payload shape that includes custom claims added at sign-time. */
+interface JwtPayloadExtended {
+  userId: string;
+  jti?: string;
+  tokenFamilyId?: string;
+  [key: string]: unknown;
+}
+
 /**
  * checkSessionRevocation — Express middleware that checks whether the incoming
  * access token's session has been explicitly revoked by the user.
@@ -82,7 +90,7 @@ export async function verifyTokenFamily(req: Request, res: Response, next: NextF
       return;
     }
 
-    const tokenFamilyId = (payload as unknown as Record<string, unknown>)["tokenFamilyId"] as string | undefined;
+    const tokenFamilyId = (payload as JwtPayloadExtended).tokenFamilyId;
 
     if (!tokenFamilyId) {
       next();

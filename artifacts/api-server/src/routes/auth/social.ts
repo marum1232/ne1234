@@ -9,7 +9,8 @@ import { generateId } from "../../lib/id.js";
 import { getPlatformSettings } from "../admin.js";
 import { emitWebhookEvent } from "../../lib/webhook-emitter.js";
 import { fireAndForget } from "../../lib/fireAndForget.js";
-import { checkLockout, recordFailedAttempt, resetAttempts, addAuditEntry, addSecurityEvent, getClientIp, getCachedSettings, signUserJwt, signAccessToken, sign2faChallengeToken, verify2faChallengeToken, generateRefreshToken, hashRefreshToken, isRefreshTokenValid, revokeRefreshToken, revokeAllUserRefreshTokens, verifyUserJwt, blacklistJti, writeAuthAuditLog, getRefreshTokenTtlDays, getAccessTokenTtlSec, verifyCaptcha, checkAvailableRateLimit } from "../../middleware/security.js";
+import { checkLockout, recordFailedAttempt, resetAttempts, addSecurityEvent, getClientIp, getCachedSettings, signUserJwt, signAccessToken, sign2faChallengeToken, verify2faChallengeToken, generateRefreshToken, hashRefreshToken, isRefreshTokenValid, revokeRefreshToken, revokeAllUserRefreshTokens, verifyUserJwt, blacklistJti, writeAuthAuditLog, getRefreshTokenTtlDays, getAccessTokenTtlSec, verifyCaptcha, checkAvailableRateLimit } from "../../middleware/security.js";
+import { AuditService } from "../../services/admin-audit.service.js";
 import { sendOtpSMS, isSMSProviderConfigured, isSMSConsoleActive } from "../../services/sms.js";
 import { sendOtpWithFailover, getWhitelistBypass } from "../../services/smsGateway.js";
 import { sendWhatsAppOTP, isWhatsAppProviderConfigured } from "../../services/whatsapp.js";
@@ -145,7 +146,7 @@ router.post("/social/google", sharedValidateBody(SocialGoogleSchema), async (req
     }
   }
 
-  addAuditEntry({ action: "social_google_login", ip, details: `Google login: ${email ?? googleId}`, result: "success" });
+  AuditService.log({ action: "social_google_login", ip, details: `Google login: ${email ?? googleId}`, result: "success" });
   const result = await issueTokensForUser(user!, ip, "social_google", req.headers["user-agent"] as string, req, res);
   sendSuccess(res, { ...result, isNewUser, needsProfileCompletion: isNewUser || !user!.cnic || !user!.name });
   } catch (err) {
@@ -255,7 +256,7 @@ router.post("/social/facebook", sharedValidateBody(SocialFacebookSchema), async 
     }
   }
 
-  addAuditEntry({ action: "social_facebook_login", ip, details: `Facebook login: ${email ?? facebookId}`, result: "success" });
+  AuditService.log({ action: "social_facebook_login", ip, details: `Facebook login: ${email ?? facebookId}`, result: "success" });
   const result = await issueTokensForUser(user!, ip, "social_facebook", req.headers["user-agent"] as string, req, res);
   sendSuccess(res, { ...result, isNewUser, needsProfileCompletion: isNewUser || !user!.cnic || !user!.name });
   } catch (err) {
@@ -306,7 +307,7 @@ router.post("/link-google", sharedValidateBody(LinkGoogleSchema), async (req, re
 
     await db.update(usersTable).set(updates).where(eq(usersTable.id, auth.userId));
 
-    addAuditEntry({ action: "google_account_linked", ip, details: `Google account linked: ${email ?? googleId}`, result: "success" });
+    AuditService.log({ action: "google_account_linked", ip, details: `Google account linked: ${email ?? googleId}`, result: "success" });
     sendSuccess(res, undefined, "Google account linked successfully");
   } catch (err: any) {
     sendErrorWithData(res, "Invalid Google token", { detail: err.message }, 400);
@@ -360,7 +361,7 @@ router.post("/link-facebook", sharedValidateBody(LinkFacebookSchema), async (req
 
     await db.update(usersTable).set(updates).where(eq(usersTable.id, auth.userId));
 
-    addAuditEntry({ action: "facebook_account_linked", ip, details: `Facebook account linked: ${facebookId}`, result: "success" });
+    AuditService.log({ action: "facebook_account_linked", ip, details: `Facebook account linked: ${facebookId}`, result: "success" });
     sendSuccess(res, undefined, "Facebook account linked successfully");
   } catch (err: any) {
     sendErrorWithData(res, "Failed to link Facebook account", { detail: err.message }, 400);

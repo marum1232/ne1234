@@ -9,7 +9,8 @@ import { generateId } from "../../lib/id.js";
 import { getPlatformSettings } from "../admin.js";
 import { emitWebhookEvent } from "../../lib/webhook-emitter.js";
 import { fireAndForget } from "../../lib/fireAndForget.js";
-import { checkLockout, recordFailedAttempt, resetAttempts, addAuditEntry, addSecurityEvent, getClientIp, getCachedSettings, signUserJwt, signAccessToken, sign2faChallengeToken, verify2faChallengeToken, generateRefreshToken, hashRefreshToken, isRefreshTokenValid, revokeRefreshToken, revokeAllUserRefreshTokens, verifyUserJwt, blacklistJti, writeAuthAuditLog, getRefreshTokenTtlDays, getAccessTokenTtlSec, verifyCaptcha, checkAvailableRateLimit } from "../../middleware/security.js";
+import { checkLockout, recordFailedAttempt, resetAttempts, addSecurityEvent, getClientIp, getCachedSettings, signUserJwt, signAccessToken, sign2faChallengeToken, verify2faChallengeToken, generateRefreshToken, hashRefreshToken, isRefreshTokenValid, revokeRefreshToken, revokeAllUserRefreshTokens, verifyUserJwt, blacklistJti, writeAuthAuditLog, getRefreshTokenTtlDays, getAccessTokenTtlSec, verifyCaptcha, checkAvailableRateLimit } from "../../middleware/security.js";
+import { AuditService } from "../../services/admin-audit.service.js";
 import { sendOtpSMS, isSMSProviderConfigured, isSMSConsoleActive } from "../../services/sms.js";
 import { sendOtpWithFailover, getWhitelistBypass } from "../../services/smsGateway.js";
 import { sendWhatsAppOTP, isWhatsAppProviderConfigured } from "../../services/whatsapp.js";
@@ -150,7 +151,7 @@ router.post("/2fa/verify-setup", sharedValidateBody(TotpCodeSchema), async (req,
 
   const ip = getClientIp(req);
   writeAuthAuditLog("2fa_enabled", { userId: auth.userId, ip, userAgent: req.headers["user-agent"] as string });
-  addAuditEntry({ action: "2fa_enabled", ip, details: `2FA enabled for user ${auth.userId}`, result: "success" });
+  AuditService.log({ action: "2fa_enabled", ip, details: `2FA enabled for user ${auth.userId}`, result: "success" });
 
   sendSuccess(res, { success: true, backupCodes, message: "2FA activated. Save your backup codes securely — they cannot be shown again." });
   } catch (err) {
@@ -231,7 +232,7 @@ router.post("/totp/enable", sharedValidateBody(TotpCodeSchema), async (req, res)
 
   const ip = getClientIp(req);
   writeAuthAuditLog("2fa_enabled", { userId: auth.userId, ip, userAgent: req.headers["user-agent"] as string });
-  addAuditEntry({ action: "2fa_enabled", ip, details: `2FA enabled for user ${auth.userId} via /auth/totp/enable`, result: "success" });
+  AuditService.log({ action: "2fa_enabled", ip, details: `2FA enabled for user ${auth.userId} via /auth/totp/enable`, result: "success" });
 
   sendSuccess(res, { success: true, backupCodes, message: "2FA activated. Save your backup codes securely — they cannot be shown again." });
   } catch (err) {
@@ -317,7 +318,7 @@ router.post("/2fa/disable", sharedValidateBody(TotpCodeSchema), async (req, res)
 
   const ip = getClientIp(req);
   writeAuthAuditLog("2fa_disabled", { userId: auth.userId, ip, userAgent: req.headers["user-agent"] as string });
-  addAuditEntry({ action: "2fa_disabled", ip, details: `2FA disabled by user ${auth.userId}`, result: "success" });
+  AuditService.log({ action: "2fa_disabled", ip, details: `2FA disabled by user ${auth.userId}`, result: "success" });
 
   sendSuccess(res, undefined, "Two-factor authentication has been disabled");
   } catch (err) {

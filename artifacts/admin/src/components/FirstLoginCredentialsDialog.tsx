@@ -22,8 +22,6 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useAdminAuth } from "@/lib/adminAuthContext";
 
-const DOCUMENTED_DEFAULT_PASSWORD = "Admin@123";
-
 function validateStrength(pw: string): string | null {
   if (pw.length < 8) return "Password must be at least 8 characters.";
   if (!/[A-Z]/.test(pw)) return "Password must contain at least 1 uppercase letter.";
@@ -69,6 +67,7 @@ export function FirstLoginCredentialsDialog() {
   useEffect(() => { if (!state.accessToken) setOpen(false); }, [state.accessToken]);
 
   const [username, setUsername] = useState("");
+  const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPasswords, setShowPasswords] = useState(false);
@@ -79,6 +78,7 @@ export function FirstLoginCredentialsDialog() {
   useEffect(() => {
     if (open) {
       setUsername(state.user?.username ?? "");
+      setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
       setFormError(null);
@@ -113,14 +113,18 @@ export function FirstLoginCredentialsDialog() {
     }
 
     if (wantsPasswordChange) {
+      if (!currentPassword) {
+        setFormError("Enter your current password to confirm the change.");
+        return;
+      }
       if (newPassword !== confirmPassword) {
         setFormError("The new password and confirmation do not match.");
         return;
       }
       const strengthError = validateStrength(newPassword);
       if (strengthError) { setFormError(strengthError); return; }
-      if (newPassword === DOCUMENTED_DEFAULT_PASSWORD) {
-        setFormError("The new password must be different from the default.");
+      if (newPassword === currentPassword) {
+        setFormError("The new password must be different from your current password.");
         return;
       }
     }
@@ -129,7 +133,7 @@ export function FirstLoginCredentialsDialog() {
     try {
       if (wantsPasswordChange) {
         try {
-          await changePassword(DOCUMENTED_DEFAULT_PASSWORD, newPassword);
+          await changePassword(currentPassword, newPassword);
           setPasswordSavedThisSession(true);
           setNewPassword("");
           setConfirmPassword("");
@@ -246,6 +250,31 @@ export function FirstLoginCredentialsDialog() {
                 Leave unchanged to keep the current username.
               </p>
             </div>
+
+            {/* Current password (required when changing password) */}
+            {!passwordSavedThisSession && (
+              <div className="space-y-1.5">
+                <label
+                  htmlFor="flcd-current"
+                  className="block text-[11px] font-semibold uppercase tracking-widest text-muted-foreground"
+                >
+                  Current password
+                </label>
+                <div className="relative">
+                  <Input
+                    id="flcd-current"
+                    type={showPasswords ? "text" : "password"}
+                    value={currentPassword}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCurrentPassword(e.target.value)}
+                    placeholder="Your current password"
+                    autoComplete="current-password"
+                    disabled={submitting}
+                    className="h-10 rounded-lg border-border/70 bg-muted/40 pr-10 text-sm focus:border-amber-400 focus:ring-amber-400/20 transition-colors"
+                    data-testid="input-current-password"
+                  />
+                </div>
+              </div>
+            )}
 
             {/* Password section */}
             {passwordSavedThisSession ? (

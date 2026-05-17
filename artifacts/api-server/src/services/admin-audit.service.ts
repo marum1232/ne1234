@@ -21,7 +21,28 @@ export interface AuditWrapperInput {
   affectedUserRole?: string;
 }
 
+/** Thin pass-through parameters for inline audit logging. */
+export interface AuditLogInput {
+  action: string;
+  ip: string;
+  adminId?: string;
+  adminName?: string;
+  affectedUserId?: string;
+  affectedUserName?: string;
+  affectedUserRole?: string;
+  details?: string;
+  result: "success" | "fail" | "pending";
+}
+
 export class AuditService {
+  /**
+   * Lightweight inline audit entry — the canonical way to log a single event
+   * from any route without calling `addAuditEntry` directly.
+   */
+  static log(input: AuditLogInput): void {
+    addAuditEntry(input);
+  }
+
   /**
    * Wrap an operation with audit logging
    * Logs both success and failure

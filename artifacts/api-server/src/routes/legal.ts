@@ -10,10 +10,10 @@ import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import {
   invalidatePlatformSettingsCache,
   invalidateSettingsCache,
-  addAuditEntry,
   getClientIp,
   type AdminRequest,
 } from "./admin-shared.js";
+import { AuditService } from "../services/admin-audit.service.js";
 import { sendSuccess, sendError, sendCreated } from "../lib/response.js";
 import { validateBody } from "../middleware/validate.js";
 import { logger } from '../lib/logger.js';
@@ -218,7 +218,7 @@ router.post(
         if (wasInserted && isCurrent && body.policy === "terms") {
           const result = await resetAcceptedTermsVersion();
           if (result.ok) {
-            addAuditEntry({
+            AuditService.log({
               action: "terms_version_published",
               ip: getClientIp(req),
               adminId: (req as AdminRequest).adminId,
@@ -227,7 +227,7 @@ router.post(
             });
           }
         } else if (wasInserted && isCurrent) {
-          addAuditEntry({
+          AuditService.log({
             action: "terms_version_published",
             ip: getClientIp(req),
             adminId: (req as AdminRequest).adminId,
