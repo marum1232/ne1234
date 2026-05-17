@@ -95,7 +95,7 @@ async function getAll(): Promise<QueuedAction[]> {
     /* Sort strictly FIFO by creation time so status transitions replay in the
        correct order (e.g. accepted → in_transit → completed, never reversed). */
     return all.sort((a, b) => a.createdAt - b.createdAt);
-  } catch (err) { console.warn('[artifacts/rider-app/src/lib/offline/queueManager.ts]', err); } // eslint-disable-line no-console
+  } catch (err) { console.warn('[artifacts/rider-app/src/lib/offline/queueManager.ts]', err); return []; } // eslint-disable-line no-console
 }
 
 async function removeAction(id: string): Promise<void> {
@@ -192,7 +192,7 @@ export async function getDeadLetterQueue(): Promise<DeadLetterEntry[]> {
       req.onsuccess = () => resolve((req.result ?? []) as DeadLetterEntry[]);
       req.onerror = () => reject(req.error);
     });
-  } catch (err) { console.warn('[artifacts/rider-app/src/lib/offline/queueManager.ts]', err); } // eslint-disable-line no-console
+  } catch (err) { console.warn('[artifacts/rider-app/src/lib/offline/queueManager.ts]', err); return []; } // eslint-disable-line no-console
 }
 
 export async function clearDeadLetterEntry(id: string): Promise<void> {

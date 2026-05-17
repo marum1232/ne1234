@@ -43,7 +43,7 @@ interface HomeRequestListProps {
   userId: string;
   isRestricted: boolean;
   onRetry: () => void;
-  T: (key: string) => string;
+  T: (key: import("@workspace/i18n").TranslationKey) => string;
 }
 
 export function HomeRequestList({

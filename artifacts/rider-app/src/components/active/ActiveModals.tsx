@@ -16,8 +16,8 @@ export interface ActiveModalsProps {
   setShowAdminChat: (v: boolean) => void;
   chatReply: string;
   setChatReply: (v: string) => void;
-  adminMessages: Array<{ text: string; ts: string; from: string }>;
-  setAdminMessages: (fn: (prev: Array<{ text: string; ts: string; from: string }>) => Array<{ text: string; ts: string; from: string }>) => void;
+  adminMessages: Array<{ text: string; ts: string; from: "rider" | "admin" }>;
+  setAdminMessages: (fn: (prev: Array<{ text: string; ts: string; from: "rider" | "admin" }>) => Array<{ text: string; ts: string; from: "rider" | "admin" }>) => void;
   socketRef: React.RefObject<{ emit: (event: string, data: unknown) => void } | null>;
   order: Record<string, unknown> | null;
   ride: Record<string, unknown> | null;
@@ -26,7 +26,7 @@ export interface ActiveModalsProps {
   verifyOtpMut: { mutate: (args: { id: string; otp: string }) => void; isPending: boolean };
   handleMarkDelivered: (id: string, forceNoPhoto?: boolean) => void;
   proofUploading: boolean;
-  T: (key: string) => string;
+  T: (key: import("@workspace/i18n").TranslationKey) => string;
 }
 
 export function ActiveModals({

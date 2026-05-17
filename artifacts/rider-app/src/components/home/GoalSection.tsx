@@ -9,7 +9,7 @@ interface GoalSectionProps {
   personalGoal: number | null;
   todayEarnings: number;
   currency: string;
-  T: (key: string) => string;
+  T: (key: import("@workspace/i18n").TranslationKey) => string;
   showToast: (msg: string, type: "success" | "error") => void;
   refreshUser: () => Promise<void>;
 }

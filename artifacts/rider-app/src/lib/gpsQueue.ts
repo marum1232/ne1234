@@ -175,7 +175,7 @@ export async function dequeueAll(): Promise<QueuedPing[]> {
       req.onsuccess = () => resolve((req.result ?? []) as QueuedPing[]);
       req.onerror   = () => reject(req.error);
     });
-  } catch (err) { console.warn('[artifacts/rider-app/src/lib/gpsQueue.ts]', err); } // eslint-disable-line no-console
+  } catch (err) { console.warn('[artifacts/rider-app/src/lib/gpsQueue.ts]', err); return []; } // eslint-disable-line no-console
 }
 
 export async function clearQueue(ids: string[]): Promise<void> {
@@ -202,7 +202,7 @@ export async function queueSize(): Promise<number> {
       req.onsuccess = () => resolve(req.result);
       req.onerror   = () => reject(req.error);
     });
-  } catch (err) { console.warn('[artifacts/rider-app/src/lib/gpsQueue.ts]', err); } // eslint-disable-line no-console
+  } catch (err) { console.warn('[artifacts/rider-app/src/lib/gpsQueue.ts]', err); return 0; } // eslint-disable-line no-console
 }
 
 /* ── Dismissed-request store ──────────────────────────────────────────────────
@@ -250,7 +250,7 @@ export async function loadDismissed(): Promise<Set<string>> {
       purgeExpiredDismissed(expired.map(e => e.id));
     }
     return new Set(valid.map(e => e.id));
-  } catch (err) { console.warn('[artifacts/rider-app/src/lib/gpsQueue.ts]', err); } // eslint-disable-line no-console
+  } catch (err) { console.warn('[artifacts/rider-app/src/lib/gpsQueue.ts]', err); return new Set(); } // eslint-disable-line no-console
 }
 
 /** Purge expired entries from the dismissed store (fire-and-forget) */

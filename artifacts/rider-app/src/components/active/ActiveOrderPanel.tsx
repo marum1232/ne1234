@@ -46,14 +46,14 @@ export interface ActiveOrderPanelProps {
   setProofFile: (v: File | null) => void;
   setProofFileName: (v: string) => void;
   setShowNoPhotoWarning: (v: boolean) => void;
-  photoInputRef: RefObject<HTMLInputElement>;
+  photoInputRef: RefObject<HTMLInputElement | null>;
   handlePhotoCapture: (e: ChangeEvent<HTMLInputElement>) => void;
   handleMarkDelivered: (id: string, forceNoPhoto?: boolean) => void;
   setCancelTarget: (v: "order" | "ride") => void;
   setShowCancelConfirm: (v: boolean) => void;
   pressedBtn: string | null;
   setPressedBtn: (v: string | null) => void;
-  T: (key: string) => string;
+  T: (key: import("@workspace/i18n").TranslationKey) => string;
 }
 
 export function ActiveOrderPanel({
@@ -142,14 +142,14 @@ export function ActiveOrderPanel({
                 <div className="flex-1">
                   <p className="text-[10px] text-orange-500 font-bold uppercase tracking-wider">Vendor / Store</p>
                   <p className="text-base font-black text-gray-900 mt-0.5">{(order.vendorStoreName as string) || "Store"}</p>
-                  {order.vendorPhone && (
+                  {!!order.vendorPhone && (
                     <p className="text-xs text-gray-500 mt-1 flex items-center gap-1"><Phone size={10}/> {order.vendorPhone as string}</p>
                   )}
                 </div>
               </div>
             </div>
 
-            {order.items && Array.isArray(order.items) && (order.items as unknown[]).length > 0 && (
+            {Array.isArray(order.items) && (order.items as unknown[]).length > 0 && (
               <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100">
                 <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-3 flex items-center gap-1.5">
                   <Package size={11}/> Items to Collect ({(order.items as unknown[]).length})
@@ -168,7 +168,7 @@ export function ActiveOrderPanel({
               </div>
             )}
 
-            {order.vendorAddress && (
+            {!!order.vendorAddress && (
               <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100 rounded-2xl p-4">
                 <div className="flex items-start gap-3">
                   <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center flex-shrink-0 shadow-md shadow-blue-200">
@@ -184,7 +184,7 @@ export function ActiveOrderPanel({
 
             <div className="grid grid-cols-2 gap-2">
               <NavButton label={T("goToStore")} lat={order.vendorLat as number} lng={order.vendorLng as number} address={(order.vendorAddress || order.vendorStoreName) as string} color="orange" />
-              {order.vendorPhone && <CallButton phone={order.vendorPhone as string} label="Call Store" name={order.vendorStoreName as string} />}
+              {!!order.vendorPhone && <CallButton phone={order.vendorPhone as string} label="Call Store" name={order.vendorStoreName as string} />}
             </div>
 
             {riderPos && order.vendorLat != null && order.vendorLng != null && (
@@ -239,7 +239,7 @@ export function ActiveOrderPanel({
             <p className="text-sm font-black text-white uppercase tracking-wide">Step 2 — Deliver</p>
           </div>
           <div className="p-4 space-y-3">
-            {order.customerName && (
+            {!!order.customerName && (
               <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100 rounded-2xl px-4 py-3.5 flex items-center gap-3">
                 <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center flex-shrink-0 shadow-md shadow-blue-200">
                   <User size={22} className="text-white"/>
@@ -247,7 +247,7 @@ export function ActiveOrderPanel({
                 <div>
                   <p className="text-[10px] text-blue-500 font-bold uppercase tracking-wider">Customer</p>
                   <p className="text-base font-black text-gray-900">{order.customerName as string}</p>
-                  {order.customerPhone && <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1"><Phone size={10}/> {order.customerPhone as string}</p>}
+                  {!!order.customerPhone && <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1"><Phone size={10}/> {order.customerPhone as string}</p>}
                 </div>
               </div>
             )}

@@ -23,7 +23,7 @@ export interface ActiveRidePanelProps {
   pressedBtn: string | null;
   setPressedBtn: (v: string | null) => void;
   showToast: (msg: string, isError?: boolean) => void;
-  T: (key: string) => string;
+  T: (key: import("@workspace/i18n").TranslationKey) => string;
 }
 
 export function ActiveRidePanel({
@@ -119,7 +119,7 @@ export function ActiveRidePanel({
           </div>
         </div>
 
-        {ride.customerName && (
+        {!!ride.customerName && (
           <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100 rounded-2xl px-4 py-3.5 flex items-center gap-3">
             <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center flex-shrink-0 shadow-md shadow-blue-200">
               <User size={22} className="text-white"/>
@@ -127,7 +127,7 @@ export function ActiveRidePanel({
             <div className="flex-1">
               <p className="text-[10px] text-blue-500 font-bold uppercase tracking-wider">Passenger</p>
               <p className="text-base font-black text-gray-900">{ride.customerName as string}</p>
-              {ride.customerPhone && <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
+              {!!ride.customerPhone && <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.36 13a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 21 17z"/></svg>
                 {ride.customerPhone as string}
               </p>}

@@ -7,7 +7,7 @@ interface HomeDailyGoalProps {
   todayEarnings: number;
   currency: string;
   openGoalModal: () => void;
-  T: (key: string) => string;
+  T: (key: import("@workspace/i18n").TranslationKey) => string;
 }
 
 export function HomeDailyGoal({ adminGoal, personalGoal, todayEarnings, currency, openGoalModal, T }: HomeDailyGoalProps) {

@@ -60,7 +60,7 @@ export function useAuth() {
   async function verifyOtp(phone: string, otp: string): Promise<AuthResult<TokenPair>> {
     return wrap(async () => {
       try {
-        const res = await api.verifyOtp({ phone, otp }) as Record<string, unknown>;
+        const res = await api.verifyOtp(phone, otp) as Record<string, unknown>;
         return { success: true, data: { token: res.accessToken as string, refreshToken: res.refreshToken as string | undefined } };
       } catch (err: unknown) {
         await captureException(err);
@@ -72,7 +72,7 @@ export function useAuth() {
   async function loginWithPassword(identifier: string, password: string): Promise<AuthResult<TokenPair & { requires2FA?: boolean; tempToken?: string }>> {
     return wrap(async () => {
       try {
-        const res = await api.loginWithPassword({ identifier, password }) as Record<string, unknown>;
+        const res = await api.loginUsername(identifier, password) as Record<string, unknown>;
         return {
           success: true,
           data: {
@@ -92,7 +92,7 @@ export function useAuth() {
   async function register(body: Record<string, unknown>): Promise<AuthResult<{ token?: string; user?: unknown }>> {
     return wrap(async () => {
       try {
-        const res = await api.register(body) as Record<string, unknown>;
+        const res = await api.registerRider(body as Parameters<typeof api.registerRider>[0]) as Record<string, unknown>;
         return { success: true, data: res as never };
       } catch (err: unknown) {
         await captureException(err);

@@ -388,7 +388,7 @@ function AppRoutes() {
 
   if (!user) return (
     <Switch>
-      <Route path="/register" component={Register} />
+      <Route path="/register">{() => <Register />}</Route>
       <Route path="/forgot-password" component={ForgotPassword} />
       <Route><Login /></Route>
     </Switch>

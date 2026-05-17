@@ -11,7 +11,7 @@ interface HomeGoalModalProps {
   currency: string;
   earningsData: { dailyGoal?: number } | undefined;
   user: { dailyGoal?: number } | null | undefined;
-  T: (key: string) => string;
+  T: (key: import("@workspace/i18n").TranslationKey) => string;
 }
 
 export function HomeGoalModal({ onClose, goalInput, setGoalInput, handleSaveGoal, goalMutation, config, currency, earningsData, user, T }: HomeGoalModalProps) {

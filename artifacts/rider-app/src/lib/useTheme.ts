@@ -3,8 +3,8 @@ import { useState, useEffect, useCallback } from "react";
 const THEME_KEY = "ajkmart_dark_mode";
 
 export function useTheme() {
-  const [isDark, setIsDark] = useState(() => {
-    try { return localStorage.getItem(THEME_KEY) === "true"; } catch (err) { console.warn('[artifacts/rider-app/src/lib/useTheme.ts]', err); } // eslint-disable-line no-console
+  const [isDark, setIsDark] = useState<boolean>(() => {
+    try { return localStorage.getItem(THEME_KEY) === "true"; } catch (err) { console.warn('[artifacts/rider-app/src/lib/useTheme.ts]', err); return false; } // eslint-disable-line no-console
   });
 
   useEffect(() => {

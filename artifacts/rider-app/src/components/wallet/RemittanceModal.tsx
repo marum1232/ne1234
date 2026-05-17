@@ -4,7 +4,7 @@ import { formatCurrency as _sharedFcR } from "@workspace/api-zod";
 import { api, apiFetch } from "../../lib/api";
 import { createLogger } from "@/lib/logger";
 const log = createLogger("[RemittanceModal]");
-import { useAuth } from "../../lib/auth";
+import { useAuth } from "../../lib/rider-auth";
 import { checkSufficientBalance, checkPromoStackable, validatePromo, type PromoCode } from "../../lib/wallet/validation";
 import {
   X, ArrowLeft, Landmark, Smartphone, ChevronRight,

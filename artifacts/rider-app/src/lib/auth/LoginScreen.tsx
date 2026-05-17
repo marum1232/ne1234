@@ -11,7 +11,7 @@ import { useAuth } from "./useAuth";
 import { useAppStatus } from "./useAppStatus";
 import { useTheme } from "./ThemeContext";
 import { api } from "../api";
-import { useAuth as useAuthContext } from "../rider-auth";
+import { useAuth as useAuthContext, type AuthUser } from "../rider-auth";
 import { usePlatformConfig } from "../useConfig";
 import { useRiderAuthConfig } from "../AuthConfigContext";
 import { useLanguage } from "../useLanguage";
@@ -65,9 +65,9 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
     capturedTokenRef.current = accessToken;
     api.storeTokens(accessToken, undefined);
 
-    let profile: SDKAuthUser;
+    let profile: AuthUser;
     try {
-      profile = await api.getMe() as SDKAuthUser;
+      profile = await api.getMe() as AuthUser;
     } catch (fetchErr: unknown) {
       api.clearTokens();
       setLoginError(fetchErr instanceof Error ? fetchErr.message : T("loginFailed"));
@@ -75,7 +75,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
     }
 
     login(accessToken, profile, undefined);
-    onSuccess?.(accessToken, profile);
+    onSuccess?.(accessToken, profile as unknown as SDKAuthUser);
     navigate("/");
   }, [login, navigate, T, onSuccess]);
 
@@ -85,7 +85,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
       if (setBiometricEnabled) await setBiometricEnabled(true);
     }
     try {
-      const profile = await api.getMe() as SDKAuthUser;
+      const profile = await api.getMe() as AuthUser;
       login(capturedTokenRef.current, profile, undefined);
     } catch { /* profile fetch failed, just navigate */ }
     setOverlay(null);

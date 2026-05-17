@@ -323,7 +323,7 @@ export default function Active() {
     const file = e.target.files?.[0];
     if (!file) return;
     setProofFileName(file.name);
-    let compressed: File;
+    let compressed: File = file;
     try {
       compressed = await compressImage(file, 1920, 1.5 * 1024 * 1024);
     } catch (err) { console.warn('[artifacts/rider-app/src/pages/Active.tsx]', err); } // eslint-disable-line no-console

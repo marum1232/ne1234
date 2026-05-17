@@ -416,7 +416,10 @@ export async function apiFetch(path: string, opts: RequestInit = {}, _returnEnve
   let json: ApiEnvelope;
   try {
     json = await res.json() as ApiEnvelope;
-  } catch (err) { console.warn('[artifacts/rider-app/src/lib/api.ts]', err); } // eslint-disable-line no-console
+  } catch (err) {
+    console.warn('[artifacts/rider-app/src/lib/api.ts]', err); // eslint-disable-line no-console
+    throw new Error("Failed to parse server response as JSON");
+  }
   /* When returnEnvelope is true, the caller receives the full JSON envelope
      (e.g. to read top-level fields like serverTime alongside data). */
   /* Successful response — reset the failure counter for this endpoint so a

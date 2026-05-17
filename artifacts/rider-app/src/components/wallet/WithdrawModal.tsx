@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { formatCurrency as _sharedFcW2 } from "@workspace/api-zod";
-import { useAuth } from "../../lib/auth";
+import { useAuth } from "../../lib/rider-auth";
 import { api, apiFetch } from "../../lib/api";
 import { createLogger } from "@/lib/logger";
 const log = createLogger("[WithdrawModal]");

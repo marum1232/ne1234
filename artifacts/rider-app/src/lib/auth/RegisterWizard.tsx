@@ -21,7 +21,6 @@ import { useRiderAuthConfig } from "../AuthConfigContext";
 import { useLanguage } from "../useLanguage";
 import { tDual, type TranslationKey } from "@workspace/i18n";
 import { executeCaptcha } from "@workspace/auth-utils";
-import { compressImage } from "../lib/imageUtils";
 import { useAuth as useAuthContext } from "../rider-auth";
 import { Lock, Phone, ArrowLeft, Clock, Shield } from "lucide-react";
 
