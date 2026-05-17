@@ -45,6 +45,26 @@ const API = `https://${process.env.EXPO_PUBLIC_DOMAIN ?? ""}/api`;
 
 type PostStep = "auth" | "totp" | "pending" | "complete-profile";
 
+/**
+ * Discriminated result shape returned by auth API endpoints (login, OTP verify,
+ * social/google, social/facebook). All fields are optional so the handler can
+ * safely narrow each variant without casting.
+ */
+interface LoginApiResult {
+  /* 2FA challenge */
+  requires2FA?: boolean;
+  tempToken?: string;
+  userId?: string;
+  /* Pending approval */
+  pendingApproval?: boolean;
+  /* Cross-app account (customer role missing) */
+  wrongApp?: boolean;
+  /* Normal login / social / magic-link */
+  user?: AppUser & { name?: string };
+  token?: string;
+  refreshToken?: string;
+}
+
 async function authPost(path: string, body: object) {
   const res = await fetch(`${API}${path}`, {
     method: "POST",
@@ -141,16 +161,15 @@ export default function AuthScreen() {
 
   /* Called by <LoginScreen onSuccess={...}> when the API returns a result.
      Routes to the appropriate post-auth step or completes login. */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const handleLoginResult = async (res: any) => {
+  const handleLoginResult = async (res: LoginApiResult) => {
     if (res.requires2FA) {
-      setTotpTempToken(res.tempToken);
-      setTotpUserId(res.userId);
+      setTotpTempToken(res.tempToken ?? "");
+      setTotpUserId(res.userId ?? "");
       setStep("totp");
       return;
     }
-    if (res.pendingApproval) {
-      setPendingToken(res.token);
+    if (res.pendingApproval && res.user) {
+      setPendingToken(res.token ?? "");
       setPendingRefreshToken(res.refreshToken);
       setPendingUser(res.user);
       setStep("pending");
@@ -158,11 +177,11 @@ export default function AuthScreen() {
     }
     /* Cross-app account: customer role missing — navigate to wrong-app with token */
     if (res.wrongApp && res.user && res.token) {
-      await login(res.user as AppUser, res.token, res.refreshToken);
+      await login(res.user, res.token, res.refreshToken);
       router.replace("/auth/wrong-app");
       return;
     }
-    if (res.user && !res.user.name) {
+    if (res.user && !res.user.name && res.token) {
       setPendingToken(res.token);
       setPendingRefreshToken(res.refreshToken);
       setPendingUser(res.user);
@@ -170,7 +189,7 @@ export default function AuthScreen() {
       return;
     }
     if (res.user && res.token) {
-      await login(res.user as AppUser, res.token, res.refreshToken);
+      await login(res.user, res.token, res.refreshToken);
       await navigateAfterLogin(res.user);
     }
   };
