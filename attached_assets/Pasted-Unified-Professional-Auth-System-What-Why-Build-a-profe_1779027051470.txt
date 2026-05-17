@@ -1,0 +1,68 @@
+Unified Professional Auth System
+What & Why
+Build a professional-grade, theme-aware authentication system (login + registration) across all four apps — rider-app, vendor-app, admin, and ajkmart — following the same standard used by companies like Uber and Careem: one shared auth engine, each app branded with its own existing colors.
+
+All four apps already have partial auth pages and a shared @workspace/auth-react SDK. This task extends and unifies that into a complete, consistent system with shared components copied into each app's src/lib/auth/ folder (no new monorepo package).
+
+Done looks like
+Each app has src/lib/auth/ThemeContext.tsx, useAuth.ts, RegisterWizard.tsx, LoginScreen.tsx, and Overlay.tsx in place.
+Colors come from each app's existing CSS variables / colors.ts — nothing is hardcoded again.
+LoginScreen renders a two-panel layout (web) or single-column (mobile), using the app's theme.
+RegisterWizard runs the correct step sequence per role: Rider (Phone→OTP→CNIC→Vehicle→Password), Vendor (Store Info→Documents→Bank/Wallet→OTP→Done), Customer (Phone→OTP→Full Name→City→Password).
+Overlay states (pending, rejected, maintenance) wrap the auth screens for Rider and Vendor; maintenance-only overlay for Admin; no overlay for Customer.
+All auth functions (sendOTP, verifyOTP, loginWithPassword, register, biometricLogin) return { success, data, error } and manage loading state.
+OTP countdown timer is visible and rate-limit aware.
+Form drafts persist in localStorage (web) or AsyncStorage (mobile).
+Loading buttons with spinners and consistent error styles match across all apps.
+Sentry error capture is wired in all auth functions when SENTRY_DSN / VITE_SENTRY_DSN env vars exist.
+Existing app routing (Wouter for web, Expo Router for mobile) and backend API calls are unchanged.
+Out of scope
+Creating a new monorepo workspace package for auth — files are copied into each app.
+Changes to the API server routes.
+Native iOS/Android biometric beyond what expo-local-authentication already provides.
+Admin public registration (admin login only, no wizard).
+Steps
+Detect and document themes — Read each app's CSS variables (rider-app/src/index.css, vendor-app/src/index.css, admin/src/index.css, ajkmart/constants/colors.ts) and extract primary, background, text, border, pending, rejected, and maintenance overlay values into a constants file per app (src/lib/auth/theme.ts).
+
+Build shared ThemeContext — Create ThemeContext.tsx with a ThemeProvider component and useTheme() hook. It accepts a typed theme object (AuthTheme) and exposes it to child components. This identical file is placed in all four apps under src/lib/auth/.
+
+Build shared useAuth hook — Create useAuth.ts implementing sendOTP, verifyOTP, loginWithPassword, register, and biometricLogin. Use the existing backend endpoints (/api/auth/*). Web apps use fetch; mobile uses the existing @workspace/api-client-react pattern. All functions return { success, data, error } with internal loading state via useState. Wire Sentry capture on catch blocks when DSN is present.
+
+Build shared Overlay component — Create Overlay.tsx that renders fullscreen overlays for pending, rejected, and maintenance states. Colors come from useTheme(). The overlay wraps children and conditionally shows based on a status prop. Uses View/Modal primitives for mobile and div/portal for web.
+
+Build shared RegisterWizard component — Create RegisterWizard.tsx accepting stepsConfig[], role, and onComplete props. Manages step state, transitions, and OTP verification when step id is 'otp'. Reads theme from useTheme() for step indicator dots, buttons, and headings. Persists partial form data to localStorage (web) or AsyncStorage (mobile) keyed by role. Provide exported riderSteps, vendorSteps, customerSteps configs.
+
+Build shared LoginScreen component — Create LoginScreen.tsx with:
+
+Web: two-panel layout (left = theme primary gradient, right = form).
+Mobile: single-column scrollable layout.
+Tabs/toggle for OTP vs password login.
+"Forgot password" flow (inline OTP reset).
+Biometric login button (shown when previously enrolled).
+OTP countdown timer (60s, disabled resend until elapsed).
+All colors from useTheme().
+Integrate into rider-app — Wrap app root with <ThemeProvider theme={riderTheme}>. Replace artifacts/rider-app/src/pages/Login.tsx and Register.tsx with the new shared components wired to rider steps and theme. Wrap with <Overlay status={riderStatus}>.
+
+Integrate into vendor-app — Same as rider: wrap root with vendor theme, replace artifacts/vendor-app/src/pages/Login.tsx and Register.tsx, wrap with overlay.
+
+Integrate into admin — Wrap admin root with admin theme. Replace artifacts/admin/src/pages/login.tsx with the new LoginScreen (password + 2FA only, no OTP tab, no registration link). Overlay for maintenance only.
+
+Integrate into ajkmart (Expo) — Wrap app root with customer theme. Replace artifacts/ajkmart/app/auth/index.tsx and register.tsx with the new React Native–compatible components. Use View, TextInput, Modal, AsyncStorage. Wire expo-local-authentication for biometric.
+
+Relevant files
+artifacts/rider-app/src/index.css
+artifacts/rider-app/src/pages/Login.tsx
+artifacts/rider-app/src/pages/Register.tsx
+artifacts/rider-app/src/lib/rider-auth.tsx
+artifacts/vendor-app/src/index.css
+artifacts/vendor-app/src/pages/Login.tsx
+artifacts/vendor-app/src/pages/Register.tsx
+artifacts/vendor-app/src/lib/vendor-auth.tsx
+artifacts/admin/src/index.css
+artifacts/admin/src/pages/login.tsx
+artifacts/admin/src/lib/adminAuthContext.tsx
+artifacts/ajkmart/constants/colors.ts
+artifacts/ajkmart/app/auth/index.tsx
+artifacts/ajkmart/app/auth/register.tsx
+artifacts/ajkmart/context/AuthContext.tsx
+lib/auth-react
