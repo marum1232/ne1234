@@ -484,7 +484,6 @@ export const api = {
   loginUsername:(identifier: string, password: string, captchaToken?: string, deviceFingerprint?: string) => apiFetch("/auth/login", { method: "POST", body: JSON.stringify({ identifier, password, role: "rider", captchaToken, deviceFingerprint }) }),
   checkAvailable:(data: { phone?: string; email?: string; username?: string }, signal?: AbortSignal) => apiFetch("/auth/check-available", { method: "POST", body: JSON.stringify(data), ...(signal ? { signal } : {}) }),
   logout:       (refreshToken?: string) => apiFetch("/auth/logout", { method: "POST", body: JSON.stringify({ refreshToken }) }).finally(clearTokens),
-  refreshToken: () => _riderRefresh(),
 
   registerRider: (data: {
     name: string; phone?: string; email?: string; cnic: string; vehicleType: string;
@@ -562,6 +561,9 @@ export const api = {
   clearTokens,
   getToken,
   getRefreshToken,
+  /* Mutex-guarded token refresh — all callers share a single in-flight promise
+     so concurrent refresh attempts never race each other. */
+  refreshToken: () => _riderRefresh(),
   registerLogoutCallback,
 
   /* Rider */

@@ -32,13 +32,25 @@ function isValidCnic(cnic: string): boolean {
   return /^\d{5}-\d{7}-\d$/.test(cnic.trim());
 }
 
-/* ── Validate Pakistani phone: 03XXXXXXXXX or +92XXXXXXXXXX ── */
-function isValidPakistaniPhone(phone: string): boolean {
+/* ── Canonicalize and validate Pakistani phone ───────────────────────────────
+   Accepts:  03XXXXXXXXX (11 digits) or +92XXXXXXXXXX (+92 then 10 digits)
+   Returns the canonical 03XXXXXXXXX form, or null if the input is invalid.   */
+function canonicalizePhone(phone: string): string | null {
   const trimmed = phone.trim();
+  /* Remove all non-digit characters except a leading + */
   const digits = trimmed.replace(/\D/g, "");
-  if (digits.length === 11 && digits.startsWith("03")) return true;
-  if (trimmed.startsWith("+92") && digits.length === 12 && digits.startsWith("92")) return true;
-  return false;
+  /* +92XXXXXXXXXX → strip country code → prepend 0 */
+  if (trimmed.startsWith("+92") && digits.length === 12 && digits.startsWith("92")) {
+    const local = "0" + digits.slice(2); /* 0 + 10 remaining digits */
+    return local.startsWith("03") ? local : null;
+  }
+  /* 03XXXXXXXXX — already canonical */
+  if (digits.length === 11 && digits.startsWith("03")) return digits;
+  return null;
+}
+
+function isValidPakistaniPhone(phone: string): boolean {
+  return canonicalizePhone(phone) !== null;
 }
 
 /* ── Step 1: Store Info ──────────────────────────────────────────────── */
@@ -114,7 +126,7 @@ function DocumentsStep({ data, onChange, onError }: StepComponentProps) {
         <input className="w-full h-12 px-4 bg-gray-50 border border-gray-200 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-green-500 transition-all"
           value={(data.phone as string) ?? ""}
           onChange={e => { onChange("phone", e.target.value); onError(""); }}
-          placeholder="03XXXXXXXXX" inputMode="tel" maxLength={11} />
+          placeholder="03XXXXXXXXX or +92XXXXXXXXXX" inputMode="tel" maxLength={13} />
       </div>
       <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-center">
         <p className="text-gray-400 text-sm">{T("documentUploadComingSoon")}</p>

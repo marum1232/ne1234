@@ -107,16 +107,16 @@ export function useAuth() {
         const { getBiometricToken } = await import("../biometric").catch(() => ({} as never));
         if (!getBiometricToken) throw new Error("Biometric not available");
         const storedRefreshToken = await getBiometricToken();
-        const res = await fetch("/api/auth/refresh", {
-          method: "POST", credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ refreshToken: storedRefreshToken }),
-        });
-        if (!res.ok) throw new Error("Biometric login failed");
-        const data = await res.json() as Record<string, unknown>;
-        const token = data.accessToken as string | undefined;
-        if (!token) throw new Error("Biometric login failed — no token in response");
-        return { success: true, data: { token, refreshToken: storedRefreshToken } };
+        /* Route through api.refreshToken() — mutex-guarded, single refresh path,
+           prevents race with proactive refresh in useTokenRefresh hook.
+           api.refreshToken() returns a status string ("refreshed"|"transient"|"auth_failed"),
+           NOT a token payload — tokens are written directly to storage on success. */
+        api.storeTokens(api.getToken(), storedRefreshToken);
+        const status = await api.refreshToken();
+        if (status !== "refreshed") throw new Error(`Biometric login failed — refresh status: ${String(status)}`);
+        const token = api.getToken();
+        if (!token) throw new Error("Biometric login failed — no token in storage after refresh");
+        return { success: true, data: { token, refreshToken: api.getRefreshToken() ?? storedRefreshToken } };
       } catch (err: unknown) {
         await captureException(err);
         return { success: false, error: networkError(err) };
@@ -127,16 +127,14 @@ export function useAuth() {
   async function refreshToken(storedRefresh: string): Promise<AuthResult<TokenPair>> {
     return wrap(async () => {
       try {
-        const res = await fetch("/api/auth/refresh", {
-          method: "POST", credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ refreshToken: storedRefresh }),
-        });
-        if (!res.ok) throw new Error("Token refresh failed");
-        const data = await res.json() as Record<string, unknown>;
-        const token = data.accessToken as string | undefined;
-        if (!token) throw new Error("Refresh failed — no token in response");
-        return { success: true, data: { token, refreshToken: data.refreshToken as string | undefined } };
+        /* Route through api.refreshToken() — mutex-guarded, single refresh path.
+           Returns status string — read updated tokens from storage on success. */
+        api.storeTokens(api.getToken(), storedRefresh);
+        const status = await api.refreshToken();
+        if (status !== "refreshed") throw new Error(`Token refresh failed — status: ${String(status)}`);
+        const token = api.getToken();
+        if (!token) throw new Error("Refresh failed — no token in storage after refresh");
+        return { success: true, data: { token, refreshToken: api.getRefreshToken() } };
       } catch (err: unknown) {
         await captureException(err);
         return { success: false, error: networkError(err) };

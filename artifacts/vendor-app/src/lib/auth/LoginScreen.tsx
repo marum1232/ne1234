@@ -66,7 +66,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
     api.storeTokens(token, res.refreshToken);
     try {
       const profile = await api.getMe();
-      login(token, profile, undefined);
+      login(token, profile, res.refreshToken);
       onSuccess?.(token, profile);
       navigate("/");
     } catch (e: unknown) {
@@ -86,7 +86,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
     }
     try {
       const profile = await api.getMe();
-      login(capturedTokenRef.current, profile, undefined);
+      login(capturedTokenRef.current, profile, api.getRefreshToken() || undefined);
       setOverlay(null);
       navigate("/");
     } catch (e: unknown) {

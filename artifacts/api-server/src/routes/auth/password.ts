@@ -109,7 +109,7 @@ router.post("/login", loginLimiter, verifyCaptcha, sharedValidateBody(UserLoginS
    Returns JWT token on success.
 ══════════════════════════════════════════════════════════════ */
 
-router.post("/set-password", sharedValidateBody(SetPasswordSchema), async (req, res) => {
+router.post("/set-password", loginLimiter, sharedValidateBody(SetPasswordSchema), async (req, res) => {
   try {
   /* Accept token from body OR Authorization: Bearer header */
   const authHeader = req.headers["authorization"] as string | undefined;
@@ -124,7 +124,13 @@ router.post("/set-password", sharedValidateBody(SetPasswordSchema), async (req, 
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
   if (!user)         { sendNotFound(res, "User not found"); return; }
   if (user.isBanned) { sendForbidden(res, "Account suspended. Contact support."); return; }
-  if (!user.isActive){ sendForbidden(res, "Account inactive. Contact support."); return; }
+  /* Inactive users are blocked from setting a password — UNLESS they have a
+     pending approval status (vendor/rider onboarding). Pending accounts are
+     inactive by design (isActive = false) until approved, but they still need
+     to set a password during onboarding. */
+  if (!user.isActive && user.approvalStatus !== "pending") {
+    sendForbidden(res, "Account inactive. Contact support."); return;
+  }
 
   /* If user has a non-temporary password, ALWAYS require the current password — no bypass.
      If requirePasswordChange is true (admin set a temp password), skip current-password

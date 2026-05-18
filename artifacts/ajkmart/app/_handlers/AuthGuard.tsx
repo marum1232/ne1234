@@ -5,7 +5,7 @@ import { hasSeenOnboarding } from "@/app/onboarding";
 import { log, GUEST_BROWSABLE, AUTH_REDIRECT_CAP, AUTH_REDIRECT_RESET_MS } from "./_shared";
 
 export function AuthGuard() {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, isSuspended } = useAuth();
   const segments = useSegments();
   const redirectCountRef = useRef(0);
   const redirectResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -37,6 +37,14 @@ export function AuthGuard() {
 
   useEffect(() => {
     if (isLoading) return;
+
+    /* Redirect suspended users to the suspended screen so they see a clear
+       message and cannot access app functionality. */
+    if (isSuspended && segments[0] !== "auth") {
+      safeReplace("/auth/suspended" as import("expo-router").Href);
+      return;
+    }
+
     const inAuthGroup = segments[0] === "auth";
     const inTabsGroup = segments[0] === "(tabs)";
     const inRootIndex = (segments as string[]).length === 0;
@@ -65,15 +73,24 @@ export function AuthGuard() {
           else safeReplace("/landing" as Href);
         })
         .catch(() => { safeReplace("/landing" as Href); });
-    } else if (user && !hasRole(user, "customer") && !onWrongAppScreen) {
-      if (wrongAppRedirectedForRef.current !== user.id) {
-        wrongAppRedirectedForRef.current = user.id;
-        safeReplace("/auth/wrong-app");
+    } else {
+      /* Unified customer-role check — handles both string[] and legacy
+         comma-separated string roles returned by older API payloads.   */
+      const isCustomer = (
+        hasRole(user!, "customer") ||
+        String((user as { roles?: unknown })?.roles ?? "").split(",").map(r => r.trim()).includes("customer")
+      );
+
+      if (user && !isCustomer && !onWrongAppScreen) {
+        if (wrongAppRedirectedForRef.current !== user.id) {
+          wrongAppRedirectedForRef.current = user.id;
+          safeReplace("/auth/wrong-app");
+        }
+      } else if (isCustomer && (inAuthGroup || inRootIndex)) {
+        safeReplace("/(tabs)");
       }
-    } else if (user && hasRole(user, "customer") && (inAuthGroup || inRootIndex)) {
-      safeReplace("/(tabs)");
     }
-  }, [user, isLoading, segments]);
+  }, [user, isLoading, isSuspended, segments]);
 
   return null;
 }

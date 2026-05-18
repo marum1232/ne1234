@@ -135,7 +135,13 @@ router.use("/popups", popupsRouter);
 router.use("/promotions", publicGetLimiter, promotionsRouter);
 router.use("/admin/promotions", adminAuth, promotionsRouter);
 router.use("/support-chat", supportChatRouter);
-router.use("/vendors", publicGetLimiter, publicVendorsRouter);
+/* Public vendor browsing — GET/HEAD only. Authenticated management routes
+   in vendorRouter are guarded by mounting publicVendorsRouter only for read
+   methods so it cannot shadow authenticated vendor management GET routes. */
+router.use("/vendors", publicGetLimiter, (req, res, next) => {
+  if (req.method === "GET" || req.method === "HEAD") return publicVendorsRouter(req, res, next);
+  next();
+});
 router.use("/vendors", vendorRouter);
 router.use("/stats", statsRouter);
 router.use("/metrics", metricsRouter);

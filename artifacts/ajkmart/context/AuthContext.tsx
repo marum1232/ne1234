@@ -587,6 +587,7 @@ function CustomerAuthInner({ children }: { children: React.ReactNode }) {
   const updateUser = (updates: Partial<AppUser>) => {
     if (user) {
       const updated = { ...user, ...updates };
+      userRef.current = updated;
       setUser(updated);
       AsyncStorage.setItem(USER_KEY, JSON.stringify(updated));
     }

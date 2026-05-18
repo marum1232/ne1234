@@ -47,7 +47,7 @@ import {
 
 const router: IRouter = Router();
 
-router.post("/vendor-register", sharedValidateBody(VendorRegisterSchema), async (req, res) => {
+router.post("/vendor-register", loginLimiter, sharedValidateBody(VendorRegisterSchema), async (req, res) => {
   try {
   const auth = extractAuthUser(req);
   if (!auth) {
@@ -58,6 +58,11 @@ router.post("/vendor-register", sharedValidateBody(VendorRegisterSchema), async 
   const { storeName, storeCategory, name, cnic, address, city, bankName, bankAccount, bankAccountTitle, username, acceptedTermsVersion } = req.body;
   if (!storeName) {
     sendError(res, "Store name is required", 400);
+    return;
+  }
+
+  if (cnic && !CNIC_REGEX.test(String(cnic).trim())) {
+    sendError(res, "CNIC must be in format XXXXX-XXXXXXX-X", 400);
     return;
   }
 
@@ -148,7 +153,7 @@ router.post("/vendor-register", sharedValidateBody(VendorRegisterSchema), async 
         INSERT INTO consent_log (id, user_id, consent_type, consent_version, ip_address, created_at)
         VALUES (${generateId()}, ${user.id}, 'terms_acceptance', ${String(acceptedTermsVersion)}, ${ip}, NOW())
       `);
-    } catch (err) { /* intentional: non-fatal guard */ void err; }
+    } catch (err) { logger.warn({ err }, 'consent-log-failed'); }
   }
 
   await db.insert(notificationsTable).values({
@@ -212,7 +217,7 @@ router.post("/vendor-register", sharedValidateBody(VendorRegisterSchema), async 
    Client can use this to check if their token is still valid.
 ───────────────────────────────────────────────────────────── */
 
-router.post("/complete-profile", sharedValidateBody(CompleteProfileSchema), async (req, res) => {
+router.post("/complete-profile", loginLimiter, sharedValidateBody(CompleteProfileSchema), async (req, res) => {
   try {
   /* Accept token from body OR Authorization: Bearer header */
   const authHeader = req.headers["authorization"] as string | undefined;
@@ -322,7 +327,7 @@ router.post("/complete-profile", sharedValidateBody(CompleteProfileSchema), asyn
       if (currentTermsVer && !user.acceptedTermsVersion) {
         updates.acceptedTermsVersion = currentTermsVer;
       }
-    } catch (err) { /* intentional: non-fatal guard */ void err; }
+    } catch (err) { logger.warn({ err }, 'consent-log-failed'); }
   }
 
   if (Object.keys(updates).length === 1) {
@@ -338,7 +343,7 @@ router.post("/complete-profile", sharedValidateBody(CompleteProfileSchema), asyn
         INSERT INTO consent_log (id, user_id, consent_type, consent_version, ip_address, created_at)
         VALUES (${generateId()}, ${userId}, 'terms_acceptance', ${updates.acceptedTermsVersion as string}, ${ip}, NOW())
       `);
-    } catch (err) { /* intentional: non-fatal guard */ void err; }
+    } catch (err) { logger.warn({ err }, 'consent-log-failed'); }
   }
 
   const accessToken = signAccessToken(updated!.id, updated!.phone ?? "", updated!.roles ?? "customer", updated!.roles ?? "customer", updated!.tokenVersion ?? 0);

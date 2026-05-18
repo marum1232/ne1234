@@ -21,7 +21,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as LocalAuthentication from "expo-local-authentication";
 import { MaintenanceOverlay, PendingOverlay, RejectedOverlay } from "./Overlay";
 
-const BIOMETRIC_ENABLED_KEY = "@ajkmart/biometric-enabled";
+const BIOMETRIC_ENABLED_KEY = "@ajkmart_biometric_enabled";
 
 export interface LoginScreenProps {
   onSuccess?: (token: string, profile: SDKAuthUser) => void;
@@ -40,6 +40,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
   const [overlay, setOverlay] = useState<"pending" | "rejected" | "biometric" | null>(null);
   const [rejectionReason, setRejectionReason] = useState<string | null>(null);
   const [biometricEnabled, setBiometricEnabled] = useState(false);
+  const [biometricError, setBiometricError] = useState<string | null>(null);
 
   /* ── Persist token/user across biometric prompt ── */
   const pendingTokenRef = useRef<string>("");
@@ -73,9 +74,9 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
     if (approvalStatus === "pending") { setOverlay("pending"); return; }
     if (approvalStatus === "rejected") { setRejectionReason(rejReason ?? null); setOverlay("rejected"); return; }
 
-    /* If biometric is already enrolled and hardware is available, verify the user
-       before completing login (step-up auth on return sessions). */
+    /* ── STEP-UP: biometric already enrolled — verify before completing login ── */
     if (biometricEnabled && Platform.OS !== "web") {
+      let stepUpPassed = false;
       try {
         const result = await LocalAuthentication.authenticateAsync({
           promptMessage: "Confirm it's you to log in",
@@ -83,19 +84,23 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
           cancelLabel: "Cancel",
           disableDeviceFallback: false,
         });
-        if (!result.success) {
-          /* User cancelled or hardware failed — fall through to password login */
-          completeLogin(token, sdkUser);
-          return;
-        }
+        stepUpPassed = result.success;
       } catch {
-        /* authenticateAsync not available — fall through */
+        /* authenticateAsync not available — treat as passed so login isn't bricked */
+        stepUpPassed = true;
+      }
+      if (!stepUpPassed) {
+        /* Step-up failed or cancelled — BLOCK login entirely.
+           Do NOT store the pending token or show the enrollment overlay.
+           The user must go back and re-enter their credentials. */
+        setBiometricError("Biometric verification failed. Please log in again to continue.");
+        return;
       }
       completeLogin(token, sdkUser);
       return;
     }
 
-    /* First-time login — offer to enroll biometrics */
+    /* ── ENROLL: first-time login — offer to enroll biometrics ── */
     if (!biometricEnabled && Platform.OS !== "web") {
       pendingTokenRef.current = token;
       pendingUserRef.current = sdkUser;
@@ -148,9 +153,14 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
   /* ── Main login ── */
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
+      {biometricError && (
+        <View style={{ padding: 14, backgroundColor: "#fee2e2", borderBottomWidth: 1, borderBottomColor: "#fca5a5" }}>
+          <Text style={{ color: "#b91c1c", fontSize: 13, textAlign: "center" }}>{biometricError}</Text>
+        </View>
+      )}
       <SDKLoginScreen
         role="customer"
-        onSuccess={(user, token) => void handleSuccess(user, token)}
+        onSuccess={(user, token) => { setBiometricError(null); void handleSuccess(user, token); }}
         onRegisterPress={() => router.push("/auth/register")}
         enableSocial={auth.googleEnabled || auth.facebookEnabled}
         onGoogle={auth.googleEnabled ? handleGoogle : undefined}

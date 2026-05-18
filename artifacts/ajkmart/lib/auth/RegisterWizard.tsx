@@ -21,6 +21,7 @@ import { useAuthConfig } from "@/context/AuthConfigContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { tDual, type TranslationKey } from "@workspace/i18n";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { API_BASE } from "@/utils/api";
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, Platform,
 } from "react-native";
@@ -331,7 +332,7 @@ export function RegisterWizard({ onDone }: RegisterWizardProps) {
   const handleDataChange = useCallback((key: string, value: unknown) => {
     setDraft(prev => {
       const next = { ...prev, [key]: value };
-      const { password: _pw, confirmPassword: _cpw, ...safe } = next as Record<string, unknown>;
+      const { password: _pw, confirmPassword: _cpw, otp: _otp, ...safe } = next as Record<string, unknown>;
       AsyncStorage.setItem(DRAFT_KEY, JSON.stringify(safe)).catch(() => {});
       return next;
     });
@@ -344,25 +345,10 @@ export function RegisterWizard({ onDone }: RegisterWizardProps) {
 
   const handleSubmit = async (data: Record<string, unknown>) => {
     try {
-      const envDomain = process.env.EXPO_PUBLIC_DOMAIN?.trim();
-      const webDomain = Platform.OS === "web" && typeof window !== "undefined" ? window.location.hostname : "";
-      const domain = envDomain || webDomain;
-      if (!domain) {
-        return { success: false, error: "App is not configured correctly. Please contact support." };
-      }
-      const API_BASE = `https://${domain}/api`;
-
-      if (data.otp && data.phone) {
-        const verifyRes = await fetch(`${API_BASE}/auth/verify-otp`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ phone: data.phone, otp: data.otp, role: "customer" }),
-        });
-        if (!verifyRes.ok) {
-          const verifyJson = await verifyRes.json() as Record<string, unknown>;
-          return { success: false, error: (verifyJson.message as string) ?? "OTP verification failed" };
-        }
-      }
+      /* OTP verification is handled by the server during registration —
+         the /auth/register endpoint verifies the OTP as part of the flow.
+         A separate /auth/verify-otp call here would double-consume the OTP
+         and cause the registration to fail with "OTP already used". */
 
       const res = await fetch(`${API_BASE}/auth/register`, {
         method: "POST",

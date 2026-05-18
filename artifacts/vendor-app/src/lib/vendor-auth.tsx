@@ -88,18 +88,11 @@ function VendorAuthInner({ children }: { children: ReactNode }) {
     onRefresh: (newTok: string) => { setToken(newTok); },
   });
 
-  /* Re-schedule proactive refresh whenever the access token changes (e.g. after
-     login). useTokenRefresh only schedules from the token present on mount, so
-     for post-login tokens we trigger it here. A small 100 ms delay lets the
-     token propagate to storage before the hook reads it.                        */
-  useEffect(() => {
-    if (!token) return;
-    const remaining = getTokenExpiryRemaining(token);
-    if (remaining <= 0) return;
-    const delayMs = Math.max((remaining - 60) * 1_000, 10_000);
-    const id = setTimeout(() => { sdkRefreshToken(); }, delayMs);
-    return () => clearTimeout(id);
-  }, [token, sdkRefreshToken]);
+  /* useTokenRefresh (above) already handles scheduling proactively based on
+     the stored token and re-triggers on its own after each refresh. An extra
+     useEffect that also calls sdkRefreshToken() creates a duplicate timer,
+     which can fire a second refresh race-concurrently with the first one.
+     Removed: the duplicate post-login scheduling effect that was here. */
 
   /* ── Initial auth bootstrap ── */
   useEffect((): (() => void) | void => {
@@ -126,7 +119,7 @@ function VendorAuthInner({ children }: { children: ReactNode }) {
             : [];
         u.roles = roles;
         if (roles.length > 0 && !roles.includes("vendor")) {
-          api.clearTokens(); setToken(null); sharedAuth.logout(); return;
+          api.clearTokens(); setToken(null); sharedAuth.logout(); setLoading(false); return;
         }
         sharedAuth.login(
           { id: u.id, phone: u.phone, email: u.email, role: "vendor" } satisfies SharedAuthUser,

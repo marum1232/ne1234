@@ -63,7 +63,6 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
 
     const accessToken = _sdkToken ?? "";
     capturedTokenRef.current = accessToken;
-    api.storeTokens(accessToken, undefined);
 
     let profile: AuthUser;
     try {
@@ -74,7 +73,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
       return;
     }
 
-    login(accessToken, profile, undefined);
+    login(accessToken, profile, api.getRefreshToken?.() ?? undefined);
     onSuccess?.(accessToken, profile as unknown as SDKAuthUser);
     navigate("/");
   }, [login, navigate, T, onSuccess]);
@@ -91,7 +90,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
     }
     try {
       const profile = await api.getMe() as AuthUser;
-      login(capturedTokenRef.current, profile, undefined);
+      login(capturedTokenRef.current, profile, api.getRefreshToken?.() ?? undefined);
     } catch { /* profile fetch failed, just navigate */ }
     setOverlay(null);
     navigate("/");

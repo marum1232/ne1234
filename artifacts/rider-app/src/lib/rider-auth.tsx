@@ -12,6 +12,14 @@ import { executeLogoutSequence } from "./logoutSequence";
 import { createLogger } from "@/lib/logger";
 const log = createLogger("[auth]");
 
+/** Normalize a user's roles field — handles both string[] (canonical) and
+ *  legacy single-string role returned by older API payloads. */
+function normalizeRoles(u: { roles?: unknown; role?: unknown }): string[] {
+  if (Array.isArray(u.roles)) return u.roles as string[];
+  if (typeof u.role === "string") return [u.role];
+  return [];
+}
+
 export interface AuthUser {
   id: string; phone: string; name?: string; email?: string;
   avatar?: string; isOnline: boolean; walletBalance: string;
@@ -152,14 +160,9 @@ function RiderAuthInner({ children }: { children: ReactNode }) {
       try {
         const u = await api.getMe(controller.signal);
         if (controller.signal.aborted) return;
-        const rawUser = u as unknown as { role?: string };
-        const roles: string[] = Array.isArray(u.roles)
-          ? u.roles
-          : typeof rawUser.role === "string"
-            ? [rawUser.role]
-            : [];
+        const roles = normalizeRoles(u);
         if (roles.length > 0 && !roles.includes("rider")) {
-          api.clearTokens(); setToken(null); return;
+          api.clearTokens(); setToken(null); setLoading(false); return;
         }
         u.roles = roles;
         sharedAuth.login(
@@ -201,12 +204,7 @@ function RiderAuthInner({ children }: { children: ReactNode }) {
   }, []);
 
   const login = (t: string, u: AuthUser, refreshToken?: string) => {
-    const rawUser = u as unknown as { role?: string };
-    const roles: string[] = Array.isArray(u.roles)
-      ? u.roles
-      : typeof rawUser.role === "string"
-        ? [rawUser.role]
-        : [];
+    const roles = normalizeRoles(u);
     if (roles.length > 0 && !roles.includes("rider")) {
       throw new Error("This app is for riders only");
     }

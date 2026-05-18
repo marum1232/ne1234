@@ -382,7 +382,7 @@ router.post("/send-otp", otpLimiter, verifyCaptcha, sharedValidateBody(sendOtpSc
     if (isDev) {
       deliveryChannel = "dev";
       /* Dev fallback: all channels failed — log OTP to server console only, never in API response */
-      logger.warn({ phone, otp }, "[OTP DEV] All delivery channels failed — OTP logged here for testing only");
+      if (process.env.NODE_ENV !== "production") logger.warn({ phone, otp }, "[OTP DEV] All delivery channels failed — OTP logged here for testing only");
     } else {
       logger.error({ phone }, "All OTP delivery channels failed");
       sendErrorWithData(res, "Could not deliver OTP. Please try again or use an alternative login method.", { fallbackChannels: availableChannels }, 502);
@@ -391,7 +391,7 @@ router.post("/send-otp", otpLimiter, verifyCaptcha, sharedValidateBody(sendOtpSc
   }
 
   /* Dev console delivery: log OTP to server only — never expose in API response */
-  if (isDev && isConsoleDelivery) {
+  if (process.env.NODE_ENV !== "production" && isConsoleDelivery) {
     logger.info({ phone, otp }, "[OTP DEV] Console delivery — OTP logged here for testing only");
   }
 
