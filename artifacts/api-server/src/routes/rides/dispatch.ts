@@ -271,7 +271,7 @@ export async function dispatchScheduledRides(): Promise<void> {
       await db.update(ridesTable)
         .set({ status: "searching", updatedAt: new Date() })
         .where(and(eq(ridesTable.id, ride.id), eq(ridesTable.status, "scheduled")));
-      broadcastRide(ride.id);
+      await broadcastRide(ride.id);
       emitRideDispatchUpdate({ rideId: ride.id, action: "scheduled_dispatch", status: "searching" });
       emitRideUpdate(ride.id);
       logger.info({ rideId: ride.id }, "[scheduled-dispatch] ride activated");

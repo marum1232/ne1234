@@ -243,7 +243,6 @@ function isWalletFrozen(user: { blockedServices: string }): boolean {
 
 /* ── GET /wallet ─────────────────────────────────────────────────────────── */
 router.get("/", customerAuth, async (req, res) => {
-  try {
   const userId = req.customerId!;
 
   try {
@@ -284,10 +283,6 @@ router.get("/", customerAuth, async (req, res) => {
   } catch (e: unknown) {
     logger.error("[wallet GET /] DB error:", e);
     sendError(res, "Something went wrong, please try again.", 500);
-  }
-  } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
-    res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
 
@@ -479,7 +474,6 @@ router.post("/deposit", customerAuth, async (req, res) => {
    Body: { receiverPhone? | ajkId?, amount, note? }
 ─────────────────────────────────────────────────────────────────────────── */
 router.post("/send", customerAuth, async (req, res) => {
-  try {
   const senderId = req.customerId!;
 
   const rawIdemKey =
@@ -555,29 +549,39 @@ router.post("/send", customerAuth, async (req, res) => {
       sendError(res, "Recipient wallet is currently unavailable", 422); return;
     }
 
-    const receiverBalance = parseFloat(receiver.walletBalance ?? "0");
-    if (receiverBalance + amount > maxBalance) {
-      await deleteWalletIdempotency(senderId, "send", rawIdemKey);
-      sendValidationError(res, "Recipient wallet balance limit would be exceeded"); return;
-    }
-
     const txRef = `send:${generateId()}`;
     const description = note ? `Transfer${note ? ` — ${note}` : ""}` : "Wallet transfer";
 
     const newSenderBalance = await db.transaction(async (tx) => {
-      /* Lock sender row to prevent concurrent sends draining balance twice */
-      const [sender] = await tx
-        .select({ walletBalance: usersTable.walletBalance, blockedServices: usersTable.blockedServices })
+      /* Lock both sender and receiver rows (consistent ordering by ID avoids deadlocks) */
+      const lockIds = [senderId, receiver.id].sort();
+      const [rowA] = await tx
+        .select({ id: usersTable.id, walletBalance: usersTable.walletBalance, blockedServices: usersTable.blockedServices })
         .from(usersTable)
-        .where(eq(usersTable.id, senderId))
+        .where(eq(usersTable.id, lockIds[0]!))
         .limit(1)
         .for("update");
+      const [rowB] = await tx
+        .select({ id: usersTable.id, walletBalance: usersTable.walletBalance, blockedServices: usersTable.blockedServices })
+        .from(usersTable)
+        .where(eq(usersTable.id, lockIds[1]!))
+        .limit(1)
+        .for("update");
+
+      const sender   = rowA?.id === senderId    ? rowA : rowB;
+      const lockedRx = rowA?.id === receiver.id ? rowA : rowB;
 
       if (!sender) throw new Error("Sender not found");
       if (isWalletFrozen(sender)) throw Object.assign(new Error("wallet_frozen"), { code: "FROZEN" });
 
       const senderBal = parseFloat(sender.walletBalance ?? "0");
       if (senderBal < amount) throw Object.assign(new Error("Insufficient wallet balance"), { code: "INSUFFICIENT" });
+
+      /* Atomically enforce recipient max-balance limit with the locked row */
+      const receiverBalLocked = parseFloat(lockedRx?.walletBalance ?? "0");
+      if (receiverBalLocked + amount > maxBalance) {
+        throw Object.assign(new Error("Recipient wallet balance limit would be exceeded"), { code: "RECEIVER_LIMIT" });
+      }
 
       /* Deduct from sender */
       const [updatedSender] = await tx
@@ -622,12 +626,9 @@ router.post("/send", customerAuth, async (req, res) => {
     const code = (e as Error & { code?: string }).code;
     if (code === "FROZEN") { sendForbidden(res, "wallet_frozen", "Your wallet has been temporarily frozen. Contact support."); return; }
     if (code === "INSUFFICIENT") { sendError(res, "Insufficient wallet balance", 422); return; }
+    if (code === "RECEIVER_LIMIT") { sendValidationError(res, "Recipient wallet balance limit would be exceeded"); return; }
     logger.error("[wallet /send] Unexpected error:", e);
     sendError(res, "Something went wrong, please try again.", 500);
-  }
-  } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');
-    res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
 
