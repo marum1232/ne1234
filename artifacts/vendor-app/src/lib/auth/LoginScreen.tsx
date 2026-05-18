@@ -78,6 +78,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
   const confirmBiometric = async (enable: boolean) => {
     if (!capturedTokenRef.current) {
       setOverlay(null);
+      navigate("/");
       return;
     }
     if (enable) {
@@ -142,7 +143,15 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
       )}
       <SDKLoginScreen
         role="vendor"
-        onSuccess={(user: unknown, token: string) => void doLogin({ token, user: user as Record<string, unknown> })}
+        onSuccess={(sdkUser: unknown, token: string) => {
+          const u = sdkUser as Record<string, unknown>;
+          void doLogin({
+            token,
+            user: u,
+            approvalStatus: u.approvalStatus as string | undefined,
+            rejectionReason: u.rejectionReason as string | null | undefined,
+          });
+        }}
         onRegisterPress={() => navigate("/register")}
         enableSocial={vendorAuth.google || vendorAuth.facebook}
         onGoogle={vendorAuth.google ? handleGoogle : undefined}

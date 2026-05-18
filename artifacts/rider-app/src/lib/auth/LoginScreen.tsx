@@ -74,9 +74,14 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
     }
 
     login(accessToken, profile, api.getRefreshToken?.() ?? undefined);
+    if (!biometricEnabled) {
+      /* Offer biometric enrollment on first successful login */
+      setOverlay("biometric");
+      return;
+    }
     onSuccess?.(accessToken, profile as unknown as SDKAuthUser);
     navigate("/");
-  }, [login, navigate, T, onSuccess]);
+  }, [biometricEnabled, login, navigate, T, onSuccess]);
 
   const confirmBiometric = async (enable: boolean) => {
     if (!capturedTokenRef.current) {

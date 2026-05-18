@@ -6,7 +6,7 @@
  */
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { router } from "expo-router";
-import { View, Text, StyleSheet, Platform } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, Platform } from "react-native";
 import { LoginScreen as SDKLoginScreen } from "@workspace/auth-react";
 import type { AuthUser as SDKAuthUser } from "@workspace/auth-react";
 import { useAuth } from "./useAuth";
@@ -61,7 +61,8 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
   }, []);
 
   const completeLogin = useCallback((token: string, user: SDKAuthUser) => {
-    login(token, user);
+    /* AuthContext.login signature: (user: AppUser, token: string, refreshToken?) */
+    login(user as never, token);
     onSuccess?.(token, user);
     router.replace("/(tabs)");
   }, [login, onSuccess]);

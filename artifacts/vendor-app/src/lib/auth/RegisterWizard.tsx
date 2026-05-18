@@ -9,7 +9,7 @@
  *
  * Passwords are excluded from the draft to avoid plain-text storage.
  */
-import { useState, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation } from "wouter";
 import { RegisterScreen } from "@workspace/auth-react";
 import type { StepConfig, StepComponentProps } from "@workspace/auth-react";
@@ -175,6 +175,12 @@ function OtpPasswordStep({ data, onChange, onError, onComplete }: StepComponentP
   const [resending, setResending] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(30);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const t = setTimeout(() => setResendCooldown(c => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [resendCooldown]);
 
   const handleOtpChange = (i: number, raw: string) => {
     const v = raw.replace(/\D/g, "").slice(0, 1);
