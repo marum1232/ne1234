@@ -29,7 +29,7 @@ export const RIDER_REFRESH_COOKIE_PATH = "/api/auth";
 export const VENDOR_REFRESH_COOKIE      = "ajkmart_vendor_refresh";
 export const VENDOR_REFRESH_COOKIE_PATH = "/api/auth";
 
-export { CNIC_REGEX, PHONE_REGEX } from "@workspace/phone-utils";
+export { CNIC_REGEX, PHONE_REGEX, isValidCnic, isValidPhone } from "@workspace/phone-utils";
 
 export function hashOtp(otp: string): string {
   return createHash("sha256").update(otp).digest("hex");
@@ -132,7 +132,7 @@ export const registerSchema = z.object({
   role: z.enum(["customer", "rider", "vendor"]).optional(),
   email: z.string().email().optional().or(z.literal("")),
   username: z.string().min(3).max(20).regex(/^[a-z0-9_]+$/, "Username can only contain lowercase letters, numbers, and underscores").optional(),
-  cnic: z.string().regex(/^\d{5}-\d{7}-\d{1}$/, "CNIC format must be XXXXX-XXXXXXX-X").optional().or(z.literal("")),
+  cnic: z.string().regex(CNIC_REGEX, "CNIC format must be XXXXX-XXXXXXX-X").optional().or(z.literal("")),
   nationalId: z.string().optional(),
   vehicleType: z.string().optional(),
   vehicleRegNo: z.string().optional(),
@@ -165,7 +165,7 @@ export const phoneSchema = z
   .string()
   .min(7, "Phone number is required")
   .max(20, "Phone number too long")
-  .regex(/^[\d\s\-()+]{7,20}$/, "Phone number must contain only digits, spaces, dashes, or parentheses");
+  .regex(PHONE_REGEX, "Phone number must be a valid Pakistani mobile number (03XXXXXXXXX)");
 
 export const sendOtpSchema = SendOtpSchema;
 export const verifyOtpSchema = VerifyOtpSchema;

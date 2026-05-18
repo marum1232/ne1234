@@ -99,7 +99,10 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
       /* Role guard — login() also enforces this, but catching here lets us
          surface a meaningful error instead of silently navigating. */
       const roles = normalizeRoles(profile);
-      if (roles.length > 0 && !roles.includes("rider")) {
+      /* Strict role assertion — require rider role unconditionally.
+         Absence of role data (empty array from a malformed payload) also fails,
+         preventing ambiguous profiles from bypassing the guard. */
+      if (!roles.includes("rider")) {
         api.clearTokens();
         setLoginError(T("accessDenied") as string || "Access denied. This app is for riders only.");
         setOverlay(null);

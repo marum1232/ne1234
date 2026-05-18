@@ -564,27 +564,15 @@ router.post("/register", verifyCaptcha, sharedValidateBody(registerSchema), asyn
     }
   }
 
-  if (email) {
-    const normalizedEmail = email.toLowerCase().trim();
-    const [existingEmail] = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.email, normalizedEmail)).limit(1);
-    if (existingEmail) {
-      sendError(res, "An account with this email already exists", 409);
-      return;
-    }
-  }
-
+  /* Email and username normalization is done here (before the transaction) so
+     that `emailForInsert` and `cleanUsername` are available at the insert site.
+     The uniqueness checks are deferred to INSIDE the transaction below, so
+     that an email/username conflict cannot slip through a concurrent insert
+     between this read and the write.                                          */
   let cleanUsername: string | null = null;
   if (username) {
     cleanUsername = username.toLowerCase().trim().replace(/[^a-z0-9_]/g, "").slice(0, 20);
-    if (cleanUsername !== null && cleanUsername.length >= 3) {
-      const [existingUsername] = await db.select({ id: usersTable.id }).from(usersTable).where(sql`lower(${usersTable.username}) = ${cleanUsername}`).limit(1);
-      if (existingUsername) {
-        sendError(res, "This username is already taken", 409);
-        return;
-      }
-    } else {
-      cleanUsername = null;
-    }
+    if (cleanUsername.length < 3) cleanUsername = null;
   }
 
   const requireApproval = (settings["user_require_approval"] ?? "off") === "on";
@@ -622,7 +610,24 @@ router.post("/register", verifyCaptcha, sharedValidateBody(registerSchema), asyn
   /* Wrap the user insert and role-specific profile insert in an atomic transaction
      so a profile-insert failure cannot leave a user row without a matching profile. */
   const emailForInsert = email ? email.toLowerCase().trim() : null;
+  /* try-catch translates __conflict tagged errors thrown from inside the
+     transaction into proper HTTP 409 responses without masking other errors.   */
+  try {
   await db.transaction(async (tx) => {
+    /* ── Email uniqueness (inside transaction for write-atomicity) ────────────
+       Performing this check inside the transaction (rather than before it) closes
+       the TOCTOU window where a concurrent registration with the same email could
+       slip between our read and our write. The DB unique constraint is the final
+       safety net; this check provides a friendly error message before that fires. */
+    if (emailForInsert) {
+      const [existingEmail] = await tx.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.email, emailForInsert)).limit(1);
+      if (existingEmail) throw Object.assign(new Error("An account with this email already exists"), { __conflict: true, status: 409 });
+    }
+    /* ── Username uniqueness (inside transaction for the same reason) ─────── */
+    if (cleanUsername) {
+      const [existingUsername] = await tx.select({ id: usersTable.id }).from(usersTable).where(sql`lower(${usersTable.username}) = ${cleanUsername}`).limit(1);
+      if (existingUsername) throw Object.assign(new Error("This username is already taken"), { __conflict: true, status: 409 });
+    }
     await tx.insert(usersTable).values({
       id: userId,
       phone: normalizedPhone || null,
@@ -674,6 +679,16 @@ router.post("/register", verifyCaptcha, sharedValidateBody(registerSchema), asyn
       });
     }
   });
+  } catch (err) {
+    /* Conflict errors thrown from inside the transaction carry { __conflict: true }.
+       Re-translate them into the proper HTTP 409 response. All other errors are
+       genuine server faults and should bubble up to the global error handler.    */
+    if (err && typeof err === "object" && "__conflict" in err) {
+      sendError(res, (err as Error).message, 409);
+      return;
+    }
+    throw err;
+  }
 
   writeAuthAuditLog("register", { ip, userAgent: req.headers["user-agent"] ?? undefined, metadata: { phone: normalizedPhone, role: userRole } });
   fireAndForget(

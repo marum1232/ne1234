@@ -1,5 +1,5 @@
 import { getVendorApiBase } from "./envValidation";
-import { createApiFetcher, RefreshError, createCircuitBreaker, CircuitOpenError } from "@workspace/api-client-react";
+import { createResilientFetcher, createCircuitBreaker, CircuitOpenError } from "@workspace/api-client-react";
 import { createAuthClient } from "@workspace/auth-react";
 import { createLogger } from "@/lib/logger";
 import { compressImage } from "./imageUtils";
@@ -187,19 +187,18 @@ export function setApiTimeoutMs(ms: number): void {
   if (Number.isFinite(ms) && ms > 0) _apiTimeoutMs = Math.min(ms, 300_000);
 }
 
-/* ── Per-endpoint circuit breaker ─────────────────────────────────────────────
-   Opens after 3 consecutive 5xx failures on the same endpoint (once all
-   built-in retries are exhausted). Rejects new requests for 30 s to stop
-   hammering a degraded server. After cooldown it allows one probe request; on
-   success the circuit closes again, on failure the cooldown resets.           */
+/* ── Per-endpoint circuit breaker for authPost ───────────────────────────────
+   authPost uses a dedicated circuit breaker because it is a separate code path
+   from the main _resiClient (which has its own internal circuit breaker).     */
 const CB_DEFAULT_RETRIES = 3;
 const _circuitBreaker = createCircuitBreaker({ failureThreshold: 3, cooldownMs: 30_000 });
 
-/* ── Shared API fetcher (createApiFetcher factory) ────────────────────────────
-   Centralises: Bearer injection, timeout, 401→refresh (mutex)→retry.
-   Callbacks close over module-level vars so they always reflect current state.
-   _vendorRefresh exposes the mutex-guarded refresh for api.refreshToken. */
-const [_vendorFetcher, _vendorRefresh] = createApiFetcher({
+/* ── Resilient API fetcher (createResilientFetcher from @workspace/api-client-react) ──
+   Replaces the previous createApiFetcher + manual circuit-breaker combination.
+   Provides: Bearer injection, timeout, 401→refresh (mutex)→retry, per-endpoint
+   circuit breaker, and 5xx exponential-backoff retry in one shared instance.
+   _resiClient.refresh() exposes the mutex-guarded refresh for api.refreshToken. */
+const _resiClient = createResilientFetcher({
   baseUrl: BASE,
   getToken: () => _tokenStorage.getAccessToken(),
   setToken: (token: string) => { _tokenStorage.setAccessToken(token); },
@@ -212,35 +211,19 @@ const [_vendorFetcher, _vendorRefresh] = createApiFetcher({
   extraRefreshHeaders: () => ({ "X-App": "vendor" }),
   timeoutMs: () => _apiTimeoutMs,
   credentialsMode: "include",
+  maxRetries: CB_DEFAULT_RETRIES,
+  failureThreshold: 3,
+  cooldownMs: 30_000,
 });
 
-export async function apiFetch(path: string, opts: RequestInit & { _timeoutMs?: number } = {}, _5xxRetries = CB_DEFAULT_RETRIES): Promise<any> {
-  /* Guard: reject immediately if this endpoint's circuit is open.
-     Only checked on the initial call — recursive retries bypass this so they
-     can attempt the back-off sequence before the circuit actually records a
-     failure.  CircuitOpenError is converted to the standard error shape so
-     existing catch blocks that inspect { status, transient } still work. */
-  if (_5xxRetries === CB_DEFAULT_RETRIES) {
-    try {
-      _circuitBreaker.check(path);
-    } catch (err) {
-      if (err instanceof CircuitOpenError) {
-        const coe = err as CircuitOpenError;
-        const retryS = Math.ceil(coe.retryAfterMs / 1000);
-        throw Object.assign(
-          new Error(`Service temporarily unavailable. Please try again in ${retryS}s.`),
-          { status: 503, transient: true, circuitOpen: true }
-        );
-      }
-      throw err;
-    }
-  }
-
+export async function apiFetch(path: string, opts: RequestInit & { _timeoutMs?: number } = {}): Promise<any> {
+  /* _resiClient handles circuit-breaking, 5xx retry, and 401→refresh internally.
+     This wrapper adds CSRF headers and vendor-specific 403 handling on top. */
   const isFormData = opts.body instanceof FormData;
   const method = (opts.method ?? "GET").toUpperCase();
   const isStateMutating = ["POST", "PUT", "PATCH", "DELETE"].includes(method);
   const csrfToken = isStateMutating ? readCsrfFromCookie() : "";
-  const mergedOpts: RequestInit & { _timeoutMs?: number } = {
+  const mergedOpts: RequestInit = {
     ...opts,
     headers: {
       ...(isFormData ? {} : { "Content-Type": "application/json" }),
@@ -249,83 +232,39 @@ export async function apiFetch(path: string, opts: RequestInit & { _timeoutMs?: 
     },
   };
 
-  let res: Response;
   try {
-    res = await _vendorFetcher(path, mergedOpts);
+    return await _resiClient.fetch(path, mergedOpts);
   } catch (err: unknown) {
-    if (err instanceof RefreshError) {
-      const re = err as RefreshError;
-      if (re.isTransient) {
-        /* Transient refresh failure (network/5xx) — keep tokens, surface recoverable error */
-        throw Object.assign(
-          new Error("Connection issue. Please check your network and try again."),
-          { status: 0, transient: true }
-        );
+    /* Vendor-specific 403 handling: distinguish approval-state blocks from
+       auth denials. _resiClient throws { status, responseData } on non-ok responses. */
+    const e = err as { status?: number; responseData?: Record<string, unknown> };
+    if (e.status === 403 && e.responseData) {
+      const body = e.responseData;
+      if (body.pendingApproval) {
+        throw Object.assign(new Error((body.error as string) || "Pending approval"), { status: 403, pendingApproval: true });
       }
-      /* auth_failed — triggerLogout already called via onRefreshFailed */
-      throw Object.assign(
-        new Error("Session expired. Please log in again."),
-        { status: 401 }
-      );
-    }
-    /* Re-throw AbortError unchanged so callers can detect request cancellation */
-    if (err instanceof Error && err.name === "AbortError") throw err;
-    /* Network-level failure (offline, timeout) — never log out for this */
-    throw Object.assign(new Error("Network error. Please check your connection and try again."), { status: 0, transient: true });
-  }
-
-  /* ── 5xx exponential-backoff retry (3 attempts: 1 s / 2 s / 4 s) ────────
-     Server errors are transient by nature; retrying after a short back-off
-     recovers from momentary overloads without surfacing noise to the user.
-     Only 5xx is retried — 4xx errors reflect client-side problems and should
-     not be retried.  401 / 403 have their own dedicated handling below.    */
-  if (res.status >= 500 && _5xxRetries > 0) {
-    const attempt  = 4 - _5xxRetries;                  // 1, 2, 3
-    const delayMs  = 1000 * Math.pow(2, attempt - 1);  // 1 s, 2 s, 4 s
-    log.debug(`5xx retry ${attempt}/3 for ${path} (status ${res.status}) — waiting ${delayMs}ms`);
-    await new Promise(r => setTimeout(r, delayMs));
-    return apiFetch(path, opts, _5xxRetries - 1);
-  }
-
-  if (!res.ok) {
-    /* Record a circuit-breaker failure once all 5xx retries are exhausted.
-       4xx errors reflect client problems, not server overload, so they are
-       deliberately excluded — only sustained 5xx responses open the circuit. */
-    if (res.status >= 500) _circuitBreaker.onFailure(path);
-    if (res.status === 403) {
-      const err = await res.json().catch(() => ({ error: res.statusText }));
-      if (err.pendingApproval) {
-        throw Object.assign(new Error(err.error || "Pending approval"), { status: 403, pendingApproval: true });
+      if (body.rejected) {
+        throw Object.assign(new Error((body.error as string) || "Application rejected"), { status: 403, rejected: true, approvalNote: body.approvalNote });
       }
-      if (err.rejected) {
-        throw Object.assign(new Error(err.error || "Application rejected"), { status: 403, rejected: true, approvalNote: err.approvalNote });
-      }
-      const msg = err.error || "";
-      /* code may live at top level OR inside err.data (sendErrorWithData envelope) */
-      const code = err.code || (err.data as Record<string, unknown> | undefined)?.code as string || "";
-      /* APPROVAL_PENDING and APPROVAL_REJECTED are NOT auth failures — do not force logout */
+      const msg = (body.error as string) || "";
+      const code = (body.code as string) || ((body.data as Record<string, unknown> | undefined)?.code as string) || "";
       const AUTH_DENY_CODES = ["AUTH_REQUIRED", "ROLE_DENIED", "TOKEN_INVALID", "TOKEN_EXPIRED", "ACCOUNT_BANNED"];
       const AUTH_DENY_PHRASES = ["access denied", "forbidden", "unauthorized", "authentication required", "token invalid", "token expired"];
       const isAuthDenial =
         AUTH_DENY_CODES.includes(code) ||
         AUTH_DENY_PHRASES.some(p => msg.toLowerCase().startsWith(p));
-      if (isAuthDenial) {
-        triggerLogout("access_denied");
-      }
+      if (isAuthDenial) triggerLogout("access_denied");
       throw Object.assign(new Error(msg || "Access denied"), { status: 403, code });
     }
-    const err = await res.json().catch(() => ({ error: res.statusText }));
-    try {
-      const { reportApiError } = await import("./error-reporter");
-      reportApiError(path, res.status, err.error || "Request failed");
-    } catch (err) { console.warn('[artifacts/vendor-app/src/lib/api.ts]', err); } // eslint-disable-line no-console
-    throw new Error(err.error || "Request failed");
+    const status = e.status ?? 0;
+    if (status && status !== 401) {
+      try {
+        const { reportApiError } = await import("./error-reporter");
+        reportApiError(path, status, (err as Error).message || "Request failed");
+      } catch (reportErr) { console.warn('[artifacts/vendor-app/src/lib/api.ts]', reportErr); } // eslint-disable-line no-console
+    }
+    throw err;
   }
-  const json = await res.json();
-  /* Successful response — reset the failure counter for this endpoint so a
-     future transient 5xx burst starts counting from zero again. */
-  _circuitBreaker.onSuccess(path);
-  return json.data !== undefined ? json.data : json;
 }
 
 export const api = {
@@ -348,7 +287,7 @@ export const api = {
   resetPassword:(data: { phone?: string; email?: string; identifier?: string; otp: string; newPassword: string; totpCode?: string }) =>
     authPost("/auth/reset-password", data),
   logout:       (refreshToken?: string) => apiFetch("/auth/logout", { method: "POST", headers: { "X-App": "vendor" }, body: JSON.stringify({ refreshToken }) }).finally(clearTokens),
-  refreshToken: () => _vendorRefresh(),
+  refreshToken: () => _resiClient.refresh(),
   checkAvailable: (data: { phone?: string; email?: string; username?: string }, signal?: AbortSignal) =>
     apiFetch("/auth/check-available", { method: "POST", body: JSON.stringify(data), signal }),
   vendorRegister: (data: { phone?: string; email?: string; storeName: string; storeCategory?: string; name?: string; cnic?: string; address?: string; city?: string; bankName?: string; bankAccount?: string; bankAccountTitle?: string; username?: string; acceptedTermsVersion?: string; documents?: string; otp?: string; password?: string }) =>

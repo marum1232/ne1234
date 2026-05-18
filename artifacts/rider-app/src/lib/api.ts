@@ -1,5 +1,5 @@
 import { getRiderApiBase } from "./envValidation";
-import { createApiFetcher, RefreshError, createCircuitBreaker, CircuitOpenError } from "@workspace/api-client-react";
+import { createResilientFetcher } from "@workspace/api-client-react";
 import { createAuthClient } from "@workspace/auth-react";
 import { createLogger } from "@/lib/logger";
 const log = createLogger("[api]");
@@ -66,6 +66,10 @@ export const tokenStoreReady: Promise<void> = (async () => {
   } else {
     _inMemoryAccessToken = await preferencesGet(TOKEN_KEY);
   }
+  /* Restore persisted refresh token (stored by localSet on every login/refresh).
+     Without this, a page reload/app restart would lose the refresh token from
+     memory — forcing the user to re-authenticate even with a valid session. */
+  _inMemoryRefreshToken = await preferencesGet(REFRESH_KEY);
 })();
 
 /* Access token helpers — Preferences-backed, with in-memory cache */
@@ -81,21 +85,20 @@ function sessionRemove(): void {
   preferencesRemove(TOKEN_KEY).catch((err) => { console.warn('[artifacts/rider-app/src/lib/api.ts]', err); }); // eslint-disable-line no-console
 }
 
-/* Refresh token helpers — IN-MEMORY ONLY.
-   The raw value is also delivered as an HttpOnly cookie by the server for
-   subsequent /auth/refresh and /auth/logout calls. The in-memory copy backs
-   the legacy POST-body fallback during the cookie-rollout window. */
+/* Refresh token helpers — Preferences-backed (identical to access token approach).
+   Persisting the refresh token via Capacitor Preferences ensures sessions survive
+   app restarts/PWA reload. The server also delivers it as an HttpOnly cookie, but
+   the Preferences copy is the source of truth for the POST-body refresh call.   */
 function localGet(): string {
   return _inMemoryRefreshToken;
 }
 function localSet(value: string): void {
   _inMemoryRefreshToken = value;
-  /* Note: localStorage migration is handled once at module boot (lines above).
-     Never write back to localStorage here — that defeats the XSS-safety goal. */
+  preferencesSet(REFRESH_KEY, value).catch((err) => { console.warn('[artifacts/rider-app/src/lib/api.ts]', err); }); // eslint-disable-line no-console
 }
 function localRemove(): void {
   _inMemoryRefreshToken = "";
-  /* Same as localSet — do not touch localStorage; boot-time migration already ran. */
+  preferencesRemove(REFRESH_KEY).catch((err) => { console.warn('[artifacts/rider-app/src/lib/api.ts]', err); }); // eslint-disable-line no-console
 }
 
 /* ── Rider token storage — Preferences-backed with in-memory cache ───────────
@@ -206,20 +209,19 @@ export function setApiTimeoutMs(ms: number): void {
   if (Number.isFinite(ms) && ms > 0) _apiTimeoutMs = Math.min(ms, 300_000);
 }
 
-/* ── Per-endpoint circuit breaker ─────────────────────────────────────────────
-   Opens after 3 consecutive 5xx failures on the same endpoint (once all
-   built-in retries are exhausted). Rejects new requests for 30 s to stop
-   hammering a degraded server. After cooldown it allows one probe request; on
-   success the circuit closes again, on failure the cooldown resets.           */
+/* ── Resilient API fetcher (createResilientFetcher from @workspace/api-client-react) ──
+   Single instance providing: Bearer injection, timeout, 401→refresh (mutex)→retry,
+   per-endpoint circuit breaker, and 5xx exponential-backoff retry.
+   No manual circuit-breaker or retry loop needed in apiFetch — all handled here.
+   setToken fires _tokenRefreshCallbacks (socket reconnect) and sweeps stale localStorage.
+   _resiClient.refresh() exposes the mutex-guarded refresh for api.refreshToken.        */
 const CB_DEFAULT_RETRIES = 3;
-const _circuitBreaker = createCircuitBreaker({ failureThreshold: 3, cooldownMs: 30_000 });
-
-/* ── Shared API fetcher (createApiFetcher factory) ────────────────────────────
-   Centralises: Bearer injection, timeout, 401→refresh (mutex)→retry.
-   setToken fires _tokenRefreshCallbacks (socket reconnect) and sweeps stale
-   localStorage keys. _riderRefresh exposes the mutex-guarded refresh for
-   api.refreshToken. */
-const [_riderFetcher, _riderRefresh] = createApiFetcher({
+/* Captures the raw JSON envelope (before data-unwrapping) for the most recent
+   successful response. Used by apiFetch's _returnEnvelope mode so callers that
+   need top-level envelope fields (e.g. _serverTime) can retrieve them without
+   a second request.  Safe for rider's single-context, one-at-a-time usage. */
+let _lastRawJson: unknown = undefined;
+const _resiClient = createResilientFetcher({
   baseUrl: BASE,
   getToken: () => sessionGet() || null,
   setToken: (token: string | null) => {
@@ -235,6 +237,18 @@ const [_riderFetcher, _riderRefresh] = createApiFetcher({
   refreshEndpoint: `${BASE}/auth/refresh`,
   timeoutMs: () => _apiTimeoutMs,
   credentialsMode: "include",
+  maxRetries: CB_DEFAULT_RETRIES,
+  failureThreshold: 3,
+  cooldownMs: 30_000,
+  onRawJson: (json: unknown) => {
+    _lastRawJson = json;
+    /* Capture CSRF token from every auth response so Preferences stays current.
+       storeCsrfToken is a hoisted function declaration — safe to call here. */
+    const csrfInBody = (json as Record<string, unknown>).csrfToken;
+    if (typeof csrfInBody === "string" && csrfInBody) {
+      storeCsrfToken(csrfInBody).catch(() => {});
+    }
+  },
 });
 
 interface ApiEnvelope<T = unknown> {
@@ -335,32 +349,11 @@ function readCsrfFromCookie(): string {
   }
 }
 
-export async function apiFetch(path: string, opts: RequestInit = {}, _returnEnvelope = false, _5xxRetries = CB_DEFAULT_RETRIES): Promise<any> {
+export async function apiFetch(path: string, opts: RequestInit = {}, _returnEnvelope = false): Promise<any> {
   /* Ensure the token store has been seeded from Preferences before any request fires.
-     tokenStoreReady is a one-time async boot step that moves legacy localStorage tokens
-     into Preferences and loads the persisted access token into _inMemoryAccessToken.
-     Without this guard, the first request after a cold restart may be sent without
-     an access token because the async load hasn't resolved yet. */
+     tokenStoreReady resolves once the persisted access + refresh tokens are loaded.
+     Without this guard, the first request after a cold restart fires without a token. */
   await tokenStoreReady;
-  /* Guard: reject immediately if this endpoint's circuit is open.
-     Only checked on the initial call — recursive retries bypass this so they
-     can attempt the back-off sequence before the circuit actually records a
-     failure.  CircuitOpenError is converted to the standard error shape so
-     existing catch blocks that inspect { status, transient } still work. */
-  if (_5xxRetries === CB_DEFAULT_RETRIES) {
-    try {
-      _circuitBreaker.check(path);
-    } catch (err: unknown) {
-      if (err instanceof CircuitOpenError) {
-        const retryS = Math.ceil((err as CircuitOpenError).retryAfterMs / 1000);
-        throw Object.assign(
-          new Error(`Service temporarily unavailable. Please try again in ${retryS}s.`),
-          { status: 503, transient: true, circuitOpen: true }
-        );
-      }
-      throw err;
-    }
-  }
 
   const isFormData = opts.body instanceof FormData;
   const method = (opts.method ?? "GET").toUpperCase();
@@ -375,112 +368,42 @@ export async function apiFetch(path: string, opts: RequestInit = {}, _returnEnve
     },
   };
 
-  let res: Response;
   try {
-    /* `credentials: "include"` ensures the HttpOnly refresh cookie set by the
-       server is sent on every API call. Cookies are scoped server-side to
-       /api/auth so non-auth endpoints will not see them; this is purely
-       enabling the cookie-aware paths. */
-    res = await _riderFetcher(path, mergedOpts);
+    const result = await _resiClient.fetch(path, mergedOpts);
+    /* _returnEnvelope: caller wants the full server envelope (e.g. _serverTime).
+       _lastRawJson is populated by the onRawJson callback before data-unwrapping. */
+    return _returnEnvelope ? _lastRawJson : result;
   } catch (err: unknown) {
-    if (err instanceof RefreshError) {
-      const refreshErr = err as RefreshError;
-      if (refreshErr.isTransient) {
-        /* Transient refresh failure (network/5xx) — keep tokens, surface recoverable error */
-        throw Object.assign(
-          new Error("Connection issue. Please check your network and try again."),
-          { status: 0, transient: true }
-        );
-      }
-      /* auth_failed — triggerLogout already called via onRefreshFailed */
-      throw Object.assign(
-        new Error("Session expired. Please log in again."),
-        { status: 401 }
-      );
-    }
-    /* Re-throw AbortError unchanged so callers can detect request cancellation */
-    if (err instanceof Error && err.name === "AbortError") throw err;
-    /* Network-level failure (offline, timeout) — never log out for this */
-    throw Object.assign(
-      new Error("Network error. Please check your connection and try again."),
-      { status: 0, transient: true }
-    );
-  }
-
-  /* ── 5xx exponential-backoff retry (3 attempts: 1 s / 2 s / 4 s) ────────
-     Server errors are transient by nature; retrying after a short back-off
-     recovers from momentary overloads without surfacing noise to the user.
-     Only 5xx is retried — 4xx errors reflect client-side problems and should
-     not be retried.  401 / 403 have their own dedicated handling below.    */
-  if (res.status >= 500 && _5xxRetries > 0) {
-    const attempt  = 4 - _5xxRetries;                  // 1, 2, 3
-    const delayMs  = 1000 * Math.pow(2, attempt - 1);  // 1 s, 2 s, 4 s
-    log.debug(`5xx retry ${attempt}/3 for ${path} (status ${res.status}) — waiting ${delayMs}ms`);
-    await new Promise(r => setTimeout(r, delayMs));
-    return apiFetch(path, opts, _returnEnvelope, _5xxRetries - 1);
-  }
-
-  if (!res.ok) {
-    /* Record a circuit-breaker failure once all 5xx retries are exhausted.
-       4xx errors reflect client problems, not server overload, so they are
-       deliberately excluded — only sustained 5xx responses open the circuit. */
-    if (res.status >= 500) _circuitBreaker.onFailure(path);
-    const err = await res.json().catch(() => ({ error: res.statusText }));
-    /* 403 handling:
-       - Auth/role denials (missing token, wrong role) trigger logout so the rider is
-         sent to the login screen rather than seeing a cryptic error.
-       - Business-rule 403s (withdrawals paused, feature disabled, etc.) must NOT
-         trigger logout — the rider is still authenticated, just blocked by a policy.
-       We use the backend's `code` field as the reliable machine-readable signal.
-       When `code` is absent we fall back to a short allowlist of auth-specific phrases
-       that the Express riderAuth/customerAuth/adminAuth middleware uses verbatim. */
-    if (res.status === 403) {
-      const msg = err.error || "";
-      /* code and rejectionReason may live at top level OR inside err.data (sendErrorWithData envelope) */
-      const code = err.code || (err.data as Record<string, unknown> | undefined)?.code as string || "";
-      const rejectionReason = err.rejectionReason ?? (err.data as Record<string, unknown> | undefined)?.rejectionReason ?? null;
-      const approvalStatus = err.approvalStatus ?? (err.data as Record<string, unknown> | undefined)?.approvalStatus ?? null;
+    /* Custom 403 handling: distinguish auth denials (force logout) from
+       business-rule blocks (approval pending, feature disabled, etc.).
+       _resiClient throws { status, responseData } on non-ok responses. */
+    const e = err as { status?: number; responseData?: Record<string, unknown> };
+    if (e.status === 403 && e.responseData) {
+      const body = e.responseData;
+      const msg = (body.error as string) || "";
+      /* code and rejectionReason may live at top level OR inside body.data */
+      const code = (body.code as string) || ((body.data as Record<string, unknown> | undefined)?.code as string) || "";
+      const rejectionReason = body.rejectionReason ?? (body.data as Record<string, unknown> | undefined)?.rejectionReason ?? null;
+      const approvalStatus = body.approvalStatus ?? (body.data as Record<string, unknown> | undefined)?.approvalStatus ?? null;
       /* APPROVAL_PENDING and APPROVAL_REJECTED are NOT auth failures — do not force logout */
       const AUTH_DENY_CODES = ["AUTH_REQUIRED", "ROLE_DENIED", "TOKEN_INVALID", "TOKEN_EXPIRED", "ACCOUNT_BANNED"];
       const AUTH_DENY_PHRASES = ["access denied", "forbidden", "unauthorized", "authentication required", "token invalid", "token expired"];
       const isAuthDenial =
         AUTH_DENY_CODES.includes(code) ||
         AUTH_DENY_PHRASES.some(p => msg.toLowerCase().startsWith(p));
-      if (isAuthDenial) {
-        triggerLogout("access_denied");
-      }
+      if (isAuthDenial) triggerLogout("access_denied");
       throw Object.assign(new Error(msg || "Access denied"), { status: 403, code, rejectionReason, approvalStatus });
     }
-    const error = new Error(err.error || "Request failed");
-    Object.assign(error, { responseData: err, status: res.status });
-    try {
-      const { reportApiError } = await import("./error-reporter");
-      reportApiError(path, res.status, err.error || "Request failed");
-    } catch (err) { console.warn('[artifacts/rider-app/src/lib/api.ts]', err); } // eslint-disable-line no-console
-    throw error;
+    /* For non-auth errors, fire the error reporter then re-throw unchanged. */
+    const status = e.status ?? 0;
+    if (status && status !== 401) {
+      try {
+        const { reportApiError } = await import("./error-reporter");
+        reportApiError(path, status, (err as Error).message || "Request failed");
+      } catch (reportErr) { console.warn('[artifacts/rider-app/src/lib/api.ts]', reportErr); } // eslint-disable-line no-console
+    }
+    throw err;
   }
-
-  let json: ApiEnvelope;
-  try {
-    json = await res.json() as ApiEnvelope;
-  } catch (err) {
-    console.warn('[artifacts/rider-app/src/lib/api.ts]', err); // eslint-disable-line no-console
-    throw new Error("Failed to parse server response as JSON");
-  }
-  /* Capture CSRF token from auth responses. The server includes `csrfToken`
-     in login/OTP verify response bodies so we can store it in Preferences
-     rather than relying on document.cookie (which is unreliable in Capacitor). */
-  const csrfInBody = (json as Record<string, unknown>).csrfToken;
-  if (typeof csrfInBody === "string" && csrfInBody) {
-    storeCsrfToken(csrfInBody).catch(() => {});
-  }
-  /* When returnEnvelope is true, the caller receives the full JSON envelope
-     (e.g. to read top-level fields like serverTime alongside data). */
-  /* Successful response — reset the failure counter for this endpoint so a
-     future transient 5xx burst starts counting from zero again. */
-  _circuitBreaker.onSuccess(path);
-  if (_returnEnvelope) return json;
-  return json.data !== undefined ? json.data : json;
 }
 
 export const api = {
@@ -571,7 +494,7 @@ export const api = {
   getRefreshToken,
   /* Mutex-guarded token refresh — all callers share a single in-flight promise
      so concurrent refresh attempts never race each other. */
-  refreshToken: () => _riderRefresh(),
+  refreshToken: () => _resiClient.refresh(),
   registerLogoutCallback,
 
   /* Rider */

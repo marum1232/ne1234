@@ -21,6 +21,13 @@ export interface ResilientFetcherConfig extends CreateApiFetcherConfig {
   failureThreshold?: number;
   /** Circuit-breaker cooldown in ms (default: 30 000). */
   cooldownMs?: number;
+  /**
+   * Called with the raw parsed JSON object on every successful response, before
+   * the server envelope is unwrapped ({data}) and returned to the caller.
+   * Use this to capture top-level envelope fields (e.g. csrfToken) that would
+   * otherwise be stripped by the data-unwrapping step.
+   */
+  onRawJson?: (json: unknown) => void;
 }
 
 export interface ResilientFetcher {
@@ -40,6 +47,7 @@ export function createResilientFetcher(config: ResilientFetcherConfig): Resilien
     maxRetries = 3,
     failureThreshold = 3,
     cooldownMs = 30_000,
+    onRawJson,
     ...fetcherConfig
   } = config;
 
@@ -108,6 +116,9 @@ export function createResilientFetcher(config: ResilientFetcherConfig): Resilien
 
     circuitBreaker.onSuccess(path);
     const json = await res.json().catch(() => ({}));
+    /* Notify the caller about the raw envelope before unwrapping.
+       Consumers can use this to capture top-level fields (e.g. csrfToken). */
+    if (onRawJson) onRawJson(json);
     return (json as { data?: unknown }).data !== undefined ? (json as { data: unknown }).data : json;
   }
 

@@ -7,14 +7,16 @@
  */
 
 import { z } from "zod";
-import { CNIC_REGEX } from "@workspace/phone-utils";
+import { CNIC_REGEX, PHONE_REGEX } from "@workspace/phone-utils";
 
 /* ── Phone number ──────────────────────────────────────────────────── */
 export const PhoneSchema = z
   .string()
   .min(7, "Phone number is required")
   .max(20, "Phone number too long")
-  .regex(/^[\d\s\-()+]{7,20}$/, "Phone must contain only digits, spaces, dashes, or parentheses");
+  /* PHONE_REGEX from @workspace/phone-utils is the single source of truth
+     for Pakistani mobile number format. Do not duplicate inline. */
+  .regex(PHONE_REGEX, "Phone must be a valid Pakistani mobile number (03XXXXXXXXX)");
 
 /* ── Shared field helpers ──────────────────────────────────────────── */
 const positiveAmount = z
