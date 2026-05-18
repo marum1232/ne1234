@@ -275,6 +275,15 @@ router.use(riderAuth);
 /* ── GET /rider/me — Profile ── */
 router.get("/me", async (req, res) => {
   try {
+  /* appRole guard — client must supply ?appRole=rider so the server can
+     reject tokens that belong to a different app context (e.g. a vendor
+     JWT accidentally sent to the rider app). Returns WRONG_ROLE so clients
+     can surface a meaningful "wrong app" error instead of a generic 403. */
+  const appRole = req.query.appRole as string | undefined;
+  if (appRole && appRole !== "rider") {
+    sendErrorWithData(res, "Access denied. This endpoint requires a rider session.", { code: "WRONG_ROLE" }, 403);
+    return;
+  }
   const user = req.riderUser!;
   const riderId = user.id;
   const today = new Date(); today.setHours(0,0,0,0);

@@ -498,7 +498,7 @@ export const api = {
   registerLogoutCallback,
 
   /* Rider */
-  getMe:        (signal?: AbortSignal) => apiFetch("/riders/me", signal ? { signal } : {}),
+  getMe:        (signal?: AbortSignal) => apiFetch("/riders/me?appRole=rider", signal ? { signal } : {}),
   setOnline:    (isOnline: boolean) => apiFetch("/riders/online", { method: "PATCH", body: JSON.stringify({ isOnline }) }),
   updateProfile:(data: any) => apiFetch("/riders/profile", { method: "PATCH", body: JSON.stringify(data) }),
   getRequests:  (): Promise<RiderRequestsResponse> =>

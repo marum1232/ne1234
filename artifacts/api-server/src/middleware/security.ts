@@ -1166,10 +1166,15 @@ export function requireRole(
   };
 }
 
-export async function verifyCaptcha(req: Request, _res: Response, next: NextFunction): Promise<void> {
+export async function verifyCaptcha(req: Request, res: Response, next: NextFunction): Promise<void> {
   /* Captcha is optional — if no secret is configured, pass through */
   const secret = process.env["RECAPTCHA_SECRET_KEY"] ?? process.env["HCAPTCHA_SECRET"];
   if (!secret) { next(); return; }
+
+  /* Check platform setting: captcha_enabled=on makes captcha failures blocking.
+     When captcha_enabled=off (default), captcha is advisory — failures are logged
+     but the request proceeds. This lets operators enable strict mode without a deploy. */
+  const isBlocking = settingsCache["captcha_enabled"] === "on";
 
   const token =
     req.body?.captchaToken ??
@@ -1177,7 +1182,15 @@ export async function verifyCaptcha(req: Request, _res: Response, next: NextFunc
     req.body?.hcaptchaToken ??
     (req.headers["x-captcha-token"] as string | undefined);
 
-  if (!token) { next(); return; /* allow through if client doesn't send token */ }
+  if (!token) {
+    if (isBlocking) {
+      res.status(400).json({ success: false, error: "Captcha token required.", code: "CAPTCHA_REQUIRED" });
+      return;
+    }
+    /* Advisory mode: no token sent — pass through silently */
+    next();
+    return;
+  }
 
   try {
     /* Try hCaptcha first, fall back to reCAPTCHA v3 */
@@ -1191,11 +1204,25 @@ export async function verifyCaptcha(req: Request, _res: Response, next: NextFunc
     const data = await resp.json() as { success?: boolean; score?: number };
 
     if (!data.success) {
-      /* Log failure but don't block — captcha is advisory in this implementation */
-      logger.warn({ url: req.url }, "[captcha] Verification failed — allowing through");
+      if (isBlocking) {
+        logger.warn({ url: req.url }, "[captcha] Verification failed — blocking request (captcha_enabled=on)");
+        res.status(400).json({ success: false, error: "Captcha verification failed. Please try again.", code: "CAPTCHA_FAILED" });
+        return;
+      }
+      /* Advisory mode: verification failed but captcha_enabled is not 'on' — log and allow through */
+      logger.warn({ url: req.url }, "[captcha] Verification failed — allowing through (advisory mode)");
     }
   } catch (err) {
-    logger.debug({ error: err instanceof Error ? err.message : String(err) }, `[fn] Network error — allow through`);
+    if (isBlocking) {
+      /* Strict mode: fail-closed on network/provider error so captcha_enabled=on
+         is never silently bypassed during an outage. Return 503 so the client
+         can surface a "try again" message rather than a generic auth failure. */
+      logger.warn({ url: req.url, error: err instanceof Error ? err.message : String(err) }, "[captcha] Network error — blocking request (captcha_enabled=on strict mode)");
+      res.status(503).json({ success: false, error: "Captcha verification temporarily unavailable. Please try again.", code: "CAPTCHA_UNAVAILABLE" });
+      return;
+    }
+    /* Advisory mode: provider outage — log and allow through to avoid locking users out */
+    logger.debug({ error: err instanceof Error ? err.message : String(err) }, "[captcha] Network error — allowing through (advisory mode)");
   }
   next();
 }

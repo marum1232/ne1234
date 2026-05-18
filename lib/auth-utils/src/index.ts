@@ -1,5 +1,6 @@
 export { executeCaptcha, isRecaptchaLoaded } from "./captcha/index";
 export { canonicalizePhone, formatPhoneForApi, isValidPhone } from "./phone";
+export { decodeJwt, isTokenExpired } from "./jwt";
 export {
   GoogleOAuthProvider,
   useGoogleLogin,

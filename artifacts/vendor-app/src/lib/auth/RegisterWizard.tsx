@@ -22,11 +22,11 @@ import { tDual, type TranslationKey } from "@workspace/i18n";
 import { executeCaptcha } from "@workspace/auth-utils";
 import { Eye, EyeOff } from "lucide-react";
 import { isValidPhone, isValidCnic } from "@workspace/phone-utils";
+import { PAKISTAN_CITIES } from "@workspace/service-constants";
 
 const DRAFT_KEY = "vendor_reg_draft";
 
 const STORE_CATS = ["Grocery","Restaurant","Bakery","Pharmacy","Electronics","Clothing","General Store","Fast Food","Fruits & Vegetables","Dairy","Meat & Poultry","Other"];
-const CITIES = ["Muzaffarabad","Mirpur","Rawalakot","Bagh","Kotli","Bhimber","Jhelum","Rawalpindi","Islamabad","Lahore","Other"];
 
 /* ── Validate Pakistani phone — delegates to shared phone-utils (single source of truth) ── */
 function isValidPakistaniPhone(phone: string): boolean {
@@ -67,7 +67,7 @@ function StoreInfoStep({ data, onChange, onError }: StepComponentProps) {
         <select className="w-full h-12 px-3 bg-gray-50 border border-gray-200 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-green-500 transition-all appearance-none"
           value={(data.city as string) ?? ""} onChange={e => { onChange("city", e.target.value); onError(""); }}>
           <option value="">{T("selectCity")}</option>
-          {CITIES.map(c => <option key={c} value={c}>{c}</option>)}
+          {PAKISTAN_CITIES.map(c => <option key={c} value={c}>{c}</option>)}
         </select>
       </div>
     </div>

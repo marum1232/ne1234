@@ -53,7 +53,14 @@ function profileRateLimit(userId: string, maxPerMin = 10): boolean {
 
 const router: IRouter = Router();
 
-/* /profile and /add-role are role-agnostic — any valid authenticated user can access them */
+/* /profile and /add-role are role-agnostic — any valid authenticated user can access them.
+ *
+ * Optional ?appRole=rider|vendor query parameter:
+ *   When present, the endpoint validates that the authenticated user holds that role.
+ *   Returns 403 { code: "WRONG_ROLE" } when the check fails.
+ *   Client apps can use this as a server-side gate to confirm the token belongs to
+ *   the correct app before navigating to the dashboard — client-side role checks are
+ *   then a secondary UX guard only. */
 router.get("/profile", anyUserAuth, async (req, res) => {
   const userId = req.customerId!;
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
@@ -61,6 +68,21 @@ router.get("/profile", anyUserAuth, async (req, res) => {
     sendNotFound(res, "User not found");
     return;
   }
+
+  /* Role gate: enforce server-side when caller supplies ?appRole= */
+  const appRole = typeof req.query["appRole"] === "string" ? req.query["appRole"] : null;
+  if (appRole === "rider" || appRole === "vendor") {
+    const userRoles = (user.roles ?? "customer").split(",").map((r: string) => r.trim()).filter(Boolean);
+    if (!userRoles.includes(appRole)) {
+      res.status(403).json({
+        success: false,
+        code: "WRONG_ROLE",
+        error: `This token does not have the '${appRole}' role. Please log in with the correct account.`,
+      });
+      return;
+    }
+  }
+
   sendSuccess(res, {
     id: user.id,
     phone: user.phone,

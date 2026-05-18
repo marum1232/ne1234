@@ -40,6 +40,10 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
   const [rejectionReason, setRejectionReason] = useState<string | null>(null);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [biometricEnabled, setBiometricEnabled] = useState(false);
+  /* isProcessing — blocks UI re-interaction during the post-OTP profile fetch.
+     The SDKLoginScreen handles its own in-flight state for OTP submission;
+     this covers the async gap between onSuccess callback and navigate/overlay. */
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const capturedTokenRef = useRef("");
 
@@ -65,23 +69,28 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
     const accessToken = _sdkToken ?? "";
     capturedTokenRef.current = accessToken;
 
+    /* Block re-interaction while the post-auth profile fetch is in-flight */
+    setIsProcessing(true);
     let profile: AuthUser;
     try {
       profile = await api.getMe() as AuthUser;
     } catch (fetchErr: unknown) {
       api.clearTokens();
       setLoginError(fetchErr instanceof Error ? fetchErr.message : T("loginFailed"));
+      setIsProcessing(false);
       return;
     }
 
     login(accessToken, profile, api.getRefreshToken?.() ?? undefined);
     if (!biometricEnabled) {
       /* Offer biometric enrollment on first successful login */
+      setIsProcessing(false);
       setOverlay("biometric");
       return;
     }
     onSuccess?.(accessToken, profile as unknown as SDKAuthUser);
     navigate("/");
+    /* isProcessing left true — component unmounts on navigate */
   }, [biometricEnabled, login, navigate, T, onSuccess]);
 
   const confirmBiometric = async (enable: boolean) => {
@@ -163,7 +172,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
 
   /* ── Main login screen ── */
   return (
-    <div style={{ background: theme.background }}>
+    <div style={{ background: theme.background, pointerEvents: isProcessing ? "none" : "auto", opacity: isProcessing ? 0.7 : 1 }}>
       {loginError && (
         <div style={{
           background: "rgba(239,68,68,0.08)", border: `1px solid ${theme.error ?? "rgba(239,68,68,0.25)"}`,

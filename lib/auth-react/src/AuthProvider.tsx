@@ -1,3 +1,22 @@
+/**
+ * AuthProvider.tsx — @workspace/auth-react
+ *
+ * Shared base auth provider consumed by all three web apps (rider, vendor, customer-web).
+ * Responsibilities:
+ *   - Persist access token via the injected TokenStorage (web localStorage, Capacitor Preferences,
+ *     or sessionStorage depending on the app's storageType).
+ *   - Silently restore session on mount: decode valid token → hydrate user, or attempt refresh.
+ *   - When `role` prop is supplied, enforce it during restore: tokens whose role claim doesn't
+ *     match are cleared immediately rather than silently restoring to the wrong app.
+ *   - Expose login / logout helpers that downstream providers (rider-auth, vendor-auth) delegate to.
+ *
+ * Integration smoke-test checklist (verify after each auth refactor):
+ *   [ ] OTP send → verify → register succeeds and token is persisted in the correct storage
+ *   [ ] Page reload restores session without re-login (for rider/vendor localStorage storage types)
+ *   [ ] Token expiry triggers silent refresh via refreshEndpoint before user sees a 401
+ *   [ ] Logout clears both access and refresh tokens and redirects to /login
+ *   [ ] Wrong-role token (e.g. vendor token used in rider app) is rejected on restore with role mismatch log
+ */
 import React, {
   createContext,
   useContext,
@@ -48,6 +67,7 @@ export interface AuthProviderProps {
 
 export function AuthProvider({
   children,
+  role: expectedRole,
   baseURL = '',
   storageType = 'web',
   tokenStorage: externalStorage,
@@ -116,11 +136,30 @@ export function AuthProvider({
         if (!isTokenExpired(existingToken)) {
           const payload = decodeJwt(existingToken);
           if (payload && payload.sub) {
+            const tokenRole = (payload.role as AuthUser['role']) ?? 'customer';
+
+            // Role enforcement gate: when the provider declares an expected role,
+            // reject any stored token whose role claim doesn't match. This prevents
+            // a vendor token from silently restoring a session inside the rider app
+            // (or vice-versa) after a user switches accounts in another tab.
+            // Role claim may be a comma-separated string (e.g. "customer,vendor").
+            // Use includes() so multi-role users are not rejected.
+            const tokenRoles = tokenRole.split(',').map((r) => r.trim());
+            if (expectedRole && !tokenRoles.includes(expectedRole)) {
+              console.warn(
+                `[AuthProvider] Stored token roles "${tokenRole}" do not include expected role "${expectedRole}". Clearing session.`
+              );
+              tokenStorage.removeAccessToken();
+              tokenStorage.removeRefreshToken();
+              setIsInitializing(false);
+              return;
+            }
+
             const restoredUser: AuthUser = {
               id: String(payload.sub),
               phone: payload.phone as string | undefined,
               email: payload.email as string | undefined,
-              role: (payload.role as AuthUser['role']) ?? 'customer',
+              role: tokenRole,
               approvalStatus: payload.approvalStatus as string | undefined,
               rejectionReason: payload.rejectionReason as string | null | undefined,
             };
@@ -148,19 +187,45 @@ export function AuthProvider({
             const refreshedUser = data.user ?? data.data?.user ?? null;
 
             if (newToken) {
-              tokenStorage.setAccessToken(newToken);
-              if (refreshedUser) {
-                setUser(refreshedUser);
+              // Role enforcement gate on the refreshed token too —
+              // same logic as the non-expired restore path above.
+              const newPayload = decodeJwt(newToken);
+              const newTokenRoleRaw = (newPayload?.role as string) ?? 'customer';
+              // Role claim may be comma-separated (e.g. "customer,vendor") — use includes() for multi-role users.
+              const newTokenRoles = newTokenRoleRaw.split(',').map((r) => r.trim());
+              // Resolve primary role: prefer expectedRole if it matches, else first role in token.
+              const newTokenRole = (expectedRole && newTokenRoles.includes(expectedRole)
+                ? expectedRole
+                : (newTokenRoles[0] ?? 'customer')) as AuthUser['role'];
+              if (expectedRole && !newTokenRoles.includes(expectedRole)) {
+                console.warn(
+                  `[AuthProvider] Refreshed token roles "${newTokenRole}" do not include expected role "${expectedRole}". Clearing session.`
+                );
+                tokenStorage.removeAccessToken();
+                tokenStorage.removeRefreshToken();
               } else {
-                const payload = decodeJwt(newToken);
-                if (payload?.sub) {
+                tokenStorage.setAccessToken(newToken);
+                if (refreshedUser) {
+                  // If the server returned a full user object, also validate its role before accepting it.
+                  const serverRoleRaw = (refreshedUser.role as string) ?? newTokenRole;
+                  const serverRoles = serverRoleRaw.split(',').map((r) => r.trim());
+                  if (expectedRole && !serverRoles.includes(expectedRole)) {
+                    console.warn(
+                      `[AuthProvider] Refresh response user roles "${serverRoleRaw}" do not include expected role "${expectedRole}". Clearing session.`
+                    );
+                    tokenStorage.removeAccessToken();
+                    tokenStorage.removeRefreshToken();
+                  } else {
+                    setUser(refreshedUser);
+                  }
+                } else if (newPayload?.sub) {
                   setUser({
-                    id: String(payload.sub),
-                    phone: payload.phone as string | undefined,
-                    email: payload.email as string | undefined,
-                    role: (payload.role as AuthUser['role']) ?? 'customer',
-                    approvalStatus: payload.approvalStatus as string | undefined,
-                    rejectionReason: payload.rejectionReason as string | null | undefined,
+                    id: String(newPayload.sub),
+                    phone: newPayload.phone as string | undefined,
+                    email: newPayload.email as string | undefined,
+                    role: newTokenRole,
+                    approvalStatus: newPayload.approvalStatus as string | undefined,
+                    rejectionReason: newPayload.rejectionReason as string | null | undefined,
                   });
                 }
               }

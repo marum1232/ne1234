@@ -200,6 +200,35 @@ export async function detectAndInvalidateFamily(tokenHash: string): Promise<type
 }
 
 /**
+ * Builds the HTML email body for a token-family breach notification.
+ * Extracted from sendBreachNotification so it can be tested and reused independently.
+ */
+export function buildBreachNotificationEmail(opts: {
+  userName: string | null | undefined;
+  appName: string;
+  detectedAt: string;
+  familyId: string;
+}): string {
+  const { userName, appName, detectedAt, familyId } = opts;
+  const greeting = userName ? ` ${userName}` : "";
+  return `
+    <div style="font-family: Arial, sans-serif; max-width: 540px; margin: 0 auto; padding: 20px;">
+      <h2 style="color: #dc2626;">Security Alert</h2>
+      <p>Hello${greeting},</p>
+      <p>We detected that your ${appName} session token was used more than once, which may indicate that your account credentials were stolen.</p>
+      <p><strong>All active sessions have been immediately revoked</strong> to protect your account.</p>
+      <p>If you did not attempt to log in, please change your password immediately and contact support.</p>
+      <p style="color: #6b7280; font-size: 13px;">
+        Detected at: ${detectedAt}<br/>
+        Family ID: ${familyId}
+      </p>
+      <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
+      <p style="color: #9ca3af; font-size: 12px;">— ${appName} Security Team</p>
+    </div>
+  `;
+}
+
+/**
  * Sends an email (and SMS where available) to the account owner alerting them
  * that a stolen/replayed refresh token was detected and all sessions were revoked.
  */
@@ -215,7 +244,7 @@ export async function sendBreachNotification(userId: string, familyId: string): 
 
     const settings = await getCachedSettings();
     const appName = settings["app_name"] ?? "AJKMart";
-    const ts = new Date().toISOString();
+    const detectedAt = new Date().toISOString();
 
     if (user.email) {
       try {
@@ -223,21 +252,7 @@ export async function sendBreachNotification(userId: string, familyId: string): 
         await sendEmail({
           to:      user.email,
           subject: `[${appName}] Security Alert: Unauthorized access detected`,
-          html: `
-            <div style="font-family: Arial, sans-serif; max-width: 540px; margin: 0 auto; padding: 20px;">
-              <h2 style="color: #dc2626;">Security Alert</h2>
-              <p>Hello${user.name ? ` ${user.name}` : ""},</p>
-              <p>We detected that your ${appName} session token was used more than once, which may indicate that your account credentials were stolen.</p>
-              <p><strong>All active sessions have been immediately revoked</strong> to protect your account.</p>
-              <p>If you did not attempt to log in, please change your password immediately and contact support.</p>
-              <p style="color: #6b7280; font-size: 13px;">
-                Detected at: ${ts}<br/>
-                Family ID: ${familyId}
-              </p>
-              <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
-              <p style="color: #9ca3af; font-size: 12px;">— ${appName} Security Team</p>
-            </div>
-          `,
+          html:    buildBreachNotificationEmail({ userName: user.name, appName, detectedAt, familyId }),
         });
       } catch (err) {
         logger.warn({ err, userId }, "[tokenRotation] Email breach notification failed");

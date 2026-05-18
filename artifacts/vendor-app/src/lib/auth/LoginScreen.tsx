@@ -38,6 +38,8 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
   const [rejectionReason, setRejectionReason] = useState<string | null>(null);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [biometricEnabled, setBiometricEnabled] = useState(false);
+  /* isProcessing — blocks UI re-interaction during the post-OTP profile fetch. */
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const capturedTokenRef = useRef("");
 
@@ -64,14 +66,18 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
     const token = res.token ?? "";
     capturedTokenRef.current = token;
     api.storeTokens(token, res.refreshToken);
+    /* Block re-interaction while the post-auth profile fetch is in-flight */
+    setIsProcessing(true);
     try {
       const profile = await api.getMe();
       login(token, profile, res.refreshToken);
       onSuccess?.(token, profile);
       navigate("/");
+      /* isProcessing left true — component unmounts on navigate */
     } catch (e: unknown) {
       api.clearTokens();
       setLoginError(e instanceof Error ? e.message : "Failed to load profile.");
+      setIsProcessing(false);
     }
   }, [login, navigate, onSuccess]);
 
@@ -135,7 +141,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
 
   /* ── Main login ── */
   return (
-    <div style={{ background: theme.background, minHeight: "100vh", display: "flex" }}>
+    <div style={{ background: theme.background, minHeight: "100vh", display: "flex", pointerEvents: isProcessing ? "none" : "auto", opacity: isProcessing ? 0.7 : 1 }}>
       {loginError && (
         <div style={{
           position: "absolute", top: 12, left: "50%", transform: "translateX(-50%)", zIndex: 50,

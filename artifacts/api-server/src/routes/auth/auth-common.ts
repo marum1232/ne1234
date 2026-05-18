@@ -85,7 +85,7 @@ import {
   LinkGoogleSchema,
   LinkFacebookSchema,
   FirebaseVerifySchema,
-} from "../../lib/validation/schemas.js";
+} from "./helpers.js";
 import {
   RIDER_REFRESH_COOKIE,
   RIDER_REFRESH_COOKIE_PATH,
@@ -399,7 +399,11 @@ export async function handleUnifiedLogin(req: Request, res: any) {
   const pwGlobalDisabledUntilStr = settings["otp_global_disabled_until"];
   const pwGlobalDisabledUntil = pwGlobalDisabledUntilStr ? new Date(pwGlobalDisabledUntilStr) : null;
   const pwGlobalSuspended = !!(pwGlobalDisabledUntil && pwGlobalDisabledUntil > new Date());
-  const pwDangerBypass = settings["security_otp_bypass"] === "on";
+  /* production guard — danger bypass is NEVER honoured in production, matching
+     the same guard applied to the OTP verify path in otp.ts.  An operator who
+     inadvertently sets security_otp_bypass=on in prod must not gain a bypass. */
+  const pwDangerBypass =
+    settings["security_otp_bypass"] === "on" && process.env.NODE_ENV !== "production";
   const skipLoginOtp = pwPerUserBypass || pwGlobalSuspended || pwDangerBypass;
 
   if (!skipLoginOtp) {

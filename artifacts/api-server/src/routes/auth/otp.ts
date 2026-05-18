@@ -209,18 +209,27 @@ router.post("/send-otp", otpLimiter, verifyCaptcha, sharedValidateBody(sendOtpSc
     return;
   }
 
-  /* ── Global OTP bypass: when enabled in Danger Zone, skip OTP for all users ── */
+  /* ── Global OTP bypass: when enabled in Danger Zone, skip OTP for all users ──
+     Production guard: this bypass MUST NOT fire in a production environment.
+     If somehow security_otp_bypass=on is set in production, log a critical alert
+     and refuse the bypass rather than silently skipping OTP for all users. ── */
   if (settings["security_otp_bypass"] === "on") {
-    writeAuthAuditLog("otp_send_global_bypassed", { ip, userAgent: req.headers["user-agent"] ?? undefined, metadata: { phone } });
-    sendSuccess(res, {
-      otpRequired: false,
-      bypass: true,
-      expiresAt: null,
-      message: (settings["otp_bypass_message"] as string | undefined) ?? null,
-      channel: "sms",
-      fallbackChannels: [],
-    });
-    return;
+    if (process.env.NODE_ENV === "production") {
+      logger.error({ phone, ip }, "[OTP] CRITICAL: security_otp_bypass=on is set in production — global bypass BLOCKED. Disable this setting in the admin Danger Zone immediately.");
+      addSecurityEvent({ type: "otp_global_bypass_production_blocked", ip, details: `Global OTP bypass attempted in production for ${phone}`, severity: "critical" });
+      /* Fall through to normal OTP delivery in production */
+    } else {
+      writeAuthAuditLog("otp_send_global_bypassed", { ip, userAgent: req.headers["user-agent"] ?? undefined, metadata: { phone } });
+      sendSuccess(res, {
+        otpRequired: false,
+        bypass: true,
+        expiresAt: null,
+        message: (settings["otp_bypass_message"] as string | undefined) ?? null,
+        channel: "sms",
+        fallbackChannels: [],
+      });
+      return;
+    }
   }
 
   /* ── Timed admin global OTP disable: auto-pass (no OTP delivery) ── */
@@ -537,11 +546,19 @@ router.post("/verify-otp", otpLimiter, verifyCaptcha, sharedValidateBody(verifyO
     /* During global disable or whitelist bypass, allow new-user registration even
        with no pending OTP row (send-otp short-circuited and never created a pending entry).
        Also bypass when no real OTP provider is configured — mirrors send-otp auto_bypass
-       so environments without Twilio/SendGrid can still register new accounts. */
+       so environments without Twilio/SendGrid can still register new accounts.
+
+       Production guard: the Danger Zone global bypass (security_otp_bypass) MUST be blocked
+       in production. Same guard as send-otp and verify-otp existing-user paths. */
     const whitelistBypassNew = await getWhitelistBypass(phone);
     const _hasRealOtpProviderNew = !!(process.env["TWILIO_ACCOUNT_SID"] || process.env["TWILIO_AUTH_TOKEN"] || process.env["SENDGRID_API_KEY"]);
     const _noProviderBypassNew = !_hasRealOtpProviderNew && settings["otp_require_when_no_provider"] !== "on";
-    const globalBypassForNew = settings["security_otp_bypass"] === "on" || isTimedGlobalDisableActive || whitelistBypassNew !== null || _noProviderBypassNew;
+    const _rawGlobalBypassSettingNew = settings["security_otp_bypass"] === "on";
+    if (_rawGlobalBypassSettingNew && process.env.NODE_ENV === "production") {
+      logger.error({ phone, ip }, "[OTP] CRITICAL: security_otp_bypass=on in production — new-user verify-otp global bypass BLOCKED. Disable in the admin Danger Zone immediately.");
+      addSecurityEvent({ type: "otp_global_bypass_production_blocked", ip, details: `New-user global OTP bypass attempted in production for ${phone}`, severity: "critical" });
+    }
+    const globalBypassForNew = (process.env.NODE_ENV !== "production" && _rawGlobalBypassSettingNew) || isTimedGlobalDisableActive || whitelistBypassNew !== null || _noProviderBypassNew;
     if (!pending && !globalBypassForNew) {
       sendNotFound(res, "User not found. Please request a new OTP.");
       return;
@@ -703,7 +720,16 @@ router.post("/verify-otp", otpLimiter, verifyCaptcha, sharedValidateBody(verifyO
      otpRequired:false / channel:"auto_bypass"). */
   const _hasRealOtpProvider = !!(process.env["TWILIO_ACCOUNT_SID"] || process.env["TWILIO_AUTH_TOKEN"] || process.env["SENDGRID_API_KEY"]);
   const _noProviderBypass = !_hasRealOtpProvider && settings["otp_require_when_no_provider"] !== "on";
-  const globalOtpBypass = settings["security_otp_bypass"] === "on" || isTimedGlobalDisableActive || _noProviderBypass;
+
+  /* Production guard: global Danger Zone bypass MUST be blocked in production.
+     We still compute the flag (so log messages can reference it), but it never
+     contributes to the final bypass decision when NODE_ENV=production. */
+  const _rawGlobalBypassSetting = settings["security_otp_bypass"] === "on";
+  if (_rawGlobalBypassSetting && process.env.NODE_ENV === "production") {
+    logger.error({ phone, ip }, "[OTP] CRITICAL: security_otp_bypass=on is set in production — verify-otp global bypass BLOCKED. Disable this in the admin Danger Zone immediately.");
+    addSecurityEvent({ type: "otp_global_bypass_production_blocked", ip, details: `Global OTP verify-bypass attempted in production for ${phone}`, severity: "critical" });
+  }
+  const globalOtpBypass = (process.env.NODE_ENV !== "production" && _rawGlobalBypassSetting) || isTimedGlobalDisableActive || _noProviderBypass;
 
   /* ── Atomic OTP consumption via a single conditional UPDATE ──
      The WHERE clause combines: correct code + not-yet-used + not-expired.

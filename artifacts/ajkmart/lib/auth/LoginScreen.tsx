@@ -132,16 +132,14 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
     completeLogin(pendingTokenRef.current, pendingUserRef.current);
   };
 
-  const handleGoogle = useCallback(async () => {
-    /* Google OAuth handled by SDK for mobile */
-  }, []);
+  /* Social OAuth — not yet implemented for the customer Expo app.
+     Do NOT pass handlers to the SDK — instead render our own non-interactive
+     "Coming Soon" section below the login form when the platform config enables social.
+     This satisfies the production requirement: buttons must be disabled (non-clickable),
+     not tappable controls that fire Alert dialogs. */
 
-  const handleFacebook = useCallback(async () => {
-    /* Facebook OAuth handled by SDK for mobile */
-  }, []);
-
-  const handleMagicLink = useCallback(async (identifier: string) => {
-    /* Magic link handled by SDK */
+  const handleMagicLink = useCallback(async (_identifier: string) => {
+    /* Magic link handled by SDK — no stub action needed; SDK manages the flow */
   }, []);
 
   /* ── Overlays ── */
@@ -153,6 +151,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
   if (overlay === "biometric") return <BiometricPromptOverlay onAccept={() => void confirmBiometric(true)} onDecline={() => void confirmBiometric(false)} />;
 
   /* ── Main login ── */
+  const hasSocial = auth.googleEnabled || auth.facebookEnabled;
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       {biometricError && (
@@ -160,17 +159,36 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
           <Text style={{ color: "#b91c1c", fontSize: 13, textAlign: "center" }}>{biometricError}</Text>
         </View>
       )}
+      {/* Social handlers are intentionally NOT passed — social OAuth is not yet
+          implemented. The SDK social buttons are hidden (enableSocial=false) and
+          replaced with non-interactive disabled "coming soon" placeholders below. */}
       <SDKLoginScreen
         role="customer"
         onSuccess={(user, token) => { setBiometricError(null); void handleSuccess(user, token); }}
         onRegisterPress={() => router.push("/auth/register")}
-        enableSocial={auth.googleEnabled || auth.facebookEnabled}
-        onGoogle={auth.googleEnabled ? handleGoogle : undefined}
-        onFacebook={auth.facebookEnabled ? handleFacebook : undefined}
+        enableSocial={false}
         enableMagicLink={auth.magicLinkEnabled}
         onMagicLink={auth.magicLinkEnabled ? handleMagicLink : undefined}
         title={T("loginTitle") as string}
       />
+      {/* ── Coming-soon social placeholder (non-interactive) ── */}
+      {hasSocial && (
+        <View style={styles.socialComingSoon} pointerEvents="none">
+          <Text style={[styles.socialComingSoonLabel, { color: theme.textMuted }]}>
+            Social sign-in
+          </Text>
+          {auth.googleEnabled && (
+            <View style={[styles.socialDisabledBtn, { borderColor: theme.border, backgroundColor: theme.surface }]}>
+              <Text style={[styles.socialDisabledText, { color: theme.textMuted }]}>Google  •  Coming Soon</Text>
+            </View>
+          )}
+          {auth.facebookEnabled && (
+            <View style={[styles.socialDisabledBtn, { borderColor: theme.border, backgroundColor: theme.surface }]}>
+              <Text style={[styles.socialDisabledText, { color: theme.textMuted }]}>Facebook  •  Coming Soon</Text>
+            </View>
+          )}
+        </View>
+      )}
     </View>
   );
 }
@@ -220,4 +238,17 @@ const styles = StyleSheet.create({
     alignItems: "center", borderWidth: 1,
   },
   btnSecondaryText: { fontSize: 14, fontWeight: "500" },
+  /* ── Social coming-soon placeholder (non-interactive) ── */
+  socialComingSoon: {
+    paddingHorizontal: 24, paddingBottom: 24, gap: 10,
+  },
+  socialComingSoonLabel: {
+    fontSize: 12, fontWeight: "600", textTransform: "uppercase", letterSpacing: 0.8,
+    marginBottom: 4, textAlign: "center",
+  },
+  socialDisabledBtn: {
+    borderWidth: 1, borderRadius: 12, paddingVertical: 13, paddingHorizontal: 16,
+    alignItems: "center", opacity: 0.45,
+  },
+  socialDisabledText: { fontSize: 14, fontWeight: "500" },
 });

@@ -317,7 +317,7 @@ export const api = {
   registerLogoutCallback,
 
   /* Profile */
-  getMe:         (signal?: AbortSignal) => apiFetch("/vendors/me", signal ? { signal } : {}),
+  getMe:         (signal?: AbortSignal) => apiFetch("/vendors/me?appRole=vendor", signal ? { signal } : {}),
   updateProfile: (data: Record<string, string | undefined>) => apiFetch("/vendors/profile", { method: "PATCH", body: JSON.stringify(data) }),
   getQuickReplies:    () => apiFetch("/vendors/profile/quick-replies"),
   updateQuickReplies: (quickReplies: string[]) => apiFetch("/vendors/profile/quick-replies", { method: "PATCH", body: JSON.stringify({ quickReplies }) }),

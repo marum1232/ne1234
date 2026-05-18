@@ -27,16 +27,9 @@ import {
 } from "react-native";
 
 import { isValidPhone } from "@workspace/phone-utils";
+import { PAKISTAN_CITIES } from "@workspace/service-constants";
 
 const DRAFT_KEY = "@ajkmart_reg_draft";
-
-const PAKISTAN_CITIES = [
-  "Muzaffarabad", "Mirpur", "Rawalakot", "Kotli", "Bagh", "Bhimber",
-  "Islamabad", "Rawalpindi", "Lahore", "Karachi", "Peshawar", "Quetta",
-  "Faisalabad", "Multan", "Sialkot", "Gujranwala", "Hyderabad",
-  "Abbottabad", "Bahawalpur", "Sargodha", "Sukkur", "Mardan",
-  "Mansehra", "Gilgit", "Skardu",
-];
 
 /* ── Validate Pakistani phone — delegates to shared phone-utils (single source of truth) ── */
 function isValidPakistaniPhone(phone: string): boolean {
@@ -49,6 +42,14 @@ function PhoneStep({ data, onChange, onError }: StepComponentProps) {
   const T = (key: TranslationKey) => tDual(key, language);
   const theme = useTheme();
 
+  /* Validate on blur so errors appear immediately when focus leaves the field */
+  const handleBlur = () => {
+    const phone = String(data.phone ?? "").trim();
+    if (!phone) { onError("Phone number is required"); return; }
+    if (!isValidPakistaniPhone(phone)) { onError("Enter a valid Pakistani mobile number (03XXXXXXXXX)"); return; }
+    onError("");
+  };
+
   return (
     <View style={{ gap: 14 }}>
       <Text style={[styles.stepTitle, { color: theme.text }]}>{T("enterPhone")}</Text>
@@ -57,6 +58,7 @@ function PhoneStep({ data, onChange, onError }: StepComponentProps) {
         style={[styles.input, { borderColor: theme.border, color: theme.text, backgroundColor: theme.surface }]}
         value={(data.phone as string) ?? ""}
         onChangeText={v => { onChange("phone", v); onError(""); }}
+        onBlur={handleBlur}
         placeholder="03XXXXXXXXX"
         placeholderTextColor={theme.textMuted}
         keyboardType="phone-pad"
@@ -153,6 +155,13 @@ function NameStep({ data, onChange, onError }: StepComponentProps) {
   const T = (key: TranslationKey) => tDual(key, language);
   const theme = useTheme();
 
+  const handleBlur = () => {
+    const name = String(data.name ?? "").trim();
+    if (!name) { onError("Full name is required"); return; }
+    if (name.length < 2) { onError("Please enter your full name"); return; }
+    onError("");
+  };
+
   return (
     <View style={{ gap: 14 }}>
       <Text style={[styles.stepTitle, { color: theme.text }]}>{T("whatsYourName")}</Text>
@@ -161,6 +170,7 @@ function NameStep({ data, onChange, onError }: StepComponentProps) {
         style={[styles.input, { borderColor: theme.border, color: theme.text, backgroundColor: theme.surface }]}
         value={(data.name as string) ?? ""}
         onChangeText={v => { onChange("name", v); onError(""); }}
+        onBlur={handleBlur}
         placeholder="Muhammad Ali"
         placeholderTextColor={theme.textMuted}
       />
@@ -201,6 +211,23 @@ function PasswordStep({ data, onChange, onError }: StepComponentProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
+  /* Blur handlers validate each field immediately when focus leaves.
+     The confirm field also checks against the current password value. */
+  const handlePasswordBlur = () => {
+    const pw = String(data.password ?? "");
+    if (!pw) { onError("Password is required"); return; }
+    if (pw.length < 8) { onError("Password must be at least 8 characters"); return; }
+    onError("");
+  };
+
+  const handleConfirmBlur = () => {
+    const pw = String(data.password ?? "");
+    const cpw = String(data.confirmPassword ?? "");
+    if (!cpw) { onError("Please confirm your password"); return; }
+    if (pw !== cpw) { onError("Passwords do not match"); return; }
+    onError("");
+  };
+
   return (
     <View style={{ gap: 14 }}>
       <Text style={[styles.stepTitle, { color: theme.text }]}>{T("createPassword")}</Text>
@@ -210,6 +237,7 @@ function PasswordStep({ data, onChange, onError }: StepComponentProps) {
           style={[styles.input, { borderColor: theme.border, color: theme.text, backgroundColor: theme.surface, paddingRight: 48 }]}
           value={(data.password as string) ?? ""}
           onChangeText={v => { onChange("password", v); onError(""); }}
+          onBlur={handlePasswordBlur}
           placeholder="Min 8 characters"
           placeholderTextColor={theme.textMuted}
           secureTextEntry={!showPassword}
@@ -228,6 +256,7 @@ function PasswordStep({ data, onChange, onError }: StepComponentProps) {
           style={[styles.input, { borderColor: theme.border, color: theme.text, backgroundColor: theme.surface, paddingRight: 48 }]}
           value={(data.confirmPassword as string) ?? ""}
           onChangeText={v => { onChange("confirmPassword", v); onError(""); }}
+          onBlur={handleConfirmBlur}
           placeholder="Re-enter password"
           placeholderTextColor={theme.textMuted}
           secureTextEntry={!showConfirm}

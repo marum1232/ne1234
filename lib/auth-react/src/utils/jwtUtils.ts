@@ -1,46 +1,24 @@
-export interface JwtPayload {
-  sub?: string;
-  exp?: number;
-  iat?: number;
-  jti?: string;
-  role?: string;
-  [key: string]: unknown;
-}
+/**
+ * jwtUtils.ts — @workspace/auth-react
+ *
+ * Re-exports canonical JWT decode utilities from @workspace/auth-utils.
+ * @workspace/auth-utils is the single source of truth for JWT decoding across
+ * all web apps and the shared SDK. auth-react re-exports for backward compat
+ * so existing imports inside this package continue to work unchanged.
+ */
+export type { JwtPayload } from "@workspace/auth-utils";
+export { decodeJwt, isTokenExpired } from "@workspace/auth-utils";
 
-function base64UrlDecode(str: string): string {
-  const padded = str.replace(/-/g, '+').replace(/_/g, '/');
-  const remainder = padded.length % 4;
-  const base64 = remainder ? padded + '='.repeat(4 - remainder) : padded;
-  const binary = atob(base64);
-  return decodeURIComponent(
-    binary
-      .split('')
-      .map((c: string) => '%' + c.charCodeAt(0).toString(16).padStart(2, '0'))
-      .join('')
-  );
-}
+import { decodeJwt } from "@workspace/auth-utils";
 
-export function decodeJwt(token: string): JwtPayload | null {
-  try {
-    const parts = token.split('.');
-    if (parts.length !== 3) return null;
-    const json = base64UrlDecode(parts[1]);
-    return JSON.parse(json) as JwtPayload;
-  } catch {
-    return null;
-  }
-}
-
-export function isTokenExpired(token: string, leewaySeconds = 60): boolean {
-  const payload = decodeJwt(token);
-  if (!payload || typeof payload.exp !== 'number') return true;
-  const nowSeconds = Math.floor(Date.now() / 1000);
-  return payload.exp - leewaySeconds <= nowSeconds;
-}
-
+/**
+ * Returns the number of seconds until the token expires.
+ * Returns 0 for expired or unparseable tokens.
+ * UI-specific helper — not in auth-utils since it's only needed for display countdowns.
+ */
 export function getTokenExpiryRemaining(token: string): number {
   const payload = decodeJwt(token);
-  if (!payload || typeof payload.exp !== 'number') return 0;
+  if (!payload || typeof payload.exp !== "number") return 0;
   const nowSeconds = Math.floor(Date.now() / 1000);
   return Math.max(0, payload.exp - nowSeconds);
 }

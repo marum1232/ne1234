@@ -20,7 +20,7 @@ import {
   getAccessTokenTtlSec,
 } from "../../middleware/security.js";
 import { canonicalizePhone } from "@workspace/phone-utils";
-import { SendOtpSchema, VerifyOtpSchema, UserLoginSchema } from "../../lib/validation/schemas.js";
+import { SendOtpSchema, VerifyOtpSchema, UserLoginSchema } from "../../lib/validation/auth-schemas.js";
 
 export const AUTH_OTP_TTL_MS = 5 * 60 * 1000;
 
@@ -180,7 +180,7 @@ export const loginSchema = UserLoginSchema;
            MagicLinkVerifySchema, ChangePhoneRequestSchema, ChangePhoneConfirmSchema,
            LinkGoogleSchema, LinkFacebookSchema, FirebaseVerifySchema,
            SendMergeOtpSchema, MergeAccountSchema, VendorRegisterSchema,
-           UserLoginSchema, SendOtpSchema, VerifyOtpSchema } from "../../lib/validation/schemas.js";
+           UserLoginSchema, SendOtpSchema, VerifyOtpSchema } from "../../lib/validation/auth-schemas.js";
   
 export async function checkAndIncrOtpRateLimit(params: {
   identifier: string;

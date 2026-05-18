@@ -1,3 +1,29 @@
+/**
+ * vendor-auth.tsx — vendor-app
+ *
+ * Vendor-specific auth provider wrapping the shared @workspace/auth-react AuthProvider.
+ * Extends the base with vendor profile hydration and store-hours management.
+ *
+ * Token storage: sessionStorage (tab-scoped — intentional security choice for vendor).
+ *   Tokens persist across page reloads within a single browser tab but are automatically
+ *   cleared when the tab is closed. This limits the blast radius of a stolen token to
+ *   the current browser session, which is appropriate for a vendor web dashboard.
+ *   An in-memory write-through cache sits in front of sessionStorage for speed.
+ *   A one-time migration promotes any legacy localStorage tokens into sessionStorage on load.
+ *   DO NOT change this to localStorage without a deliberate security review — see api.ts.
+ *
+ * Role enforcement: SharedAuthProvider is instantiated with role="vendor" — any stored
+ *   token with a different role claim is automatically cleared on mount.
+ *
+ * Integration smoke-test checklist (verify after each auth refactor):
+ *   [ ] OTP send → verify → register → token stored in sessionStorage
+ *   [ ] Page reload within same tab restores vendor session without re-login
+ *   [ ] Opening in a new tab requires re-login (tab-scoped, expected behavior)
+ *   [ ] Rider/customer token in sessionStorage is rejected (role mismatch cleared)
+ *   [ ] Token expiry triggers silent refresh via /api/vendors/auth/refresh
+ *   [ ] Logout clears sessionStorage tokens and redirects to /login
+ *   [ ] GET /api/users/profile?appRole=vendor returns 403 for non-vendor tokens (server-side gate)
+ */
 import { createContext, useContext, useState, useEffect, useRef, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -7,6 +33,7 @@ import {
   getTokenExpiryRemaining,
   type AuthUser as SharedAuthUser,
 } from "@workspace/auth-react";
+import { decodeJwt } from "@workspace/auth-utils";
 import { api, getTokenStorage } from "./api";
 import { getVendorApiBase } from "./envValidation";
 import { createLogger } from "@/lib/logger";
@@ -181,6 +208,16 @@ function VendorAuthInner({ children }: { children: ReactNode }) {
   const refreshUser = async () => {
     try {
       const u = await api.getMe();
+      const rawRoles = u.roles;
+      const roles: string[] = Array.isArray(rawRoles)
+        ? rawRoles
+        : typeof (u as unknown as { role?: string }).role === "string"
+          ? [(u as unknown as { role: string }).role]
+          : [];
+      u.roles = roles;
+      if (roles.length > 0 && !roles.includes("vendor")) {
+        api.clearTokens(); setToken(null); setUser(null); sharedAuth.logout(); return;
+      }
       setUser(u);
     } catch (e) {
       log.error("refreshUser failed:", e);
@@ -194,17 +231,19 @@ function VendorAuthInner({ children }: { children: ReactNode }) {
   );
 }
 
-/** UTF-8-safe JWT base64 payload decoder used for expiry checks.
- *  Uses decodeURIComponent(escape(atob())) to correctly handle
- *  multi-byte characters in the JWT payload. */
+/**
+ * Decode the `exp` claim from a JWT for expiry checks.
+ *
+ * Delegates to the shared `decodeJwt` utility from `@workspace/auth-react`
+ * (which handles UTF-8-safe base64url decoding) so there is a single canonical
+ * JWT-decode implementation across all web apps and the shared SDK.
+ *
+ * Previously implemented inline with atob() + decodeURIComponent(escape(...)).
+ * That implementation has been replaced to eliminate the duplicate.
+ */
 export function decodeJwtExpSafe(token: string): number | null {
   try {
-    const parts = token.split('.');
-    if (parts.length !== 3) return null;
-    const b64 = (parts[1] ?? '').replace(/-/g, '+').replace(/_/g, '/');
-    const padded = b64.padEnd(b64.length + ((4 - (b64.length % 4)) % 4), '=');
-    const jsonStr = decodeURIComponent(escape(atob(padded)));
-    const payload = JSON.parse(jsonStr) as { exp?: number };
-    return typeof payload.exp === 'number' ? payload.exp : null;
-  } catch (err) { console.warn('[artifacts/vendor-app/src/lib/vendor-auth.tsx]', err); return null; } // eslint-disable-line no-console
+    const payload = decodeJwt(token);
+    return typeof payload?.exp === "number" ? payload.exp : null;
+  } catch { return null; }
 }

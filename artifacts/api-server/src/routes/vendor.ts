@@ -11,7 +11,7 @@ import { validateBody } from "../middleware/validate.js";
 import { t } from "@workspace/i18n";
 import { getUserLanguage } from "../lib/getUserLanguage.js";
 import { getIO, emitRiderNewRequest } from "../lib/socketio.js";
-import { sendSuccess, sendCreated, sendError, sendNotFound, sendForbidden, sendValidationError } from "../lib/response.js";
+import { sendSuccess, sendCreated, sendError, sendErrorWithData, sendNotFound, sendForbidden, sendValidationError } from "../lib/response.js";
 import { sendPushToUsers, sendPushToUser } from "../lib/webpush.js";
 
 const router: IRouter = Router();
@@ -93,6 +93,14 @@ function formatUser(user: any) {
 /* ── GET /vendor/me ── */
 router.get("/me", async (req, res) => {
   try {
+  /* appRole guard — client must supply ?appRole=vendor so the server can
+     reject tokens that belong to a different app context. Returns WRONG_ROLE
+     so clients can surface a meaningful "wrong app" error. */
+  const appRole = req.query.appRole as string | undefined;
+  if (appRole && appRole !== "vendor") {
+    sendErrorWithData(res, "Access denied. This endpoint requires a vendor session.", { code: "WRONG_ROLE" }, 403);
+    return;
+  }
   const user = req.vendorUser!;
   const vendorId = user.id;
   const today = new Date(); today.setHours(0,0,0,0);

@@ -1,6 +1,19 @@
 export type ServiceKey = "mart" | "food" | "rides" | "pharmacy" | "parcel" | "van" | "school";
 
 /**
+ * Canonical list of Pakistani cities used across customer and rider registration forms.
+ * AJK cities are listed first as the platform's primary region; major cities follow.
+ * Single source of truth — import from here instead of hardcoding in each UI.
+ */
+export const PAKISTAN_CITIES: readonly string[] = [
+  "Muzaffarabad", "Mirpur", "Rawalakot", "Kotli", "Bagh", "Bhimber",
+  "Islamabad", "Rawalpindi", "Lahore", "Karachi", "Peshawar", "Quetta",
+  "Faisalabad", "Multan", "Sialkot", "Gujranwala", "Hyderabad",
+  "Abbottabad", "Bahawalpur", "Sargodha", "Sukkur", "Mardan",
+  "Mansehra", "Gilgit", "Skardu",
+] as const;
+
+/**
  * Normalises a raw vehicle-type string to a canonical value used across the
  * API server and rider app. Centralised here so both callers share a single
  * source of truth.

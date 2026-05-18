@@ -1,3 +1,22 @@
+/**
+ * rider-auth.tsx — rider-app
+ *
+ * Rider-specific auth provider wrapping the shared @workspace/auth-react AuthProvider.
+ * Extends the base with rider profile hydration, biometric unlock support, and
+ * Capacitor Preferences token storage (survives app restarts on PWA/mobile).
+ *
+ * Token storage: @capacitor/preferences (native-level, encrypted on supported devices).
+ * Role enforcement: SharedAuthProvider is instantiated with role="rider" — any stored
+ *   token with a different role claim is automatically cleared on mount.
+ *
+ * Integration smoke-test checklist (verify after each auth refactor):
+ *   [ ] OTP send → verify → register → token stored in Capacitor Preferences
+ *   [ ] App restart restores rider session without re-login
+ *   [ ] Vendor/customer token stored in preferences is rejected (role mismatch cleared)
+ *   [ ] Token expiry triggers silent refresh via /api/riders/auth/refresh
+ *   [ ] Logout clears Capacitor Preferences and redirects to /login
+ *   [ ] GET /api/users/profile?appRole=rider returns 403 for non-rider tokens (server-side gate)
+ */
 import { createContext, useContext, useState, useEffect, useRef, useCallback, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -202,6 +221,11 @@ function RiderAuthInner({ children }: { children: ReactNode }) {
     const p = (async () => {
       try {
         const u = await api.getMe();
+        const roles = normalizeRoles(u);
+        if (roles.length > 0 && !roles.includes("rider")) {
+          api.clearTokens(); setToken(null); setUser(null); sharedAuth.logout(); return;
+        }
+        u.roles = roles;
         setUser(u);
       } catch (err) { console.warn('[artifacts/rider-app/src/lib/rider-auth.tsx]', err); } // eslint-disable-line no-console
       finally {
@@ -210,7 +234,7 @@ function RiderAuthInner({ children }: { children: ReactNode }) {
     })();
     refreshUserInflightRef.current = p;
     return p;
-  }, []);
+  }, [sharedAuth]);
 
   return (
     <Ctx.Provider value={{ user, token, loading, storageError, twoFactorPending, setTwoFactorPending, login, logout, refreshUser }}>

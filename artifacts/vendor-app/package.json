@@ -60,6 +60,8 @@
     "@workspace/auth-utils": "workspace:*",
     "@workspace/i18n": "workspace:*",
     "@workspace/logger": "workspace:*",
+    "@workspace/phone-utils": "workspace:*",
+    "@workspace/service-constants": "workspace:*",
     "@workspace/ui": "workspace:*",
     "class-variance-authority": "catalog:",
     "clsx": "catalog:",
