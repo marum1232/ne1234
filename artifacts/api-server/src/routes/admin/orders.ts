@@ -414,6 +414,7 @@ router.patch("/pharmacy-orders/:id/status", wrapAsync(async (req, res) => {
   }
 
   // Wallet refund on cancellation (atomic)
+  let refundFailed = false;
   if (status === "cancelled" && order.paymentMethod === "wallet") {
     const refundAmt = parseFloat(order.total);
     let pharmRefundOk = true;
@@ -424,6 +425,7 @@ router.patch("/pharmacy-orders/:id/status", wrapAsync(async (req, res) => {
       });
     } catch (refundErr: unknown) {
       pharmRefundOk = false;
+      refundFailed = true;
       logger.error(
         { err: refundErr instanceof Error ? refundErr.message : String(refundErr), code: (refundErr as { code?: string }).code, orderId: order.id, userId: order.userId, refundAmt },
         "[orders] CRITICAL: pharmacy wallet refund transaction failed — customer not refunded",
@@ -452,7 +454,11 @@ router.patch("/pharmacy-orders/:id/status", wrapAsync(async (req, res) => {
     });
   }
 
-  sendSuccess(res, { ...order, total: parseFloat(order.total) });
+  sendSuccess(res, {
+    ...order,
+    total: parseFloat(order.total),
+    ...(refundFailed ? { warning: "Order cancelled but wallet refund failed — please refund the customer manually." } : {}),
+  });
 }));
 
 /* ── Parcel Bookings ── */

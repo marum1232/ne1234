@@ -4,8 +4,10 @@ import { db } from "@workspace/db";
 import { abExperimentsTable, abAssignmentsTable } from "@workspace/db/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { generateId } from "../lib/id.js";
-import { sendSuccess, sendNotFound, sendValidationError } from "../lib/response.js";
+import { sendSuccess, sendError, sendNotFound, sendValidationError } from "../lib/response.js";
 import { logger } from "../lib/logger.js";
+import { customerAuth } from "../middleware/security.js";
+import type { Request } from "express";
 
 const router = Router();
 
@@ -85,7 +87,7 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-router.post("/assign", async (req, res) => {
+router.post("/assign", customerAuth, async (req, res) => {
   try {
   const p = assignExperimentSchema.safeParse(req.body ?? {});
   if (!p.success) {
@@ -93,6 +95,13 @@ router.post("/assign", async (req, res) => {
     return;
   }
   const { userId, experimentId } = p.data;
+
+  // Enforce self-assignment: only allow a user to assign themselves
+  const authenticatedUserId = (req as Request & { userId?: string }).userId;
+  if (!authenticatedUserId || authenticatedUserId !== userId) {
+    sendError(res, "Forbidden: you may only assign yourself to an experiment", 403);
+    return;
+  }
 
   try {
     const [experiment] = await db
@@ -137,7 +146,7 @@ router.post("/assign", async (req, res) => {
     sendSuccess(res, { assignment: created, isNew: true });
   } catch (err) {
     logger.error({ err }, "[experiments] assign error");
-    sendSuccess(res, { assignment: null, isNew: false });
+    sendError(res, "Failed to assign experiment", 500);
   }
   } catch (err) {
     logger.error({ error: err instanceof Error ? err.message : String(err), timestamp: new Date().toISOString() }, '[route] unhandled error');

@@ -178,12 +178,12 @@ router.use("/referrals", userApiLimiter, referralsRouter);
 router.use("/loyalty", userApiLimiter, loyaltyRouter);
 /* loyalty-full provides comprehensive loyalty features — points, tiers, rewards */
 router.use("/loyalty-full", userApiLimiter, loyaltyFullRouter);
-/* experiments — A/B testing and feature experimentation */
+/* experiments — A/B testing and feature experimentation (auth required for mutations) */
 router.use("/experiments", experimentsRouter);
-/* whatsapp-delivery — WhatsApp message sending and delivery tracking */
-router.use("/whatsapp", whatsappDeliveryRouter);
-/* business-rules — Dynamic platform business rules engine */
-router.use("/business-rules", businessRulesRouter);
+/* whatsapp-delivery — WhatsApp delivery analytics and retry (admin-only) */
+router.use("/whatsapp", adminAuth, whatsappDeliveryRouter);
+/* business-rules — Dynamic platform business rules engine (admin-only write) */
+router.use("/business-rules", adminAuth, businessRulesRouter);
 /* admin/school/subscriptions — paginated list + cancel */
 router.use("/admin/school", adminSchoolRouter);
 
