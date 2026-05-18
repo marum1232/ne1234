@@ -97,23 +97,27 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
     }
   };
 
+  /* Extract social auth config once — avoids calling getVendorAuthConfig(config)
+     separately in every social handler (Step 15 deduplication). */
+  const getSocialAuthConfig = useCallback(() => getVendorAuthConfig(config), [config]);
+
   const handleGoogle = useCallback(async () => {
-    const vendorAuthCfg = getVendorAuthConfig(config);
-    if (!vendorAuthCfg.googleClientId) { setLoginError(T("socialLoginComingSoon")); return; }
+    const cfg = getSocialAuthConfig();
+    if (!cfg.googleClientId) { setLoginError(T("socialLoginComingSoon")); return; }
     try {
-      const idToken = await loadGoogleGSIToken(vendorAuthCfg.googleClientId);
+      const idToken = await loadGoogleGSIToken(cfg.googleClientId);
       await doLogin(await api.socialGoogle({ idToken }) as never);
     } catch (e: unknown) { setLoginError(e instanceof Error ? e.message : "Google sign-in failed"); }
-  }, [doLogin, config, T]);
+  }, [getSocialAuthConfig, doLogin, T]);
 
   const handleFacebook = useCallback(async () => {
-    const vendorAuthCfg = getVendorAuthConfig(config);
-    if (!vendorAuthCfg.facebookAppId) { setLoginError(T("socialLoginComingSoon")); return; }
+    const cfg = getSocialAuthConfig();
+    if (!cfg.facebookAppId) { setLoginError(T("socialLoginComingSoon")); return; }
     try {
-      const accessToken = await loadFacebookAccessToken(vendorAuthCfg.facebookAppId);
+      const accessToken = await loadFacebookAccessToken(cfg.facebookAppId);
       await doLogin(await api.socialFacebook({ accessToken }) as never);
     } catch (e: unknown) { setLoginError(e instanceof Error ? e.message : "Facebook sign-in failed"); }
-  }, [doLogin, config, T]);
+  }, [getSocialAuthConfig, doLogin, T]);
 
   const handleMagicLink = useCallback(async (identifier: string) => {
     try {

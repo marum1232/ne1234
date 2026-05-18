@@ -21,36 +21,16 @@ import { useLanguage } from "../useLanguage";
 import { tDual, type TranslationKey } from "@workspace/i18n";
 import { executeCaptcha } from "@workspace/auth-utils";
 import { Eye, EyeOff } from "lucide-react";
+import { isValidPhone, isValidCnic } from "@workspace/phone-utils";
 
 const DRAFT_KEY = "vendor_reg_draft";
 
 const STORE_CATS = ["Grocery","Restaurant","Bakery","Pharmacy","Electronics","Clothing","General Store","Fast Food","Fruits & Vegetables","Dairy","Meat & Poultry","Other"];
 const CITIES = ["Muzaffarabad","Mirpur","Rawalakot","Bagh","Kotli","Bhimber","Jhelum","Rawalpindi","Islamabad","Lahore","Other"];
 
-/* ── Validate CNIC: XXXXX-XXXXXXX-X ── */
-function isValidCnic(cnic: string): boolean {
-  return /^\d{5}-\d{7}-\d$/.test(cnic.trim());
-}
-
-/* ── Canonicalize and validate Pakistani phone ───────────────────────────────
-   Accepts:  03XXXXXXXXX (11 digits) or +92XXXXXXXXXX (+92 then 10 digits)
-   Returns the canonical 03XXXXXXXXX form, or null if the input is invalid.   */
-function canonicalizePhone(phone: string): string | null {
-  const trimmed = phone.trim();
-  /* Remove all non-digit characters except a leading + */
-  const digits = trimmed.replace(/\D/g, "");
-  /* +92XXXXXXXXXX → strip country code → prepend 0 */
-  if (trimmed.startsWith("+92") && digits.length === 12 && digits.startsWith("92")) {
-    const local = "0" + digits.slice(2); /* 0 + 10 remaining digits */
-    return local.startsWith("03") ? local : null;
-  }
-  /* 03XXXXXXXXX — already canonical */
-  if (digits.length === 11 && digits.startsWith("03")) return digits;
-  return null;
-}
-
+/* ── Validate Pakistani phone — delegates to shared phone-utils (single source of truth) ── */
 function isValidPakistaniPhone(phone: string): boolean {
-  return canonicalizePhone(phone) !== null;
+  return isValidPhone(phone);
 }
 
 /* ── Step 1: Store Info ──────────────────────────────────────────────── */

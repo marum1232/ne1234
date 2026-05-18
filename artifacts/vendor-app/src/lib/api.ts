@@ -1,6 +1,6 @@
 import { getVendorApiBase } from "./envValidation";
 import { createApiFetcher, RefreshError, createCircuitBreaker, CircuitOpenError } from "@workspace/api-client-react";
-import { createTokenStorage, createAuthClient } from "@workspace/auth-react";
+import { createAuthClient } from "@workspace/auth-react";
 import { createLogger } from "@/lib/logger";
 import { compressImage } from "./imageUtils";
 const log = createLogger("[api]");
@@ -10,26 +10,57 @@ const BASE = getVendorApiBase();
 const TOKEN_KEY   = "ajkmart_vendor_token";
 const REFRESH_KEY = "ajkmart_vendor_refresh_token";
 
-/* ── Secure token storage (IN-MEMORY ONLY) ─────────────────────────────────────
-   Both access and refresh tokens are held exclusively in module-level memory —
-   never written to localStorage — so they are not accessible to injected scripts.
-   Refresh tokens are also delivered as HttpOnly cookies by the server (see
-   task #40) which handles cross-tab / page-reload rehydration once deployed.
+/* ── Token storage strategy ────────────────────────────────────────────────────
+   Access and refresh tokens are stored in sessionStorage (survives page reload
+   within the same tab; cleared when the tab closes) with an in-memory write-
+   through cache so every read hits memory first.
+   One-time migration: any token previously written to localStorage is promoted
+   to sessionStorage and then erased from localStorage on first load.             */
 
-   One-time migration: on first load after this upgrade, any access or refresh
-   token previously written to localStorage by an older bundle is read into
-   memory and then immediately erased from storage. This keeps existing
-   sessions alive for the current page session while eliminating persistent
-   XSS-accessible storage going forward. */
+/* ── Vendor token storage — sessionStorage-backed with in-memory cache ────────
+   Tokens survive tab refreshes within a session (unlike pure in-memory) and are
+   automatically cleared when the tab closes (unlike localStorage), matching the
+   intended security profile for a vendor web app.
+   Falls back to pure in-memory when sessionStorage is unavailable (e.g. private
+   browsing in certain browsers, or SSR contexts). */
+let _memAccessToken = "";
+let _memRefreshToken = "";
 
-/* ── Shared token storage (in-memory, via @workspace/auth-react) ────────────
-   createTokenStorage('memory') returns a TokenStorage object backed by
-   module-level variables inside the shared package — semantically identical
-   to the raw variables they replace, but now managed through the shared SDK
-   so all apps share the same storage contract. */
-const _tokenStorage = createTokenStorage('memory');
+const _tokenStorage = {
+  getAccessToken(): string {
+    if (_memAccessToken) return _memAccessToken;
+    try { _memAccessToken = sessionStorage.getItem(TOKEN_KEY) ?? ""; } catch { }
+    return _memAccessToken;
+  },
+  setAccessToken(v: string): void {
+    _memAccessToken = v;
+    try { sessionStorage.setItem(TOKEN_KEY, v); } catch { }
+  },
+  removeAccessToken(): void {
+    _memAccessToken = "";
+    try { sessionStorage.removeItem(TOKEN_KEY); } catch { }
+  },
+  getRefreshToken(): string {
+    if (_memRefreshToken) return _memRefreshToken;
+    try { _memRefreshToken = sessionStorage.getItem(REFRESH_KEY) ?? ""; } catch { }
+    return _memRefreshToken;
+  },
+  setRefreshToken(v: string): void {
+    _memRefreshToken = v;
+    try { sessionStorage.setItem(REFRESH_KEY, v); } catch { }
+  },
+  removeRefreshToken(): void {
+    _memRefreshToken = "";
+    try { sessionStorage.removeItem(REFRESH_KEY); } catch { }
+  },
+  clear(): void {
+    _memAccessToken = "";
+    _memRefreshToken = "";
+    try { sessionStorage.removeItem(TOKEN_KEY); sessionStorage.removeItem(REFRESH_KEY); } catch { }
+  },
+};
 
-/* One-time migration from localStorage → in-memory, then purge. */
+/* One-time migration: promote any localStorage tokens into sessionStorage, then purge localStorage. */
 try {
   if (typeof localStorage !== "undefined") {
     const legacyAccess  = localStorage.getItem(TOKEN_KEY);
@@ -63,6 +94,14 @@ export const authClient = createAuthClient({
   refreshEndpoint: "/auth/refresh",
 });
 
+/** Read the CSRF token from the csrf_token cookie (set by the server). */
+function readCsrfFromCookie(): string {
+  try {
+    const match = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]+)/);
+    return match ? decodeURIComponent(match[1]) : "";
+  } catch { return ""; }
+}
+
 /* ── authPost ─────────────────────────────────────────────────────────────────
    Routes authentication API calls (login, register, OTP, social login) through
    a direct fetch() rather than authClient, because:
@@ -71,7 +110,7 @@ export const authClient = createAuthClient({
      2. This makes _vendorFetcher the sole owner of token refresh, eliminating
         the race condition between authClient and _vendorFetcher both attempting
         a concurrent /auth/refresh call when a session expires.
-   CSRF is intentionally omitted — auth endpoints use cookies + OTPs.          */
+   CSRF header is included so the server's csrf middleware accepts the request. */
 async function authPost(path: string, body?: unknown): Promise<unknown> {
   /* Circuit breaker guard */
   try { _circuitBreaker.check(path); } catch (err) {
@@ -85,12 +124,16 @@ async function authPost(path: string, body?: unknown): Promise<unknown> {
     }
     throw err;
   }
+  const csrfToken = readCsrfFromCookie();
   let res: Response;
   try {
     res = await fetch(`${BASE}${path}`, {
       method: "POST",
       credentials: "include",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(csrfToken ? { "X-CSRF-Token": csrfToken } : {}),
+      },
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });
     _circuitBreaker.onSuccess(path);
@@ -112,13 +155,6 @@ async function authPost(path: string, body?: unknown): Promise<unknown> {
 
   /* Unwrap server envelope { data: T } → T, or return the raw parsed body */
   return parsed != null && typeof parsed === "object" && "data" in parsed ? parsed.data : parsed;
-}
-
-function readCsrfFromCookie(): string {
-  try {
-    const match = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]+)/);
-    return match ? decodeURIComponent(match[1]) : "";
-  } catch (err) { console.warn('[artifacts/vendor-app/src/lib/api.ts]', err); return ""; } // eslint-disable-line no-console
 }
 
 function clearTokens() {

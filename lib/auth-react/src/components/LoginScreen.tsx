@@ -68,11 +68,15 @@ export function LoginScreen({
   const [customValues, setCustomValues] = useState<Record<string, string>>({});
   const [magicLinkSent, setMagicLinkSent] = useState(false);
   const [magicLinkLoading, setMagicLinkLoading] = useState(false);
+
+  /* Guard: window is not defined in React Native / Expo environments.
+     Default to false (narrow layout) when window is unavailable. */
   const [isWide, setIsWide] = useState(
     typeof window !== 'undefined' ? window.innerWidth >= 768 : false
   );
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
     function onResize() {
       setIsWide(window.innerWidth >= 768);
     }

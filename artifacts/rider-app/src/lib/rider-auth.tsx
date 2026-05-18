@@ -1,20 +1,21 @@
 import { createContext, useContext, useState, useEffect, useRef, useCallback, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
-  getTokenExpiryRemaining,
   AuthProvider as SharedAuthProvider,
   useAuthContext,
+  useTokenRefresh,
   type AuthUser as SharedAuthUser,
 } from "@workspace/auth-react";
-import { api, tokenStoreReady } from "./api";
+import { api, tokenStoreReady, getRiderTokenStorage } from "./api";
 import { getRiderApiBase } from "./envValidation";
 import { executeLogoutSequence } from "./logoutSequence";
 import { createLogger } from "@/lib/logger";
 const log = createLogger("[auth]");
 
 /** Normalize a user's roles field — handles both string[] (canonical) and
- *  legacy single-string role returned by older API payloads. */
-function normalizeRoles(u: { roles?: unknown; role?: unknown }): string[] {
+ *  legacy single-string role returned by older API payloads.
+ *  Exported so LoginScreen.tsx can use it for the biometric role guard. */
+export function normalizeRoles(u: { roles?: unknown; role?: unknown }): string[] {
   if (Array.isArray(u.roles)) return u.roles as string[];
   if (typeof u.role === "string") return [u.role];
   return [];
@@ -88,58 +89,27 @@ function RiderAuthInner({ children }: { children: ReactNode }) {
   const [storageError, setStorageError] = useState(false);
   const [twoFactorPending, setTwoFactorPending] = useState(false);
 
-  const refreshFailCountRef    = useRef(0);
-  const refreshTimerRef        = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const refreshingRef          = useRef(false);
   const refreshUserInflightRef = useRef<Promise<void> | null>(null);
 
-  const clearRefreshTimer = useCallback(() => {
-    if (refreshTimerRef.current) {
-      clearTimeout(refreshTimerRef.current);
-      refreshTimerRef.current = null;
-    }
-  }, []);
+  /* ── Proactive token refresh via shared SDK hook ─────────────────────────
+     useTokenRefresh handles scheduling, retry (up to 5 attempts, exponential
+     backoff), and calls onLogout when all attempts are exhausted. This
+     replaces the previous manual setTimeout / exponential-backoff refresh
+     timer and aligns the rider app with the vendor app's pattern. */
+  const handleSdkLogout = useCallback(() => {
+    api.clearTokens();
+    setToken(null); setUser(null);
+    sharedAuth.logout();
+  }, [sharedAuth]);
 
-  const scheduleProactiveRefresh = useCallback((tok: string) => {
-    clearRefreshTimer();
-    const remaining = getTokenExpiryRemaining(tok);
-    if (remaining <= 0) return;
-    const refreshIn = Math.max(remaining - 60_000, 10_000);
-    refreshTimerRef.current = setTimeout(async () => {
-      if (refreshingRef.current) return;
-      refreshingRef.current = true;
-      try {
-        const result = await api.refreshToken();
-        if (result === "refreshed") {
-          const newToken = api.getToken();
-          if (newToken) { setToken(newToken); scheduleProactiveRefresh(newToken); }
-        } else if (result === "auth_failed") {
-          api.clearTokens();
-          setToken(null); setUser(null);
-          sharedAuth.logout();
-        } else if (result === "transient") {
-          refreshFailCountRef.current++;
-          if (refreshFailCountRef.current <= 5) {
-            const backoffMs = Math.min(60_000 * Math.pow(2, refreshFailCountRef.current - 1), 15 * 60_000);
-            refreshTimerRef.current = setTimeout(() => {
-              const currentToken = api.getToken();
-              if (currentToken) scheduleProactiveRefresh(currentToken);
-            }, backoffMs);
-          } else {
-            api.clearTokens();
-            setToken(null); setUser(null);
-            sharedAuth.logout();
-            try { window.dispatchEvent(new CustomEvent("ajkmart:refresh-user-failed")); } catch (err) { console.warn('[artifacts/rider-app/src/lib/rider-auth.tsx]', err); } // eslint-disable-line no-console
-          }
-          refreshingRef.current = false;
-          return;
-        }
-      } catch (err) { console.warn('[artifacts/rider-app/src/lib/rider-auth.tsx]', err); } // eslint-disable-line no-console
-      finally {
-        refreshingRef.current = false;
-      }
-    }, refreshIn);
-  }, [clearRefreshTimer, sharedAuth]);
+  useTokenRefresh({
+    tokenStorage: getRiderTokenStorage(),
+    baseURL: getRiderApiBase(),
+    refreshEndpoint: "/auth/refresh",
+    leewaySeconds: 60,
+    onLogout: handleSdkLogout,
+    onRefresh: (newTok: string) => { setToken(newTok); },
+  });
 
   useEffect((): () => void => {
     const controller = new AbortController();
@@ -170,8 +140,6 @@ function RiderAuthInner({ children }: { children: ReactNode }) {
           t
         );
         setUser(u);
-        refreshFailCountRef.current = 0;
-        scheduleProactiveRefresh(t);
       } catch (err: unknown) {
         if (err instanceof Error && err.name === "AbortError") return;
         const errAny = err as Record<string, unknown>;
@@ -188,8 +156,8 @@ function RiderAuthInner({ children }: { children: ReactNode }) {
         setLoading(false);
       }
     })();
-    return () => { controller.abort(); clearRefreshTimer(); };
-  }, [scheduleProactiveRefresh, clearRefreshTimer, sharedAuth]);
+    return () => { controller.abort(); };
+  }, [sharedAuth]);
 
   useEffect(() => {
     const clearAuth = () => { setToken(null); setUser(null); sharedAuth.logout(); };
@@ -217,12 +185,9 @@ function RiderAuthInner({ children }: { children: ReactNode }) {
     );
     setToken(t);
     setUser(u);
-    refreshFailCountRef.current = 0;
-    scheduleProactiveRefresh(t);
   };
 
   const logout = () => {
-    clearRefreshTimer();
     executeLogoutSequence(api, () => {
       try { sessionStorage.clear(); } catch (e) { log.warn("sessionStorage.clear failed:", e); }
       sharedAuth.logout();
@@ -238,7 +203,6 @@ function RiderAuthInner({ children }: { children: ReactNode }) {
       try {
         const u = await api.getMe();
         setUser(u);
-        refreshFailCountRef.current = 0;
       } catch (err) { console.warn('[artifacts/rider-app/src/lib/rider-auth.tsx]', err); } // eslint-disable-line no-console
       finally {
         refreshUserInflightRef.current = null;

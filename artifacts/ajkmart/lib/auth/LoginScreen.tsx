@@ -87,8 +87,9 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
         });
         stepUpPassed = result.success;
       } catch {
-        /* authenticateAsync not available — treat as passed so login isn't bricked */
-        stepUpPassed = true;
+        /* authenticateAsync threw an unexpected error — keep stepUpPassed as false
+           so the login is blocked rather than silently bypassed. The user can try
+           again or return to the password login flow. */
       }
       if (!stepUpPassed) {
         /* Step-up failed or cancelled — BLOCK login entirely.

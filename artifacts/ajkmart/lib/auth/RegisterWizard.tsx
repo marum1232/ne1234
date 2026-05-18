@@ -26,6 +26,8 @@ import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, Platform,
 } from "react-native";
 
+import { isValidPhone } from "@workspace/phone-utils";
+
 const DRAFT_KEY = "@ajkmart_reg_draft";
 
 const PAKISTAN_CITIES = [
@@ -36,10 +38,9 @@ const PAKISTAN_CITIES = [
   "Mansehra", "Gilgit", "Skardu",
 ];
 
-/* ── Validate Pakistani phone: 03XXXXXXXXX ── */
+/* ── Validate Pakistani phone — delegates to shared phone-utils (single source of truth) ── */
 function isValidPakistaniPhone(phone: string): boolean {
-  const digits = phone.replace(/\D/g, "");
-  return digits.length === 11 && digits.startsWith("03");
+  return isValidPhone(phone);
 }
 
 /* ── Step 1: Phone ───────────────────────────────────────────────────────── */
@@ -332,7 +333,18 @@ export function RegisterWizard({ onDone }: RegisterWizardProps) {
   const handleDataChange = useCallback((key: string, value: unknown) => {
     setDraft(prev => {
       const next = { ...prev, [key]: value };
-      const { password: _pw, confirmPassword: _cpw, otp: _otp, ...safe } = next as Record<string, unknown>;
+      /* Exclude sensitive / PII fields from the persisted draft.
+         password / confirmPassword — plain-text credential risk.
+         otp — one-time codes should never be persisted.
+         phone / name — PII that the user will always re-enter. */
+      const {
+        password: _pw,
+        confirmPassword: _cpw,
+        otp: _otp,
+        phone: _phone,
+        name: _name,
+        ...safe
+      } = next as Record<string, unknown>;
       AsyncStorage.setItem(DRAFT_KEY, JSON.stringify(safe)).catch(() => {});
       return next;
     });

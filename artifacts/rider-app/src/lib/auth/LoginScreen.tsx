@@ -17,6 +17,7 @@ import { useRiderAuthConfig } from "../AuthConfigContext";
 import { useLanguage } from "../useLanguage";
 import { tDual, type TranslationKey } from "@workspace/i18n";
 import { loadGoogleGSIToken, loadFacebookAccessToken } from "@workspace/auth-utils";
+import { normalizeRoles } from "../rider-auth";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useLocation } from "wouter";
 
@@ -95,10 +96,23 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
     }
     try {
       const profile = await api.getMe() as AuthUser;
+      /* Role guard — login() also enforces this, but catching here lets us
+         surface a meaningful error instead of silently navigating. */
+      const roles = normalizeRoles(profile);
+      if (roles.length > 0 && !roles.includes("rider")) {
+        api.clearTokens();
+        setLoginError(T("accessDenied") as string || "Access denied. This app is for riders only.");
+        setOverlay(null);
+        return;
+      }
       login(capturedTokenRef.current, profile, api.getRefreshToken?.() ?? undefined);
-    } catch { /* profile fetch failed, just navigate */ }
-    setOverlay(null);
-    navigate("/");
+      setOverlay(null);
+      navigate("/");
+    } catch (err: unknown) {
+      api.clearTokens();
+      setLoginError(err instanceof Error ? err.message : T("loginFailed"));
+      setOverlay(null);
+    }
   };
 
   const handleGoogle = useCallback(async () => {

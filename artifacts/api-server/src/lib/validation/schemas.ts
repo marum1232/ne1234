@@ -7,6 +7,7 @@
  */
 
 import { z } from "zod";
+import { CNIC_REGEX } from "@workspace/phone-utils";
 
 /* ── Phone number ──────────────────────────────────────────────────── */
 export const PhoneSchema = z
@@ -37,7 +38,7 @@ export const UserRegistrationSchema = z
       .optional(),
     cnic: z
       .string()
-      .regex(/^\d{5}-\d{7}-\d{1}$/, "CNIC format must be XXXXX-XXXXXXX-X")
+      .regex(CNIC_REGEX, "CNIC format must be XXXXX-XXXXXXX-X")
       .optional()
       .or(z.literal("")),
     nationalId: z.string().optional(),

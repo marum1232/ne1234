@@ -98,18 +98,26 @@ function localRemove(): void {
   /* Same as localSet — do not touch localStorage; boot-time migration already ran. */
 }
 
+/* ── Rider token storage — Preferences-backed with in-memory cache ───────────
+   Exported so rider-auth.tsx can pass it to useTokenRefresh (SDK hook) without
+   duplicating the Preferences integration. */
+export const riderTokenStorage = {
+  getAccessToken:    sessionGet,
+  setAccessToken:    sessionSet,
+  removeAccessToken: sessionRemove,
+  getRefreshToken:   localGet,
+  setRefreshToken:   localSet,
+  removeRefreshToken: localRemove,
+  clear: () => { sessionRemove(); localRemove(); },
+};
+
+/** Returns the shared rider token storage instance for use in SDK hooks. */
+export function getRiderTokenStorage() { return riderTokenStorage; }
+
 /* ── Shared SDK auth client (typed HTTP client from @workspace/auth-react) ── */
 export const authClient = createAuthClient({
   baseURL: BASE,
-  tokenStorage: {
-    getAccessToken:    sessionGet,
-    setAccessToken:    sessionSet,
-    removeAccessToken: sessionRemove,
-    getRefreshToken:   localGet,
-    setRefreshToken:   localSet,
-    removeRefreshToken: localRemove,
-    clear: () => { sessionRemove(); localRemove(); },
-  },
+  tokenStorage: riderTokenStorage,
 });
 
 /* Read the access token from Preferences-backed in-memory cache. */

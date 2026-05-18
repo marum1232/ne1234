@@ -29,8 +29,7 @@ export const RIDER_REFRESH_COOKIE_PATH = "/api/auth";
 export const VENDOR_REFRESH_COOKIE      = "ajkmart_vendor_refresh";
 export const VENDOR_REFRESH_COOKIE_PATH = "/api/auth";
 
-export const CNIC_REGEX  = /^\d{5}-\d{7}-\d{1}$/;
-export const PHONE_REGEX = /^0?3\d{9}$/;
+export { CNIC_REGEX, PHONE_REGEX } from "@workspace/phone-utils";
 
 export function hashOtp(otp: string): string {
   return createHash("sha256").update(otp).digest("hex");

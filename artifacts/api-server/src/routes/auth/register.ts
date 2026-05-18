@@ -47,6 +47,14 @@ import {
 
 const router: IRouter = Router();
 
+/**
+ * Normalise a username input: lowercase, strip invalid chars, trim, max 20 chars.
+ * Single source of truth — used in /register, /vendor-register, /complete-profile.
+ */
+function normalizeUsername(raw: string): string {
+  return String(raw).toLowerCase().replace(/[^a-z0-9_]/g, "").trim().slice(0, 20);
+}
+
 router.post("/vendor-register", loginLimiter, sharedValidateBody(VendorRegisterSchema), async (req, res) => {
   try {
   const auth = extractAuthUser(req);
@@ -67,7 +75,7 @@ router.post("/vendor-register", loginLimiter, sharedValidateBody(VendorRegisterS
   }
 
   if (username) {
-    const normalizedUsername = String(username).toLowerCase().replace(/[^a-z0-9_]/g, "").slice(0, 20);
+    const normalizedUsername = normalizeUsername(username);
     if (normalizedUsername.length < 3) {
       sendError(res, "Username must be at least 3 characters", 400);
       return;
@@ -121,29 +129,33 @@ router.post("/vendor-register", loginLimiter, sharedValidateBody(VendorRegisterS
   const settings = await getCachedSettings();
   const autoApprove = (settings["vendor_auto_approve"] ?? "off") === "on";
 
-  await db.update(usersTable).set({
-    roles: newRoles.join(","),
-    name: name || user.name,
-    username: username ? String(username).toLowerCase().replace(/[^a-z0-9_]/g, "").slice(0, 20) : user.username || null,
-    cnic: cnic || user.cnic || null,
-    address: address || user.address || null,
-    city: city || user.city || null,
-    bankName: bankName || user.bankName || null,
-    bankAccount: bankAccount || user.bankAccount || null,
-    bankAccountTitle: bankAccountTitle || user.bankAccountTitle || null,
-    approvalStatus: autoApprove ? "approved" : "pending",
-    isActive: autoApprove ? true : false,
-    ...(acceptedTermsVersion ? { acceptedTermsVersion: String(acceptedTermsVersion) } : {}),
-    updatedAt: new Date(),
-  }).where(eq(usersTable.id, user.id));
+  /* Wrap the core user update + vendor profile upsert in an atomic transaction
+     so a profile-insert failure cannot leave a user with an inconsistent role. */
+  await db.transaction(async (tx) => {
+    await tx.update(usersTable).set({
+      roles: newRoles.join(","),
+      name: name || user.name,
+      username: username ? normalizeUsername(username) : user.username || null,
+      cnic: cnic || user.cnic || null,
+      address: address || user.address || null,
+      city: city || user.city || null,
+      bankName: bankName || user.bankName || null,
+      bankAccount: bankAccount || user.bankAccount || null,
+      bankAccountTitle: bankAccountTitle || user.bankAccountTitle || null,
+      approvalStatus: autoApprove ? "approved" : "pending",
+      isActive: autoApprove ? true : false,
+      ...(acceptedTermsVersion ? { acceptedTermsVersion: String(acceptedTermsVersion) } : {}),
+      updatedAt: new Date(),
+    }).where(eq(usersTable.id, user.id));
 
-  await db.insert(vendorProfilesTable).values({
-    userId: user.id,
-    storeName,
-    storeCategory: storeCategory || null,
-  }).onConflictDoUpdate({
-    target: vendorProfilesTable.userId,
-    set: { storeName, storeCategory: storeCategory || null },
+    await tx.insert(vendorProfilesTable).values({
+      userId: user.id,
+      storeName,
+      storeCategory: storeCategory || null,
+    }).onConflictDoUpdate({
+      target: vendorProfilesTable.userId,
+      set: { storeName, storeCategory: storeCategory || null },
+    });
   });
 
   if (acceptedTermsVersion) {
@@ -219,9 +231,11 @@ router.post("/vendor-register", loginLimiter, sharedValidateBody(VendorRegisterS
 
 router.post("/complete-profile", loginLimiter, sharedValidateBody(CompleteProfileSchema), async (req, res) => {
   try {
-  /* Accept token from body OR Authorization: Bearer header */
+  /* Token accepted exclusively from the Authorization: Bearer header.
+     Body-token fallback was removed — tokens in request bodies can be
+     logged, cached by proxies, and captured in browser history. */
   const authHeader = req.headers["authorization"] as string | undefined;
-  const rawToken = req.body?.token || (authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null);
+  const rawToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
   const { name, email, username, password, currentPassword, cnic, address, city, area, latitude, longitude, acceptedTermsVersion } = req.body;
   if (!rawToken) { sendUnauthorized(res, "Token required"); return; }
 
@@ -256,7 +270,7 @@ router.post("/complete-profile", loginLimiter, sharedValidateBody(CompleteProfil
   }
 
   if (username && username.length > 2) {
-    const clean = username.toLowerCase().replace(/[^a-z0-9_]/g, "").trim();
+    const clean = normalizeUsername(username);
     if (clean.length < 3) { sendError(res, "Username must be at least 3 characters (letters, numbers, underscore only)", 400); return; }
     if (clean !== user.username) {
       const [existing] = await db.select({ id: usersTable.id }).from(usersTable).where(sql`lower(${usersTable.username}) = ${clean}`).limit(1);
@@ -600,57 +614,66 @@ router.post("/register", verifyCaptcha, sharedValidateBody(registerSchema), asyn
     if (attempt === 9) throw new Error("Failed to generate unique AJK ID after 10 attempts");
   }
 
+  /* OTP verification is handled atomically by the server: the OTP is validated
+     when the client later calls /auth/verify-otp or /auth/login (which checks
+     the stored otpCode). A separate verify-otp call before /register would
+     double-consume the OTP and cause registration to fail with "OTP already used". */
+
+  /* Wrap the user insert and role-specific profile insert in an atomic transaction
+     so a profile-insert failure cannot leave a user row without a matching profile. */
   const emailForInsert = email ? email.toLowerCase().trim() : null;
-  await db.insert(usersTable).values({
-    id: userId,
-    phone: normalizedPhone || null,
-    encryptedPhone: normalizedPhone ? tryEncrypt(normalizedPhone) : null,
-    name: name?.trim() || null,
-    email: emailForInsert,
-    encryptedEmail: tryEncrypt(emailForInsert),
-    username: cleanUsername,
+  await db.transaction(async (tx) => {
+    await tx.insert(usersTable).values({
+      id: userId,
+      phone: normalizedPhone || null,
+      encryptedPhone: normalizedPhone ? tryEncrypt(normalizedPhone) : null,
+      name: name?.trim() || null,
+      email: emailForInsert,
+      encryptedEmail: tryEncrypt(emailForInsert),
+      username: cleanUsername,
 
-    roles: userRole,
-    passwordHash: hashPassword(password),
-    otpCode: hashOtp(otp),
-    otpExpiry,
-    otpUsed: false,
-    /* Mark phone as verified immediately when OTP is globally bypassed OR when
-       both phone+email OTP are disabled for this role (config-driven skip). */
-    phoneVerified: otpBypassed || otpMethodsDisabled,
-    walletBalance: "0",
-    isActive: !needsApproval,
-    approvalStatus: needsApproval ? "pending" : "approved",
-    ajkId,
-    cnic: cnicValue || null,
-    nationalId: cnicValue || null,
-    address: address || null,
-    city: city || null,
-    emergencyContact: emergencyContact || null,
+      roles: userRole,
+      passwordHash: hashPassword(password),
+      otpCode: hashOtp(otp),
+      otpExpiry,
+      otpUsed: false,
+      /* Mark phone as verified immediately when OTP is globally bypassed OR when
+         both phone+email OTP are disabled for this role (config-driven skip). */
+      phoneVerified: otpBypassed || otpMethodsDisabled,
+      walletBalance: "0",
+      isActive: !needsApproval,
+      approvalStatus: needsApproval ? "pending" : "approved",
+      ajkId,
+      cnic: cnicValue || null,
+      nationalId: cnicValue || null,
+      address: address || null,
+      city: city || null,
+      emergencyContact: emergencyContact || null,
+    });
+
+    if (userRole === "rider") {
+      await tx.insert(riderProfilesTable).values({
+        userId,
+        vehicleType: vehicleType ? normalizeVehicleTypeForStorage(vehicleType) : null,
+        vehicleRegNo: vehicleRegNo || null,
+        vehiclePlate: vehiclePlate || vehicleRegNo || null,
+        drivingLicense: drivingLicense || null,
+        vehiclePhoto: vehiclePhoto || null,
+        documents: documents || null,
+      });
+    }
+
+    if (userRole === "vendor") {
+      await tx.insert(vendorProfilesTable).values({
+        userId,
+        businessName: businessName || storeName || null,
+        storeName: storeName || businessName || null,
+        businessType: businessType || null,
+        storeAddress: storeAddress || null,
+        ntn: ntn || null,
+      });
+    }
   });
-
-  if (userRole === "rider") {
-    await db.insert(riderProfilesTable).values({
-      userId,
-      vehicleType: vehicleType ? normalizeVehicleTypeForStorage(vehicleType) : null,
-      vehicleRegNo: vehicleRegNo || null,
-      vehiclePlate: vehiclePlate || vehicleRegNo || null,
-      drivingLicense: drivingLicense || null,
-      vehiclePhoto: vehiclePhoto || null,
-      documents: documents || null,
-    });
-  }
-
-  if (userRole === "vendor") {
-    await db.insert(vendorProfilesTable).values({
-      userId,
-      businessName: businessName || storeName || null,
-      storeName: storeName || businessName || null,
-      businessType: businessType || null,
-      storeAddress: storeAddress || null,
-      ntn: ntn || null,
-    });
-  }
 
   writeAuthAuditLog("register", { ip, userAgent: req.headers["user-agent"] ?? undefined, metadata: { phone: normalizedPhone, role: userRole } });
   fireAndForget(

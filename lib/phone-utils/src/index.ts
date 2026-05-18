@@ -44,3 +44,24 @@ export function formatPhoneForApi(localDigits: string): string {
 export function isValidPhone(phone: string): boolean {
   return /^3\d{9}$/.test(canonicalizePhone(phone));
 }
+
+/**
+ * Regex for Pakistani mobile numbers.
+ * Accepts `03XXXXXXXXX` (with leading zero) or `3XXXXXXXXX` (bare 10-digit).
+ * Single source of truth — import this everywhere instead of re-defining inline.
+ */
+export const PHONE_REGEX = /^0?3\d{9}$/;
+
+/**
+ * Regex for Pakistani CNIC numbers in the formatted display form: XXXXX-XXXXXXX-X
+ * Single source of truth — import this everywhere instead of re-defining inline.
+ */
+export const CNIC_REGEX = /^\d{5}-\d{7}-\d{1}$/;
+
+/**
+ * Returns true iff the input is a valid Pakistani CNIC in the formatted
+ * display form: `XXXXX-XXXXXXX-X` (13 digits separated by two hyphens).
+ */
+export function isValidCnic(cnic: string): boolean {
+  return CNIC_REGEX.test(cnic.trim());
+}

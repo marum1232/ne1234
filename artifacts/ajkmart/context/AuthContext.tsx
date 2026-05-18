@@ -276,6 +276,16 @@ function CustomerAuthInner({ children }: { children: React.ReactNode }) {
         if (!res.ok) {
           refreshFailCountRef.current = (refreshFailCountRef.current ?? 0) + 1;
           if (refreshFailCountRef.current > REFRESH_FAIL_CAP) {
+            /* Step 18 — avoid premature logout when the current access token is
+               still valid. A failing refresh endpoint may be a transient
+               server/network issue. Only force logout when the token is expired. */
+            const currentTok = tokenRef.current;
+            const exp = currentTok ? decodeJwtExp(currentTok) : null;
+            if (exp !== null && exp * 1000 > Date.now()) {
+              refreshFailCountRef.current = 0;
+              scheduleProactiveRefresh(currentTok!, 5 * 60_000);
+              return;
+            }
             await doLogoutRef.current();
             return;
           }
@@ -287,6 +297,14 @@ function CustomerAuthInner({ children }: { children: React.ReactNode }) {
         if (!data.token) {
           refreshFailCountRef.current = (refreshFailCountRef.current ?? 0) + 1;
           if (refreshFailCountRef.current > REFRESH_FAIL_CAP) {
+            /* Same guard as above — respect token validity before forcing logout */
+            const currentTok = tokenRef.current;
+            const exp = currentTok ? decodeJwtExp(currentTok) : null;
+            if (exp !== null && exp * 1000 > Date.now()) {
+              refreshFailCountRef.current = 0;
+              scheduleProactiveRefresh(currentTok!, 5 * 60_000);
+              return;
+            }
             await doLogoutRef.current();
             return;
           }
@@ -310,6 +328,22 @@ function CustomerAuthInner({ children }: { children: React.ReactNode }) {
         await secureSet(TOKEN_KEY, data.token);
         /* Sync refreshed token to the shared SDK primary auth state */
         syncedStorage.setAccessToken(data.token);
+        /* Step 17 — also call sdkCtx.login() so that SDK hooks (useAuth, useSessionManager)
+           see the new token without requiring a full re-login or page reload. */
+        try {
+          const currentUser = userRef.current;
+          if (currentUser) {
+            const sdkUser: BaseAuthUser = {
+              id: currentUser.id,
+              role: "customer",
+              phone: currentUser.phone,
+              email: currentUser.email,
+            };
+            sdkCtx.login(sdkUser, data.token);
+          }
+        } catch (loginErr) {
+          log.warn("[AuthContext] sdkCtx.login after refresh non-fatal:", loginErr);
+        }
         if (data.refreshToken) {
           await secureSet(REFRESH_TOKEN_KEY, data.refreshToken);
           setRefreshTokenGetter(() => data.refreshToken!);
@@ -319,6 +353,15 @@ function CustomerAuthInner({ children }: { children: React.ReactNode }) {
       } catch (error) {
         refreshFailCountRef.current = (refreshFailCountRef.current ?? 0) + 1;
         if (refreshFailCountRef.current > REFRESH_FAIL_CAP) {
+          /* Same guard — catch-path failures may be network timeouts, not
+             auth failures. Check the current token before evicting the user. */
+          const currentTok = tokenRef.current;
+          const exp = currentTok ? decodeJwtExp(currentTok) : null;
+          if (exp !== null && exp * 1000 > Date.now()) {
+            refreshFailCountRef.current = 0;
+            scheduleProactiveRefresh(currentTok!, 5 * 60_000);
+            return;
+          }
           await doLogoutRef.current();
           return;
         }

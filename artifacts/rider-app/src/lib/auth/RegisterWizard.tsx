@@ -24,18 +24,14 @@ import { tDual, type TranslationKey } from "@workspace/i18n";
 import { executeCaptcha } from "@workspace/auth-utils";
 import { useAuth as useAuthContext } from "../rider-auth";
 import { Lock, Phone, ArrowLeft, Clock, Shield, Eye, EyeOff } from "lucide-react";
+import { isValidPhone, isValidCnic } from "@workspace/phone-utils";
 
 const DRAFT_KEY = "rider_reg_draft";
 
 /* ── Validate Pakistani phone: 03XXXXXXXXX (11 digits, starts with 03) ── */
 function isValidPakistaniPhone(phone: string): boolean {
-  const digits = phone.replace(/\D/g, "");
-  return digits.length === 11 && digits.startsWith("03");
-}
-
-/* ── Validate CNIC: XXXXX-XXXXXXX-X (13 digits) ── */
-function isValidCnic(cnic: string): boolean {
-  return /^\d{5}-\d{7}-\d$/.test(cnic.trim());
+  /* Delegates to the shared phone-utils validator — single source of truth. */
+  return isValidPhone(phone);
 }
 
 /* ── Step 1: Phone + Personal Info ──────────────────────────────────────────── */
