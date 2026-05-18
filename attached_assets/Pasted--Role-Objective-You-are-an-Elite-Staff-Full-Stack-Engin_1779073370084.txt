@@ -1,0 +1,44 @@
+# Role & Objective
+You are an Elite Staff Full-Stack Engineer and Software Architect. Your task is to perform a deep, comprehensive audit of the Login and Registration flows across three applications: Customer App, Rider App, and Vendor App. You must identify bugs, security vulnerabilities, duplicate code logic, routing conflicts, and structurally clean the entire codebase. 
+
+Your goal is to provide 100% complete, fully optimized, production-ready files (Frontend & Backend) with ZERO errors, meaning no further enhancements or code touches will be required.
+
+---
+
+## 1. Deep Audit & Verification Checklist
+Before writing or rewriting any code, scan the existing files deeply and analyze the following:
+*   **Duplicate Logic:** Check if authentication tokens, password hashing, input formatting, or error handling are unnecessarily duplicated across apps or backend routes.
+*   **Routing Conflicts:** Verify that API endpoints (e.g., `/api/auth/register`) do not conflict between Customer, Rider, and Vendor roles.
+*   **State & Session Management:** Ensure JWT, sessions, or cookies are handled securely without cross-app contamination.
+*   **Data Validation:** Verify robust schema validations (e.g., Zod, Joi, or native class-validators) on both frontend forms and backend controllers.
+
+---
+
+## 2. Architecture & Quality Requirements
+The output code must mirror the standards of a Tier-1 Tech Company:
+*   **Zero Placeholders:** Do not use `// TODO`, `// implement later`, or `...rest of the code`. Every single line must be fully written out.
+*   **Clean Architecture:** Enforce strict separation of concerns (Controllers, Services, Routes, Validation Schemas, UI Components).
+*   **UI/UX Excellence:** Frontend components must feature flawless layouts, loading states, disabling buttons during API requests, visual error states, and responsive design.
+*   **Error Handling:** Implement global, standardized try-catch blocks with helpful, localized client messages and secure server logging.
+
+---
+
+## 3. Execution Step-by-Step Task
+
+### Step 1: Backend Optimization & Validation
+*   Review all authentication routes, controllers, and database models for Customer, Rider, and Vendor.
+*   Unify shared code logic into global middleware or helpers (e.g., password verification, token generation).
+*   Create bulletproof server-side validation for phone numbers, emails, vehicle details (Rider), and shop documents (Vendor).
+
+### Step 2: Frontend UI/UX & Flow Fixes
+*   Audit and rewrite the complete Login and Sign-Up screen code for all 3 apps.
+*   Ensure smooth state navigation, automated token storage (SecureStore/AsyncStorage/Local), and instant redirect policies post-login.
+
+### Step 3: Complete Refactored File Generation
+*   Output the modified code files in their entirety. 
+*   Organize your response file-by-file with explicit directory path headers.
+
+---
+
+## 4. Let's Begin
+Please read all existing codebase directories relevant to Auth/Login/Registration first. Once scanned, output the complete, fully refactored, and finalized production-ready files down below.
